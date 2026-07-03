@@ -2,6 +2,15 @@
 -- Regla: solo usuarios autenticados acceden a los datos. El rol anon no accede a nada.
 -- Ver docs/adr para la decisión de diseño de acceso.
 
+alter table categories enable row level security;
+alter table transactions enable row level security;
+alter table assets enable row level security;
+alter table contributions enable row level security;
+alter table asset_valuations enable row level security;
+alter table debts enable row level security;
+alter table debt_payments enable row level security;
+alter table settings enable row level security;
+
 -- categories
 create policy "authenticated full access" on categories
   for all to authenticated using (true) with check (true);
