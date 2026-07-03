@@ -1,0 +1,25 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno y secretos (NUNCA subir)
+.env
+.env.local
+.env*.local
+
+# Build
+dist/
+dist-ssr/
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+
+# Datos locales / sensibles
+*.sqlite
