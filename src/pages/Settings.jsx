@@ -1,4 +1,5 @@
 import { useAuth } from '../hooks/useAuth.jsx'
+import CategoriesSection from '../components/CategoriesSection.jsx'
 
 function Settings() {
   const { user, signOut } = useAuth()
@@ -6,6 +7,8 @@ function Settings() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Ajustes</h1>
+
+      <CategoriesSection />
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
         <div className="px-4 py-3.5 text-sm text-gray-500">{user?.email}</div>
