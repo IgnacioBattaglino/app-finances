@@ -1,6 +1,6 @@
--- 0007: settings con PK por usuario + user_id automático en los inserts.
--- IMPORTANTE: ejecutar ANTES que la 0006 (el trigger de sembrado inserta en settings
--- y necesita el esquema nuevo; con el id viejo, el segundo usuario rompería la PK).
+-- 0006: settings con PK por usuario + user_id automático en los inserts.
+-- Debe correr antes que el trigger de sembrado (0007), que inserta en settings
+-- y necesita este esquema (con el id viejo, el segundo usuario rompería la PK).
 
 -- 1. settings: la PK pasa a ser user_id y desaparece la columna id.
 -- Ya existía unique(user_id); esto formaliza que settings es una fila por usuario.
