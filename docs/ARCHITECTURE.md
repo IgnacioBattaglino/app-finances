@@ -15,6 +15,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 2. Nada se borra si tiene historia: categorías y activos se archivan (is_archived), no se eliminan, para no romper datos históricos.
 3. Las cotizaciones del momento se congelan en el evento: cada aporte guarda el MEP de su fecha. Las métricas históricas no dependen de reconstruir cotizaciones pasadas.
 4. Moneda: transactions en ARS (vida diaria); contributions, valuations y deudas en USD (patrimonio).
+5. Multiusuario: las tablas raíz (categories, transactions, assets, debts, settings) llevan user_id → auth.users; las tablas hijas (contributions, asset_valuations, debt_payments) heredan el dueño vía su FK. El aislamiento lo garantiza RLS (user_id = auth.uid()).
 
 ## Tablas
 
@@ -22,6 +23,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | uuid PK | default gen_random_uuid() |
+| user_id | uuid FK → auth.users | NOT NULL; dueño de la fila |
 | name | text NOT NULL | ej: "Comida", "Cafetería" |
 | kind | text NOT NULL | 'expense' o 'income' (CHECK) |
 | is_archived | boolean NOT NULL default false | |
@@ -31,6 +33,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | uuid PK | |
+| user_id | uuid FK → auth.users | NOT NULL; dueño de la fila |
 | date | date NOT NULL | |
 | kind | text NOT NULL | 'expense' o 'income' (CHECK) |
 | category_id | uuid FK → categories | NOT NULL |
@@ -42,6 +45,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | uuid PK | |
+| user_id | uuid FK → auth.users | NOT NULL; dueño de la fila |
 | name | text NOT NULL | ej: "Bitcoin", "Colchón USD" |
 | type | text NOT NULL | 'crypto', 'cedear', 'bond', 'fund', 'cash' (CHECK) |
 | coingecko_id | text | solo cripto, ej: "bitcoin"; habilita precio automático |
@@ -77,6 +81,7 @@ Los activos con coingecko_id no requieren valuación manual: su valor = SUM(quan
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | uuid PK | |
+| user_id | uuid FK → auth.users | NOT NULL; dueño de la fila |
 | creditor | text NOT NULL | ej: "Papá" |
 | original_amount_usd | numeric(14,2) NOT NULL | |
 | start_date | date NOT NULL | |
@@ -94,10 +99,11 @@ Los activos con coingecko_id no requieren valuación manual: su valor = SUM(quan
 Saldo de una deuda = original_amount_usd − SUM(payments). Calculado, nunca almacenado.
 
 ### settings
-Una sola fila (la app la crea al inicializar).
+Una fila por usuario (la app la crea al inicializar).
 | Campo | Tipo | Notas |
 |---|---|---|
-| id | int PK | siempre 1 (CHECK id = 1) |
+| id | int PK | |
+| user_id | uuid FK → auth.users | NOT NULL, UNIQUE (una fila por usuario) |
 | desired_monthly_income_usd | numeric(10,2) | default 1500 |
 | safe_withdrawal_rate | numeric(5,4) | default 0.04 |
 | expected_annual_return | numeric(5,4) | default 0.08 |
@@ -124,7 +130,7 @@ Justificación de target_allocation como JSONB y no tabla: son 5 valores que se 
 
 - Credenciales de Supabase en .env (nunca en el repo).
 - Datos reales solo en Supabase. El repo no contiene datos financieros.
-- v1 es single-user: la app usa la anon key de Supabase con Row Level Security habilitado y una política simple. El endurecimiento (auth real) llega con el modo demo de fase 2.
+- Multiusuario con Supabase Auth (email + contraseña, sin registro público). RLS habilitado en todas las tablas con políticas de aislamiento por usuario: cada uno accede solo a sus filas (user_id = auth.uid()); las hijas heredan el dueño vía su tabla raíz (migración 0005).
 
 ## Decisiones registradas (ADRs en docs/adr/)
 

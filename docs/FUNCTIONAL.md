@@ -74,7 +74,6 @@ App de finanzas personales para un inversor amateur que arranca. Objetivo del us
 - Atajo de iPhone que registra gastos pegándole a la misma operación que usa la app.
 - Snapshot mensual automático programado (v1: lo dispara el usuario).
 - Modo demo con datos ficticios para visitantes del portfolio (deploy público sin exponer datos reales).
-- Multiusuario. La app es de un solo usuario.
 
 ## Privacidad (regla de proyecto)
 

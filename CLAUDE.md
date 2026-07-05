@@ -1,6 +1,6 @@
 # app-finances
 
-PWA de finanzas personales con enfoque FIRE (Financial Independence, Retire Early). Herramienta de uso real y pieza de portfolio. Un solo usuario (yo), sin multiusuario por ahora.
+PWA de finanzas personales con enfoque FIRE (Financial Independence, Retire Early). Herramienta de uso real y pieza de portfolio. Multiusuario: cada usuario ve solo sus propios datos (aislados por RLS).
 
 ## Stack
 - React + Vite
