@@ -1,1 +1,54 @@
 @import "tailwindcss";
+
+@theme {
+  --color-paper: #f3f5f1;
+  --color-card: #ffffff;
+  --color-ink: #1b231d;
+  --color-ink-soft: #66716a;
+  --color-line: #e2e6e1;
+  --color-mist: #eceeea;
+  --color-pine: #1e6b4c;
+  --color-pine-deep: #14503a;
+  --color-clay: #b5472e;
+
+  /* Los montos de dinero siempre en mono tabular (herencia de la planilla) */
+  --font-money: ui-monospace, "SF Mono", "Menlo", "Cascadia Mono", monospace;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.45s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise {
+    animation: none;
+  }
+}

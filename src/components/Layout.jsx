@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import RingsMark from './RingsMark.jsx'
 
 const tabs = [
   {
@@ -49,14 +50,61 @@ const tabs = [
   },
 ]
 
+function TabIcon({ children, className }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  )
+}
+
 function Layout() {
   return (
-    <div className="min-h-dvh bg-gray-50 text-gray-900">
-      <main className="mx-auto max-w-lg px-4 pt-6 pb-24">
-        <Outlet />
+    <div className="min-h-dvh bg-paper text-ink md:flex">
+      {/* Rail lateral (desktop) */}
+      <nav className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line px-4 py-8 md:flex">
+        <div className="mb-9 flex items-center gap-2.5 px-3">
+          <RingsMark className="h-7 w-7 text-pine" />
+          <span className="font-money text-lg tracking-tight">finanzas</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          {tabs.map(({ to, label, icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] transition ${
+                  isActive
+                    ? 'bg-mist font-semibold text-pine'
+                    : 'text-ink-soft hover:bg-mist/60 hover:text-ink'
+                }`
+              }
+            >
+              <TabIcon className="h-5 w-5">{icon}</TabIcon>
+              {label}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
+
+      <main className="w-full flex-1">
+        <div className="mx-auto max-w-lg px-4 pt-6 pb-28 md:max-w-xl md:px-8 md:pt-12 md:pb-16">
+          <Outlet />
+        </div>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 border-t border-gray-200 bg-white/90 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+      {/* Tab bar inferior (celular) */}
+      <nav className="fixed inset-x-0 bottom-0 border-t border-line bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <div className="mx-auto flex max-w-lg">
           {tabs.map(({ to, label, icon }) => (
             <NavLink
@@ -64,22 +112,12 @@ function Layout() {
               to={to}
               end={to === '/'}
               className={({ isActive }) =>
-                `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
-                  isActive ? 'text-blue-600' : 'text-gray-400'
+                `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition ${
+                  isActive ? 'text-pine' : 'text-ink-soft'
                 }`
               }
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-6 w-6"
-              >
-                {icon}
-              </svg>
+              <TabIcon className="h-6 w-6">{icon}</TabIcon>
               {label}
             </NavLink>
           ))}

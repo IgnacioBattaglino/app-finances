@@ -1,5 +1,12 @@
+import PageHeader from '../components/PageHeader.jsx'
+
 function Debts() {
-  return <h1 className="text-2xl font-bold">Deudas</h1>
+  return (
+    <PageHeader
+      title="Deudas"
+      description="Saldos y pagos, separados de tus gastos."
+    />
+  )
 }
 
 export default Debts

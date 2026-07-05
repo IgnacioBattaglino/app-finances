@@ -1,5 +1,12 @@
+import PageHeader from '../components/PageHeader.jsx'
+
 function Portfolio() {
-  return <h1 className="text-2xl font-bold">Portafolio</h1>
+  return (
+    <PageHeader
+      title="Portafolio"
+      description="Tus activos: aportado, valor actual y ganancia."
+    />
+  )
 }
 
 export default Portfolio

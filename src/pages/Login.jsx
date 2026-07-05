@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
+import RingsMark from '../components/RingsMark.jsx'
 
 function Login() {
   const { user, loading, signIn } = useAuth()
@@ -11,8 +12,8 @@ function Login() {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-400">Cargando…</p>
+      <div className="flex min-h-dvh items-center justify-center bg-paper">
+        <RingsMark className="h-8 w-8 animate-pulse text-pine" />
       </div>
     )
   }
@@ -37,13 +38,16 @@ function Login() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col justify-center bg-gray-50 px-6">
-      <div className="mx-auto w-full max-w-sm">
-        <h1 className="mb-1 text-center text-3xl font-bold text-gray-900">Finanzas</h1>
-        <p className="mb-8 text-center text-sm text-gray-400">Ingresá para continuar</p>
+    <div className="flex min-h-dvh flex-col justify-center bg-paper px-6">
+      <div className="animate-rise mx-auto w-full max-w-sm">
+        <div className="mb-10 flex flex-col items-center">
+          <RingsMark className="mb-4 h-14 w-14 text-pine" />
+          <h1 className="font-money text-2xl tracking-tight">finanzas</h1>
+          <p className="mt-1.5 text-sm text-ink-soft">Ingresá para continuar</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             <input
               type="email"
               value={email}
@@ -51,7 +55,7 @@ function Login() {
               placeholder="Email"
               autoComplete="email"
               required
-              className="w-full bg-transparent px-4 py-3.5 text-base outline-none placeholder:text-gray-400"
+              className="w-full bg-transparent px-4 py-3.5 text-base outline-none placeholder:text-ink-soft/60"
             />
             <input
               type="password"
@@ -60,16 +64,16 @@ function Login() {
               placeholder="Contraseña"
               autoComplete="current-password"
               required
-              className="w-full bg-transparent px-4 py-3.5 text-base outline-none placeholder:text-gray-400"
+              className="w-full bg-transparent px-4 py-3.5 text-base outline-none placeholder:text-ink-soft/60"
             />
           </div>
 
-          {error && <p className="px-1 text-sm text-red-600">{error}</p>}
+          {error && <p className="px-1 text-sm text-clay">{error}</p>}
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-2xl bg-blue-600 py-3.5 text-base font-semibold text-white transition active:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded-2xl bg-pine py-3.5 text-base font-semibold text-white transition active:bg-pine-deep disabled:opacity-50"
           >
             {submitting ? 'Ingresando…' : 'Ingresar'}
           </button>

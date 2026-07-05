@@ -1,5 +1,12 @@
+import PageHeader from '../components/PageHeader.jsx'
+
 function Goal() {
-  return <h1 className="text-2xl font-bold">Objetivo</h1>
+  return (
+    <PageHeader
+      title="Objetivo"
+      description="Cuánto te falta para la independencia financiera."
+    />
+  )
 }
 
 export default Goal

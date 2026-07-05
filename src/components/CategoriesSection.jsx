@@ -40,7 +40,7 @@ function CategoryRow({ category, onRename, onArchive }) {
 
   if (editing) {
     return (
-      <div className="flex items-center gap-2 px-4 py-2.5">
+      <div className="space-y-2.5 px-4 py-3">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -53,65 +53,76 @@ function CategoryRow({ category, onRename, onArchive }) {
           }}
           autoFocus
           disabled={busy}
-          className="w-full min-w-0 flex-1 rounded-lg bg-gray-100 px-3 py-1.5 text-base outline-none"
+          className="w-full rounded-lg bg-mist px-3 py-1.5 text-base outline-none"
         />
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={busy}
-          className="shrink-0 text-sm font-semibold text-blue-600 disabled:opacity-50"
-        >
-          Guardar
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setName(category.name)
-            setEditing(false)
-          }}
-          disabled={busy}
-          className="shrink-0 text-sm text-gray-400"
-        >
-          Cancelar
-        </button>
+        <div className="flex items-center text-sm">
+          <button
+            type="button"
+            onClick={handleArchive}
+            disabled={busy}
+            className="text-clay disabled:opacity-50"
+          >
+            Archivar
+          </button>
+          <div className="ml-auto flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setName(category.name)
+                setEditing(false)
+              }}
+              disabled={busy}
+              className="text-ink-soft"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={busy}
+              className="font-semibold text-pine disabled:opacity-50"
+            >
+              Guardar
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3">
-      <span className="text-base">{category.name}</span>
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          disabled={busy}
-          className="text-sm text-blue-600 disabled:opacity-50"
-        >
-          Renombrar
-        </button>
-        <button
-          type="button"
-          onClick={handleArchive}
-          disabled={busy}
-          className="text-sm text-gray-400 disabled:opacity-50"
-        >
-          Archivar
-        </button>
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-mist/50"
+    >
+      <span className="text-[15px]">{category.name}</span>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4 text-ink-soft/40"
+        aria-hidden="true"
+      >
+        <path d="M17 3.5 20.5 7 8 19.5 3.5 20.5 4.5 16z" />
+      </svg>
+      <span className="sr-only">Editar {category.name}</span>
+    </button>
   )
 }
 
 function CategoryGroup({ title, categories, onRename, onArchive }) {
   return (
     <div>
-      <h3 className="mb-1.5 px-4 text-xs font-medium uppercase tracking-wide text-gray-400">
+      <h3 className="mb-1.5 px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
         {title}
       </h3>
-      <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl bg-white shadow-sm">
+      <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
         {categories.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-gray-400">Sin categorías</p>
+          <p className="px-4 py-3 text-sm text-ink-soft">Sin categorías</p>
         ) : (
           categories.map((cat) => (
             <CategoryRow
@@ -230,15 +241,13 @@ function CategoriesSection() {
 
   return (
     <section className="space-y-4">
-      <h2 className="px-4 text-lg font-semibold">Categorías</h2>
-
       {error && (
-        <div className="space-y-2 rounded-2xl bg-red-50 px-4 py-3">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
+          <p className="text-sm text-clay">{error}</p>
           <button
             type="button"
             onClick={load}
-            className="text-sm font-semibold text-red-600 underline"
+            className="text-sm font-semibold text-clay underline"
           >
             Reintentar
           </button>
@@ -246,7 +255,7 @@ function CategoriesSection() {
       )}
 
       {loading ? (
-        <p className="px-4 text-sm text-gray-400">Cargando…</p>
+        <p className="px-4 text-sm text-ink-soft">Cargando…</p>
       ) : (
         <>
           <CategoryGroup
@@ -264,14 +273,14 @@ function CategoriesSection() {
 
           <form
             onSubmit={handleCreate}
-            className="space-y-3 rounded-2xl bg-white p-4 shadow-sm"
+            className="space-y-3 rounded-2xl border border-line bg-card p-4"
           >
-            <div className="flex overflow-hidden rounded-xl bg-gray-100 p-0.5 text-sm font-medium">
+            <div className="flex rounded-xl bg-mist p-0.5 text-sm font-medium">
               <button
                 type="button"
                 onClick={() => setNewKind('expense')}
                 className={`flex-1 rounded-[10px] py-1.5 transition ${
-                  newKind === 'expense' ? 'bg-white shadow-sm' : 'text-gray-400'
+                  newKind === 'expense' ? 'bg-card shadow-sm' : 'text-ink-soft'
                 }`}
               >
                 Gasto
@@ -280,7 +289,7 @@ function CategoriesSection() {
                 type="button"
                 onClick={() => setNewKind('income')}
                 className={`flex-1 rounded-[10px] py-1.5 transition ${
-                  newKind === 'income' ? 'bg-white shadow-sm' : 'text-gray-400'
+                  newKind === 'income' ? 'bg-card shadow-sm' : 'text-ink-soft'
                 }`}
               >
                 Ingreso
@@ -291,12 +300,12 @@ function CategoriesSection() {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Nueva categoría"
-                className="w-full min-w-0 flex-1 rounded-xl bg-gray-100 px-3 py-2 text-base outline-none placeholder:text-gray-400"
+                className="w-full min-w-0 flex-1 rounded-xl bg-mist px-3 py-2 text-base outline-none placeholder:text-ink-soft/60"
               />
               <button
                 type="submit"
                 disabled={creating || !newName.trim()}
-                className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                className="shrink-0 rounded-xl bg-pine px-4 py-2 text-sm font-semibold text-white transition active:bg-pine-deep disabled:opacity-40"
               >
                 Agregar
               </button>
@@ -308,27 +317,27 @@ function CategoriesSection() {
               <button
                 type="button"
                 onClick={() => setShowArchived((prev) => !prev)}
-                className="px-4 text-sm text-gray-400"
+                className="px-4 text-sm text-ink-soft"
               >
                 {showArchived ? '▾' : '▸'} Archivadas ({archived.length})
               </button>
               {showArchived && (
-                <div className="mt-1.5 divide-y divide-gray-100 overflow-hidden rounded-2xl bg-white shadow-sm">
+                <div className="mt-1.5 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
                   {archived.map((cat) => (
                     <div
                       key={cat.id}
                       className="flex items-center justify-between px-4 py-3"
                     >
-                      <span className="text-base text-gray-400">
+                      <span className="text-[15px] text-ink-soft">
                         {cat.name}
-                        <span className="ml-2 text-xs uppercase">
+                        <span className="ml-2 text-[10px] uppercase tracking-wide">
                           {cat.kind === 'expense' ? 'gasto' : 'ingreso'}
                         </span>
                       </span>
                       <button
                         type="button"
                         onClick={() => handleRestore(cat.id)}
-                        className="text-sm text-blue-600"
+                        className="text-sm text-pine"
                       >
                         Restaurar
                       </button>

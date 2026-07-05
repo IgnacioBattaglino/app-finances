@@ -1,5 +1,12 @@
+import PageHeader from '../components/PageHeader.jsx'
+
 function Movements() {
-  return <h1 className="text-2xl font-bold">Movimientos</h1>
+  return (
+    <PageHeader
+      title="Movimientos"
+      description="Tus gastos e ingresos del día a día."
+    />
+  )
 }
 
 export default Movements
