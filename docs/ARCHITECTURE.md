@@ -130,10 +130,13 @@ Justificación de target_allocation como JSONB y no tabla: son 5 valores que se 
 
 - Credenciales de Supabase en .env (nunca en el repo).
 - Datos reales solo en Supabase. El repo no contiene datos financieros.
-- Multiusuario con Supabase Auth (email + contraseña, sin registro público). RLS habilitado en todas las tablas con políticas de aislamiento por usuario: cada uno accede solo a sus filas (user_id = auth.uid()); las hijas heredan el dueño vía su tabla raíz (migración 0005).
+- Multiusuario con Supabase Auth (email + contraseña). Registro semi-cerrado: las cuentas las crea el administrador; no hay signup público.
+- RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002): "own rows" en las tablas raíz (user_id = auth.uid()) y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
+- Trigger handle_new_user (migración 0007): al crearse un usuario en auth.users, siembra sus categorías iniciales y su fila de settings.
 
 ## Decisiones registradas (ADRs en docs/adr/)
 
 - ADR-001: Supabase en lugar de Google Sheets como backend.
 - ADR-002: No materializar snapshots mensuales; la historia se calcula desde asset_valuations.
 - ADR-003: target_allocation como JSONB en settings, no tabla propia.
+- ADR-004: migración temprana a multiusuario con aislamiento a nivel base de datos.

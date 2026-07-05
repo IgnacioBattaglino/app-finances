@@ -6,6 +6,8 @@ Documento de diseño funcional. Define QUÉ hace la app. Las decisiones técnica
 
 App de finanzas personales para un inversor amateur que arranca. Objetivo del usuario: hacer crecer su capital ("bola de nieve"), protegerlo de la inflación, y avanzar hacia la independencia financiera (FIRE). Uso personal real + pieza de portfolio.
 
+Multiusuario con registro semi-cerrado: las cuentas las crea el administrador (no hay registro público). Cada usuario opera 100% aislado: sus categorías, movimientos, portafolio, deudas y ajustes son propios.
+
 ## Principios de diseño
 
 - Mobile-first: el uso principal es desde iPhone. Estética minimalista estilo iOS, prolija, profesional.
