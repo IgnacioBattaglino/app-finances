@@ -9,6 +9,21 @@ export function formatARS(value) {
   return ars.format(value)
 }
 
+const usd = new Intl.NumberFormat('es-AR', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+})
+
+export function formatUSD(value) {
+  return usd.format(value)
+}
+
+export function formatPercent(value, decimals = 1) {
+  return `${value.toFixed(decimals).replace('.', ',')}%`
+}
+
 const monthLong = new Intl.DateTimeFormat('es-AR', { month: 'long' })
 
 export function formatMonthYear(month, year) {
