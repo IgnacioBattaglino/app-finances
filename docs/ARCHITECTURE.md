@@ -62,6 +62,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 | amount_usd | numeric(14,2) NOT NULL | CHECK > 0 |
 | quantity | numeric(20,8) | opcional; unidades compradas (ej: 0.001 BTC) |
 | mep_rate | numeric(10,2) NOT NULL | dólar MEP del día del aporte (congelado) |
+| affects_liquid | boolean NOT NULL default true | true = inversión con plata del bolsillo, resta del líquido; false = tenencia preexistente / carga inicial, no resta (sí suma al portafolio) |
 | created_at | timestamptz default now() | |
 
 ### asset_valuations

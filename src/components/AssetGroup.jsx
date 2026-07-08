@@ -102,6 +102,11 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
                 <span className="text-ink-soft">
                   {formatDay(c.date)}
                   {c.quantity ? ` · ${Number(c.quantity)}` : ''}
+                  {c.affects_liquid === false && (
+                    <span className="ml-1.5 rounded-full bg-mist px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                      inicial
+                    </span>
+                  )}
                 </span>
                 <span className="font-money">{formatUSD(c.amount_usd)}</span>
               </button>

@@ -15,6 +15,7 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
   const [quantity, setQuantity] = useState('')
   const [mep, setMep] = useState('')
   const [mepLive, setMepLive] = useState(null) // null = cargando, false = API caída
+  const [preexisting, setPreexisting] = useState(false) // "Ya lo tenía" → no afecta el líquido
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -29,6 +30,7 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
     setAmount(initial ? String(initial.amount_usd) : '')
     setQuantity(initial?.quantity ? String(Number(initial.quantity)) : '')
     setMep(initial ? String(initial.mep_rate) : '')
+    setPreexisting(initial ? initial.affects_liquid === false : false)
     setError(null)
     setConfirmDelete(false)
     setBusy(false)
@@ -87,6 +89,7 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
       amountUsd: Math.round(amountUsd * 100) / 100,
       quantity: quantity ? quantityValue : null,
       mepRate: mepValue,
+      affectsLiquid: !preexisting,
     }
     try {
       const saved = editing
@@ -249,6 +252,30 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
                   Unidades compradas; obligatoria en cripto para el precio en vivo.
                 </p>
               )}
+            </div>
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[15px]">Ya lo tenía</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={preexisting}
+                  onClick={() => setPreexisting((prev) => !prev)}
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+                    preexisting ? 'bg-pine' : 'bg-mist'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
+                      preexisting ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-ink-soft">
+                Activalo si es una inversión que ya tenías antes de usar la app, o
+                efectivo que ya poseías. No descuenta de tu líquido.
+              </p>
             </div>
           </div>
 

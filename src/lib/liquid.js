@@ -32,6 +32,7 @@ export async function computeCurrentLiquid() {
     supabase
       .from('contributions')
       .select('amount_usd, mep_rate')
+      .eq('affects_liquid', true) // cargas iniciales / tenencias previas no restan
       .then(({ data, error }) => {
         if (error) throw error
         return data

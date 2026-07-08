@@ -1,12 +1,13 @@
 import { supabase } from './supabase.js'
 
-function toRow({ assetId, date, amountUsd, quantity, mepRate }) {
+function toRow({ assetId, date, amountUsd, quantity, mepRate, affectsLiquid }) {
   return {
     asset_id: assetId,
     date,
     amount_usd: amountUsd,
     quantity: quantity ?? null,
     mep_rate: mepRate,
+    affects_liquid: affectsLiquid ?? true,
   }
 }
 
