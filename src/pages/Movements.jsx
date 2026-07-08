@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
+import LiquidModal from '../components/LiquidModal.jsx'
 import { getTransactions } from '../lib/transactions.js'
 import { getCategories } from '../lib/categories.js'
+import { computeCurrentLiquid } from '../lib/liquid.js'
 import { formatARS, formatMonthYear, formatDay } from '../lib/format.js'
 
 const now = new Date()
@@ -18,8 +20,19 @@ function Movements() {
   const [categories, setCategories] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [liquid, setLiquid] = useState(null) // null = cargando, undefined = error
+  const [liquidOpen, setLiquidOpen] = useState(false)
+
+  async function loadLiquid() {
+    try {
+      setLiquid(await computeCurrentLiquid())
+    } catch {
+      setLiquid(undefined)
+    }
+  }
 
   async function load() {
+    loadLiquid()
     setLoading(true)
     setError(null)
     try {
@@ -138,6 +151,32 @@ function Movements() {
           </select>
         </div>
 
+        {/* Líquido total: acumulado de TODOS los movimientos (no del período filtrado) */}
+        <div className="flex items-center justify-between rounded-2xl border border-line bg-card px-4 py-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+              Líquido total
+            </p>
+            <p className="font-money mt-0.5 text-xl tracking-tight">
+              {liquid === null ? '…' : liquid === undefined ? '—' : formatARS(liquid.current)}
+            </p>
+            <p className="text-xs text-ink-soft">
+              {liquid?.last
+                ? `Reconciliado el ${formatDay(liquid.last.date)}`
+                : liquid?.isFirst
+                  ? 'Todavía sin reconciliar'
+                  : ''}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLiquidOpen(true)}
+            className="rounded-xl border border-line bg-card px-3 py-2 text-sm font-medium transition active:bg-mist/60"
+          >
+            Actualizar líquido
+          </button>
+        </div>
+
         {/* Totales del período */}
         <div className="grid grid-cols-3 divide-x divide-line overflow-hidden rounded-2xl border border-line bg-card text-center">
           <div className="px-2 py-3">
@@ -234,6 +273,15 @@ function Movements() {
         }}
         onDeleted={() => {
           closeModal()
+          load()
+        }}
+      />
+
+      <LiquidModal
+        open={liquidOpen}
+        onClose={() => setLiquidOpen(false)}
+        onSaved={() => {
+          setLiquidOpen(false)
           load()
         }}
       />
