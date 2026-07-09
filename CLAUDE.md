@@ -10,9 +10,10 @@ PWA de finanzas personales con enfoque FIRE (Financial Independence, Retire Earl
 - Deploy en Vercel
 
 ## Contexto de negocio
-- Moneda base: USD. Gastos e ingresos del día a día en ARS; inversiones y patrimonio en USD.
-- Registra: movimientos individuales (ingresos/gastos), aportes a inversión, y un portafolio de activos (CEDEARs, Renta fija, Money market, Bitcoin, Efectivo USD).
-- El modelo de datos completo está en @docs/ARCHITECTURE.md (leelo cuando trabajes en base de datos, esquema o queries).
+- Tres mundos separados que nunca se suman en un "patrimonio total": dinero líquido (ARS, operativo), invertido (USD, con rendimiento) y deudas (saldo restante en USD).
+- Monedas: gastos, ingresos y líquido en ARS; inversiones y deudas en USD. Cada aporte congela su tipo de cambio (MEP) del día.
+- Registra: movimientos individuales (ingresos/gastos), aportes a inversión, reconciliaciones del líquido, y un portafolio de activos (CEDEARs, Renta fija, Money market, Bitcoin, Efectivo USD).
+- El modelo de datos completo está en @docs/ARCHITECTURE.md (leelo cuando trabajes en base de datos, esquema o queries). El diseño funcional y el estado de cada sección (implementado vs. pendiente) está en docs/FUNCTIONAL.md.
 
 ## Reglas
 - NUNCA commitear secretos ni datos financieros reales. Las claves van en .env (ya está en .gitignore).

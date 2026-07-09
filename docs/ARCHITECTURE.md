@@ -11,11 +11,11 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 
 ## Principios del modelo de datos
 
-1. Se guardan EVENTOS y CONFIGURACIÓN. Los totales (patrimonio, saldos, tasas, ganancias) se calculan siempre al vuelo; nunca se almacenan.
+1. Se guardan EVENTOS y CONFIGURACIÓN. Los totales (saldos, líquido, tasas, ganancias) se calculan siempre al vuelo; nunca se almacenan.
 2. Nada se borra si tiene historia: categorías y activos se archivan (is_archived), no se eliminan, para no romper datos históricos.
-3. Las cotizaciones del momento se congelan en el evento: cada aporte guarda el MEP de su fecha. Las métricas históricas no dependen de reconstruir cotizaciones pasadas.
-4. Moneda: transactions en ARS (vida diaria); contributions, valuations y deudas en USD (patrimonio).
-5. Multiusuario: las tablas raíz (categories, transactions, assets, debts, settings) llevan user_id → auth.users; las tablas hijas (contributions, asset_valuations, debt_payments) heredan el dueño vía su FK. El aislamiento lo garantiza RLS (user_id = auth.uid()).
+3. Las cotizaciones del momento se congelan en el evento: cada aporte guarda el MEP de su fecha (ídem debt_payments.mep_rate). Las métricas históricas no dependen de reconstruir cotizaciones pasadas.
+4. Moneda: transactions y liquid_reconciliations en ARS (vida diaria); contributions, valuations y deudas en USD (inversión).
+5. Multiusuario: las tablas raíz (categories, transactions, assets, debts, settings, liquid_reconciliations) llevan user_id → auth.users; las tablas hijas (contributions, asset_valuations, debt_payments) heredan el dueño vía su FK. El aislamiento lo garantiza RLS (user_id = auth.uid()).
 6. El frontend nunca envía user_id: lo completa la base con default auth.uid(), y el with check de RLS garantiza la pertenencia. Defensa en dos capas: la base completa, RLS valida.
 
 ## Tablas
@@ -50,6 +50,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 | name | text NOT NULL | ej: "Bitcoin", "Colchón USD" |
 | type | text NOT NULL | 'crypto', 'cedear', 'bond', 'fund', 'cash' (CHECK) |
 | coingecko_id | text | solo cripto, ej: "bitcoin"; habilita precio automático |
+| ticker | text | opcional; símbolo del activo (ej: AAPL, AL30, BTC). Hoy informativo; habilita valuación automática por API en el futuro |
 | is_archived | boolean NOT NULL default false | |
 | created_at | timestamptz default now() | |
 
@@ -96,9 +97,21 @@ Los activos con coingecko_id no requieren valuación manual: su valor = SUM(quan
 | debt_id | uuid FK → debts | NOT NULL |
 | date | date NOT NULL | |
 | amount_usd | numeric(14,2) NOT NULL | CHECK > 0 |
+| mep_rate | numeric(10,2) | nullable; tipo de cambio congelado del día del pago. Los pagos sin mep_rate quedan fuera del cálculo del líquido |
 | created_at | timestamptz default now() | |
 
 Saldo de una deuda = original_amount_usd − SUM(payments). Calculado, nunca almacenado.
+
+### liquid_reconciliations
+Historial de reconciliaciones del dinero líquido: el usuario declara su líquido real (efectivo + cuentas, en ARS); la app calcula la diferencia contra lo esperado y la registra como una transaction de ajuste (categoría "Ajuste de saldo") enlazada acá.
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → auth.users | NOT NULL, default auth.uid(); dueño de la fila (tabla raíz, RLS "own rows") |
+| date | date NOT NULL | |
+| declared_amount_ars | numeric(14,2) NOT NULL | CHECK >= 0; el líquido real declarado |
+| adjustment_transaction_id | uuid FK → transactions | nullable; la transaction de ajuste generada (null si no hubo diferencia) |
+| created_at | timestamptz default now() | |
 
 ### settings
 Una fila por usuario (la crea el trigger de sembrado al registrarse).
@@ -120,7 +133,8 @@ Justificación de target_allocation como JSONB y no tabla: son 5 valores que se 
 ## Fórmulas (referencia para implementación)
 
 - Objetivo FIRE (USD) = desired_monthly_income_usd × 12 / safe_withdrawal_rate.
-- Patrimonio = SUM(valor actual de cada activo activo). Valor actual: última valuación (activos manuales) o SUM(quantity) × precio vivo (cripto con coingecko_id).
+- Valor del portafolio = SUM(valor actual de cada activo activo). Valor actual: última valuación (activos manuales), SUM(quantity) × precio vivo (cripto con coingecko_id), o lo aportado (efectivo). No existe un "patrimonio total" que sume líquido + portafolio: son magnitudes separadas (ver FUNCTIONAL.md).
+- Dinero líquido (ARS) = SUM(ingresos) − SUM(gastos) − SUM(aportes con affects_liquid × su mep_rate) − SUM(pagos de deuda con mep_rate × su mep_rate). Acumulado general, no mensual; los ajustes de reconciliación son transactions comunes, así que ya están incluidos en la suma.
 - Ganancia por activo = valor actual − SUM(contributions del activo). % = ganancia / aportado.
 - Tasa de ahorro (mes) = (ingresos − gastos) / ingresos [todo ARS, de transactions].
 - % invertido (mes) = SUM(amount_usd × mep_rate de cada aporte del mes) / ingresos ARS del mes.
@@ -132,8 +146,8 @@ Justificación de target_allocation como JSONB y no tabla: son 5 valores que se 
 - Credenciales de Supabase en .env (nunca en el repo).
 - Datos reales solo en Supabase. El repo no contiene datos financieros.
 - Multiusuario con Supabase Auth (email + contraseña). Registro semi-cerrado: las cuentas las crea el administrador; no hay signup público.
-- RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002): "own rows" en las tablas raíz (user_id = auth.uid()) y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
-- Trigger handle_new_user (migración 0007): al crearse un usuario en auth.users, siembra sus categorías iniciales y su fila de settings.
+- RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009): "own rows" en las tablas raíz (user_id = auth.uid()) y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
+- Trigger handle_new_user (migración 0007, redefinido en 0010): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas "Ajuste de saldo" (expense e income), que usa la reconciliación del líquido — y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql.
 
 ## Decisiones registradas (ADRs en docs/adr/)
 
