@@ -13,6 +13,19 @@ function CategoryRow({ category, onRename, onArchive }) {
   const [name, setName] = useState(category.name)
   const [busy, setBusy] = useState(false)
 
+  // Las categorías del sistema (is_system) las usa la reconciliación del
+  // líquido: se muestran, pero no se renombran ni se archivan.
+  if (category.is_system) {
+    return (
+      <div className="flex w-full items-center justify-between px-4 py-3">
+        <span className="text-[15px]">{category.name}</span>
+        <span className="text-[10px] uppercase tracking-wide text-ink-soft">
+          categoría del sistema
+        </span>
+      </div>
+    )
+  }
+
   async function handleSave() {
     const trimmed = name.trim()
     if (!trimmed || trimmed === category.name) {

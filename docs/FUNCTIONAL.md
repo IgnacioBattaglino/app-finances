@@ -27,7 +27,7 @@ El líquido es el dinero disponible en pesos (efectivo + cuentas). Es un acumula
 
 Los aportes marcados como tenencia preexistente ("ya lo tenía": inversiones anteriores a la app, efectivo que ya se poseía) no restan del líquido; sí suman al portafolio.
 
-**Reconciliación**: función de corrección. El usuario declara cuánto líquido tiene realmente; el sistema calcula la diferencia contra lo esperado y registra un movimiento de ajuste (categoría "Ajuste de saldo", ingreso o gasto según el signo) que realinea el saldo con la realidad sin romper las estadísticas. Cubre rendimientos de billeteras (ej: Mercado Pago) y movimientos que no se cargaron.
+**Reconciliación**: función de corrección. El usuario declara cuánto líquido tiene realmente; el sistema calcula la diferencia contra lo esperado y registra un movimiento de ajuste (ingreso o gasto según el signo) que realinea el saldo con la realidad. Los ajustes cuentan como gastos/ingresos normales en las estadísticas — no se excluyen de ningún cálculo — y quedan identificados y agrupados bajo su categoría propia "Ajuste de saldo", una categoría del sistema: protegida, el usuario no puede renombrarla ni archivarla. Cubre rendimientos de billeteras (ej: Mercado Pago) y movimientos que no se cargaron.
 
 Hoy el líquido se ve en Movimientos; su lugar definitivo es el Dashboard (ver Secciones).
 
@@ -87,6 +87,7 @@ El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD 
 ### 6. Ajustes 🟡
 
 - ✅ Gestión de categorías (crear, renombrar, archivar, restaurar).
+- ✅ Las categorías del sistema ("Ajuste de saldo", gasto e ingreso) se muestran pero no se pueden renombrar ni archivar.
 - ✅ Cuenta: email y cierre de sesión.
 - 🔜 Parámetros FIRE: ingreso mensual deseado (USD), tasa de retiro segura (%), retorno anual esperado (%), fecha de nacimiento, fecha de inicio del plan, ventana de meses para la proyección.
 - 🔜 Distribución objetivo del portafolio (% por tipo de activo, debe sumar 100) y umbral de rebalanceo. Hoy solo se editan directo en la base.

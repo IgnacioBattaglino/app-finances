@@ -27,6 +27,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 | user_id | uuid FK → auth.users | NOT NULL, default auth.uid(); dueño de la fila |
 | name | text NOT NULL | ej: "Comida", "Cafetería" |
 | kind | text NOT NULL | 'expense' o 'income' (CHECK) |
+| is_system | boolean NOT NULL default false | categoría del sistema (hoy: "Ajuste de saldo", expense e income). La reconciliación del líquido la busca por este flag + kind, no por nombre; la UI la muestra pero no permite renombrarla ni archivarla |
 | is_archived | boolean NOT NULL default false | |
 | created_at | timestamptz default now() | |
 
@@ -147,7 +148,7 @@ Justificación de target_allocation como JSONB y no tabla: son 5 valores que se 
 - Datos reales solo en Supabase. El repo no contiene datos financieros.
 - Multiusuario con Supabase Auth (email + contraseña). Registro semi-cerrado: las cuentas las crea el administrador; no hay signup público.
 - RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009): "own rows" en las tablas raíz (user_id = auth.uid()) y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
-- Trigger handle_new_user (migración 0007, redefinido en 0010): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas "Ajuste de saldo" (expense e income), que usa la reconciliación del líquido — y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql.
+- Trigger handle_new_user (migración 0007, redefinido en 0010 y 0012): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas las del sistema "Ajuste de saldo" (expense e income, con is_system = true), que usa la reconciliación del líquido — y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql.
 
 ## Decisiones registradas (ADRs en docs/adr/)
 

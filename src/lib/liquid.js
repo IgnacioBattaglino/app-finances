@@ -71,10 +71,12 @@ export async function reconcile({ date, declaredAmount }) {
   let adjustment = null
   if (Math.abs(difference) >= 0.01) {
     const kind = difference > 0 ? 'income' : 'expense'
+    // La categoría del sistema se busca por su flag, no por el nombre visible:
+    // un rename (por fuera de la UI, que lo bloquea) no rompe la reconciliación.
     const { data: category, error: catError } = await supabase
       .from('categories')
       .select('id')
-      .eq('name', ADJUSTMENT_CATEGORY)
+      .eq('is_system', true)
       .eq('kind', kind)
       .eq('is_archived', false)
       .limit(1)
@@ -82,7 +84,7 @@ export async function reconcile({ date, declaredAmount }) {
     if (catError) throw catError
     if (!category) {
       throw new Error(
-        `Falta la categoría "${ADJUSTMENT_CATEGORY}" (${kind === 'income' ? 'ingreso' : 'gasto'}). Restaurala o creala en Ajustes.`,
+        `Falta la categoría del sistema "${ADJUSTMENT_CATEGORY}" (${kind === 'income' ? 'ingreso' : 'gasto'}). Corré el seed de categorías de ajuste.`,
       )
     }
 
