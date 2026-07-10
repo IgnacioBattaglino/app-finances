@@ -1,11 +1,12 @@
 import { supabase } from './supabase.js'
 
-function toRow({ name, type, ticker, coingeckoId }) {
+function toRow({ name, type, ticker, coingeckoId, yields }) {
   return {
     name,
     type,
     ticker: ticker?.trim() || null,
     coingecko_id: coingeckoId?.trim() || null,
+    yields,
   }
 }
 

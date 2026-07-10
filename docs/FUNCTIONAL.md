@@ -67,8 +67,8 @@ El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD 
 - ✅ Alta de aportes: fecha, activo, monto (en ARS convertido al MEP del día, o directo en USD); para cripto además la cantidad comprada (ej: 0.001 BTC). Marca "ya lo tenía" para tenencias preexistentes que no descuentan del líquido.
 - ✅ Valor actual: automático para cripto con precio en vivo (cantidad acumulada × precio, con caída al último valor manual si la API falla); carga manual mensual para el resto; el efectivo vale lo aportado.
 - ✅ Distribución actual vs. distribución objetivo (% por tipo de activo). 🔜 El aviso de rebalanceo pasa a segundo plano, discreto (hoy es un cartel prominente).
-- 🔜 Tipo de cambio en aportes: interruptor "va por MEP" (default: la app trae el MEP del día automáticamente) o "cambio manual", donde el usuario carga los pesos invertidos y los dólares que representan y la app deriva el tipo de cambio. Para dólares que no van al MEP (colchón/blue).
-- 🔜 Rendimiento selectivo: cada activo tiene una marca de si "rinde" o no. Los que no rinden (ej: efectivo USD / colchón) se excluyen del cálculo de rendimiento del portafolio, para que el % de ganancia no quede aguado por dinero que por naturaleza no genera retorno.
+- ✅ Tipo de cambio en aportes: interruptor "va por MEP" (default: la app trae el MEP del día automáticamente) o "cambio manual", donde el usuario carga los pesos invertidos y los dólares que representan y la app deriva el tipo de cambio. Para dólares que no van al MEP (colchón/blue).
+- ✅ Rendimiento selectivo: cada activo tiene una marca de si "busca rendimiento" (yields) o no. Los que no rinden (ej: efectivo USD / colchón) se excluyen del cálculo de rendimiento del portafolio, para que el % de ganancia no quede aguado por dinero que por naturaleza no genera retorno. Siguen sumando al valor total mostrado.
 
 ### 4. Objetivo (FIRE) 🔜 — baja prioridad
 
@@ -95,7 +95,7 @@ El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD 
 ## Indicadores definidos
 
 - ✅ Líquido (ARS) = acumulado de todos los eventos (ver Dinero líquido). General, no mensual.
-- ✅ Ganancia por activo = valor actual − total aportado; % = ganancia / total aportado. Un activo sin valuación no cuenta como pérdida: queda fuera del cálculo hasta valuarse. 🔜 Los activos marcados como "no rinden" se excluirán del rendimiento total.
+- ✅ Ganancia por activo = valor actual − total aportado; % = ganancia / total aportado. Un activo sin valuación no cuenta como pérdida: queda fuera del cálculo hasta valuarse. Los activos marcados como "no rinden" (yields = false) también quedan fuera del rendimiento total del portafolio, aunque siguen sumando a su valor.
 - 🔜 Tasa de ahorro = (ingresos del mes − gastos del mes) / ingresos del mes.
 - 🔜 % invertido = aportes a inversión del mes / ingresos del mes. Los aportes en USD se convierten a ARS al tipo de cambio de la fecha de cada aporte (no al actual), para no distorsionar meses pasados por la devaluación.
 - Los pagos de deuda quedan fuera de estos indicadores (se reportan aparte).

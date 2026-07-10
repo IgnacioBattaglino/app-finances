@@ -40,6 +40,23 @@ export function valueAsset(asset, contributions, latestValuation, cryptoPrices) 
   return { contributed, value: null, source: 'none' }
 }
 
+// Ganancia total de un conjunto de activos, solo sobre los que buscan
+// rendimiento (yields !== false) y tienen valor. Los que no rinden (ej:
+// efectivo) o no tienen valuación quedan afuera de este cálculo, pero
+// siguen sumando al valor total del portafolio en otro lado.
+export function computePortfolioGain(assets, valuations) {
+  let contributed = 0
+  let value = 0
+  for (const asset of assets) {
+    if (asset.yields === false) continue
+    const v = valuations[asset.id]
+    if (v.value === null) continue
+    contributed += v.contributed
+    value += v.value
+  }
+  return { contributed, value, gain: value - contributed }
+}
+
 export const ASSET_TYPES = [
   ['crypto', 'Cripto'],
   ['cedear', 'CEDEARs'],

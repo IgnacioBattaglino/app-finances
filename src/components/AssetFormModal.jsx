@@ -7,6 +7,7 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
   const [type, setType] = useState('cedear')
   const [ticker, setTicker] = useState('')
   const [coingeckoId, setCoingeckoId] = useState('')
+  const [yieldsFlag, setYieldsFlag] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmArchive, setConfirmArchive] = useState(false)
@@ -19,10 +20,18 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
     setType(initial?.type ?? 'cedear')
     setTicker(initial?.ticker ?? '')
     setCoingeckoId(initial?.coingecko_id ?? '')
+    setYieldsFlag(initial ? initial.yields !== false : true)
     setError(null)
     setConfirmArchive(false)
     setBusy(false)
   }, [open, initial])
+
+  // Sugerencia: el efectivo por naturaleza no rinde. El usuario puede
+  // reactivarlo a mano antes de guardar.
+  function handleTypeChange(nextType) {
+    setType(nextType)
+    if (nextType === 'cash') setYieldsFlag(false)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -47,6 +56,7 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
       type,
       ticker,
       coingeckoId: type === 'crypto' ? coingeckoId : '',
+      yields: yieldsFlag,
     }
     try {
       const saved = editing
@@ -115,7 +125,7 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
               <span className="text-[15px]">Tipo</span>
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value)}
+                onChange={(e) => handleTypeChange(e.target.value)}
                 className="bg-transparent text-right text-[15px] outline-none"
               >
                 {ASSET_TYPES.map(([value, label]) => (
@@ -150,6 +160,30 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
                 </p>
               </div>
             )}
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[15px]">Busca rendimiento</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={yieldsFlag}
+                  onClick={() => setYieldsFlag((prev) => !prev)}
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+                    yieldsFlag ? 'bg-pine' : 'bg-mist'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
+                      yieldsFlag ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-ink-soft">
+                Desactivalo para reservas de valor como efectivo: no cuentan en
+                el % de rendimiento del portafolio.
+              </p>
+            </div>
           </div>
 
           {error && <p className="px-1 text-sm text-clay">{error}</p>}

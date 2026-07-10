@@ -15,6 +15,9 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
   const [quantity, setQuantity] = useState('')
   const [mep, setMep] = useState('')
   const [mepLive, setMepLive] = useState(null) // null = cargando, false = API caída
+  const [viaMep, setViaMep] = useState(true) // false = cambio manual (pesos/dólares)
+  const [pesos, setPesos] = useState('') // cambio manual: pesos invertidos
+  const [dolares, setDolares] = useState('') // cambio manual: dólares recibidos
   const [preexisting, setPreexisting] = useState(false) // "Ya lo tenía" → no afecta el líquido
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -30,6 +33,9 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
     setAmount(initial ? String(initial.amount_usd) : '')
     setQuantity(initial?.quantity ? String(Number(initial.quantity)) : '')
     setMep(initial ? String(initial.mep_rate) : '')
+    setViaMep(true)
+    setPesos('')
+    setDolares('')
     setPreexisting(initial ? initial.affects_liquid === false : false)
     setError(null)
     setConfirmDelete(false)
@@ -67,15 +73,25 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
   const amountValue = Number(amount.replace(',', '.'))
   const mepValue = Number(String(mep).replace(',', '.'))
   const quantityValue = Number(quantity.replace(',', '.'))
+  const pesosValue = Number(pesos.replace(',', '.'))
+  const dolaresValue = Number(dolares.replace(',', '.'))
+  const derivedRate = dolaresValue > 0 ? pesosValue / dolaresValue : null
 
-  const amountUsd =
-    currency === 'usd' ? amountValue : mepValue > 0 ? amountValue / mepValue : null
+  const amountUsd = viaMep
+    ? currency === 'usd'
+      ? amountValue
+      : mepValue > 0
+        ? amountValue / mepValue
+        : null
+    : dolaresValue > 0
+      ? dolaresValue
+      : null
+  const effectiveMep = viaMep ? mepValue : derivedRate
 
   const valid =
     assetId &&
     date &&
-    amountValue > 0 &&
-    mepValue > 0 &&
+    (viaMep ? amountValue > 0 && mepValue > 0 : pesosValue > 0 && dolaresValue > 0) &&
     (!isCrypto || quantityValue > 0)
 
   async function handleSubmit(event) {
@@ -88,7 +104,7 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
       date,
       amountUsd: Math.round(amountUsd * 100) / 100,
       quantity: quantity ? quantityValue : null,
-      mepRate: mepValue,
+      mepRate: Math.round(effectiveMep * 100) / 100,
       affectsLiquid: !preexisting,
     }
     try {
@@ -169,72 +185,138 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
                 className="bg-transparent text-right text-[15px] outline-none"
               />
             </label>
-            <div className="space-y-2 px-4 py-3">
+            <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[15px]">Monto</span>
-                <div className="flex items-center gap-2">
-                  <div className="flex rounded-lg bg-mist p-0.5 text-xs font-medium">
-                    <button
-                      type="button"
-                      onClick={() => setCurrency('ars')}
-                      className={`rounded-md px-2 py-1 transition ${
-                        currency === 'ars' ? 'bg-card shadow-sm' : 'text-ink-soft'
-                      }`}
-                    >
-                      ARS
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCurrency('usd')}
-                      className={`rounded-md px-2 py-1 transition ${
-                        currency === 'usd' ? 'bg-card shadow-sm' : 'text-ink-soft'
-                      }`}
-                    >
-                      USD
-                    </button>
+                <span className="text-[15px]">Va por MEP</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={viaMep}
+                  onClick={() => setViaMep((prev) => !prev)}
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+                    viaMep ? 'bg-pine' : 'bg-mist'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
+                      viaMep ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              {!viaMep && (
+                <p className="mt-1 text-xs text-ink-soft">
+                  Cambio manual: para dólares que no van al MEP (ej: colchón, blue).
+                </p>
+              )}
+            </div>
+            {viaMep ? (
+              <>
+                <div className="space-y-2 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[15px]">Monto</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex rounded-lg bg-mist p-0.5 text-xs font-medium">
+                        <button
+                          type="button"
+                          onClick={() => setCurrency('ars')}
+                          className={`rounded-md px-2 py-1 transition ${
+                            currency === 'ars' ? 'bg-card shadow-sm' : 'text-ink-soft'
+                          }`}
+                        >
+                          ARS
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCurrency('usd')}
+                          className={`rounded-md px-2 py-1 transition ${
+                            currency === 'usd' ? 'bg-card shadow-sm' : 'text-ink-soft'
+                          }`}
+                        >
+                          USD
+                        </button>
+                      </div>
+                      <input
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        inputMode="decimal"
+                        placeholder="0"
+                        required
+                        className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                      />
+                    </div>
                   </div>
+                  {currency === 'ars' && amountValue > 0 && mepValue > 0 && (
+                    <p className="text-right text-xs text-ink-soft">
+                      {formatARS(amountValue)} ≈{' '}
+                      <span className="font-money">{formatUSD(amountValue / mepValue)}</span>{' '}
+                      al MEP {formatARS(mepValue)}
+                    </p>
+                  )}
+                </div>
+                <div className="px-4 py-3">
+                  <label className="flex items-center justify-between gap-3">
+                    <span className="text-[15px]">Dólar MEP</span>
+                    <input
+                      value={mep}
+                      onChange={(e) => setMep(e.target.value)}
+                      inputMode="decimal"
+                      required
+                      disabled={Boolean(mepLive)}
+                      className="font-money w-28 bg-transparent text-right text-[15px] outline-none disabled:text-ink-soft"
+                    />
+                  </label>
+                  {mepLive === null && !editing && (
+                    <p className="mt-1 text-xs text-ink-soft">Buscando cotización…</p>
+                  )}
+                  {mepLive && (
+                    <p className="mt-1 text-xs text-ink-soft">
+                      Cotización del día, automática.
+                    </p>
+                  )}
+                  {mepLive === false && !editing && (
+                    <p className="mt-1 text-xs text-clay">
+                      No se pudo traer el MEP. Cargalo a mano para continuar.
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <label className="flex items-center justify-between gap-3 px-4 py-3">
+                  <span className="text-[15px]">Pesos invertidos</span>
                   <input
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    value={pesos}
+                    onChange={(e) => setPesos(e.target.value)}
                     inputMode="decimal"
                     placeholder="0"
                     required
                     className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
                   />
+                </label>
+                <div className="px-4 py-3">
+                  <label className="flex items-center justify-between gap-3">
+                    <span className="text-[15px]">Dólares recibidos</span>
+                    <input
+                      value={dolares}
+                      onChange={(e) => setDolares(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0"
+                      required
+                      className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                    />
+                  </label>
+                  <p className="mt-1 text-xs text-ink-soft">
+                    Tipo de cambio:{' '}
+                    {derivedRate ? (
+                      <span className="font-money">{formatARS(derivedRate)}</span>
+                    ) : (
+                      '—'
+                    )}
+                  </p>
                 </div>
-              </div>
-              {currency === 'ars' && amountValue > 0 && mepValue > 0 && (
-                <p className="text-right text-xs text-ink-soft">
-                  {formatARS(amountValue)} ≈{' '}
-                  <span className="font-money">{formatUSD(amountValue / mepValue)}</span>{' '}
-                  al MEP {formatARS(mepValue)}
-                </p>
-              )}
-            </div>
-            <div className="px-4 py-3">
-              <label className="flex items-center justify-between gap-3">
-                <span className="text-[15px]">Dólar MEP</span>
-                <input
-                  value={mep}
-                  onChange={(e) => setMep(e.target.value)}
-                  inputMode="decimal"
-                  required
-                  disabled={Boolean(mepLive)}
-                  className="font-money w-28 bg-transparent text-right text-[15px] outline-none disabled:text-ink-soft"
-                />
-              </label>
-              {mepLive === null && !editing && (
-                <p className="mt-1 text-xs text-ink-soft">Buscando cotización…</p>
-              )}
-              {mepLive && (
-                <p className="mt-1 text-xs text-ink-soft">Cotización del día, automática.</p>
-              )}
-              {mepLive === false && !editing && (
-                <p className="mt-1 text-xs text-clay">
-                  No se pudo traer el MEP. Cargalo a mano para continuar.
-                </p>
-              )}
-            </div>
+              </>
+            )}
             <div className="px-4 py-3">
               <label className="flex items-center justify-between gap-3">
                 <span className="text-[15px]">Cantidad</span>

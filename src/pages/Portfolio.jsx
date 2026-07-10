@@ -9,7 +9,7 @@ import { getContributions } from '../lib/contributions.js'
 import { getLatestValuations } from '../lib/valuations.js'
 import { getSettings } from '../lib/settings.js'
 import { getCryptoPrices } from '../lib/prices.js'
-import { valueAsset, ASSET_TYPES } from '../lib/portfolio.js'
+import { valueAsset, computePortfolioGain, ASSET_TYPES } from '../lib/portfolio.js'
 import { formatUSD, formatPercent } from '../lib/format.js'
 
 function Portfolio() {
@@ -73,14 +73,13 @@ function Portfolio() {
     0,
   )
   const totalValue = assets.reduce((sum, a) => sum + (valuations[a.id].value ?? 0), 0)
-  // La ganancia solo compara contra lo aportado a activos CON valor:
-  // un activo sin valuación no es una pérdida, es un dato que falta.
-  const valuedContributed = assets.reduce(
-    (sum, a) =>
-      valuations[a.id].value !== null ? sum + valuations[a.id].contributed : sum,
-    0,
+  // La ganancia solo compara contra lo aportado a activos CON valor y que
+  // buscan rendimiento: un activo sin valuación no es una pérdida, es un dato
+  // que falta, y uno que no rinde (ej: efectivo) no debe aguar el %.
+  const { contributed: valuedContributed, gain: totalGain } = computePortfolioGain(
+    assets,
+    valuations,
   )
-  const totalGain = totalValue - valuedContributed
   const unvalued = assets.filter((a) => valuations[a.id].source === 'none')
   const manualAssets = assets.filter(
     (a) => !a.coingecko_id && a.type !== 'cash',

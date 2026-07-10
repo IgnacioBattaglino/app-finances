@@ -52,6 +52,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 | type | text NOT NULL | 'crypto', 'cedear', 'bond', 'fund', 'cash' (CHECK) |
 | coingecko_id | text | solo cripto, ej: "bitcoin"; habilita precio automático |
 | ticker | text | opcional; símbolo del activo (ej: AAPL, AL30, BTC). Hoy informativo; habilita valuación automática por API en el futuro |
+| yields | boolean NOT NULL default true | false = reserva de valor (ej: efectivo/colchón); se excluye del cálculo de rendimiento del portafolio pero sigue sumando al valor total |
 | is_archived | boolean NOT NULL default false | |
 | created_at | timestamptz default now() | |
 

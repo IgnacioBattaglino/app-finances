@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatUSD, formatPercent, formatDay } from '../lib/format.js'
+import { computePortfolioGain } from '../lib/portfolio.js'
 
 function Gain({ value, base, className = '' }) {
   if (value === null || base === 0) return null
@@ -46,6 +47,7 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
   const [showContributions, setShowContributions] = useState(false)
   const own = contributions.filter((c) => c.asset_id === asset.id)
   const gain = valuation.value !== null ? valuation.value - valuation.contributed : null
+  const doesNotYield = asset.yields === false
 
   return (
     <div className="px-4 py-3">
@@ -84,7 +86,11 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
             </button>
           )}
         </div>
-        <Gain value={gain} base={valuation.contributed} className="text-xs" />
+        {doesNotYield ? (
+          <span className="text-xs text-ink-soft">— no rinde</span>
+        ) : (
+          <Gain value={gain} base={valuation.contributed} className="text-xs" />
+        )}
       </div>
 
       {showContributions && (
@@ -134,12 +140,9 @@ function AssetGroup({
 
   const contributed = assets.reduce((sum, a) => sum + valuations[a.id].contributed, 0)
   const value = assets.reduce((sum, a) => sum + (valuations[a.id].value ?? 0), 0)
-  // Ganancia solo contra lo aportado a activos con valor (sin valuación ≠ pérdida)
-  const valuedContributed = assets.reduce(
-    (sum, a) => (valuations[a.id].value !== null ? sum + valuations[a.id].contributed : sum),
-    0,
-  )
-  const gain = value - valuedContributed
+  // Ganancia solo sobre activos con valor que buscan rendimiento (sin valuación
+  // ≠ pérdida; los que no rinden no aguan el %)
+  const { contributed: valuedContributed, gain } = computePortfolioGain(assets, valuations)
   const allUnvalued = assets.every((a) => valuations[a.id].value === null)
 
   return (
