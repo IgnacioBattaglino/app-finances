@@ -7,7 +7,6 @@ import ValuationModal from '../components/ValuationModal.jsx'
 import { getAssets } from '../lib/assets.js'
 import { getContributions } from '../lib/contributions.js'
 import { getLatestValuations } from '../lib/valuations.js'
-import { getSettings } from '../lib/settings.js'
 import { getCryptoPrices } from '../lib/prices.js'
 import { valueAsset, computePortfolioGain, ASSET_TYPES } from '../lib/portfolio.js'
 import { formatUSD, formatPercent } from '../lib/format.js'
@@ -16,7 +15,6 @@ function Portfolio() {
   const [assets, setAssets] = useState([])
   const [contributions, setContributions] = useState([])
   const [latestValuations, setLatestValuations] = useState({})
-  const [settings, setSettings] = useState(null)
   const [prices, setPrices] = useState({})
   const [pricesAt, setPricesAt] = useState(null)
   const [pricesFailed, setPricesFailed] = useState(false)
@@ -31,17 +29,14 @@ function Portfolio() {
     setLoading(true)
     setError(null)
     try {
-      const [assetsData, contributionsData, valuationsData, settingsData] =
-        await Promise.all([
-          getAssets(),
-          getContributions(),
-          getLatestValuations(),
-          getSettings(),
-        ])
+      const [assetsData, contributionsData, valuationsData] = await Promise.all([
+        getAssets(),
+        getContributions(),
+        getLatestValuations(),
+      ])
       setAssets(assetsData)
       setContributions(contributionsData)
       setLatestValuations(valuationsData)
-      setSettings(settingsData)
 
       const ids = assetsData.filter((a) => a.coingecko_id).map((a) => a.coingecko_id)
       if (ids.length > 0) {
@@ -85,22 +80,10 @@ function Portfolio() {
     (a) => !a.coingecko_id && a.type !== 'cash',
   )
 
-  const targetAllocation = settings?.target_allocation ?? {}
-  const threshold = Number(settings?.rebalance_threshold ?? 0.05) * 100
-
   const groups = ASSET_TYPES.map(([type, label]) => {
     const groupAssets = assets.filter((a) => a.type === type)
     if (groupAssets.length === 0) return null
-    const groupValue = groupAssets.reduce(
-      (sum, a) => sum + (valuations[a.id].value ?? 0),
-      0,
-    )
-    const actualPct = totalValue > 0 ? (groupValue / totalValue) * 100 : 0
-    const targetPct =
-      targetAllocation[type] !== undefined ? Number(targetAllocation[type]) : undefined
-    const needsRebalance =
-      targetPct !== undefined && totalValue > 0 && Math.abs(actualPct - targetPct) > threshold
-    return { type, label, assets: groupAssets, actualPct, targetPct, needsRebalance }
+    return { type, label, assets: groupAssets }
   }).filter(Boolean)
 
   function closeModals() {
@@ -214,9 +197,6 @@ function Portfolio() {
               assets={group.assets}
               valuations={valuations}
               contributions={contributions}
-              actualPct={group.actualPct}
-              targetPct={group.targetPct}
-              needsRebalance={group.needsRebalance}
               onEditAsset={(asset) => setAssetModal({ open: true, editing: asset })}
               onUpdateValue={(asset) =>
                 setValuationModal({ open: true, assets: [asset] })

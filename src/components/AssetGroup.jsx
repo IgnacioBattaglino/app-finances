@@ -129,9 +129,6 @@ function AssetGroup({
   assets,
   valuations,
   contributions,
-  actualPct,
-  targetPct,
-  needsRebalance,
   onEditAsset,
   onUpdateValue,
   onEditContribution,
@@ -152,20 +149,7 @@ function AssetGroup({
         onClick={() => setExpanded((prev) => !prev)}
         className="w-full px-4 py-3 text-left transition hover:bg-mist/40"
       >
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-2">
-            <span className="text-[15px] font-semibold">{label}</span>
-            {needsRebalance && (
-              <span className="rounded-full bg-clay/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-clay">
-                Rebalancear
-              </span>
-            )}
-          </span>
-          <span className="text-xs text-ink-soft">
-            {formatPercent(actualPct, 0)}{' '}
-            {targetPct !== undefined && `/ obj ${formatPercent(targetPct, 0)}`}
-          </span>
-        </div>
+        <span className="text-[15px] font-semibold">{label}</span>
         <div className="mt-1 flex items-center justify-between text-xs">
           <span className="text-ink-soft">
             <span className="font-money">{formatUSD(contributed)}</span> →{' '}

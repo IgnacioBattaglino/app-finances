@@ -66,7 +66,7 @@ El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD 
 - ✅ Por activo: total aportado (USD), valor actual (USD), ganancia en USD y %. Total general: aportado, valor, ganancia.
 - ✅ Alta de aportes: fecha, activo, monto (en ARS convertido al MEP del día, o directo en USD); para cripto además la cantidad comprada (ej: 0.001 BTC). Marca "ya lo tenía" para tenencias preexistentes que no descuentan del líquido.
 - ✅ Valor actual: automático para cripto con precio en vivo (cantidad acumulada × precio, con caída al último valor manual si la API falla); carga manual mensual para el resto; el efectivo vale lo aportado.
-- ✅ Distribución actual vs. distribución objetivo (% por tipo de activo). 🔜 El aviso de rebalanceo pasa a segundo plano, discreto (hoy es un cartel prominente).
+- 🔜 Rebalanceo (distribución actual vs. objetivo, alerta de desvío): se saca de Portafolio; a futuro será una vista propia.
 - ✅ Tipo de cambio en aportes: interruptor "va por MEP" (default: la app trae el MEP del día automáticamente) o "cambio manual", donde el usuario carga los pesos invertidos y los dólares que representan y la app deriva el tipo de cambio. Para dólares que no van al MEP (colchón/blue).
 - ✅ Rendimiento selectivo: cada activo tiene una marca de si "busca rendimiento" (yields) o no. Los que no rinden (ej: efectivo USD / colchón) se excluyen del cálculo de rendimiento del portafolio, para que el % de ganancia no quede aguado por dinero que por naturaleza no genera retorno. Siguen sumando al valor total mostrado.
 
