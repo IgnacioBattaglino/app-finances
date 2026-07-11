@@ -63,13 +63,15 @@ Su función principal es CAPTURAR gastos e ingresos rápido y mostrar en qué se
 
 El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD y %.
 
-- ✅ Activos gestionables por el usuario: nombre + tipo (cripto / CEDEAR / bono / fondo / efectivo USD) + ticker opcional. Ej: "Bitcoin", "Colchón USD".
+- ✅ Jerarquía de la pantalla, de arriba hacia abajo: (1) resumen general — valor total y rendimiento total, con el rendimiento destacado en tamaño y color (pine/clay) justo debajo del valor; (2) grupos por tipo de activo, colapsables, con su valor y rendimiento visibles en el header sin necesidad de expandir; (3) dentro de cada grupo, cada activo con su valor y rendimiento individual. El aportado (dato de referencia, no protagonista) queda como línea secundaria en los tres niveles.
+- ✅ Activos gestionables por el usuario: nombre + tipo (cripto / CEDEAR / bono / fondo / efectivo USD) + ticker opcional. Ej: "Bitcoin", "Colchón USD". Editar (tocar el nombre del activo, señalado con un ícono de lápiz) y archivar están implementados; archivar pide confirmación y aclara que por ahora la restauración es solo desde la base — restaurar desde la app queda en backlog.
 - ✅ Por activo: total aportado (USD), valor actual (USD), ganancia en USD y %. Total general: aportado, valor, ganancia.
 - ✅ Alta de aportes: fecha, activo, monto (en ARS convertido al MEP del día, o directo en USD); para cripto además la cantidad comprada (ej: 0.001 BTC). Marca "ya lo tenía" para tenencias preexistentes que no descuentan del líquido.
 - ✅ Valor actual: automático para cripto con precio en vivo (cantidad acumulada × precio, con caída al último valor manual si la API falla); carga manual mensual para el resto; el efectivo vale lo aportado.
 - 🔜 Rebalanceo (distribución actual vs. objetivo, alerta de desvío): se saca de Portafolio; a futuro será una vista propia.
 - ✅ Tipo de cambio en aportes: interruptor "va por MEP" (default: la app trae el MEP del día automáticamente) o "cambio manual", donde el usuario carga los pesos invertidos y los dólares que representan y la app deriva el tipo de cambio. Para dólares que no van al MEP (colchón/blue).
 - ✅ Rendimiento selectivo: cada activo tiene una marca de si "busca rendimiento" (yields) o no. Los que no rinden (ej: efectivo USD / colchón) se excluyen del cálculo de rendimiento del portafolio, para que el % de ganancia no quede aguado por dinero que por naturaleza no genera retorno. Siguen sumando al valor total mostrado.
+- 🔜 Ver/restaurar activos archivados desde la UI (hoy solo desde la base).
 
 ### 4. Objetivo (FIRE) 🔜 — baja prioridad
 

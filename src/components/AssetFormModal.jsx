@@ -190,26 +190,32 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
 
           {editing &&
             (confirmArchive ? (
-              <div className="flex items-center justify-between rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
-                <span className="text-clay">¿Archivar este activo?</span>
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmArchive(false)}
-                    disabled={busy}
-                    className="text-ink-soft"
-                  >
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleArchive}
-                    disabled={busy}
-                    className="font-semibold text-clay disabled:opacity-50"
-                  >
-                    Sí, archivar
-                  </button>
+              <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-clay">¿Archivar este activo?</span>
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmArchive(false)}
+                      disabled={busy}
+                      className="text-ink-soft"
+                    >
+                      No
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleArchive}
+                      disabled={busy}
+                      className="font-semibold text-clay disabled:opacity-50"
+                    >
+                      Sí, archivar
+                    </button>
+                  </div>
                 </div>
+                <p className="text-xs text-ink-soft">
+                  Por ahora, restaurarlo solo se puede hacer desde la base de datos; la
+                  restauración desde la app queda pendiente.
+                </p>
               </div>
             ) : (
               <button

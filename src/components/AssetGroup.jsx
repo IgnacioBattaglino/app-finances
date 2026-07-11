@@ -1,16 +1,26 @@
 import { useState } from 'react'
-import { formatUSD, formatPercent, formatDay } from '../lib/format.js'
+import { formatUSD, formatDay } from '../lib/format.js'
 import { computePortfolioGain } from '../lib/portfolio.js'
+import Gain from './Gain.jsx'
 
-function Gain({ value, base, className = '' }) {
-  if (value === null || base === 0) return null
-  const pct = base > 0 ? (value / base) * 100 : 0
-  const positive = value >= 0
+// Señal de que el nombre del activo es tocable para editar. Lápiz, no
+// chevron: el chevron ya significa expandir/colapsar en esta pantalla.
+function EditIcon() {
   return (
-    <span className={`font-money ${positive ? 'text-pine' : 'text-clay'} ${className}`}>
-      {positive ? '+' : '−'}
-      {formatUSD(Math.abs(value))} ({formatPercent(Math.abs(pct))})
-    </span>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className="h-3.5 w-3.5 shrink-0 text-ink-soft"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+      />
+    </svg>
   )
 }
 
@@ -53,11 +63,14 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
     <div className="px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <button type="button" onClick={() => onEdit(asset)} className="min-w-0 text-left">
-          <p className="truncate text-[15px]">
-            {asset.name}
-            {asset.ticker && (
-              <span className="font-money ml-1.5 text-xs text-ink-soft">{asset.ticker}</span>
-            )}
+          <p className="flex items-center gap-1 text-[15px]">
+            <span className="truncate">
+              {asset.name}
+              {asset.ticker && (
+                <span className="font-money ml-1.5 text-xs text-ink-soft">{asset.ticker}</span>
+              )}
+            </span>
+            <EditIcon />
           </p>
           <SourceTag valuation={valuation} />
         </button>
@@ -149,15 +162,19 @@ function AssetGroup({
         onClick={() => setExpanded((prev) => !prev)}
         className="w-full px-4 py-3 text-left transition hover:bg-mist/40"
       >
-        <span className="text-[15px] font-semibold">{label}</span>
-        <div className="mt-1 flex items-center justify-between text-xs">
-          <span className="text-ink-soft">
-            <span className="font-money">{formatUSD(contributed)}</span> →{' '}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[15px] font-semibold">{label}</span>
+          <span className="font-money text-[15px] font-semibold">
             {allUnvalued ? (
               <span className="text-clay">sin valuación</span>
             ) : (
-              <span className="font-money text-ink">{formatUSD(value)}</span>
+              formatUSD(value)
             )}
+          </span>
+        </div>
+        <div className="mt-1 flex items-center justify-between text-xs">
+          <span className="text-ink-soft">
+            aportado <span className="font-money">{formatUSD(contributed)}</span>
           </span>
           <Gain value={gain} base={valuedContributed} className="text-xs" />
         </div>

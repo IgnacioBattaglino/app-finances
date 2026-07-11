@@ -4,12 +4,13 @@ import AssetGroup from '../components/AssetGroup.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
 import ContributionFormModal from '../components/ContributionFormModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
+import Gain from '../components/Gain.jsx'
 import { getAssets } from '../lib/assets.js'
 import { getContributions } from '../lib/contributions.js'
 import { getLatestValuations } from '../lib/valuations.js'
 import { getCryptoPrices } from '../lib/prices.js'
 import { valueAsset, computePortfolioGain, ASSET_TYPES } from '../lib/portfolio.js'
-import { formatUSD, formatPercent } from '../lib/format.js'
+import { formatUSD } from '../lib/format.js'
 
 function Portfolio() {
   const [assets, setAssets] = useState([])
@@ -137,20 +138,12 @@ function Portfolio() {
             <p className="font-money mt-1 text-3xl tracking-tight">
               {formatUSD(totalValue)}
             </p>
-            <div className="mt-2 flex items-center justify-between text-xs">
-              <span className="text-ink-soft">
-                aportado <span className="font-money">{formatUSD(totalContributed)}</span>
-              </span>
-              {valuedContributed > 0 && (
-                <span
-                  className={`font-money ${totalGain >= 0 ? 'text-pine' : 'text-clay'}`}
-                >
-                  {totalGain >= 0 ? '+' : '−'}
-                  {formatUSD(Math.abs(totalGain))} (
-                  {formatPercent(Math.abs((totalGain / valuedContributed) * 100))})
-                </span>
-              )}
-            </div>
+            {valuedContributed > 0 && (
+              <Gain value={totalGain} base={valuedContributed} className="mt-1 block text-lg" />
+            )}
+            <p className="mt-2 text-xs text-ink-soft">
+              aportado <span className="font-money">{formatUSD(totalContributed)}</span>
+            </p>
           </div>
 
           {/* Avisos */}
