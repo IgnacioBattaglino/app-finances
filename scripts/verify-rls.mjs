@@ -35,6 +35,7 @@ const ROOT_TABLES = [
   'categories',
   'transactions',
   'assets',
+  'asset_types',
   'debts',
   'settings',
   'liquid_reconciliations',
@@ -129,7 +130,7 @@ async function main() {
 
   console.log()
   if (allOk) {
-    console.log(`${GREEN}${BOLD}✓ RLS OK: el aislamiento por usuario funciona en las 9 tablas.${RESET}`)
+    console.log(`${GREEN}${BOLD}✓ RLS OK: el aislamiento por usuario funciona en las 10 tablas.${RESET}`)
     process.exit(0)
   } else {
     console.log(`${RED}${BOLD}✗ RLS FALLÓ: revisá las filas marcadas arriba antes de seguir.${RESET}`)

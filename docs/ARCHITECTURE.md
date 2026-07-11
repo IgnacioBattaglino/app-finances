@@ -15,7 +15,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 2. Nada se borra si tiene historia: categorías y activos se archivan (is_archived), no se eliminan, para no romper datos históricos.
 3. Las cotizaciones del momento se congelan en el evento: cada aporte guarda el MEP de su fecha (ídem debt_payments.mep_rate). Las métricas históricas no dependen de reconstruir cotizaciones pasadas.
 4. Moneda: transactions y liquid_reconciliations en ARS (vida diaria); contributions, valuations y deudas en USD (inversión).
-5. Multiusuario: las tablas raíz (categories, transactions, assets, debts, settings, liquid_reconciliations) llevan user_id → auth.users; las tablas hijas (contributions, asset_valuations, debt_payments) heredan el dueño vía su FK. El aislamiento lo garantiza RLS (user_id = auth.uid()).
+5. Multiusuario: las tablas raíz (categories, transactions, assets, asset_types, debts, settings, liquid_reconciliations) llevan user_id → auth.users; las tablas hijas (contributions, asset_valuations, debt_payments) heredan el dueño vía su FK. El aislamiento lo garantiza RLS (user_id = auth.uid()).
 6. El frontend nunca envía user_id: lo completa la base con default auth.uid(), y el with check de RLS garantiza la pertenencia. Defensa en dos capas: la base completa, RLS valida.
 
 ## Tablas
@@ -43,16 +43,31 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 | amount_ars | numeric(14,2) NOT NULL | CHECK > 0 |
 | created_at | timestamptz default now() | |
 
+### asset_types
+Bolsas de activos personalizables por usuario (migración 0014): generalizan los 5 tipos fijos anteriores. Renombrar es libre — nada en el código depende del nombre, solo de estos flags.
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK → auth.users | NOT NULL, default auth.uid(); dueño de la fila |
+| name | text NOT NULL | libre, editable; ej: "Cripto", "CEDEARs" |
+| valuation_mode | text NOT NULL | 'contributed' (vale lo aportado, nunca pide valuación; hoy efectivo), 'manual' (valuación periódica; hoy CEDEAR/bono/fondo), o 'live' (precio por API con identificador por activo; hoy cripto) (CHECK) |
+| earns_yield | boolean NOT NULL default true | default sugerido al crear un activo en la bolsa; el flag operativo real del cálculo de rendimiento sigue siendo assets.yields, por activo |
+| include_in_total | boolean NOT NULL default true | si la bolsa suma al valor total del portafolio |
+| display_order | int NOT NULL default 0 | orden de presentación |
+| is_archived | boolean NOT NULL default false | solo se puede archivar si no tiene activos activos (regla de la app, no de la base) |
+| created_at | timestamptz default now() | |
+
 ### assets
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | uuid PK | |
 | user_id | uuid FK → auth.users | NOT NULL, default auth.uid(); dueño de la fila |
 | name | text NOT NULL | ej: "Bitcoin", "Colchón USD" |
-| type | text NOT NULL | 'crypto', 'cedear', 'bond', 'fund', 'cash' (CHECK) |
-| coingecko_id | text | solo cripto, ej: "bitcoin"; habilita precio automático |
-| ticker | text | opcional; símbolo del activo (ej: AAPL, AL30, BTC). Hoy informativo; habilita valuación automática por API en el futuro |
-| yields | boolean NOT NULL default true | false = reserva de valor (ej: efectivo/colchón); se excluye del cálculo de rendimiento del portafolio pero sigue sumando al valor total |
+| asset_type_id | uuid FK → asset_types | NOT NULL; reemplaza a `type` |
+| type | text | **deprecada** (migración 0014: se relajó NOT NULL y se sacó el CHECK); no la lee ni la escribe el código nuevo. Se elimina en una migración futura |
+| coingecko_id | text | identificador para precio en vivo (bolsas con valuation_mode='live'); hoy solo CoinGecko |
+| ticker | text | opcional; símbolo del activo (ej: AAPL, AL30, BTC). Hoy informativo; habilita valuación automática por ticker en el futuro |
+| yields | boolean NOT NULL default true | false = reserva de valor (ej: efectivo/colchón); se excluye del cálculo de rendimiento del portafolio pero sigue sumando al valor total. Por activo, independiente del default de la bolsa |
 | is_archived | boolean NOT NULL default false | |
 | created_at | timestamptz default now() | |
 
@@ -148,8 +163,8 @@ Justificación de target_allocation como JSONB y no tabla: son 5 valores que se 
 - Credenciales de Supabase en .env (nunca en el repo).
 - Datos reales solo en Supabase. El repo no contiene datos financieros.
 - Multiusuario con Supabase Auth (email + contraseña). Registro semi-cerrado: las cuentas las crea el administrador; no hay signup público.
-- RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009): "own rows" en las tablas raíz (user_id = auth.uid()) y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
-- Trigger handle_new_user (migración 0007, redefinido en 0010 y 0012): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas las del sistema "Ajuste de saldo" (expense e income, con is_system = true), que usa la reconciliación del líquido — y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql.
+- RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009, asset_types en la 0014): "own rows" en las tablas raíz (user_id = auth.uid()) y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
+- Trigger handle_new_user (migración 0007, redefinido en 0010, 0012 y 0014): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas las del sistema "Ajuste de saldo" (expense e income, con is_system = true), que usa la reconciliación del líquido —, sus 5 bolsas de activos default (asset_types) y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql; para usuarios anteriores a la 0014, el backfill de asset_types va incluido en esa misma migración (idempotente).
 
 ## Decisiones registradas (ADRs en docs/adr/)
 

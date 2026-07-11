@@ -13,3 +13,6 @@ Campo JSONB en settings: {"crypto": 15, "cedear": 65, "bond": 10, "fund": 10, "c
 - (+) Settings queda como único punto de configuración global.
 - (−) La validación (suma = 100) vive en la aplicación, no en la base.
 - Revisión: si la asignación necesitara historia propia (ej: trackear cambios de estrategia en el tiempo), migrar a tabla con vigencias.
+
+## Nota (migración 0014 — bolsas personalizables)
+Los tipos de activo dejaron de ser 5 valores fijos: ahora son `asset_types`, una bolsa por fila, personalizable por usuario (crear, renombrar, archivar). El JSONB de esta decisión sigue sin usarse en el código (el rebalanceo se sacó de la UI, ver FUNCTIONAL.md) y no se toca en esta migración. Pero el día que el rebalanceo vuelva como vista propia, `target_allocation` no puede seguir keyed por el nombre del tipo (`{"crypto":15,...}`): las bolsas son arbitrarias y renombrables por usuario. Va a necesitar indexarse por `asset_type_id`, no por string fijo.
