@@ -138,14 +138,19 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
 
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Fecha</span>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="bg-transparent text-right text-[15px] outline-none"
-              />
+              <span className="text-[15px]">Monto</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[15px] text-ink-soft">$</span>
+                <input
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0"
+                  required
+                  autoFocus
+                  className="font-money w-32 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                />
+              </div>
             </label>
             <label className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="text-[15px]">Categoría</span>
@@ -166,6 +171,16 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
               </select>
             </label>
             <label className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-[15px]">Fecha</span>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+                className="bg-transparent text-right text-[15px] outline-none"
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="text-[15px]">Descripción</span>
               <input
                 value={description}
@@ -173,20 +188,6 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
                 placeholder="Opcional"
                 className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
               />
-            </label>
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Monto</span>
-              <div className="flex items-center gap-1">
-                <span className="text-[15px] text-ink-soft">$</span>
-                <input
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="0"
-                  required
-                  className="font-money w-32 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
-                />
-              </div>
             </label>
           </div>
 

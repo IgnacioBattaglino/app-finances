@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { todayISO } from './format.js'
 
 // El join implícito trae el nombre de la categoría en la misma query
 const SELECT = '*, category:categories(name)'
@@ -32,6 +33,35 @@ export async function getTransactions({ month, year, kind, categoryId } = {}) {
     .order('created_at', { ascending: false })
   if (error) throw error
   return data
+}
+
+// Movimientos del mes calendario en curso (día 1 hasta hoy), sin filtros de
+// tipo ni categoría. Para las estadísticas del mes en Movimientos: siempre el
+// mes actual, sin importar el mes que esté navegando la lista de abajo.
+export async function getCurrentMonthTransactions() {
+  const today = todayISO()
+  const start = `${today.slice(0, 7)}-01`
+  const { data, error } = await supabase
+    .from('transactions')
+    .select(SELECT)
+    .gte('date', start)
+    .lte('date', today)
+  if (error) throw error
+  return data
+}
+
+// Desglose de gastos por categoría, ordenado de mayor a menor. Los ajustes de
+// reconciliación cuentan igual que cualquier categoría (no se excluyen).
+export function groupExpensesByCategory(transactions) {
+  const totals = new Map()
+  for (const t of transactions) {
+    if (t.kind !== 'expense') continue
+    const name = t.category?.name ?? 'Sin categoría'
+    totals.set(name, (totals.get(name) ?? 0) + Number(t.amount_ars))
+  }
+  return [...totals.entries()]
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total)
 }
 
 export async function createTransaction(fields) {

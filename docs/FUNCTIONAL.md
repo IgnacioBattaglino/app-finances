@@ -29,7 +29,7 @@ Los aportes marcados como tenencia preexistente ("ya lo tenía": inversiones ant
 
 **Reconciliación**: función de corrección. El usuario declara cuánto líquido tiene realmente; el sistema calcula la diferencia contra lo esperado y registra un movimiento de ajuste (ingreso o gasto según el signo) que realinea el saldo con la realidad. Los ajustes cuentan como gastos/ingresos normales en las estadísticas — no se excluyen de ningún cálculo — y quedan identificados y agrupados bajo su categoría propia "Ajuste de saldo", una categoría del sistema: protegida, el usuario no puede renombrarla ni archivarla. Cubre rendimientos de billeteras (ej: Mercado Pago) y movimientos que no se cargaron.
 
-Hoy el líquido se ve en Movimientos; su lugar definitivo es el Dashboard (ver Secciones).
+El cálculo y la reconciliación siguen intactos (`lib/liquid.js`); dejaron de mostrarse en Movimientos y por ahora no se ven en ninguna pantalla, a la espera del Dashboard (ver Secciones).
 
 ## Secciones
 
@@ -52,10 +52,11 @@ La curva histórica aportado vs. valor se calcula agrupando las valuaciones por 
 
 Su función principal es CAPTURAR gastos e ingresos rápido y mostrar en qué se va la plata (estadísticas por categoría). La lista cronológica es secundaria.
 
-- ✅ Alta, edición y borrado (fecha, categoría, descripción, monto ARS). Filtros por mes, tipo (gasto/ingreso) y categoría. Totales del período.
+- ✅ Orden de la pantalla: acceso a captura (botón flotante "+", prominente) → estadísticas del mes → historial de movimientos, como sección secundaria.
+- ✅ Estadísticas del mes calendario en curso (día 1 hasta hoy, sin selector de período): total de gastos, total de ingresos, y desglose de gastos por categoría (ordenado de mayor a menor). Los ajustes de reconciliación ("Ajuste de saldo") cuentan igual que cualquier categoría, sin excluirse. Se recalculan también al crear, editar o borrar un movimiento.
+- ✅ Historial (sección secundaria): alta, edición y borrado (fecha, categoría, descripción, monto ARS); navegador de mes, filtros por tipo y categoría, totales del período navegado.
 - ✅ Gestión de categorías de gasto y de ingreso (crear, renombrar, archivar) — la pantalla vive en Ajustes.
-- ✅ El líquido y su reconciliación se muestran acá — transitorio: se mudan al Dashboard cuando exista.
-- 🔜 Estadísticas por categoría como vista protagonista (hoy solo hay filtro por categoría).
+- 🔜 El balance líquido y su reconciliación se movieron de acá al Dashboard (ver sección 1); hoy no se muestran en ninguna pantalla.
 - 🔜 Vistas históricas: por año, desde el inicio.
 
 ### 3. Portafolio 🟡
