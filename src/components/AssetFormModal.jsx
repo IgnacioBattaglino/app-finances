@@ -1,10 +1,23 @@
 import { useEffect, useState } from 'react'
 import { createAsset, updateAsset, archiveAsset } from '../lib/assets.js'
-import { ASSET_TYPES } from '../lib/portfolio.js'
+import {
+  createAssetType,
+  renameAssetType,
+  countAssetsForType,
+  archiveAssetType,
+  deleteAssetType,
+} from '../lib/assetTypes.js'
+import EditIcon from './EditIcon.jsx'
 
-function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
+const VALUATION_MODES = [
+  ['contributed', 'Aportado', 'Vale lo aportado; nunca pide carga de valor.'],
+  ['manual', 'Manual', 'Pedís el valor a mano cada tanto.'],
+  ['live', 'Vivo', 'Precio automático por identificador — hoy solo cripto vía CoinGecko; el resto cae a carga manual.'],
+]
+
+function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClose, onSaved, onArchived }) {
   const [name, setName] = useState('')
-  const [type, setType] = useState('cedear')
+  const [assetTypeId, setAssetTypeId] = useState('')
   const [ticker, setTicker] = useState('')
   const [coingeckoId, setCoingeckoId] = useState('')
   const [yieldsFlag, setYieldsFlag] = useState(true)
@@ -12,25 +25,52 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
   const [error, setError] = useState(null)
   const [confirmArchive, setConfirmArchive] = useState(false)
 
+  // Gestión mínima de bolsas embebida acá (crear / renombrar / archivar o
+  // eliminar). La pantalla completa de administración va en Ajustes, a futuro.
+  const [creatingBolsa, setCreatingBolsa] = useState(false)
+  const [newBolsaName, setNewBolsaName] = useState('')
+  const [newBolsaMode, setNewBolsaMode] = useState('manual')
+  const [newBolsaEarnsYield, setNewBolsaEarnsYield] = useState(true)
+  const [renamingBolsa, setRenamingBolsa] = useState(false)
+  const [renameBolsaName, setRenameBolsaName] = useState('')
+  const [managingBolsa, setManagingBolsa] = useState(false)
+  const [bolsaCounts, setBolsaCounts] = useState(null) // null = cargando
+  const [bolsaBusy, setBolsaBusy] = useState(false)
+  const [bolsaError, setBolsaError] = useState(null)
+
   const editing = Boolean(initial?.id)
+  const selectedAssetType = assetTypes.find((at) => at.id === assetTypeId)
 
   useEffect(() => {
     if (!open) return
     setName(initial?.name ?? '')
-    setType(initial?.type ?? 'cedear')
+    setAssetTypeId(initial?.asset_type_id ?? assetTypes[0]?.id ?? '')
     setTicker(initial?.ticker ?? '')
     setCoingeckoId(initial?.coingecko_id ?? '')
     setYieldsFlag(initial ? initial.yields !== false : true)
     setError(null)
     setConfirmArchive(false)
     setBusy(false)
-  }, [open, initial])
+    setCreatingBolsa(false)
+    setNewBolsaName('')
+    setNewBolsaMode('manual')
+    setNewBolsaEarnsYield(true)
+    setRenamingBolsa(false)
+    setManagingBolsa(false)
+    setBolsaCounts(null)
+    setBolsaError(null)
+  }, [open, initial, assetTypes])
 
-  // Sugerencia: el efectivo por naturaleza no rinde. El usuario puede
-  // reactivarlo a mano antes de guardar.
-  function handleTypeChange(nextType) {
-    setType(nextType)
-    if (nextType === 'cash') setYieldsFlag(false)
+  // Sugerencia: el default de rendimiento sale de la bolsa. El usuario puede
+  // pisarlo a mano antes de guardar (queda por activo, no por bolsa).
+  function handleAssetTypeChange(value) {
+    if (value === '__new__') {
+      setCreatingBolsa(true)
+      return
+    }
+    setAssetTypeId(value)
+    const at = assetTypes.find((a) => a.id === value)
+    if (at) setYieldsFlag(at.earns_yield)
   }
 
   useEffect(() => {
@@ -44,7 +84,7 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
 
   if (!open) return null
 
-  const valid = name.trim().length > 0
+  const valid = name.trim().length > 0 && Boolean(assetTypeId)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -53,9 +93,9 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
     setError(null)
     const fields = {
       name: name.trim(),
-      type,
+      assetTypeId,
       ticker,
-      coingeckoId: type === 'crypto' ? coingeckoId : '',
+      coingeckoId: selectedAssetType?.valuation_mode === 'live' ? coingeckoId : '',
       yields: yieldsFlag,
     }
     try {
@@ -78,6 +118,98 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
     } catch (e) {
       setError('No se pudo archivar el activo. ' + e.message)
       setBusy(false)
+    }
+  }
+
+  async function handleCreateBolsa(event) {
+    event.preventDefault()
+    const trimmed = newBolsaName.trim()
+    if (!trimmed || bolsaBusy) return
+    setBolsaBusy(true)
+    setBolsaError(null)
+    try {
+      const created = await createAssetType({
+        name: trimmed,
+        valuationMode: newBolsaMode,
+        earnsYield: newBolsaEarnsYield,
+      })
+      await onAssetTypesChanged?.()
+      setAssetTypeId(created.id)
+      setYieldsFlag(created.earns_yield)
+      setCreatingBolsa(false)
+      setNewBolsaName('')
+    } catch (e) {
+      setBolsaError('No se pudo crear la bolsa. ' + e.message)
+    } finally {
+      setBolsaBusy(false)
+    }
+  }
+
+  function startRenameBolsa() {
+    setRenameBolsaName(selectedAssetType?.name ?? '')
+    setBolsaError(null)
+    setRenamingBolsa(true)
+  }
+
+  async function handleRenameBolsa(event) {
+    event.preventDefault()
+    const trimmed = renameBolsaName.trim()
+    if (!trimmed || bolsaBusy) return
+    setBolsaBusy(true)
+    setBolsaError(null)
+    try {
+      await renameAssetType(assetTypeId, trimmed)
+      await onAssetTypesChanged?.()
+      setRenamingBolsa(false)
+    } catch (e) {
+      setBolsaError('No se pudo renombrar la bolsa. ' + e.message)
+    } finally {
+      setBolsaBusy(false)
+    }
+  }
+
+  async function openManageBolsa() {
+    setManagingBolsa(true)
+    setBolsaCounts(null)
+    setBolsaError(null)
+    try {
+      setBolsaCounts(await countAssetsForType(assetTypeId))
+    } catch (e) {
+      setBolsaError('No se pudo revisar la bolsa. ' + e.message)
+    }
+  }
+
+  function fallbackAssetTypeId() {
+    return assetTypes.find((a) => a.id !== assetTypeId)?.id ?? ''
+  }
+
+  async function handleArchiveBolsa() {
+    setBolsaBusy(true)
+    setBolsaError(null)
+    try {
+      await archiveAssetType(assetTypeId)
+      await onAssetTypesChanged?.()
+      setAssetTypeId(fallbackAssetTypeId())
+      setManagingBolsa(false)
+    } catch (e) {
+      setBolsaError('No se pudo archivar la bolsa. ' + e.message)
+    } finally {
+      setBolsaBusy(false)
+    }
+  }
+
+  async function handleDeleteBolsa() {
+    setBolsaBusy(true)
+    setBolsaError(null)
+    try {
+      await deleteAssetType(assetTypeId)
+      await onAssetTypesChanged?.()
+      setAssetTypeId(fallbackAssetTypeId())
+      setManagingBolsa(false)
+    } catch (e) {
+      setBolsaError('No se pudo eliminar la bolsa. ' + e.message)
+    } finally {
+      setBolsaBusy(false)
     }
   }
 
@@ -121,20 +253,200 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
                 className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
               />
             </label>
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Tipo</span>
-              <select
-                value={type}
-                onChange={(e) => handleTypeChange(e.target.value)}
-                className="bg-transparent text-right text-[15px] outline-none"
-              >
-                {ASSET_TYPES.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[15px]">Bolsa</span>
+                {!creatingBolsa && (
+                  <select
+                    value={assetTypeId}
+                    onChange={(e) => handleAssetTypeChange(e.target.value)}
+                    className="max-w-[60%] bg-transparent text-right text-[15px] outline-none"
+                  >
+                    {assetTypes.map((at) => (
+                      <option key={at.id} value={at.id}>
+                        {at.name}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Nueva bolsa</option>
+                  </select>
+                )}
+              </div>
+
+              {!creatingBolsa && !renamingBolsa && !managingBolsa && selectedAssetType && (
+                <div className="mt-1.5 flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    onClick={startRenameBolsa}
+                    className="flex items-center gap-1 text-ink-soft"
+                  >
+                    <EditIcon className="h-3 w-3" /> Renombrar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openManageBolsa}
+                    className="text-ink-soft underline decoration-dotted"
+                  >
+                    Gestionar bolsa
+                  </button>
+                </div>
+              )}
+
+              {renamingBolsa && (
+                <div className="mt-2 space-y-2">
+                  <input
+                    value={renameBolsaName}
+                    onChange={(e) => setRenameBolsaName(e.target.value)}
+                    autoFocus
+                    disabled={bolsaBusy}
+                    className="w-full rounded-lg bg-mist px-3 py-1.5 text-[15px] outline-none"
+                  />
+                  <div className="flex items-center justify-end gap-4 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setRenamingBolsa(false)}
+                      disabled={bolsaBusy}
+                      className="text-ink-soft"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRenameBolsa}
+                      disabled={bolsaBusy || !renameBolsaName.trim()}
+                      className="font-semibold text-pine disabled:opacity-50"
+                    >
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {managingBolsa && (
+                <div className="mt-2 space-y-2 rounded-xl bg-mist/50 p-3 text-sm">
+                  {bolsaCounts === null ? (
+                    <p className="text-xs text-ink-soft">Revisando…</p>
+                  ) : bolsaCounts.active > 0 ? (
+                    <p className="text-xs text-ink-soft">
+                      Esta bolsa tiene {bolsaCounts.active} activo
+                      {bolsaCounts.active === 1 ? '' : 's'} activo
+                      {bolsaCounts.active === 1 ? '' : 's'}. Moveló{bolsaCounts.active === 1 ? '' : 's'}{' '}
+                      a otra bolsa o archivalo{bolsaCounts.active === 1 ? '' : 's'} antes de poder
+                      archivar o eliminar esta bolsa.
+                    </p>
+                  ) : bolsaCounts.archived > 0 ? (
+                    <>
+                      <p className="text-xs text-ink-soft">
+                        Sin activos activos, pero tiene {bolsaCounts.archived} archivado
+                        {bolsaCounts.archived === 1 ? '' : 's'}. Se puede archivar la bolsa.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleArchiveBolsa}
+                        disabled={bolsaBusy}
+                        className="font-semibold text-clay disabled:opacity-50"
+                      >
+                        Archivar bolsa
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-ink-soft">
+                        No tiene ningún activo. Se puede eliminar.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleDeleteBolsa}
+                        disabled={bolsaBusy}
+                        className="font-semibold text-clay disabled:opacity-50"
+                      >
+                        Eliminar bolsa
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setManagingBolsa(false)}
+                    disabled={bolsaBusy}
+                    className="block text-xs text-ink-soft"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              )}
+
+              {creatingBolsa && (
+                <div className="mt-2 space-y-3">
+                  <input
+                    value={newBolsaName}
+                    onChange={(e) => setNewBolsaName(e.target.value)}
+                    placeholder="Nombre de la bolsa"
+                    autoFocus
+                    disabled={bolsaBusy}
+                    className="w-full rounded-lg bg-mist px-3 py-1.5 text-[15px] outline-none placeholder:text-ink-soft/60"
+                  />
+                  <div className="flex rounded-lg bg-mist p-0.5 text-xs font-medium">
+                    {VALUATION_MODES.map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setNewBolsaMode(value)}
+                        className={`flex-1 rounded-md px-2 py-1.5 transition ${
+                          newBolsaMode === value ? 'bg-card shadow-sm' : 'text-ink-soft'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-ink-soft">
+                    {VALUATION_MODES.find(([value]) => value === newBolsaMode)?.[2]}
+                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[15px]">Busca rendimiento (default)</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={newBolsaEarnsYield}
+                      onClick={() => setNewBolsaEarnsYield((prev) => !prev)}
+                      className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+                        newBolsaEarnsYield ? 'bg-pine' : 'bg-mist'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
+                          newBolsaEarnsYield ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-end gap-4 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreatingBolsa(false)
+                        setNewBolsaName('')
+                      }}
+                      disabled={bolsaBusy}
+                      className="text-ink-soft"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateBolsa}
+                      disabled={bolsaBusy || !newBolsaName.trim()}
+                      className="font-semibold text-pine disabled:opacity-50"
+                    >
+                      {bolsaBusy ? 'Creando…' : 'Crear bolsa'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {bolsaError && <p className="mt-2 text-xs text-clay">{bolsaError}</p>}
+            </div>
+
             <label className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="text-[15px]">Ticker</span>
               <input
@@ -144,7 +456,7 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
                 className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
               />
             </label>
-            {type === 'crypto' && (
+            {selectedAssetType?.valuation_mode === 'live' && (
               <div className="px-4 py-3">
                 <label className="flex items-center justify-between gap-3">
                   <span className="text-[15px]">CoinGecko ID</span>
@@ -156,7 +468,8 @@ function AssetFormModal({ open, initial, onClose, onSaved, onArchived }) {
                   />
                 </label>
                 <p className="mt-1 text-xs text-ink-soft">
-                  Con el ID, el valor se calcula solo con el precio en vivo.
+                  Hoy solo cripto resuelve precio automático (vía CoinGecko) con este ID; el
+                  resto cae a carga manual.
                 </p>
               </div>
             )}

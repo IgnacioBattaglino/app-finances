@@ -1,31 +1,9 @@
 import { supabase } from './supabase.js'
 
-// Puente de compatibilidad: AssetFormModal todavía manda `type` (el string
-// fijo viejo) en vez de asset_type_id. Resuelve la bolsa sembrada que le
-// corresponde para satisfacer la FK NOT NULL. Se borra cuando el formulario
-// pase a mandar assetTypeId directo.
-const TYPE_TO_BOLSA_NAME = {
-  crypto: 'Cripto',
-  cedear: 'CEDEARs',
-  bond: 'Renta fija',
-  fund: 'Fondos',
-  cash: 'Efectivo USD',
-}
-
-async function resolveAssetTypeId(type) {
-  const { data, error } = await supabase
-    .from('asset_types')
-    .select('id')
-    .eq('name', TYPE_TO_BOLSA_NAME[type])
-    .single()
-  if (error) throw error
-  return data.id
-}
-
-function toRow({ name, type, ticker, coingeckoId, yields }) {
+function toRow({ name, assetTypeId, ticker, coingeckoId, yields }) {
   return {
     name,
-    type,
+    asset_type_id: assetTypeId,
     ticker: ticker?.trim() || null,
     coingecko_id: coingeckoId?.trim() || null,
     yields,
@@ -43,10 +21,9 @@ export async function getAssets() {
 }
 
 export async function createAsset(fields) {
-  const asset_type_id = await resolveAssetTypeId(fields.type)
   const { data, error } = await supabase
     .from('assets')
-    .insert({ ...toRow(fields), asset_type_id })
+    .insert(toRow(fields))
     .select()
     .single()
   if (error) throw error
@@ -54,10 +31,9 @@ export async function createAsset(fields) {
 }
 
 export async function updateAsset(id, fields) {
-  const asset_type_id = await resolveAssetTypeId(fields.type)
   const { data, error } = await supabase
     .from('assets')
-    .update({ ...toRow(fields), asset_type_id })
+    .update(toRow(fields))
     .eq('id', id)
     .select()
     .single()

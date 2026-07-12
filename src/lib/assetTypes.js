@@ -10,7 +10,20 @@ export async function getAssetTypes() {
   return data
 }
 
-export async function createAssetType({ name, valuationMode, earnsYield, displayOrder }) {
+// display_order = max existente + 1 (incluidas archivadas, para no reusar
+// un valor ya ocupado): las bolsas nuevas quedan al final, nunca primeras.
+async function nextDisplayOrder() {
+  const { data, error } = await supabase
+    .from('asset_types')
+    .select('display_order')
+    .order('display_order', { ascending: false })
+    .limit(1)
+  if (error) throw error
+  return (data[0]?.display_order ?? 0) + 1
+}
+
+export async function createAssetType({ name, valuationMode, earnsYield }) {
+  const displayOrder = await nextDisplayOrder()
   const { data, error } = await supabase
     .from('asset_types')
     .insert({

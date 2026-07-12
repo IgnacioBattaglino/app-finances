@@ -69,7 +69,7 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
   if (!open) return null
 
   const asset = assets.find((a) => a.id === assetId)
-  const isCrypto = asset?.type === 'crypto'
+  const isLive = asset?.asset_type?.valuation_mode === 'live'
   const amountValue = Number(amount.replace(',', '.'))
   const mepValue = Number(String(mep).replace(',', '.'))
   const quantityValue = Number(quantity.replace(',', '.'))
@@ -92,7 +92,7 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
     assetId &&
     date &&
     (viaMep ? amountValue > 0 && mepValue > 0 : pesosValue > 0 && dolaresValue > 0) &&
-    (!isCrypto || quantityValue > 0)
+    (!isLive || quantityValue > 0)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -324,14 +324,14 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   inputMode="decimal"
-                  placeholder={isCrypto ? 'ej: 0,001' : 'Opcional'}
-                  required={isCrypto}
+                  placeholder={isLive ? 'ej: 0,001' : 'Opcional'}
+                  required={isLive}
                   className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
                 />
               </label>
-              {isCrypto && (
+              {isLive && (
                 <p className="mt-1 text-xs text-ink-soft">
-                  Unidades compradas; obligatoria en cripto para el precio en vivo.
+                  Unidades compradas; obligatoria para el precio en vivo de esta bolsa.
                 </p>
               )}
             </div>

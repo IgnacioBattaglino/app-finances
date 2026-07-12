@@ -2,27 +2,7 @@ import { useState } from 'react'
 import { formatUSD, formatDay } from '../lib/format.js'
 import { computePortfolioGain } from '../lib/portfolio.js'
 import Gain from './Gain.jsx'
-
-// Señal de que el nombre del activo es tocable para editar. Lápiz, no
-// chevron: el chevron ya significa expandir/colapsar en esta pantalla.
-function EditIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      className="h-3.5 w-3.5 shrink-0 text-ink-soft"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
-      />
-    </svg>
-  )
-}
+import EditIcon from './EditIcon.jsx'
 
 function SourceTag({ valuation }) {
   if (valuation.source === 'live') {
@@ -47,8 +27,8 @@ function SourceTag({ valuation }) {
   if (valuation.source === 'manual') {
     return <span className="text-xs text-ink-soft">valuado {formatDay(valuation.date)}</span>
   }
-  if (valuation.source === 'cash') {
-    return <span className="text-xs text-ink-soft">efectivo</span>
+  if (valuation.source === 'contributed') {
+    return <span className="text-xs text-ink-soft">no requiere valuación</span>
   }
   return <span className="text-xs text-clay">sin valuación — no suma al total</span>
 }
@@ -93,7 +73,7 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
           >
             {showContributions ? '▾' : '▸'} Aportes ({own.length})
           </button>
-          {valuation.source !== 'live' && valuation.source !== 'cash' && (
+          {valuation.source !== 'live' && valuation.source !== 'contributed' && (
             <button type="button" onClick={() => onUpdateValue(asset)} className="text-pine">
               Actualizar valor
             </button>
@@ -138,7 +118,7 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
 }
 
 function AssetGroup({
-  label,
+  assetType,
   assets,
   valuations,
   contributions,
@@ -151,7 +131,8 @@ function AssetGroup({
   const contributed = assets.reduce((sum, a) => sum + valuations[a.id].contributed, 0)
   const value = assets.reduce((sum, a) => sum + (valuations[a.id].value ?? 0), 0)
   // Ganancia solo sobre activos con valor que buscan rendimiento (sin valuación
-  // ≠ pérdida; los que no rinden no aguan el %)
+  // ≠ pérdida; los que no rinden no aguan el %). Esto es el rendimiento propio
+  // del grupo — se muestra igual aunque la bolsa esté fuera del total general.
   const { contributed: valuedContributed, gain } = computePortfolioGain(assets, valuations)
   const allUnvalued = assets.every((a) => valuations[a.id].value === null)
 
@@ -163,7 +144,14 @@ function AssetGroup({
         className="w-full px-4 py-3 text-left transition hover:bg-mist/40"
       >
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[15px] font-semibold">{label}</span>
+          <span className="flex items-center gap-1.5 text-[15px] font-semibold">
+            {assetType.name}
+            {assetType.include_in_total === false && (
+              <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-ink-soft">
+                fuera del total
+              </span>
+            )}
+          </span>
           <span className="font-money text-[15px] font-semibold">
             {allUnvalued ? (
               <span className="text-clay">sin valuación</span>

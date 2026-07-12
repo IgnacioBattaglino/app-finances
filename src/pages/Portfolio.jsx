@@ -6,14 +6,16 @@ import ContributionFormModal from '../components/ContributionFormModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
 import Gain from '../components/Gain.jsx'
 import { getAssets } from '../lib/assets.js'
+import { getAssetTypes } from '../lib/assetTypes.js'
 import { getContributions } from '../lib/contributions.js'
 import { getLatestValuations } from '../lib/valuations.js'
 import { getCryptoPrices } from '../lib/prices.js'
-import { valueAsset, computePortfolioGain, ASSET_TYPES } from '../lib/portfolio.js'
+import { valueAsset, computePortfolioGain, needsManualValuation } from '../lib/portfolio.js'
 import { formatUSD } from '../lib/format.js'
 
 function Portfolio() {
   const [assets, setAssets] = useState([])
+  const [assetTypes, setAssetTypes] = useState([])
   const [contributions, setContributions] = useState([])
   const [latestValuations, setLatestValuations] = useState({})
   const [prices, setPrices] = useState({})
@@ -30,12 +32,14 @@ function Portfolio() {
     setLoading(true)
     setError(null)
     try {
-      const [assetsData, contributionsData, valuationsData] = await Promise.all([
+      const [assetsData, assetTypesData, contributionsData, valuationsData] = await Promise.all([
         getAssets(),
+        getAssetTypes(),
         getContributions(),
         getLatestValuations(),
       ])
       setAssets(assetsData)
+      setAssetTypes(assetTypesData)
       setContributions(contributionsData)
       setLatestValuations(valuationsData)
 
@@ -53,6 +57,10 @@ function Portfolio() {
     }
   }
 
+  async function refreshAssetTypes() {
+    setAssetTypes(await getAssetTypes())
+  }
+
   useEffect(() => {
     load()
   }, [])
@@ -60,32 +68,36 @@ function Portfolio() {
   // Valuación calculada por activo
   const valuations = {}
   for (const asset of assets) {
-    const v = valueAsset(asset, contributions, latestValuations[asset.id], prices)
+    const v = valueAsset(asset, contributions, latestValuations[asset.id], prices, asset.asset_type)
     valuations[asset.id] = v.source === 'live' ? { ...v, at: pricesAt } : v
   }
 
-  const totalContributed = assets.reduce(
+  // El total y el rendimiento generales excluyen bolsas con
+  // include_in_total=false; cada grupo sigue mostrando su propio valor y
+  // rendimiento igual (ver AssetGroup).
+  const totalableAssets = assets.filter((a) => a.asset_type?.include_in_total !== false)
+  const totalContributed = totalableAssets.reduce(
     (sum, a) => sum + valuations[a.id].contributed,
     0,
   )
-  const totalValue = assets.reduce((sum, a) => sum + (valuations[a.id].value ?? 0), 0)
+  const totalValue = totalableAssets.reduce((sum, a) => sum + (valuations[a.id].value ?? 0), 0)
   // La ganancia solo compara contra lo aportado a activos CON valor y que
   // buscan rendimiento: un activo sin valuación no es una pérdida, es un dato
   // que falta, y uno que no rinde (ej: efectivo) no debe aguar el %.
   const { contributed: valuedContributed, gain: totalGain } = computePortfolioGain(
-    assets,
+    totalableAssets,
     valuations,
   )
   const unvalued = assets.filter((a) => valuations[a.id].source === 'none')
-  const manualAssets = assets.filter(
-    (a) => !a.coingecko_id && a.type !== 'cash',
-  )
+  const manualAssets = assets.filter(needsManualValuation)
 
-  const groups = ASSET_TYPES.map(([type, label]) => {
-    const groupAssets = assets.filter((a) => a.type === type)
-    if (groupAssets.length === 0) return null
-    return { type, label, assets: groupAssets }
-  }).filter(Boolean)
+  const groups = assetTypes
+    .map((assetType) => {
+      const groupAssets = assets.filter((a) => a.asset_type_id === assetType.id)
+      if (groupAssets.length === 0) return null
+      return { assetType, assets: groupAssets }
+    })
+    .filter(Boolean)
 
   function closeModals() {
     setAssetModal({ open: false, editing: null })
@@ -182,11 +194,11 @@ function Portfolio() {
             )}
           </div>
 
-          {/* Grupos por tipo */}
+          {/* Grupos por bolsa */}
           {groups.map((group) => (
             <AssetGroup
-              key={group.type}
-              label={group.label}
+              key={group.assetType.id}
+              assetType={group.assetType}
               assets={group.assets}
               valuations={valuations}
               contributions={contributions}
@@ -216,6 +228,8 @@ function Portfolio() {
       <AssetFormModal
         open={assetModal.open}
         initial={assetModal.editing}
+        assetTypes={assetTypes}
+        onAssetTypesChanged={refreshAssetTypes}
         onClose={closeModals}
         onSaved={refresh}
         onArchived={refresh}
