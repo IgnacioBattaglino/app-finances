@@ -69,7 +69,7 @@ function ContributionFormModal({ open, initial, assets, onClose, onSaved, onDele
   if (!open) return null
 
   const asset = assets.find((a) => a.id === assetId)
-  const isLive = asset?.asset_type?.valuation_mode === 'live'
+  const isLive = asset?.valuation_mode === 'live'
   const amountValue = Number(amount.replace(',', '.'))
   const mepValue = Number(String(mep).replace(',', '.'))
   const quantityValue = Number(quantity.replace(',', '.'))

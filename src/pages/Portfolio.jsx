@@ -68,7 +68,7 @@ function Portfolio() {
   // Valuación calculada por activo
   const valuations = {}
   for (const asset of assets) {
-    const v = valueAsset(asset, contributions, latestValuations[asset.id], prices, asset.asset_type)
+    const v = valueAsset(asset, contributions, latestValuations[asset.id], prices)
     valuations[asset.id] = v.source === 'live' ? { ...v, at: pricesAt } : v
   }
 
@@ -229,6 +229,7 @@ function Portfolio() {
         open={assetModal.open}
         initial={assetModal.editing}
         assetTypes={assetTypes}
+        assets={assets}
         onAssetTypesChanged={refreshAssetTypes}
         onClose={closeModals}
         onSaved={refresh}

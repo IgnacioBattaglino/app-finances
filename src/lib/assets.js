@@ -1,9 +1,10 @@
 import { supabase } from './supabase.js'
 
-function toRow({ name, assetTypeId, ticker, coingeckoId, yields }) {
+function toRow({ name, assetTypeId, valuationMode, ticker, coingeckoId, yields }) {
   return {
     name,
     asset_type_id: assetTypeId,
+    valuation_mode: valuationMode,
     ticker: ticker?.trim() || null,
     coingecko_id: coingeckoId?.trim() || null,
     yields,
@@ -13,7 +14,7 @@ function toRow({ name, assetTypeId, ticker, coingeckoId, yields }) {
 export async function getAssets() {
   const { data, error } = await supabase
     .from('assets')
-    .select('*, asset_type:asset_types(id, name, valuation_mode, earns_yield, include_in_total)')
+    .select('*, asset_type:asset_types(id, name, earns_yield, include_in_total)')
     .eq('is_archived', false)
     .order('name')
   if (error) throw error

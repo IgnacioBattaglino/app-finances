@@ -6,7 +6,7 @@ function resolveLivePrice(asset, cryptoPrices) {
   return typeof price === 'number' ? price : null
 }
 
-// Cálculo puro del valor de un activo, según el valuation_mode de su bolsa
+// Cálculo puro del valor de un activo, según el valuation_mode del activo
 // (ver FUNCTIONAL.md):
 // - 'live' (hoy: cripto) con precio resoluble: cantidad acumulada × precio.
 //   Sin precio (API caída o sin identificador): cae a la última valuación
@@ -15,11 +15,11 @@ function resolveLivePrice(asset, cryptoPrices) {
 //   valuación.
 // - 'manual' (resto): última valuación manual; sin valuación no suma al
 //   total.
-export function valueAsset(asset, contributions, latestValuation, cryptoPrices, assetType) {
+export function valueAsset(asset, contributions, latestValuation, cryptoPrices) {
   const own = contributions.filter((c) => c.asset_id === asset.id)
   const contributed = own.reduce((sum, c) => sum + Number(c.amount_usd), 0)
 
-  if (assetType.valuation_mode === 'live') {
+  if (asset.valuation_mode === 'live') {
     const quantity = own.reduce((sum, c) => sum + Number(c.quantity ?? 0), 0)
     const price = resolveLivePrice(asset, cryptoPrices)
     if (price !== null) {
@@ -36,7 +36,7 @@ export function valueAsset(asset, contributions, latestValuation, cryptoPrices, 
     return { contributed, value: null, source: 'none' }
   }
 
-  if (assetType.valuation_mode === 'contributed') {
+  if (asset.valuation_mode === 'contributed') {
     return { contributed, value: contributed, source: 'contributed' }
   }
 
@@ -51,11 +51,11 @@ export function valueAsset(asset, contributions, latestValuation, cryptoPrices, 
   return { contributed, value: null, source: 'none' }
 }
 
-// Un activo necesita carga manual de valor cuando su bolsa es 'manual', o
+// Un activo necesita carga manual de valor cuando su modo es 'manual', o
 // cuando es 'live' pero todavía no tiene identificador resoluble (hoy:
 // coingecko_id) y por lo tanto no puede traer precio en vivo.
 export function needsManualValuation(asset) {
-  const mode = asset.asset_type?.valuation_mode
+  const mode = asset.valuation_mode
   return mode === 'manual' || (mode === 'live' && !asset.coingecko_id)
 }
 

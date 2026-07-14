@@ -22,13 +22,12 @@ async function nextDisplayOrder() {
   return (data[0]?.display_order ?? 0) + 1
 }
 
-export async function createAssetType({ name, valuationMode, earnsYield }) {
+export async function createAssetType({ name, earnsYield }) {
   const displayOrder = await nextDisplayOrder()
   const { data, error } = await supabase
     .from('asset_types')
     .insert({
       name,
-      valuation_mode: valuationMode,
       earns_yield: earnsYield,
       display_order: displayOrder,
     })

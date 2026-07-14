@@ -15,9 +15,30 @@ const VALUATION_MODES = [
   ['live', 'Vivo', 'Precio automático por identificador — hoy solo cripto vía CoinGecko; el resto cae a carga manual.'],
 ]
 
-function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClose, onSaved, onArchived }) {
+// Sugerencia al elegir bolsa: el modo más frecuente entre los activos que ya
+// tiene esa bolsa, o null si todavía no tiene ninguno. Es solo un default de
+// UI — el modo es siempre editable y vive en el activo, no en la bolsa.
+function predominantValuationMode(assetTypeId, assets) {
+  const counts = {}
+  for (const a of assets) {
+    if (a.asset_type_id !== assetTypeId) continue
+    counts[a.valuation_mode] = (counts[a.valuation_mode] ?? 0) + 1
+  }
+  let best = null
+  let bestCount = 0
+  for (const [mode, count] of Object.entries(counts)) {
+    if (count > bestCount) {
+      best = mode
+      bestCount = count
+    }
+  }
+  return best
+}
+
+function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged, onClose, onSaved, onArchived }) {
   const [name, setName] = useState('')
   const [assetTypeId, setAssetTypeId] = useState('')
+  const [valuationMode, setValuationMode] = useState('manual')
   const [ticker, setTicker] = useState('')
   const [coingeckoId, setCoingeckoId] = useState('')
   const [yieldsFlag, setYieldsFlag] = useState(true)
@@ -29,7 +50,6 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
   // eliminar). La pantalla completa de administración va en Ajustes, a futuro.
   const [creatingBolsa, setCreatingBolsa] = useState(false)
   const [newBolsaName, setNewBolsaName] = useState('')
-  const [newBolsaMode, setNewBolsaMode] = useState('manual')
   const [newBolsaEarnsYield, setNewBolsaEarnsYield] = useState(true)
   const [renamingBolsa, setRenamingBolsa] = useState(false)
   const [renameBolsaName, setRenameBolsaName] = useState('')
@@ -43,8 +63,12 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
 
   useEffect(() => {
     if (!open) return
+    const defaultAssetTypeId = initial?.asset_type_id ?? assetTypes[0]?.id ?? ''
     setName(initial?.name ?? '')
-    setAssetTypeId(initial?.asset_type_id ?? assetTypes[0]?.id ?? '')
+    setAssetTypeId(defaultAssetTypeId)
+    setValuationMode(
+      initial?.valuation_mode ?? predominantValuationMode(defaultAssetTypeId, assets) ?? 'manual',
+    )
     setTicker(initial?.ticker ?? '')
     setCoingeckoId(initial?.coingecko_id ?? '')
     setYieldsFlag(initial ? initial.yields !== false : true)
@@ -53,16 +77,16 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
     setBusy(false)
     setCreatingBolsa(false)
     setNewBolsaName('')
-    setNewBolsaMode('manual')
     setNewBolsaEarnsYield(true)
     setRenamingBolsa(false)
     setManagingBolsa(false)
     setBolsaCounts(null)
     setBolsaError(null)
-  }, [open, initial, assetTypes])
+  }, [open, initial, assetTypes, assets])
 
-  // Sugerencia: el default de rendimiento sale de la bolsa. El usuario puede
-  // pisarlo a mano antes de guardar (queda por activo, no por bolsa).
+  // Sugerencia: el default de rendimiento y el modo de valuación salen de la
+  // bolsa elegida (el predominante entre sus activos). El usuario puede
+  // pisarlos a mano antes de guardar — quedan por activo, no por bolsa.
   function handleAssetTypeChange(value) {
     if (value === '__new__') {
       setCreatingBolsa(true)
@@ -71,6 +95,7 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
     setAssetTypeId(value)
     const at = assetTypes.find((a) => a.id === value)
     if (at) setYieldsFlag(at.earns_yield)
+    setValuationMode(predominantValuationMode(value, assets) ?? 'manual')
   }
 
   useEffect(() => {
@@ -84,7 +109,7 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
 
   if (!open) return null
 
-  const valid = name.trim().length > 0 && Boolean(assetTypeId)
+  const valid = name.trim().length > 0 && Boolean(assetTypeId) && Boolean(valuationMode)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -94,8 +119,9 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
     const fields = {
       name: name.trim(),
       assetTypeId,
+      valuationMode,
       ticker,
-      coingeckoId: selectedAssetType?.valuation_mode === 'live' ? coingeckoId : '',
+      coingeckoId: valuationMode === 'live' ? coingeckoId : '',
       yields: yieldsFlag,
     }
     try {
@@ -130,7 +156,6 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
     try {
       const created = await createAssetType({
         name: trimmed,
-        valuationMode: newBolsaMode,
         earnsYield: newBolsaEarnsYield,
       })
       await onAssetTypesChanged?.()
@@ -385,23 +410,6 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
                     disabled={bolsaBusy}
                     className="w-full rounded-lg bg-mist px-3 py-1.5 text-[15px] outline-none placeholder:text-ink-soft/60"
                   />
-                  <div className="flex rounded-lg bg-mist p-0.5 text-xs font-medium">
-                    {VALUATION_MODES.map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setNewBolsaMode(value)}
-                        className={`flex-1 rounded-md px-2 py-1.5 transition ${
-                          newBolsaMode === value ? 'bg-card shadow-sm' : 'text-ink-soft'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-ink-soft">
-                    {VALUATION_MODES.find(([value]) => value === newBolsaMode)?.[2]}
-                  </p>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[15px]">Busca rendimiento (default)</span>
                     <button
@@ -447,6 +455,29 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
               {bolsaError && <p className="mt-2 text-xs text-clay">{bolsaError}</p>}
             </div>
 
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[15px]">Modo de valuación</span>
+              </div>
+              <div className="mt-2 flex rounded-lg bg-mist p-0.5 text-xs font-medium">
+                {VALUATION_MODES.map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setValuationMode(value)}
+                    className={`flex-1 rounded-md px-2 py-1.5 transition ${
+                      valuationMode === value ? 'bg-card shadow-sm' : 'text-ink-soft'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-ink-soft">
+                {VALUATION_MODES.find(([value]) => value === valuationMode)?.[2]}
+              </p>
+            </div>
+
             <label className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="text-[15px]">Ticker</span>
               <input
@@ -456,7 +487,7 @@ function AssetFormModal({ open, initial, assetTypes, onAssetTypesChanged, onClos
                 className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
               />
             </label>
-            {selectedAssetType?.valuation_mode === 'live' && (
+            {valuationMode === 'live' && (
               <div className="px-4 py-3">
                 <label className="flex items-center justify-between gap-3">
                   <span className="text-[15px]">CoinGecko ID</span>
