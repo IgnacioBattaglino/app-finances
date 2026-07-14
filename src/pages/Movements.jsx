@@ -12,7 +12,10 @@ import { formatARS, formatMonthYear, formatDay } from '../lib/format.js'
 const now = new Date()
 
 function Movements() {
-  const [items, setItems] = useState([])
+  // Movimientos del mes navegado, sin filtrar por tipo/categoría: de acá
+  // salen tanto los totales del período (que deben describir el mes
+  // completo) como la lista filtrada de abajo (filtrada en cliente).
+  const [monthItems, setMonthItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -38,14 +41,7 @@ function Movements() {
     setLoading(true)
     setError(null)
     try {
-      setItems(
-        await getTransactions({
-          month,
-          year,
-          kind: kind === 'all' ? undefined : kind,
-          categoryId: categoryId || undefined,
-        }),
-      )
+      setMonthItems(await getTransactions({ month, year }))
     } catch (e) {
       setError('No se pudieron cargar los movimientos. ' + e.message)
     } finally {
@@ -56,7 +52,7 @@ function Movements() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month, year, kind, categoryId])
+  }, [month, year])
 
   useEffect(() => {
     loadMonthStats()
@@ -92,10 +88,17 @@ function Movements() {
     loadMonthStats()
   }
 
-  const expenses = items
+  // La lista de abajo respeta los filtros de tipo/categoría; los totales del
+  // período (más abajo) se calculan sobre monthItems, sin filtrar: describen
+  // el mes navegado completo, no lo que quedó visible en la lista.
+  const items = monthItems
+    .filter((t) => kind === 'all' || t.kind === kind)
+    .filter((t) => !categoryId || t.category_id === categoryId)
+
+  const expenses = monthItems
     .filter((t) => t.kind === 'expense')
     .reduce((sum, t) => sum + Number(t.amount_ars), 0)
-  const incomes = items
+  const incomes = monthItems
     .filter((t) => t.kind === 'income')
     .reduce((sum, t) => sum + Number(t.amount_ars), 0)
   const hasExtraFilters = kind !== 'all' || categoryId !== ''

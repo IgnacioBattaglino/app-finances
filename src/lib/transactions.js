@@ -14,7 +14,7 @@ function toRow({ date, kind, categoryId, description, amountArs }) {
   }
 }
 
-export async function getTransactions({ month, year, kind, categoryId } = {}) {
+export async function getTransactions({ month, year } = {}) {
   let query = supabase.from('transactions').select(SELECT)
 
   if (month && year) {
@@ -25,8 +25,6 @@ export async function getTransactions({ month, year, kind, categoryId } = {}) {
         : `${year}-${String(month + 1).padStart(2, '0')}-01`
     query = query.gte('date', start).lt('date', next)
   }
-  if (kind) query = query.eq('kind', kind)
-  if (categoryId) query = query.eq('category_id', categoryId)
 
   const { data, error } = await query
     .order('date', { ascending: false })
