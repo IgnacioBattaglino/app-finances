@@ -15,7 +15,8 @@ export async function getLastReconciliation() {
 }
 
 // Líquido actual = suma pura de TODOS los movimientos del usuario:
-// + ingresos − gastos − aportes (USD × su MEP congelado) − pagos de deuda (ídem).
+// + ingresos − gastos − aportes (USD × su MEP congelado) + retiros que
+// acreditan (ídem, espejo del aporte) − pagos de deuda (ídem aportes).
 // Los ajustes de reconciliación son transactions normales (categoría "Ajuste de
 // saldo"), así que ya están incluidos. La última reconciliación se trae solo
 // para mostrar ("Reconciliado el X") y para etiquetar el próximo ajuste.
@@ -31,8 +32,8 @@ export async function computeCurrentLiquid() {
       }),
     supabase
       .from('contributions')
-      .select('amount_usd, mep_rate')
-      .eq('affects_liquid', true) // cargas iniciales / tenencias previas no restan
+      .select('amount_usd, mep_rate, direction')
+      .eq('affects_liquid', true) // cargas iniciales / tenencias previas y transferencias no tocan el líquido
       .then(({ data, error }) => {
         if (error) throw error
         return data
@@ -51,7 +52,8 @@ export async function computeCurrentLiquid() {
     current += t.kind === 'income' ? Number(t.amount_ars) : -Number(t.amount_ars)
   }
   for (const c of contributions) {
-    current -= Number(c.amount_usd) * Number(c.mep_rate)
+    const delta = Number(c.amount_usd) * Number(c.mep_rate)
+    current += c.direction === 'out' ? delta : -delta
   }
   for (const p of debtPayments) {
     // Pagos sin MEP congelado (anteriores a la migración 0010) quedan fuera
