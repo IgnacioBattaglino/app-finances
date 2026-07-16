@@ -239,6 +239,8 @@ function Portfolio() {
         open={contributionModal.open}
         initial={contributionModal.editing}
         assets={assets}
+        valuations={valuations}
+        contributions={contributions}
         onClose={closeModals}
         onSaved={refresh}
         onDeleted={refresh}

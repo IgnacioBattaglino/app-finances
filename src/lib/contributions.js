@@ -137,6 +137,43 @@ export async function createTransfer({
   return { withdrawal, deposit }
 }
 
+// Edita un retiro existente: recalcula su realized_gain contra el aportado
+// vigente, excluyéndose a sí mismo del cómputo (si no, se restaría dos
+// veces). No es "recalcular retroactivamente" — es la fila editándose a sí
+// misma, igual que cualquier otro campo de un aporte editado.
+export async function updateWithdrawal({
+  id,
+  assetId,
+  date,
+  amountUsd,
+  quantity,
+  mepRate,
+  affectsLiquid,
+  contributions,
+  emptiesAsset,
+  transferId = null,
+}) {
+  const own = contributions.filter((c) => c.asset_id === assetId && c.id !== id)
+  const contributedBefore = computeContributed(own)
+  const { realizedGain } = decomposeWithdrawal({
+    contributedBefore,
+    amount: round2(amountUsd),
+    emptiesAsset,
+  })
+
+  return updateContribution(id, {
+    assetId,
+    date,
+    amountUsd: round2(amountUsd),
+    quantity,
+    mepRate,
+    affectsLiquid,
+    direction: 'out',
+    realizedGain,
+    transferId,
+  })
+}
+
 export async function updateContribution(id, fields) {
   const { data, error } = await supabase
     .from('contributions')

@@ -91,25 +91,31 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
           {own.length === 0 ? (
             <p className="px-3 py-2 text-xs text-ink-soft">Sin aportes todavía.</p>
           ) : (
-            own.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onEditContribution(c)}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-mist"
-              >
-                <span className="text-ink-soft">
-                  {formatDay(c.date)}
-                  {c.quantity ? ` · ${Number(c.quantity)}` : ''}
-                  {c.affects_liquid === false && (
-                    <span className="ml-1.5 rounded-full bg-mist px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                      inicial
-                    </span>
-                  )}
-                </span>
-                <span className="font-money">{formatUSD(c.amount_usd)}</span>
-              </button>
-            ))
+            own.map((c) => {
+              const isWithdrawal = c.direction === 'out'
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onEditContribution(c)}
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-mist"
+                >
+                  <span className="text-ink-soft">
+                    {formatDay(c.date)}
+                    {c.quantity ? ` · ${isWithdrawal ? '−' : ''}${Number(c.quantity)}` : ''}
+                    {c.affects_liquid === false && (
+                      <span className="ml-1.5 rounded-full bg-mist px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                        {isWithdrawal ? 'no acredita' : 'inicial'}
+                      </span>
+                    )}
+                  </span>
+                  <span className={`font-money ${isWithdrawal ? 'text-clay' : ''}`}>
+                    {isWithdrawal ? '−' : ''}
+                    {formatUSD(c.amount_usd)}
+                  </span>
+                </button>
+              )
+            })
           )}
         </div>
       )}
