@@ -10,6 +10,16 @@ export async function getAssetTypes() {
   return data
 }
 
+export async function getArchivedAssetTypes() {
+  const { data, error } = await supabase
+    .from('asset_types')
+    .select('*')
+    .eq('is_archived', true)
+    .order('name')
+  if (error) throw error
+  return data
+}
+
 // display_order = max existente + 1 (incluidas archivadas, para no reusar
 // un valor ya ocupado): las bolsas nuevas quedan al final, nunca primeras.
 async function nextDisplayOrder() {
@@ -74,7 +84,29 @@ export async function archiveAssetType(id) {
   if (error) throw error
 }
 
+export async function restoreAssetType(id) {
+  const { data, error } = await supabase
+    .from('asset_types')
+    .update({ is_archived: false })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 export async function deleteAssetType(id) {
   const { error } = await supabase.from('asset_types').delete().eq('id', id)
   if (error) throw error
+}
+
+export async function setIncludeInTotal(id, includeInTotal) {
+  const { data, error } = await supabase
+    .from('asset_types')
+    .update({ include_in_total: includeInTotal })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
 }

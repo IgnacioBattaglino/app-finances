@@ -1,13 +1,8 @@
 import { useEffect, useState } from 'react'
 import { createAsset, updateAsset, archiveAsset } from '../lib/assets.js'
-import {
-  createAssetType,
-  renameAssetType,
-  countAssetsForType,
-  archiveAssetType,
-  deleteAssetType,
-} from '../lib/assetTypes.js'
-import EditIcon from './EditIcon.jsx'
+import CreateAssetTypeForm from './CreateAssetTypeForm.jsx'
+import FormError from './form/FormError.jsx'
+import MissingHint from './form/MissingHint.jsx'
 
 const VALUATION_MODES = [
   ['contributed', 'Aportado', 'Vale lo aportado; nunca pide carga de valor.'],
@@ -46,20 +41,11 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   const [error, setError] = useState(null)
   const [confirmArchive, setConfirmArchive] = useState(false)
 
-  // Gestión mínima de bolsas embebida acá (crear / renombrar / archivar o
-  // eliminar). La pantalla completa de administración va en Ajustes, a futuro.
+  // "+ Nueva bolsa" embebido: el resto de la gestión (renombrar, archivar,
+  // restaurar, eliminar) vive en Ajustes.
   const [creatingBolsa, setCreatingBolsa] = useState(false)
-  const [newBolsaName, setNewBolsaName] = useState('')
-  const [newBolsaEarnsYield, setNewBolsaEarnsYield] = useState(true)
-  const [renamingBolsa, setRenamingBolsa] = useState(false)
-  const [renameBolsaName, setRenameBolsaName] = useState('')
-  const [managingBolsa, setManagingBolsa] = useState(false)
-  const [bolsaCounts, setBolsaCounts] = useState(null) // null = cargando
-  const [bolsaBusy, setBolsaBusy] = useState(false)
-  const [bolsaError, setBolsaError] = useState(null)
 
   const editing = Boolean(initial?.id)
-  const selectedAssetType = assetTypes.find((at) => at.id === assetTypeId)
 
   useEffect(() => {
     if (!open) return
@@ -76,26 +62,23 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
     setConfirmArchive(false)
     setBusy(false)
     setCreatingBolsa(false)
-    setNewBolsaName('')
-    setNewBolsaEarnsYield(true)
-    setRenamingBolsa(false)
-    setManagingBolsa(false)
-    setBolsaCounts(null)
-    setBolsaError(null)
   }, [open, initial, assetTypes, assets])
 
   // Sugerencia: el default de rendimiento y el modo de valuación salen de la
-  // bolsa elegida (el predominante entre sus activos). El usuario puede
-  // pisarlos a mano antes de guardar — quedan por activo, no por bolsa.
+  // bolsa elegida (el predominante entre sus activos). Solo tiene sentido al
+  // dar de alta — editando un activo existente, cambiar de bolsa es solo
+  // moverlo, no debe pisar lo que ya se eligió por activo.
   function handleAssetTypeChange(value) {
     if (value === '__new__') {
       setCreatingBolsa(true)
       return
     }
     setAssetTypeId(value)
-    const at = assetTypes.find((a) => a.id === value)
-    if (at) setYieldsFlag(at.earns_yield)
-    setValuationMode(predominantValuationMode(value, assets) ?? 'manual')
+    if (!editing) {
+      const at = assetTypes.find((a) => a.id === value)
+      if (at) setYieldsFlag(at.earns_yield)
+      setValuationMode(predominantValuationMode(value, assets) ?? 'manual')
+    }
   }
 
   useEffect(() => {
@@ -109,7 +92,11 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
 
   if (!open) return null
 
-  const valid = name.trim().length > 0 && Boolean(assetTypeId) && Boolean(valuationMode)
+  const missing = []
+  if (!name.trim()) missing.push('nombre')
+  if (!assetTypeId) missing.push('bolsa')
+  if (!valuationMode) missing.push('modo de valuación')
+  const valid = missing.length === 0
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -130,7 +117,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
         : await createAsset(fields)
       onSaved(saved)
     } catch (e) {
-      setError('No se pudo guardar el activo. ' + e.message)
+      setError({ message: 'No se pudo guardar el activo.', detail: e.message })
       setBusy(false)
     }
   }
@@ -142,100 +129,16 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
       await archiveAsset(initial.id)
       onArchived?.(initial.id)
     } catch (e) {
-      setError('No se pudo archivar el activo. ' + e.message)
+      setError({ message: 'No se pudo archivar el activo.', detail: e.message })
       setBusy(false)
     }
   }
 
-  async function handleCreateBolsa(event) {
-    event.preventDefault()
-    const trimmed = newBolsaName.trim()
-    if (!trimmed || bolsaBusy) return
-    setBolsaBusy(true)
-    setBolsaError(null)
-    try {
-      const created = await createAssetType({
-        name: trimmed,
-        earnsYield: newBolsaEarnsYield,
-      })
-      await onAssetTypesChanged?.()
-      setAssetTypeId(created.id)
-      setYieldsFlag(created.earns_yield)
-      setCreatingBolsa(false)
-      setNewBolsaName('')
-    } catch (e) {
-      setBolsaError('No se pudo crear la bolsa. ' + e.message)
-    } finally {
-      setBolsaBusy(false)
-    }
-  }
-
-  function startRenameBolsa() {
-    setRenameBolsaName(selectedAssetType?.name ?? '')
-    setBolsaError(null)
-    setRenamingBolsa(true)
-  }
-
-  async function handleRenameBolsa(event) {
-    event.preventDefault()
-    const trimmed = renameBolsaName.trim()
-    if (!trimmed || bolsaBusy) return
-    setBolsaBusy(true)
-    setBolsaError(null)
-    try {
-      await renameAssetType(assetTypeId, trimmed)
-      await onAssetTypesChanged?.()
-      setRenamingBolsa(false)
-    } catch (e) {
-      setBolsaError('No se pudo renombrar la bolsa. ' + e.message)
-    } finally {
-      setBolsaBusy(false)
-    }
-  }
-
-  async function openManageBolsa() {
-    setManagingBolsa(true)
-    setBolsaCounts(null)
-    setBolsaError(null)
-    try {
-      setBolsaCounts(await countAssetsForType(assetTypeId))
-    } catch (e) {
-      setBolsaError('No se pudo revisar la bolsa. ' + e.message)
-    }
-  }
-
-  function fallbackAssetTypeId() {
-    return assetTypes.find((a) => a.id !== assetTypeId)?.id ?? ''
-  }
-
-  async function handleArchiveBolsa() {
-    setBolsaBusy(true)
-    setBolsaError(null)
-    try {
-      await archiveAssetType(assetTypeId)
-      await onAssetTypesChanged?.()
-      setAssetTypeId(fallbackAssetTypeId())
-      setManagingBolsa(false)
-    } catch (e) {
-      setBolsaError('No se pudo archivar la bolsa. ' + e.message)
-    } finally {
-      setBolsaBusy(false)
-    }
-  }
-
-  async function handleDeleteBolsa() {
-    setBolsaBusy(true)
-    setBolsaError(null)
-    try {
-      await deleteAssetType(assetTypeId)
-      await onAssetTypesChanged?.()
-      setAssetTypeId(fallbackAssetTypeId())
-      setManagingBolsa(false)
-    } catch (e) {
-      setBolsaError('No se pudo eliminar la bolsa. ' + e.message)
-    } finally {
-      setBolsaBusy(false)
-    }
+  async function handleBolsaCreated(created) {
+    await onAssetTypesChanged?.()
+    setAssetTypeId(created.id)
+    setYieldsFlag(created.earns_yield)
+    setCreatingBolsa(false)
   }
 
   return (
@@ -298,161 +201,20 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                 )}
               </div>
 
-              {!creatingBolsa && !renamingBolsa && !managingBolsa && selectedAssetType && (
-                <div className="mt-1.5 flex items-center justify-between text-xs">
-                  <button
-                    type="button"
-                    onClick={startRenameBolsa}
-                    className="flex items-center gap-1 text-ink-soft"
-                  >
-                    <EditIcon className="h-3 w-3" /> Renombrar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openManageBolsa}
-                    className="text-ink-soft underline decoration-dotted"
-                  >
-                    Gestionar bolsa
-                  </button>
-                </div>
-              )}
-
-              {renamingBolsa && (
-                <div className="mt-2 space-y-2">
-                  <input
-                    value={renameBolsaName}
-                    onChange={(e) => setRenameBolsaName(e.target.value)}
-                    autoFocus
-                    disabled={bolsaBusy}
-                    className="w-full rounded-lg bg-mist px-3 py-1.5 text-[15px] outline-none"
-                  />
-                  <div className="flex items-center justify-end gap-4 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => setRenamingBolsa(false)}
-                      disabled={bolsaBusy}
-                      className="text-ink-soft"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRenameBolsa}
-                      disabled={bolsaBusy || !renameBolsaName.trim()}
-                      className="font-semibold text-pine disabled:opacity-50"
-                    >
-                      Guardar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {managingBolsa && (
-                <div className="mt-2 space-y-2 rounded-xl bg-mist/50 p-3 text-sm">
-                  {bolsaCounts === null ? (
-                    <p className="text-xs text-ink-soft">Revisando…</p>
-                  ) : bolsaCounts.active > 0 ? (
-                    <p className="text-xs text-ink-soft">
-                      Esta bolsa tiene {bolsaCounts.active} activo
-                      {bolsaCounts.active === 1 ? '' : 's'} activo
-                      {bolsaCounts.active === 1 ? '' : 's'}. Moveló{bolsaCounts.active === 1 ? '' : 's'}{' '}
-                      a otra bolsa o archivalo{bolsaCounts.active === 1 ? '' : 's'} antes de poder
-                      archivar o eliminar esta bolsa.
-                    </p>
-                  ) : bolsaCounts.archived > 0 ? (
-                    <>
-                      <p className="text-xs text-ink-soft">
-                        Sin activos activos, pero tiene {bolsaCounts.archived} archivado
-                        {bolsaCounts.archived === 1 ? '' : 's'}. Se puede archivar la bolsa.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleArchiveBolsa}
-                        disabled={bolsaBusy}
-                        className="font-semibold text-clay disabled:opacity-50"
-                      >
-                        Archivar bolsa
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs text-ink-soft">
-                        No tiene ningún activo. Se puede eliminar.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleDeleteBolsa}
-                        disabled={bolsaBusy}
-                        className="font-semibold text-clay disabled:opacity-50"
-                      >
-                        Eliminar bolsa
-                      </button>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setManagingBolsa(false)}
-                    disabled={bolsaBusy}
-                    className="block text-xs text-ink-soft"
-                  >
-                    Cerrar
-                  </button>
-                </div>
+              {!creatingBolsa && (
+                <p className="mt-1.5 text-xs text-ink-soft">
+                  Renombrar y archivar bolsas: en Ajustes.
+                </p>
               )}
 
               {creatingBolsa && (
-                <div className="mt-2 space-y-3">
-                  <input
-                    value={newBolsaName}
-                    onChange={(e) => setNewBolsaName(e.target.value)}
-                    placeholder="Nombre de la bolsa"
-                    autoFocus
-                    disabled={bolsaBusy}
-                    className="w-full rounded-lg bg-mist px-3 py-1.5 text-[15px] outline-none placeholder:text-ink-soft/60"
+                <div className="mt-2">
+                  <CreateAssetTypeForm
+                    onCancel={() => setCreatingBolsa(false)}
+                    onCreated={handleBolsaCreated}
                   />
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[15px]">Busca rendimiento (default)</span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={newBolsaEarnsYield}
-                      onClick={() => setNewBolsaEarnsYield((prev) => !prev)}
-                      className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-                        newBolsaEarnsYield ? 'bg-pine' : 'bg-mist'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
-                          newBolsaEarnsYield ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-end gap-4 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCreatingBolsa(false)
-                        setNewBolsaName('')
-                      }}
-                      disabled={bolsaBusy}
-                      className="text-ink-soft"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCreateBolsa}
-                      disabled={bolsaBusy || !newBolsaName.trim()}
-                      className="font-semibold text-pine disabled:opacity-50"
-                    >
-                      {bolsaBusy ? 'Creando…' : 'Crear bolsa'}
-                    </button>
-                  </div>
                 </div>
               )}
-
-              {bolsaError && <p className="mt-2 text-xs text-clay">{bolsaError}</p>}
             </div>
 
             <div className="px-4 py-3">
@@ -506,7 +268,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
             )}
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[15px]">Busca rendimiento</span>
+                <span className="text-[15px]">Cuenta en el rendimiento</span>
                 <button
                   type="button"
                   role="switch"
@@ -530,13 +292,14 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
             </div>
           </div>
 
-          {error && <p className="px-1 text-sm text-clay">{error}</p>}
+          <FormError message={error?.message} detail={error?.detail} />
+          <MissingHint missing={missing} />
 
           {editing &&
             (confirmArchive ? (
-              <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
+              <div className="space-y-2 rounded-2xl border border-line bg-mist/50 px-4 py-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-clay">¿Archivar este activo?</span>
+                  <span>¿Archivar este activo?</span>
                   <div className="flex items-center gap-4">
                     <button
                       type="button"
@@ -550,7 +313,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                       type="button"
                       onClick={handleArchive}
                       disabled={busy}
-                      className="font-semibold text-clay disabled:opacity-50"
+                      className="font-semibold text-pine disabled:opacity-50"
                     >
                       Sí, archivar
                     </button>
@@ -566,7 +329,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                 type="button"
                 onClick={() => setConfirmArchive(true)}
                 disabled={busy}
-                className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] font-medium text-clay transition active:bg-mist/60"
+                className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] font-medium transition active:bg-mist/60"
               >
                 Archivar activo
               </button>

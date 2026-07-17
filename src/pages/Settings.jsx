@@ -1,6 +1,7 @@
 import { useAuth } from '../hooks/useAuth.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 import CategoriesSection from '../components/CategoriesSection.jsx'
+import AssetTypesSection from '../components/AssetTypesSection.jsx'
 
 function Settings() {
   const { user, signOut } = useAuth()
@@ -11,6 +12,8 @@ function Settings() {
 
       <div className="space-y-8">
         <CategoriesSection />
+
+        <AssetTypesSection />
 
         <section>
           <h3 className="mb-1.5 px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
