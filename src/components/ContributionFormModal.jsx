@@ -6,8 +6,9 @@ import {
   createWithdrawal,
   updateWithdrawal,
 } from '../lib/contributions.js'
-import { withdrawalExceedsValue, withdrawalGuardBlocks } from '../lib/portfolio.js'
+import { withdrawalExceedsValue, withdrawalGuardBlocks, heldQuantity } from '../lib/portfolio.js'
 import { todayISO, formatUSD } from '../lib/format.js'
+import { useVisualViewportHeight } from '../hooks/useVisualViewportHeight.js'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError from './form/FormError.jsx'
@@ -70,6 +71,7 @@ function ContributionFormModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const viewportHeight = useVisualViewportHeight()
 
   const editing = Boolean(initial?.id)
   const copy = COPY[operation]
@@ -118,21 +120,30 @@ function ContributionFormModal({
     guardValuation && finalAmountUsd > 0 && withdrawalExceedsValue(finalAmountUsd, guardValuation)
   const guardBlocks = guardValuation && withdrawalGuardBlocks(guardValuation)
 
+  // Guard de tenencia: solo tiene sentido en un retiro nuevo (editar uno
+  // existente requeriría excluirlo a sí mismo de la tenencia, caso pendiente
+  // — ver FUNCTIONAL.md).
+  const heldQty = isLive && operation === 'withdrawal' && !editing ? heldQuantity(asset, contributions) : null
+  const exceedsHoldings = heldQty != null && finalQuantity > 0 && finalQuantity > heldQty
+
   const missing = []
   if (!(finalAmountUsd > 0)) missing.push('monto')
   if (isLive && !(finalQuantity > 0)) missing.push('cantidad')
   if (!(mepRate > 0)) missing.push('tipo de cambio')
   if (!date) missing.push('fecha')
+  if (exceedsHoldings) missing.push('una cantidad que no supere lo que tenés')
   if (exceedsValue && guardBlocks) missing.push('un monto menor al valor actual')
   const valid = missing.length === 0
 
-  const guardMessage = exceedsValue
-    ? guardBlocks
-      ? `Este retiro supera el valor actual del activo (${formatUSD(guardValuation.value)}).`
-      : `Este retiro supera el último valor conocido del activo (${
-          guardValuation.source === 'stale' ? 'precio caído' : 'sin valuación'
-        }) — no podemos confirmarlo con precisión, pero podés continuar.`
-    : null
+  const guardMessage = exceedsHoldings
+    ? `Estás retirando ${finalQuantity} un., pero solo tenés ${heldQty} un. de ${asset.name}.`
+    : exceedsValue
+      ? guardBlocks
+        ? `Este retiro supera el valor actual del activo (${formatUSD(guardValuation.value)}).`
+        : `Este retiro supera el último valor conocido del activo (${
+            guardValuation.source === 'stale' ? 'precio caído' : 'sin valuación'
+          }) — no podemos confirmarlo con precisión, pero podés continuar.`
+      : null
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -192,6 +203,16 @@ function ContributionFormModal({
     }
   }
 
+  // El teclado on-screen de iOS achica el visual viewport sin mover el
+  // layout viewport: acotamos la hoja a ese alto real (si el navegador lo
+  // soporta) y, al enfocar un campo, lo llevamos a la vista — cubre el caso
+  // en que el campo enfocado por autoFocus queda tapado al abrir el modal.
+  function handleFocus(event) {
+    const tag = event.target.tagName
+    if (tag !== 'INPUT' && tag !== 'SELECT') return
+    setTimeout(() => event.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 md:items-center"
@@ -200,8 +221,10 @@ function ContributionFormModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="animate-rise w-full max-w-lg rounded-t-2xl bg-paper p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:rounded-2xl md:pb-4"
+        className="animate-rise w-full max-w-lg overflow-y-auto rounded-t-2xl bg-paper p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:rounded-2xl md:pb-4"
+        style={viewportHeight ? { maxHeight: viewportHeight - 16 } : undefined}
         onClick={(e) => e.stopPropagation()}
+        onFocus={handleFocus}
       >
         <div className="mb-4 flex items-center justify-between">
           <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">

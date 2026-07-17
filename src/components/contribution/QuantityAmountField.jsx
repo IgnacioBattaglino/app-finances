@@ -1,4 +1,3 @@
-import { useRef, useState } from 'react'
 import { formatUSD } from '../../lib/format.js'
 
 function round(n, decimals) {
@@ -6,13 +5,24 @@ function round(n, decimals) {
   return Math.round(n * f) / f
 }
 
-// Cantidad y Monto USD vinculados a un precio unitario: escribir en uno
-// deriva el otro (cantidad × precio), con la cuenta visible en texto chico.
-// El último campo tocado manda; si el usuario edita el campo que el vínculo
-// acaba de escribir, se rompe para el resto de la carga (deja de recalcular,
-// desaparece la cuenta chica) — su precio real de ejecución puede diferir
-// del cotizado en pantalla. Al editar un registro existente arranca sin
-// vínculo: los valores ya guardados no se recalculan contra el precio de hoy.
+// Deriva el monto USD a partir de la cantidad y el precio unitario; null si
+// no hay nada que derivar (cantidad vacía/no numérica, o sin precio).
+export function deriveAmountFromQuantity(quantity, unitPrice) {
+  const q = Number(String(quantity).replace(',', '.'))
+  return unitPrice && q > 0 ? round(q * unitPrice, 2) : null
+}
+
+// Espejo de deriveAmountFromQuantity: cantidad a partir del monto USD.
+export function deriveQuantityFromAmount(amount, unitPrice) {
+  const a = Number(String(amount).replace(',', '.'))
+  return unitPrice && a > 0 ? round(a / unitPrice, 8) : null
+}
+
+// Cantidad y Monto USD vinculados a un precio unitario: escribir en
+// cualquiera de los dos deriva el otro (el campo recién editado siempre
+// manda, sin importar cuál se tocó antes). Al editar un registro existente
+// arranca sin vínculo: los valores ya guardados no se recalculan contra el
+// precio de hoy.
 function QuantityAmountField({
   unitPrice,
   value,
@@ -21,23 +31,15 @@ function QuantityAmountField({
   quantityLabel = 'Cantidad',
   amountLabel = 'Monto USD',
 }) {
-  const [linked, setLinked] = useState(!editing && unitPrice != null)
-  const driver = useRef(null) // 'quantity' | 'amount' | null
+  const linked = !editing && unitPrice != null
 
   function handleQuantity(raw) {
     if (!linked) {
       onChange({ ...value, quantity: raw })
       return
     }
-    if (driver.current === 'amount') {
-      setLinked(false)
-      onChange({ ...value, quantity: raw })
-      return
-    }
-    driver.current = 'quantity'
-    const q = Number(raw.replace(',', '.'))
-    const amountUsd = unitPrice && q > 0 ? String(round(q * unitPrice, 2)) : ''
-    onChange({ quantity: raw, amountUsd })
+    const derived = deriveAmountFromQuantity(raw, unitPrice)
+    onChange({ quantity: raw, amountUsd: derived != null ? String(derived) : '' })
   }
 
   function handleAmount(raw) {
@@ -45,15 +47,8 @@ function QuantityAmountField({
       onChange({ ...value, amountUsd: raw })
       return
     }
-    if (driver.current === 'quantity') {
-      setLinked(false)
-      onChange({ ...value, amountUsd: raw })
-      return
-    }
-    driver.current = 'amount'
-    const a = Number(raw.replace(',', '.'))
-    const quantity = unitPrice && a > 0 ? String(round(a / unitPrice, 8)) : ''
-    onChange({ amountUsd: raw, quantity })
+    const derived = deriveQuantityFromAmount(raw, unitPrice)
+    onChange({ amountUsd: raw, quantity: derived != null ? String(derived) : '' })
   }
 
   const quantityValue = Number(String(value.quantity).replace(',', '.'))
@@ -90,7 +85,7 @@ function QuantityAmountField({
         </label>
         {showMath && (
           <p className="mt-1 text-right text-xs text-ink-soft">
-            {Number(value.quantity)} un. × <span className="font-money">{formatUSD(unitPrice)}</span>{' '}
+            {quantityValue} un. × <span className="font-money">{formatUSD(unitPrice)}</span>{' '}
             = <span className="font-money">{formatUSD(amountValue)}</span>
           </p>
         )}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeContributed, decomposeWithdrawal } from './portfolio.js'
+import { computeContributed, decomposeWithdrawal, heldQuantity } from './portfolio.js'
 
 describe('decomposeWithdrawal', () => {
   it('retiro parcial: no excede el aportado ni vacía el activo → resta directo, sin ganancia', () => {
@@ -58,5 +58,52 @@ describe('computeContributed', () => {
       { amount_usd: 100, direction: 'out', realized_gain: 100 },
     ]
     expect(computeContributed(contributions)).toBe(0)
+  })
+})
+
+describe('heldQuantity', () => {
+  const asset = { id: 'btc' }
+
+  it('suma aportes y resta retiros del mismo activo', () => {
+    const contributions = [
+      { asset_id: 'btc', quantity: 0.5, direction: 'in' },
+      { asset_id: 'btc', quantity: 0.2, direction: 'out' },
+      { asset_id: 'other', quantity: 10, direction: 'in' },
+    ]
+    expect(heldQuantity(asset, contributions)).toBe(0.3)
+  })
+
+  it('ignora filas de otros activos', () => {
+    const contributions = [{ asset_id: 'other', quantity: 10, direction: 'in' }]
+    expect(heldQuantity(asset, contributions)).toBe(0)
+  })
+
+  it('redondea a 8 decimales para no arrastrar ruido de punto flotante', () => {
+    const contributions = [
+      { asset_id: 'btc', quantity: 0.1, direction: 'in' },
+      { asset_id: 'btc', quantity: 0.2, direction: 'in' },
+    ]
+    expect(heldQuantity(asset, contributions)).toBe(0.3)
+  })
+})
+
+describe('guard de retiro contra la tenencia (integración con QuantityAmountField)', () => {
+  it('un monto que implica más cantidad que la tenencia debe bloquear el retiro', () => {
+    const asset = { id: 'btc' }
+    const contributions = [{ asset_id: 'btc', quantity: 0.001, direction: 'in' }]
+    const held = heldQuantity(asset, contributions)
+    const unitPrice = 65000
+    // el usuario carga monto (no cantidad): 100 USD a 65000 → deriva 0.00153846 un.
+    const derivedQuantity = Math.round((100 / unitPrice) * 1e8) / 1e8
+    expect(derivedQuantity).toBeGreaterThan(held)
+  })
+
+  it('un monto que implica menos cantidad que la tenencia no bloquea', () => {
+    const asset = { id: 'btc' }
+    const contributions = [{ asset_id: 'btc', quantity: 0.01, direction: 'in' }]
+    const held = heldQuantity(asset, contributions)
+    const unitPrice = 65000
+    const derivedQuantity = Math.round((10 / unitPrice) * 1e8) / 1e8
+    expect(derivedQuantity).toBeLessThan(held)
   })
 })

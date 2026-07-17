@@ -54,6 +54,20 @@ export function withdrawalGuardBlocks(valuation) {
   return valuation.source !== 'stale' && valuation.source !== 'none'
 }
 
+// Tenencia acumulada (unidades) de un activo: aportes suman, retiros restan.
+// Solo tiene sentido para activos de precio en vivo (los únicos que registran
+// quantity); redondeado a 8 decimales para no arrastrar ruido de punto
+// flotante hacia comparaciones (ej: el guard de retiro contra la tenencia).
+export function heldQuantity(asset, contributions) {
+  const total = contributions
+    .filter((c) => c.asset_id === asset.id)
+    .reduce(
+      (sum, c) => sum + (c.direction === 'out' ? -Number(c.quantity ?? 0) : Number(c.quantity ?? 0)),
+      0,
+    )
+  return Math.round(total * 1e8) / 1e8
+}
+
 // Cálculo puro del valor de un activo, según el valuation_mode del activo
 // (ver FUNCTIONAL.md):
 // - 'live' (hoy: cripto) con precio resoluble: cantidad acumulada × precio.
@@ -68,11 +82,7 @@ export function valueAsset(asset, contributions, latestValuation, cryptoPrices) 
   const contributed = computeContributed(own)
 
   if (asset.valuation_mode === 'live') {
-    const quantity = own.reduce(
-      (sum, c) =>
-        sum + (c.direction === 'out' ? -Number(c.quantity ?? 0) : Number(c.quantity ?? 0)),
-      0,
-    )
+    const quantity = heldQuantity(asset, contributions)
     const price = resolveLivePrice(asset, cryptoPrices)
     if (price !== null) {
       return { contributed, value: quantity * price, source: 'live' }

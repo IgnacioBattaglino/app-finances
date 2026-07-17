@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { createWithdrawal } from '../../lib/contributions.js'
 import { archiveAsset } from '../../lib/assets.js'
-import { decomposeWithdrawal } from '../../lib/portfolio.js'
+import { decomposeWithdrawal, heldQuantity } from '../../lib/portfolio.js'
 import { todayISO, formatUSD } from '../../lib/format.js'
+import { useVisualViewportHeight } from '../../hooks/useVisualViewportHeight.js'
 import BinaryChoice from '../form/BinaryChoice.jsx'
 import CollapsedDateField from '../form/CollapsedDateField.jsx'
 import FormError from '../form/FormError.jsx'
@@ -11,15 +12,6 @@ import ExchangeRateField from './ExchangeRateField.jsx'
 
 function round2(n) {
   return Math.round(n * 100) / 100
-}
-
-function heldQuantityOf(asset, contributions) {
-  return contributions
-    .filter((c) => c.asset_id === asset.id)
-    .reduce(
-      (sum, c) => sum + (c.direction === 'out' ? -Number(c.quantity ?? 0) : Number(c.quantity ?? 0)),
-      0,
-    )
 }
 
 // Confirmación, no formulario de carga: calcula y muestra las consecuencias
@@ -36,11 +28,12 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
   const [date, setDate] = useState(todayISO())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const viewportHeight = useVisualViewportHeight()
 
   useEffect(() => {
     if (!open || !asset) return
     setAmount(valuation?.value != null ? String(valuation.value) : '')
-    setQuantity(asset.valuation_mode === 'live' ? String(heldQuantityOf(asset, contributions)) : '')
+    setQuantity(asset.valuation_mode === 'live' ? String(heldQuantity(asset, contributions)) : '')
     setMepRate(null)
     setDestination('liquid')
     setArchiveAfter(true)
@@ -100,6 +93,12 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
     }
   }
 
+  function handleFocus(event) {
+    const tag = event.target.tagName
+    if (tag !== 'INPUT' && tag !== 'SELECT') return
+    setTimeout(() => event.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 md:items-center"
@@ -108,8 +107,10 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
       <div
         role="dialog"
         aria-modal="true"
-        className="animate-rise w-full max-w-lg rounded-t-2xl bg-paper p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:rounded-2xl md:pb-4"
+        className="animate-rise w-full max-w-lg overflow-y-auto rounded-t-2xl bg-paper p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:rounded-2xl md:pb-4"
+        style={viewportHeight ? { maxHeight: viewportHeight - 16 } : undefined}
         onClick={(e) => e.stopPropagation()}
+        onFocus={handleFocus}
       >
         <div className="mb-4 flex items-center justify-between">
           <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">
