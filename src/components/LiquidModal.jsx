@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { computeCurrentLiquid, reconcile } from '../lib/liquid.js'
 import { formatARS, todayISO } from '../lib/format.js'
+import FormError from './form/FormError.jsx'
 
 function LiquidModal({ open, onClose, onSaved }) {
   const [current, setCurrent] = useState(null) // null = cargando
@@ -20,7 +21,9 @@ function LiquidModal({ open, onClose, onSaved }) {
         setCurrent(result.current)
         setIsFirst(result.isFirst)
       })
-      .catch((e) => setError('No se pudo calcular el líquido actual. ' + e.message))
+      .catch((e) =>
+        setError({ message: 'No se pudo calcular el líquido actual.', detail: e.message }),
+      )
   }, [open])
 
   useEffect(() => {
@@ -48,7 +51,7 @@ function LiquidModal({ open, onClose, onSaved }) {
       const result = await reconcile({ date: todayISO(), declaredAmount: declaredValue })
       onSaved(result)
     } catch (e) {
-      setError('No se pudo guardar la reconciliación. ' + e.message)
+      setError({ message: 'No se pudo guardar la reconciliación.', detail: e.message })
       setBusy(false)
     }
   }
@@ -75,7 +78,7 @@ function LiquidModal({ open, onClose, onSaved }) {
             disabled={!valid || busy}
             className="text-[15px] font-semibold text-pine disabled:opacity-40"
           >
-            {busy ? 'Guardando…' : 'Confirmar'}
+            {busy ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
 
@@ -125,7 +128,7 @@ function LiquidModal({ open, onClose, onSaved }) {
             </p>
           )}
 
-          {error && <p className="px-1 text-sm text-clay">{error}</p>}
+          <FormError message={error?.message} detail={error?.detail} />
         </form>
       </div>
     </div>

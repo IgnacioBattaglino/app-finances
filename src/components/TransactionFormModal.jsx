@@ -1,19 +1,29 @@
 import { useEffect, useState } from 'react'
-import { getCategories } from '../lib/categories.js'
 import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
 } from '../lib/transactions.js'
 import { todayISO } from '../lib/format.js'
+import BinaryChoice from './form/BinaryChoice.jsx'
+import CollapsedDateField from './form/CollapsedDateField.jsx'
+import FormError from './form/FormError.jsx'
+import MissingHint from './form/MissingHint.jsx'
 
-function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose, onSaved, onDeleted }) {
+function TransactionFormModal({
+  open,
+  initial,
+  defaultKind = 'expense',
+  categories = [],
+  onClose,
+  onSaved,
+  onDeleted,
+}) {
   const [date, setDate] = useState(todayISO())
   const [kind, setKind] = useState(defaultKind)
   const [categoryId, setCategoryId] = useState('')
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
-  const [categories, setCategories] = useState([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -30,9 +40,6 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
     setError(null)
     setConfirmDelete(false)
     setBusy(false)
-    getCategories()
-      .then(setCategories)
-      .catch((e) => setError('No se pudieron cargar las categorías. ' + e.message))
   }, [open, initial, defaultKind])
 
   useEffect(() => {
@@ -48,7 +55,11 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
 
   const kindCategories = categories.filter((cat) => cat.kind === kind)
   const amountValue = Number(amount.replace(',', '.'))
-  const valid = date && categoryId && amountValue > 0
+  const missing = []
+  if (!(amountValue > 0)) missing.push('monto')
+  if (!categoryId) missing.push('categoría')
+  if (!date) missing.push('fecha')
+  const valid = missing.length === 0
 
   function changeKind(next) {
     setKind(next)
@@ -69,7 +80,7 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
         : await createTransaction(fields)
       onSaved(saved)
     } catch (e) {
-      setError('No se pudo guardar el movimiento. ' + e.message)
+      setError({ message: 'No se pudo guardar el movimiento.', detail: e.message })
       setBusy(false)
     }
   }
@@ -81,7 +92,7 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
       await deleteTransaction(initial.id)
       onDeleted?.(initial.id)
     } catch (e) {
-      setError('No se pudo eliminar el movimiento. ' + e.message)
+      setError({ message: 'No se pudo eliminar el movimiento.', detail: e.message })
       setBusy(false)
     }
   }
@@ -115,26 +126,14 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
         </div>
 
         <form id="transaction-form" onSubmit={handleSubmit} className="space-y-3">
-          <div className="flex rounded-xl bg-mist p-0.5 text-sm font-medium">
-            <button
-              type="button"
-              onClick={() => changeKind('expense')}
-              className={`flex-1 rounded-[10px] py-1.5 transition ${
-                kind === 'expense' ? 'bg-card shadow-sm' : 'text-ink-soft'
-              }`}
-            >
-              Gasto
-            </button>
-            <button
-              type="button"
-              onClick={() => changeKind('income')}
-              className={`flex-1 rounded-[10px] py-1.5 transition ${
-                kind === 'income' ? 'bg-card shadow-sm' : 'text-ink-soft'
-              }`}
-            >
-              Ingreso
-            </button>
-          </div>
+          <BinaryChoice
+            options={[
+              { value: 'expense', label: 'Gasto' },
+              { value: 'income', label: 'Ingreso' },
+            ]}
+            value={kind}
+            onChange={changeKind}
+          />
 
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             <label className="flex items-center justify-between gap-3 px-4 py-3">
@@ -170,16 +169,7 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
                 ))}
               </select>
             </label>
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Fecha</span>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="bg-transparent text-right text-[15px] outline-none"
-              />
-            </label>
+            <CollapsedDateField value={date} onChange={setDate} />
             <label className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="text-[15px]">Descripción</span>
               <input
@@ -191,12 +181,13 @@ function TransactionFormModal({ open, initial, defaultKind = 'expense', onClose,
             </label>
           </div>
 
-          {error && <p className="px-1 text-sm text-clay">{error}</p>}
+          <FormError message={error?.message} detail={error?.detail} />
+          <MissingHint missing={missing} />
 
           {editing &&
             (confirmDelete ? (
               <div className="flex items-center justify-between rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
-                <span className="text-clay">¿Eliminar este movimiento?</span>
+                <span className="text-clay">¿Eliminar este movimiento? Es permanente.</span>
                 <div className="flex items-center gap-4">
                   <button
                     type="button"

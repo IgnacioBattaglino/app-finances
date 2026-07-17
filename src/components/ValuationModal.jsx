@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
 import { upsertValuation } from '../lib/valuations.js'
 import { todayISO, formatUSD, formatDay } from '../lib/format.js'
+import CollapsedDateField from './form/CollapsedDateField.jsx'
+import FormError from './form/FormError.jsx'
 
 // Rutina mensual: un input por activo manual, un solo Guardar.
 // Recibe [asset] para actualizar uno, o todos los manuales para la pasada del mes.
 function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
+  const [date, setDate] = useState(todayISO())
   const [values, setValues] = useState({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!open) return
+    setDate(todayISO())
     setValues({})
     setError(null)
     setBusy(false)
@@ -37,7 +41,6 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
     if (filled.length === 0 || busy) return
     setBusy(true)
     setError(null)
-    const date = todayISO()
     try {
       const saved = []
       for (const asset of filled) {
@@ -46,7 +49,7 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
       }
       onSaved(saved)
     } catch (e) {
-      setError('No se pudieron guardar las valuaciones. ' + e.message)
+      setError({ message: 'No se pudieron guardar las valuaciones.', detail: e.message })
       setBusy(false)
     }
   }
@@ -78,11 +81,12 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
         </div>
 
         <p className="mb-3 px-1 text-xs text-ink-soft">
-          Valor de hoy en USD. Los que dejes vacíos no se tocan.
+          Valor en USD a la fecha elegida. Los que dejes vacíos no se tocan.
         </p>
 
         <form id="valuation-form" onSubmit={handleSubmit} className="space-y-3">
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+            <CollapsedDateField value={date} onChange={setDate} />
             {assets.map((asset) => {
               const last = latestValuations[asset.id]
               return (
@@ -115,7 +119,7 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
             })}
           </div>
 
-          {error && <p className="px-1 text-sm text-clay">{error}</p>}
+          <FormError message={error?.message} detail={error?.detail} />
         </form>
       </div>
     </div>

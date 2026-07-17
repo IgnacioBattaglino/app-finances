@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
+import EditIcon from '../components/EditIcon.jsx'
 import {
   getTransactions,
   getCurrentMonthTransactions,
@@ -287,11 +288,14 @@ function Movements() {
                   className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-mist/50"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-[15px]">
-                      {tx.category?.name ?? 'Sin categoría'}
-                      {tx.description && (
-                        <span className="text-ink-soft"> · {tx.description}</span>
-                      )}
+                    <p className="flex items-center gap-1 truncate text-[15px]">
+                      <span className="truncate">
+                        {tx.category?.name ?? 'Sin categoría'}
+                        {tx.description && (
+                          <span className="text-ink-soft"> · {tx.description}</span>
+                        )}
+                      </span>
+                      <EditIcon />
                     </p>
                     <p className="mt-0.5 text-xs text-ink-soft">{formatDay(tx.date)}</p>
                   </div>
@@ -323,6 +327,7 @@ function Movements() {
       <TransactionFormModal
         open={modalOpen}
         initial={editing}
+        categories={categories}
         onClose={closeModal}
         onSaved={refreshAfterSave}
         onDeleted={refreshAfterSave}

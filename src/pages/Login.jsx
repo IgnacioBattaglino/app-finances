@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
 import RingsMark from '../components/RingsMark.jsx'
+import FormError from '../components/form/FormError.jsx'
 
 function Login() {
   const { user, loading, signIn } = useAuth()
@@ -31,8 +32,11 @@ function Login() {
     if (signInError) {
       setError(
         signInError.message === 'Invalid login credentials'
-          ? 'Email o contraseña incorrectos.'
-          : signInError.message,
+          ? { message: 'Email o contraseña incorrectos.' }
+          : {
+              message: 'No se pudo iniciar sesión. Verificá tus datos o probá de nuevo.',
+              detail: signInError.message,
+            },
       )
     }
   }
@@ -68,7 +72,7 @@ function Login() {
             />
           </div>
 
-          {error && <p className="px-1 text-sm text-clay">{error}</p>}
+          <FormError message={error?.message} detail={error?.detail} />
 
           <button
             type="submit"

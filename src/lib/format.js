@@ -39,6 +39,19 @@ export function formatDay(date) {
   return dayShort.format(new Date(y, m - 1, d))
 }
 
+const dayYear = new Intl.DateTimeFormat('es-AR', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
+// Igual que formatDay, pero con año — para cuando la fecha no es obvia por
+// contexto (ej. CollapsedDateField mostrando una fecha que no es hoy).
+export function formatDayYear(date) {
+  const [y, m, d] = date.split('-').map(Number)
+  return dayYear.format(new Date(y, m - 1, d))
+}
+
 export function todayISO() {
   const now = new Date()
   const pad = (n) => String(n).padStart(2, '0')
