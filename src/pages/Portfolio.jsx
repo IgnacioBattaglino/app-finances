@@ -3,6 +3,8 @@ import PageHeader from '../components/PageHeader.jsx'
 import AssetGroup from '../components/AssetGroup.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
 import ContributionFormModal from '../components/ContributionFormModal.jsx'
+import TransferFormModal from '../components/contribution/TransferFormModal.jsx'
+import LiquidatePositionModal from '../components/contribution/LiquidatePositionModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
 import Gain from '../components/Gain.jsx'
 import { getAssets } from '../lib/assets.js'
@@ -25,7 +27,14 @@ function Portfolio() {
   const [error, setError] = useState(null)
 
   const [assetModal, setAssetModal] = useState({ open: false, editing: null })
-  const [contributionModal, setContributionModal] = useState({ open: false, editing: null })
+  const [moneyModal, setMoneyModal] = useState({
+    open: false,
+    asset: null,
+    operation: 'contribution',
+    editing: null,
+  })
+  const [transferModal, setTransferModal] = useState({ open: false, asset: null })
+  const [liquidateModal, setLiquidateModal] = useState({ open: false, asset: null })
   const [valuationModal, setValuationModal] = useState({ open: false, assets: [] })
 
   async function load() {
@@ -101,7 +110,9 @@ function Portfolio() {
 
   function closeModals() {
     setAssetModal({ open: false, editing: null })
-    setContributionModal({ open: false, editing: null })
+    setMoneyModal({ open: false, asset: null, operation: 'contribution', editing: null })
+    setTransferModal({ open: false, asset: null })
+    setLiquidateModal({ open: false, asset: null })
     setValuationModal({ open: false, assets: [] })
   }
 
@@ -207,22 +218,24 @@ function Portfolio() {
                 setValuationModal({ open: true, assets: [asset] })
               }
               onEditContribution={(contribution) =>
-                setContributionModal({ open: true, editing: contribution })
+                setMoneyModal({
+                  open: true,
+                  asset: assets.find((a) => a.id === contribution.asset_id) ?? null,
+                  operation: contribution.direction === 'out' ? 'withdrawal' : 'contribution',
+                  editing: contribution,
+                })
               }
+              onAportar={(asset) =>
+                setMoneyModal({ open: true, asset, operation: 'contribution', editing: null })
+              }
+              onRetirar={(asset) =>
+                setMoneyModal({ open: true, asset, operation: 'withdrawal', editing: null })
+              }
+              onTransfer={(asset) => setTransferModal({ open: true, asset })}
+              onLiquidate={(asset) => setLiquidateModal({ open: true, asset })}
             />
           ))}
         </div>
-      )}
-
-      {/* La acción frecuente: cargar un aporte */}
-      {assets.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setContributionModal({ open: true, editing: null })}
-          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 rounded-full bg-pine px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition active:bg-pine-deep md:right-8 md:bottom-8"
-        >
-          + Aporte
-        </button>
       )}
 
       <AssetFormModal
@@ -236,14 +249,34 @@ function Portfolio() {
         onArchived={refresh}
       />
       <ContributionFormModal
-        open={contributionModal.open}
-        initial={contributionModal.editing}
-        assets={assets}
-        valuations={valuations}
+        open={moneyModal.open}
+        asset={moneyModal.asset}
+        operation={moneyModal.operation}
+        initial={moneyModal.editing}
+        valuation={moneyModal.asset ? valuations[moneyModal.asset.id] : null}
         contributions={contributions}
+        prices={prices}
         onClose={closeModals}
         onSaved={refresh}
         onDeleted={refresh}
+      />
+      <TransferFormModal
+        open={transferModal.open}
+        fromAsset={transferModal.asset}
+        assets={assets}
+        originValuation={transferModal.asset ? valuations[transferModal.asset.id] : null}
+        contributions={contributions}
+        prices={prices}
+        onClose={closeModals}
+        onSaved={refresh}
+      />
+      <LiquidatePositionModal
+        open={liquidateModal.open}
+        asset={liquidateModal.asset}
+        valuation={liquidateModal.asset ? valuations[liquidateModal.asset.id] : null}
+        contributions={contributions}
+        onClose={closeModals}
+        onSaved={refresh}
       />
       <ValuationModal
         open={valuationModal.open}

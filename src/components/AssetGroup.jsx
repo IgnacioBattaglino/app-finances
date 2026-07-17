@@ -33,7 +33,74 @@ function SourceTag({ valuation }) {
   return <span className="text-xs text-clay">sin valuación — no suma al total</span>
 }
 
-function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEditContribution }) {
+function AssetActions({ asset, valuation, onAportar, onRetirar, onTransfer, onLiquidate }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  // Nada que liquidar: sin aportado y sin valor.
+  const canLiquidate = !(valuation.contributed === 0 && !valuation.value)
+
+  return (
+    <div className="mt-2 flex items-center gap-4 text-xs">
+      <button type="button" onClick={() => onAportar(asset)} className="font-medium text-pine">
+        Aportar
+      </button>
+      <button type="button" onClick={() => onRetirar(asset)} className="font-medium text-pine">
+        Retirar
+      </button>
+      <div className="relative ml-auto">
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Más acciones"
+          className="px-1 text-ink-soft"
+        >
+          ⋯
+        </button>
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-xl border border-line bg-card py-1 shadow-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false)
+                  onTransfer(asset)
+                }}
+                className="block w-full px-3 py-2 text-left text-[13px] transition hover:bg-mist/60"
+              >
+                Transferir a otro activo
+              </button>
+              {canLiquidate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onLiquidate(asset)
+                  }}
+                  className="block w-full px-3 py-2 text-left text-[13px] transition hover:bg-mist/60"
+                >
+                  Liquidar posición
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AssetRow({
+  asset,
+  valuation,
+  contributions,
+  onEdit,
+  onUpdateValue,
+  onEditContribution,
+  onAportar,
+  onRetirar,
+  onTransfer,
+  onLiquidate,
+}) {
   const [showContributions, setShowContributions] = useState(false)
   const own = contributions.filter((c) => c.asset_id === asset.id)
   const gain = valuation.value !== null ? valuation.value - valuation.contributed : null
@@ -63,6 +130,15 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
           </p>
         </div>
       </div>
+
+      <AssetActions
+        asset={asset}
+        valuation={valuation}
+        onAportar={onAportar}
+        onRetirar={onRetirar}
+        onTransfer={onTransfer}
+        onLiquidate={onLiquidate}
+      />
 
       <div className="mt-1.5 flex items-center justify-between text-xs">
         <div className="flex items-center gap-3">
@@ -100,7 +176,7 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
                   onClick={() => onEditContribution(c)}
                   className="flex w-full items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-mist"
                 >
-                  <span className="text-ink-soft">
+                  <span className="flex items-center gap-1 text-ink-soft">
                     {formatDay(c.date)}
                     {c.quantity ? ` · ${isWithdrawal ? '−' : ''}${Number(c.quantity)}` : ''}
                     {c.affects_liquid === false && (
@@ -108,6 +184,7 @@ function AssetRow({ asset, valuation, contributions, onEdit, onUpdateValue, onEd
                         {isWithdrawal ? 'no acredita' : 'inicial'}
                       </span>
                     )}
+                    <EditIcon className="h-3 w-3 shrink-0 text-ink-soft" />
                   </span>
                   <span className={`font-money ${isWithdrawal ? 'text-clay' : ''}`}>
                     {isWithdrawal ? '−' : ''}
@@ -131,6 +208,10 @@ function AssetGroup({
   onEditAsset,
   onUpdateValue,
   onEditContribution,
+  onAportar,
+  onRetirar,
+  onTransfer,
+  onLiquidate,
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -185,6 +266,10 @@ function AssetGroup({
               onEdit={onEditAsset}
               onUpdateValue={onUpdateValue}
               onEditContribution={onEditContribution}
+              onAportar={onAportar}
+              onRetirar={onRetirar}
+              onTransfer={onTransfer}
+              onLiquidate={onLiquidate}
             />
           ))}
         </div>

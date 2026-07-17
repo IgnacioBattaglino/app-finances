@@ -5,109 +5,87 @@ import {
   deleteContribution,
   createWithdrawal,
   updateWithdrawal,
-  createTransfer,
 } from '../lib/contributions.js'
-import { archiveAsset } from '../lib/assets.js'
 import { withdrawalExceedsValue, withdrawalGuardBlocks } from '../lib/portfolio.js'
-import { getMepRate } from '../lib/prices.js'
-import { todayISO, formatARS, formatUSD } from '../lib/format.js'
+import { todayISO, formatUSD } from '../lib/format.js'
+import BinaryChoice from './form/BinaryChoice.jsx'
+import CollapsedDateField from './form/CollapsedDateField.jsx'
+import FormError from './form/FormError.jsx'
+import MissingHint from './form/MissingHint.jsx'
+import QuantityAmountField from './contribution/QuantityAmountField.jsx'
+import ExchangeRateField from './contribution/ExchangeRateField.jsx'
 
-// Copy espejo: el rail de conversión (MEP/manual) es el mismo cálculo en las
-// dos direcciones, solo cambia cómo se lee ("invertiste" vs. "recibiste").
+function round2(n) {
+  return Math.round(n * 100) / 100
+}
+
+// Copy espejo: aporte y retiro son la misma forma, solo cambia cómo se lee.
 const COPY = {
   contribution: {
-    title: { new: 'Nuevo aporte', edit: 'Editar aporte' },
+    title: (name) => `Aportar a ${name}`,
     entity: 'aporte',
+    quantity: 'Cantidad',
     pesos: 'Pesos invertidos',
     dolares: 'Dólares recibidos',
-    quantity: 'Cantidad',
-    liquidLabel: 'Ya lo tenía',
-    liquidHint:
-      'Activalo si es una inversión que ya tenías antes de usar la app, o efectivo que ya poseías. No descuenta de tu líquido.',
+    pesosQuestion: '¿Cuántos pesos pusiste?',
+    originLabel: '¿De dónde sale?',
+    originOptions: [
+      { value: 'liquid', label: 'De mi líquido' },
+      { value: 'outside', label: 'De afuera' },
+    ],
   },
   withdrawal: {
-    title: { new: 'Nuevo retiro', edit: 'Editar retiro' },
+    title: (name) => `Retirar de ${name}`,
     entity: 'retiro',
+    quantity: 'Cantidad vendida',
     pesos: 'Pesos recibidos',
     dolares: 'Dólares vendidos',
-    quantity: 'Cantidad vendida',
-    liquidLabel: 'Va al líquido',
-    liquidHint:
-      'Activalo si esta plata vuelve a tu líquido. Si la reinvertiste o quedó afuera del sistema, dejalo apagado.',
+    pesosQuestion: '¿Cuántos pesos recibiste?',
+    originLabel: '¿A dónde va?',
+    originOptions: [
+      { value: 'liquid', label: 'A mi líquido' },
+      { value: 'outside', label: 'Afuera' },
+    ],
   },
 }
 
 function ContributionFormModal({
   open,
+  asset,
+  operation,
   initial,
-  assets,
-  valuations,
+  valuation,
   contributions,
+  prices,
   onClose,
   onSaved,
   onDeleted,
 }) {
-  const [mode, setMode] = useState('contribution') // 'contribution' | 'withdrawal'
-  const [assetId, setAssetId] = useState('')
-  const [date, setDate] = useState(todayISO())
-  const [currency, setCurrency] = useState('ars')
-  const [amount, setAmount] = useState('')
   const [quantity, setQuantity] = useState('')
-  const [mep, setMep] = useState('')
-  const [mepLive, setMepLive] = useState(null) // null = cargando, false = API caída
-  const [viaMep, setViaMep] = useState(true) // false = cambio manual (pesos/dólares)
-  const [pesos, setPesos] = useState('') // cambio manual: monto en pesos
-  const [dolares, setDolares] = useState('') // cambio manual: monto en dólares
-  const [affectsLiquid, setAffectsLiquid] = useState(true)
-  const [emptiesAsset, setEmptiesAsset] = useState(false) // "Vendí/retiré todo este activo"
-  const [archiveAfter, setArchiveAfter] = useState(true)
-  const [reinvest, setReinvest] = useState(false)
-  const [destAssetId, setDestAssetId] = useState('')
-  const [destQuantity, setDestQuantity] = useState('')
+  const [amountUsd, setAmountUsd] = useState('') // usado cuando el vínculo cantidad↔monto está activo
+  const [nonLiveAmountUsd, setNonLiveAmountUsd] = useState(null) // reportado por ExchangeRateField cuando no hay vínculo
+  const [mepRate, setMepRate] = useState(null)
+  const [origin, setOrigin] = useState('liquid')
+  const [date, setDate] = useState(todayISO())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const editing = Boolean(initial?.id)
-  const copy = COPY[mode]
+  const copy = COPY[operation]
 
   useEffect(() => {
     if (!open) return
-    setMode(initial?.direction === 'out' ? 'withdrawal' : 'contribution')
-    setAssetId(initial?.asset_id ?? assets[0]?.id ?? '')
-    setDate(initial?.date ?? todayISO())
-    setCurrency(initial ? 'usd' : 'ars')
-    setAmount(initial ? String(initial.amount_usd) : '')
     setQuantity(initial?.quantity ? String(Number(initial.quantity)) : '')
-    setMep(initial ? String(initial.mep_rate) : '')
-    setViaMep(true)
-    setPesos('')
-    setDolares('')
-    setAffectsLiquid(initial ? initial.affects_liquid !== false : true)
-    setEmptiesAsset(false)
-    setArchiveAfter(true)
-    setReinvest(false)
-    setDestAssetId('')
-    setDestQuantity('')
+    setAmountUsd(initial ? String(initial.amount_usd) : '')
+    setNonLiveAmountUsd(null)
+    setMepRate(null)
+    setDate(initial?.date ?? todayISO())
+    setOrigin(initial ? (initial.affects_liquid !== false ? 'liquid' : 'outside') : 'liquid')
     setError(null)
     setConfirmDelete(false)
     setBusy(false)
-
-    if (!initial) {
-      setMepLive(null)
-      getMepRate().then((result) => {
-        if (result) {
-          setMepLive(result)
-          setMep(String(result.rate))
-        } else {
-          setMepLive(false)
-        }
-      })
-    } else {
-      // Al editar, el MEP congelado del movimiento no se pisa con el del día
-      setMepLive(false)
-    }
-  }, [open, initial, assets])
+  }, [open, initial, asset])
 
   useEffect(() => {
     if (!open) return
@@ -118,102 +96,78 @@ function ContributionFormModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  if (!open) return null
+  if (!open || !asset) return null
 
-  const asset = assets.find((a) => a.id === assetId)
-  const isLive = asset?.valuation_mode === 'live'
-  const amountValue = Number(amount.replace(',', '.'))
-  const mepValue = Number(String(mep).replace(',', '.'))
-  const quantityValue = Number(quantity.replace(',', '.'))
-  const pesosValue = Number(pesos.replace(',', '.'))
-  const dolaresValue = Number(dolares.replace(',', '.'))
-  const derivedRate = dolaresValue > 0 ? pesosValue / dolaresValue : null
-
-  const amountUsd = viaMep
-    ? currency === 'usd'
-      ? amountValue
-      : mepValue > 0
-        ? amountValue / mepValue
-        : null
-    : dolaresValue > 0
-      ? dolaresValue
+  const isLive = asset.valuation_mode === 'live'
+  const unitPrice =
+    isLive && typeof prices?.[asset.coingecko_id]?.usd === 'number'
+      ? prices[asset.coingecko_id].usd
       : null
-  const effectiveMep = viaMep ? mepValue : derivedRate
+  const linkedMode = !editing && isLive && unitPrice != null
 
-  // Guard de retiro: con valuación confiable bloquea exceder el valor; con
-  // 'stale'/'none' avisa pero deja continuar (ver portfolio.js).
-  const valuation = mode === 'withdrawal' ? (valuations?.[assetId] ?? null) : null
+  const finalAmountUsd = editing
+    ? Number(String(amountUsd).replace(',', '.'))
+    : linkedMode
+      ? Number(String(amountUsd).replace(',', '.'))
+      : nonLiveAmountUsd
+  const finalQuantity = Number(String(quantity).replace(',', '.'))
+  const affectsLiquid = origin === 'liquid'
+
+  const guardValuation = operation === 'withdrawal' ? valuation : null
   const exceedsValue =
-    valuation !== null && amountUsd !== null && withdrawalExceedsValue(amountUsd, valuation)
-  const guardBlocks = valuation !== null && withdrawalGuardBlocks(valuation)
+    guardValuation && finalAmountUsd > 0 && withdrawalExceedsValue(finalAmountUsd, guardValuation)
+  const guardBlocks = guardValuation && withdrawalGuardBlocks(guardValuation)
 
-  const destAsset = assets.find((a) => a.id === destAssetId)
-  const destIsLive = destAsset?.valuation_mode === 'live'
-  const destQuantityValue = Number(destQuantity.replace(',', '.'))
+  const missing = []
+  if (!(finalAmountUsd > 0)) missing.push('monto')
+  if (isLive && !(finalQuantity > 0)) missing.push('cantidad')
+  if (!(mepRate > 0)) missing.push('tipo de cambio')
+  if (!date) missing.push('fecha')
+  if (exceedsValue && guardBlocks) missing.push('un monto menor al valor actual')
+  const valid = missing.length === 0
 
-  const valid =
-    assetId &&
-    date &&
-    (viaMep ? amountValue > 0 && mepValue > 0 : pesosValue > 0 && dolaresValue > 0) &&
-    (!isLive || quantityValue > 0) &&
-    !(exceedsValue && guardBlocks) &&
-    (mode !== 'withdrawal' ||
-      !reinvest ||
-      (destAssetId && destAssetId !== assetId && (!destIsLive || destQuantityValue > 0)))
+  const guardMessage = exceedsValue
+    ? guardBlocks
+      ? `Este retiro supera el valor actual del activo (${formatUSD(guardValuation.value)}).`
+      : `Este retiro supera el último valor conocido del activo (${
+          guardValuation.source === 'stale' ? 'precio caído' : 'sin valuación'
+        }) — no podemos confirmarlo con precisión, pero podés continuar.`
+    : null
 
   async function handleSubmit(event) {
     event.preventDefault()
     if (!valid || busy) return
     setBusy(true)
     setError(null)
+    const roundedAmount = round2(finalAmountUsd)
+    const roundedRate = round2(mepRate)
+    const transferId = initial?.transfer_id ?? null
     try {
       let saved
-      if (mode === 'withdrawal') {
-        if (reinvest) {
-          saved = await createTransfer({
-            fromAssetId: assetId,
-            toAssetId: destAssetId,
-            date,
-            amountUsd,
-            fromQuantity: quantity ? quantityValue : null,
-            toQuantity: destQuantity ? destQuantityValue : null,
-            mepRate: effectiveMep,
-            contributions,
-            emptiesAsset,
-          })
-        } else if (editing) {
-          saved = await updateWithdrawal({
-            id: initial.id,
-            assetId,
-            date,
-            amountUsd,
-            quantity: quantity ? quantityValue : null,
-            mepRate: effectiveMep,
-            affectsLiquid,
-            contributions,
-            emptiesAsset,
-          })
-        } else {
-          saved = await createWithdrawal({
-            assetId,
-            date,
-            amountUsd,
-            quantity: quantity ? quantityValue : null,
-            mepRate: effectiveMep,
-            affectsLiquid,
-            contributions,
-            emptiesAsset,
-          })
+      if (operation === 'withdrawal') {
+        const fields = {
+          assetId: asset.id,
+          date,
+          amountUsd: roundedAmount,
+          quantity: finalQuantity > 0 ? finalQuantity : null,
+          mepRate: roundedRate,
+          affectsLiquid,
+          contributions,
+          emptiesAsset: false,
+          transferId,
         }
-        if (emptiesAsset && archiveAfter) await archiveAsset(assetId)
+        saved = editing
+          ? await updateWithdrawal({ id: initial.id, ...fields })
+          : await createWithdrawal(fields)
       } else {
         const fields = {
-          assetId,
+          assetId: asset.id,
           date,
-          amountUsd: Math.round(amountUsd * 100) / 100,
-          quantity: quantity ? quantityValue : null,
-          mepRate: Math.round(effectiveMep * 100) / 100,
+          amountUsd: roundedAmount,
+          quantity: finalQuantity > 0 ? finalQuantity : null,
+          mepRate: roundedRate,
           affectsLiquid,
+          transferId,
         }
         saved = editing
           ? await updateContribution(initial.id, fields)
@@ -221,7 +175,7 @@ function ContributionFormModal({
       }
       onSaved(saved)
     } catch (e) {
-      setError(`No se pudo guardar el ${copy.entity}. ` + e.message)
+      setError({ message: `No se pudo guardar el ${copy.entity}.`, detail: e.message })
       setBusy(false)
     }
   }
@@ -233,7 +187,7 @@ function ContributionFormModal({
       await deleteContribution(initial.id)
       onDeleted?.(initial.id)
     } catch (e) {
-      setError(`No se pudo eliminar el ${copy.entity}. ` + e.message)
+      setError({ message: `No se pudo eliminar el ${copy.entity}.`, detail: e.message })
       setBusy(false)
     }
   }
@@ -253,9 +207,7 @@ function ContributionFormModal({
           <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">
             Cancelar
           </button>
-          <h2 className="text-base font-semibold">
-            {editing ? copy.title.edit : copy.title.new}
-          </h2>
+          <h2 className="text-base font-semibold">{copy.title(asset.name)}</h2>
           <button
             type="submit"
             form="contribution-form"
@@ -267,188 +219,70 @@ function ContributionFormModal({
         </div>
 
         <form id="contribution-form" onSubmit={handleSubmit} className="space-y-3">
-          {!editing && (
-            <div className="flex rounded-lg bg-mist p-0.5 text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => setMode('contribution')}
-                className={`flex-1 rounded-md px-2 py-1.5 transition ${
-                  mode === 'contribution' ? 'bg-card shadow-sm' : 'text-ink-soft'
-                }`}
-              >
-                Aporte
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('withdrawal')}
-                className={`flex-1 rounded-md px-2 py-1.5 transition ${
-                  mode === 'withdrawal' ? 'bg-card shadow-sm' : 'text-ink-soft'
-                }`}
-              >
-                Retiro
-              </button>
-            </div>
+          {initial?.transfer_id && (
+            <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">
+              Parte de una transferencia — la otra pata no se modifica sola.
+            </p>
           )}
+
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Activo</span>
-              <select
-                value={assetId}
-                onChange={(e) => setAssetId(e.target.value)}
-                required
-                className="max-w-[55%] bg-transparent text-right text-[15px] outline-none"
-              >
-                {assets.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Fecha</span>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="bg-transparent text-right text-[15px] outline-none"
-              />
-            </label>
-            <div className="px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[15px]">Va por MEP</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={viaMep}
-                  onClick={() => setViaMep((prev) => !prev)}
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-                    viaMep ? 'bg-pine' : 'bg-mist'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
-                      viaMep ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
-                    }`}
-                  />
-                </button>
-              </div>
-              {!viaMep && (
-                <p className="mt-1 text-xs text-ink-soft">
-                  Cambio manual: para dólares que no van al MEP (ej: colchón, blue).
-                </p>
-              )}
-            </div>
-            {viaMep ? (
-              <>
-                <div className="space-y-2 px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[15px]">Monto</span>
-                    <div className="flex items-center gap-2">
-                      <div className="flex rounded-lg bg-mist p-0.5 text-xs font-medium">
-                        <button
-                          type="button"
-                          onClick={() => setCurrency('ars')}
-                          className={`rounded-md px-2 py-1 transition ${
-                            currency === 'ars' ? 'bg-card shadow-sm' : 'text-ink-soft'
-                          }`}
-                        >
-                          ARS
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCurrency('usd')}
-                          className={`rounded-md px-2 py-1 transition ${
-                            currency === 'usd' ? 'bg-card shadow-sm' : 'text-ink-soft'
-                          }`}
-                        >
-                          USD
-                        </button>
-                      </div>
-                      <input
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        inputMode="decimal"
-                        placeholder="0"
-                        required
-                        className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
-                      />
-                    </div>
-                  </div>
-                  {currency === 'ars' && amountValue > 0 && mepValue > 0 && (
-                    <p className="text-right text-xs text-ink-soft">
-                      {formatARS(amountValue)} ≈{' '}
-                      <span className="font-money">{formatUSD(amountValue / mepValue)}</span>{' '}
-                      al MEP {formatARS(mepValue)}
-                    </p>
-                  )}
-                </div>
-                <div className="px-4 py-3">
-                  <label className="flex items-center justify-between gap-3">
-                    <span className="text-[15px]">Dólar MEP</span>
-                    <input
-                      value={mep}
-                      onChange={(e) => setMep(e.target.value)}
-                      inputMode="decimal"
-                      required
-                      disabled={Boolean(mepLive)}
-                      className="font-money w-28 bg-transparent text-right text-[15px] outline-none disabled:text-ink-soft"
-                    />
-                  </label>
-                  {mepLive === null && !editing && (
-                    <p className="mt-1 text-xs text-ink-soft">Buscando cotización…</p>
-                  )}
-                  {mepLive && (
-                    <p className="mt-1 text-xs text-ink-soft">
-                      Cotización del día, automática.
-                    </p>
-                  )}
-                  {mepLive === false && !editing && (
-                    <p className="mt-1 text-xs text-clay">
-                      No se pudo traer el MEP. Cargalo a mano para continuar.
-                    </p>
-                  )}
-                </div>
-              </>
-            ) : (
+            {editing && (
               <>
                 <label className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span className="text-[15px]">{copy.pesos}</span>
+                  <span className="text-[15px]">{copy.quantity}</span>
                   <input
-                    value={pesos}
-                    onChange={(e) => setPesos(e.target.value)}
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
                     inputMode="decimal"
-                    placeholder="0"
-                    required
+                    placeholder={isLive ? 'ej: 0,001' : 'Opcional'}
+                    required={isLive}
                     className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
                   />
                 </label>
-                <div className="px-4 py-3">
-                  <label className="flex items-center justify-between gap-3">
-                    <span className="text-[15px]">{copy.dolares}</span>
+                <label className="flex items-center justify-between gap-3 px-4 py-3">
+                  <span className="text-[15px]">Monto USD</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[15px] text-ink-soft">US$</span>
                     <input
-                      value={dolares}
-                      onChange={(e) => setDolares(e.target.value)}
+                      value={amountUsd}
+                      onChange={(e) => setAmountUsd(e.target.value)}
                       inputMode="decimal"
                       placeholder="0"
                       required
                       className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
                     />
-                  </label>
-                  <p className="mt-1 text-xs text-ink-soft">
-                    Tipo de cambio:{' '}
-                    {derivedRate ? (
-                      <span className="font-money">{formatARS(derivedRate)}</span>
-                    ) : (
-                      '—'
-                    )}
-                  </p>
-                </div>
+                  </div>
+                </label>
               </>
             )}
-            <div className="px-4 py-3">
-              <label className="flex items-center justify-between gap-3">
+
+            {!editing && linkedMode && (
+              <QuantityAmountField
+                unitPrice={unitPrice}
+                value={{ quantity, amountUsd }}
+                onChange={({ quantity: q, amountUsd: a }) => {
+                  setQuantity(q)
+                  setAmountUsd(a)
+                }}
+                quantityLabel={copy.quantity}
+              />
+            )}
+
+            <ExchangeRateField
+              editing={editing}
+              initialRate={initial?.mep_rate}
+              fixedAmountUsd={editing ? null : linkedMode ? finalAmountUsd || null : null}
+              pesosLabel={copy.pesos}
+              dolaresLabel={copy.dolares}
+              pesosQuestion={copy.pesosQuestion}
+              onChange={({ rate, amountUsd: a }) => {
+                setMepRate(rate)
+                if (!editing && !linkedMode && a !== undefined) setNonLiveAmountUsd(a)
+              }}
+            />
+
+            {!editing && !linkedMode && (
+              <label className="flex items-center justify-between gap-3 px-4 py-3">
                 <span className="text-[15px]">{copy.quantity}</span>
                 <input
                   value={quantity}
@@ -459,158 +293,26 @@ function ContributionFormModal({
                   className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
                 />
               </label>
-              {isLive && (
-                <p className="mt-1 text-xs text-ink-soft">
-                  Unidades {mode === 'withdrawal' ? 'vendidas' : 'compradas'}; obligatoria
-                  para el precio en vivo de esta bolsa.
-                </p>
+            )}
+
+            <div className="px-4 py-3">
+              <p className="mb-2 text-[15px]">{copy.originLabel}</p>
+              <BinaryChoice options={copy.originOptions} value={origin} onChange={setOrigin} />
+              {origin === 'outside' && (
+                <p className="mt-1.5 text-xs text-ink-soft">No toca tu saldo líquido.</p>
               )}
             </div>
 
-            {mode === 'withdrawal' && valuation !== null && exceedsValue && (
-              <div className="px-4 py-3">
-                <p className="text-xs text-clay">
-                  {guardBlocks
-                    ? `Este retiro supera el valor actual del activo (${formatUSD(valuation.value)}).`
-                    : `Este retiro supera el último valor conocido del activo (${valuation.source === 'stale' ? 'precio caído' : 'sin valuación'}) — no podemos confirmarlo con precisión, pero podés continuar.`}
-                </p>
-              </div>
-            )}
-
-            {mode === 'withdrawal' && (
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[15px]">Vendí/retiré todo este activo</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={emptiesAsset}
-                    onClick={() => setEmptiesAsset((prev) => !prev)}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-                      emptiesAsset ? 'bg-pine' : 'bg-mist'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
-                        emptiesAsset ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
-                      }`}
-                    />
-                  </button>
-                </div>
-                <p className="mt-1 text-xs text-ink-soft">
-                  Activalo si esto liquida el activo por completo — lo que quede de
-                  aportado se registra como ganancia o pérdida realizada, no se
-                  arrastra.
-                </p>
-                {emptiesAsset && (
-                  <label className="mt-2 flex items-center justify-between gap-3">
-                    <span className="text-xs text-ink-soft">Archivar el activo al guardar</span>
-                    <input
-                      type="checkbox"
-                      checked={archiveAfter}
-                      onChange={(e) => setArchiveAfter(e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                  </label>
-                )}
-              </div>
-            )}
-
-            {mode === 'withdrawal' && !editing && (
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[15px]">Reinvertir en otro activo</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={reinvest}
-                    onClick={() => setReinvest((prev) => !prev)}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-                      reinvest ? 'bg-pine' : 'bg-mist'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
-                        reinvest ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
-                      }`}
-                    />
-                  </button>
-                </div>
-                <p className="mt-1 text-xs text-ink-soft">
-                  Crea el retiro y el aporte al activo destino juntos, mismo monto y
-                  fecha. No toca tu líquido.
-                </p>
-                {reinvest && (
-                  <div className="mt-2 space-y-2">
-                    <label className="flex items-center justify-between gap-3">
-                      <span className="text-[15px]">Activo destino</span>
-                      <select
-                        value={destAssetId}
-                        onChange={(e) => setDestAssetId(e.target.value)}
-                        required
-                        className="max-w-[55%] bg-transparent text-right text-[15px] outline-none"
-                      >
-                        <option value="">Elegir…</option>
-                        {assets
-                          .filter((a) => a.id !== assetId)
-                          .map((a) => (
-                            <option key={a.id} value={a.id}>
-                              {a.name}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    <label className="flex items-center justify-between gap-3">
-                      <span className="text-[15px]">Cantidad en destino</span>
-                      <input
-                        value={destQuantity}
-                        onChange={(e) => setDestQuantity(e.target.value)}
-                        inputMode="decimal"
-                        placeholder={destIsLive ? 'ej: 0,001' : 'Opcional'}
-                        required={destIsLive}
-                        className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
-                      />
-                    </label>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!(mode === 'withdrawal' && reinvest) && (
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[15px]">{copy.liquidLabel}</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={mode === 'withdrawal' ? affectsLiquid : !affectsLiquid}
-                    onClick={() => setAffectsLiquid((prev) => !prev)}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-                      (mode === 'withdrawal' ? affectsLiquid : !affectsLiquid)
-                        ? 'bg-pine'
-                        : 'bg-mist'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
-                        (mode === 'withdrawal' ? affectsLiquid : !affectsLiquid)
-                          ? 'left-[calc(100%-1.625rem)]'
-                          : 'left-0.5'
-                      }`}
-                    />
-                  </button>
-                </div>
-                <p className="mt-1 text-xs text-ink-soft">{copy.liquidHint}</p>
-              </div>
-            )}
+            <CollapsedDateField value={date} onChange={setDate} />
           </div>
 
-          {error && <p className="px-1 text-sm text-clay">{error}</p>}
+          <FormError message={error?.message ?? guardMessage} detail={error?.detail} />
+          <MissingHint missing={missing} />
 
           {editing &&
             (confirmDelete ? (
               <div className="flex items-center justify-between rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
-                <span className="text-clay">¿Eliminar este {copy.entity}?</span>
+                <span className="text-clay">¿Eliminar este {copy.entity}? Es permanente.</span>
                 <div className="flex items-center gap-4">
                   <button
                     type="button"
