@@ -40,14 +40,6 @@ function Portfolio() {
       setAssetTypes(assetTypesData)
       setContributions(contributionsData)
       setLatestValuations(valuationsData)
-
-      const ids = assetsData.filter((a) => a.coingecko_id).map((a) => a.coingecko_id)
-      if (ids.length > 0) {
-        const result = await getCryptoPrices(ids)
-        setPricesFailed(result === null)
-        setPrices(result ?? {})
-        setPricesAt(new Date())
-      }
     } catch (e) {
       setError('No se pudo cargar el portafolio. ' + e.message)
     } finally {
@@ -62,6 +54,25 @@ function Portfolio() {
   useEffect(() => {
     load()
   }, [])
+
+  // El precio en vivo no bloquea el primer render (CoinGecko es la parte
+  // más lenta de la carga): se pide aparte una vez que sabemos qué activos
+  // tienen coingecko_id, y actualiza prices/pricesAt cuando llega.
+  useEffect(() => {
+    const ids = assets.filter((a) => a.coingecko_id).map((a) => a.coingecko_id)
+    if (ids.length === 0) return
+    let cancelled = false
+    getCryptoPrices(ids).then((result) => {
+      if (cancelled) return
+      setPricesFailed(result === null)
+      setPrices(result ?? {})
+      setPricesAt(new Date())
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assets])
 
   // Valuación calculada por activo
   const valuations = {}

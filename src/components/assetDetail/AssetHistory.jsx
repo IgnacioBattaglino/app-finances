@@ -29,13 +29,17 @@ function ContributionRow({ contribution: c, label, onClick }) {
   )
 }
 
-// Valuación manual intercalada: evento menor, más liviano que una operación
-// y no tocable.
+// Valuación manual intercalada: misma estructura que una operación (título
+// + fecha a la izquierda, valor a la derecha) pero íntegramente en gris
+// suave y sin negritas — evento menor, no tocable.
 function ValuationRow({ valuation }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2 text-xs text-ink-soft">
-      <span>Valuación: {formatUSD(valuation.value_usd)}</span>
-      <span>{formatDay(valuation.date)}</span>
+    <div className="flex items-center justify-between gap-3 px-4 py-3 text-ink-soft">
+      <span className="min-w-0">
+        <span className="block text-[15px]">Valuación</span>
+        <span className="block text-xs">{formatDay(valuation.date)}</span>
+      </span>
+      <span className="font-money shrink-0 text-[15px]">{formatUSD(valuation.value_usd)}</span>
     </div>
   )
 }

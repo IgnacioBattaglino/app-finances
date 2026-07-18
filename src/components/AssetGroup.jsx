@@ -12,8 +12,8 @@ function secondLine(asset, valuation, own) {
     const quantity = heldQuantity(asset, own)
     const avg = averagePurchasePrice(own)
     const unitPrice = quantity > 0 && valuation.value !== null ? valuation.value / quantity : null
-    const tickerPart = asset.ticker ? ` ${asset.ticker}` : ''
-    return `${quantity}${tickerPart} · ${avg !== null ? formatUSD(avg) : '—'} → ${
+    const tickerPart = asset.ticker ? ` ${asset.ticker.toUpperCase()}` : ''
+    return `${quantity}${tickerPart} · prom. ${avg !== null ? formatUSD(avg) : '—'} → hoy ${
       unitPrice !== null ? formatUSD(unitPrice) : '—'
     }`
   }

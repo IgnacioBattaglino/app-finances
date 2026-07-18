@@ -26,6 +26,13 @@ import ValuationModal from '../components/ValuationModal.jsx'
 
 const PAGE_SIZE = 20
 
+const METRIC_EXPLANATIONS = {
+  avg: 'Promedio ponderado de tus compras: total invertido ÷ cantidad comprada. Compararlo con el precio actual te muestra cuánto rindió tu inversión.',
+  current: 'Última cotización disponible, o tu última valuación manual si no hay precio en vivo.',
+  contributed:
+    'Capital propio en este activo: tus aportes menos la parte de capital de tus retiros. La diferencia con el valor actual es tu ganancia.',
+}
+
 function AssetDetail() {
   const { assetId } = useParams()
   const navigate = useNavigate()
@@ -72,13 +79,6 @@ function AssetDetail() {
       setContributions(items)
       setHasMore(more)
       setValuations(valuationsData)
-
-      const found = assetsData.find((a) => a.id === assetId)
-      if (found?.valuation_mode === 'live' && found.coingecko_id) {
-        const result = await getCryptoPrices([found.coingecko_id])
-        setPrices(result ?? {})
-        setPricesAt(new Date())
-      }
     } catch (e) {
       setError('No se pudo cargar el activo. ' + e.message)
     } finally {
@@ -90,6 +90,24 @@ function AssetDetail() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetId])
+
+  // El precio en vivo no bloquea el primer render (CoinGecko es la parte
+  // más lenta de la carga): se pide aparte una vez que sabemos qué activo
+  // es y si tiene coingecko_id, y actualiza prices/pricesAt cuando llega —
+  // hasta entonces valueAsset cae a 'stale'/'none' y el SourceTag lo refleja.
+  useEffect(() => {
+    const asset = assets.find((a) => a.id === assetId)
+    if (asset?.valuation_mode !== 'live' || !asset.coingecko_id) return
+    let cancelled = false
+    getCryptoPrices([asset.coingecko_id]).then((result) => {
+      if (cancelled) return
+      setPrices(result ?? {})
+      setPricesAt(new Date())
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [assets, assetId])
 
   async function loadMore() {
     setLoadingMore(true)
@@ -208,7 +226,7 @@ function AssetDetail() {
             </p>
             {asset.valuation_mode === 'live' && (
               <p className="mt-1 text-xs text-ink-soft">
-                equivale a {heldQty} {asset.ticker}
+                equivale a {heldQty} {asset.name}
               </p>
             )}
             <Gain
@@ -224,34 +242,30 @@ function AssetDetail() {
               <MetricCard
                 label="Precio prom. de compra"
                 value={avgPrice !== null ? formatUSD(avgPrice) : '—'}
-                expanded={expandedMetric === 'avg'}
+                active={expandedMetric === 'avg'}
                 onToggle={() => setExpandedMetric((e) => (e === 'avg' ? null : 'avg'))}
-              >
-                Promedio ponderado de tus compras: total invertido ÷ cantidad comprada. Compararlo
-                con el precio actual te muestra cuánto rindió tu inversión.
-              </MetricCard>
+              />
             )}
             {!onlyContributed && (
               <MetricCard
                 label="Precio actual"
                 value={valuation?.value != null ? formatUSD(valuation.value) : '—'}
-                expanded={expandedMetric === 'current'}
+                active={expandedMetric === 'current'}
                 onToggle={() => setExpandedMetric((e) => (e === 'current' ? null : 'current'))}
-              >
-                Última cotización disponible, o tu última valuación manual si no hay precio en
-                vivo.
-              </MetricCard>
+              />
             )}
             <MetricCard
               label="Aportado"
               value={formatUSD(valuation?.contributed ?? 0)}
-              expanded={expandedMetric === 'contributed'}
+              active={expandedMetric === 'contributed'}
               onToggle={() => setExpandedMetric((e) => (e === 'contributed' ? null : 'contributed'))}
-            >
-              Capital propio en este activo: tus aportes menos la parte de capital de tus retiros.
-              La diferencia con el valor actual es tu ganancia.
-            </MetricCard>
+            />
           </div>
+          {expandedMetric && (
+            <p className="mt-2 rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">
+              {METRIC_EXPLANATIONS[expandedMetric]}
+            </p>
+          )}
 
           {/* Hueco para el gráfico de evolución (llega con snapshots) */}
           <div />
