@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { computeContributed, decomposeWithdrawal, heldQuantity } from './portfolio.js'
+import {
+  computeContributed,
+  decomposeWithdrawal,
+  heldQuantity,
+  averagePurchasePrice,
+  classifyOperations,
+  mergeAssetHistory,
+} from './portfolio.js'
 
 describe('decomposeWithdrawal', () => {
   it('retiro parcial: no excede el aportado ni vacía el activo → resta directo, sin ganancia', () => {
@@ -84,6 +91,181 @@ describe('heldQuantity', () => {
       { asset_id: 'btc', quantity: 0.2, direction: 'in' },
     ]
     expect(heldQuantity(asset, contributions)).toBe(0.3)
+  })
+})
+
+describe('averagePurchasePrice', () => {
+  it('promedio ponderado entre varias compras a distinto precio', () => {
+    const contributions = [
+      { direction: 'in', amount_usd: 1000, quantity: 0.02 }, // 50000/un.
+      { direction: 'in', amount_usd: 600, quantity: 0.01 }, // 60000/un.
+    ]
+    // (1000+600) / (0.02+0.01)
+    expect(averagePurchasePrice(contributions)).toBeCloseTo(53333.33, 2)
+  })
+
+  it('un retiro en el medio no altera el promedio', () => {
+    const contributions = [
+      { direction: 'in', amount_usd: 1000, quantity: 0.02 },
+      { direction: 'in', amount_usd: 600, quantity: 0.01 },
+      { direction: 'out', amount_usd: 500, quantity: 0.005 },
+    ]
+    expect(averagePurchasePrice(contributions)).toBeCloseTo(53333.33, 2)
+  })
+
+  it('una pata de entrada de transferencia sí altera el promedio, igual que un aporte', () => {
+    const contributions = [
+      { direction: 'in', amount_usd: 1000, quantity: 0.02 },
+      { direction: 'in', amount_usd: 600, quantity: 0.01 },
+      { direction: 'in', amount_usd: 300, quantity: 0.005, transfer_id: 'tx1' },
+    ]
+    // (1000+600+300) / (0.02+0.01+0.005)
+    expect(averagePurchasePrice(contributions)).toBeCloseTo(54285.71, 2)
+  })
+
+  it('sin ninguna entrada con cantidad → null', () => {
+    expect(averagePurchasePrice([{ direction: 'out', amount_usd: 500, quantity: 0.01 }])).toBe(
+      null,
+    )
+    expect(averagePurchasePrice([{ direction: 'in', amount_usd: 500, quantity: null }])).toBe(null)
+    expect(averagePurchasePrice([])).toBe(null)
+  })
+})
+
+describe('classifyOperations', () => {
+  it('(a) retiro parcial que ya excede el aportado (realized_gain≠0) pero deja cantidad abierta → Retiro', () => {
+    const contributions = [
+      { id: 'c1', date: '2024-01-01', direction: 'in', amount_usd: 1000, quantity: 1 },
+      {
+        id: 'c2',
+        date: '2024-02-01',
+        direction: 'out',
+        amount_usd: 2500,
+        quantity: 0.5,
+        realized_gain: 1500,
+      },
+    ]
+    expect(classifyOperations(contributions).c2).toBe('Retiro')
+  })
+
+  it('(b) el retiro siguiente que deja la cantidad en 0 → Liquidación', () => {
+    const contributions = [
+      { id: 'c1', date: '2024-01-01', direction: 'in', amount_usd: 1000, quantity: 1 },
+      {
+        id: 'c2',
+        date: '2024-02-01',
+        direction: 'out',
+        amount_usd: 2500,
+        quantity: 0.5,
+        realized_gain: 1500,
+      },
+      {
+        id: 'c3',
+        date: '2024-03-01',
+        direction: 'out',
+        amount_usd: 1300,
+        quantity: 0.5,
+        realized_gain: 1300,
+      },
+    ]
+    const labels = classifyOperations(contributions)
+    expect(labels.c2).toBe('Retiro')
+    expect(labels.c3).toBe('Liquidación')
+  })
+
+  it('(c) dos retiros después de agotado el capital: el primero no vacía (Retiro), el último sí (Liquidación)', () => {
+    const contributions = [
+      { id: 'c1', date: '2024-01-01', direction: 'in', amount_usd: 1000, quantity: 1 },
+      // agota el aportado (contributedBefore 1000 < amount 2500) pero deja 0.5 abierto
+      {
+        id: 'c2',
+        date: '2024-02-01',
+        direction: 'out',
+        amount_usd: 2500,
+        quantity: 0.5,
+        realized_gain: 1500,
+      },
+      // parcial sobre una posición ya "sin capital": realized_gain≠0 de nuevo, pero no vacía
+      {
+        id: 'c3',
+        date: '2024-03-01',
+        direction: 'out',
+        amount_usd: 600,
+        quantity: 0.2,
+        realized_gain: 600,
+      },
+      // vacía la cantidad restante
+      {
+        id: 'c4',
+        date: '2024-04-01',
+        direction: 'out',
+        amount_usd: 700,
+        quantity: 0.3,
+        realized_gain: 700,
+      },
+    ]
+    const labels = classifyOperations(contributions)
+    expect(labels.c3).toBe('Retiro')
+    expect(labels.c4).toBe('Liquidación')
+  })
+
+  it('(d) una pata de salida de transferencia que vacía la posición sigue siendo Transferencia enviada', () => {
+    const contributions = [
+      { id: 'c1', date: '2024-01-01', direction: 'in', amount_usd: 1000, quantity: 1 },
+      {
+        id: 'c2',
+        date: '2024-02-01',
+        direction: 'out',
+        amount_usd: 1000,
+        quantity: 1,
+        transfer_id: 'tx1',
+        realized_gain: 0,
+      },
+    ]
+    expect(classifyOperations(contributions).c2).toBe('Transferencia enviada')
+  })
+
+  it('aportes y transferencia recibida se etiquetan por direction + transfer_id', () => {
+    const contributions = [
+      { id: 'c1', date: '2024-01-01', direction: 'in', amount_usd: 500, quantity: null },
+      { id: 'c2', date: '2024-01-02', direction: 'in', amount_usd: 300, transfer_id: 'tx1' },
+    ]
+    const labels = classifyOperations(contributions)
+    expect(labels.c1).toBe('Aporte')
+    expect(labels.c2).toBe('Transferencia recibida')
+  })
+})
+
+describe('mergeAssetHistory', () => {
+  it('una valuación dentro del rango ya cargado entra', () => {
+    const contributions = [
+      { date: '2024-03-10' },
+      { date: '2024-02-05' }, // la más vieja cargada (floor)
+    ]
+    const valuations = [{ date: '2024-02-20', value_usd: 100 }]
+    const events = mergeAssetHistory({ contributions, valuations, hasMore: true })
+    expect(events.some((e) => e.type === 'valuation' && e.date === '2024-02-20')).toBe(true)
+  })
+
+  it('una valuación más vieja que la última operación cargada no entra mientras haya más por cargar', () => {
+    const contributions = [{ date: '2024-03-10' }, { date: '2024-02-05' }]
+    const valuations = [{ date: '2024-01-01', value_usd: 100 }]
+    const events = mergeAssetHistory({ contributions, valuations, hasMore: true })
+    expect(events.some((e) => e.type === 'valuation')).toBe(false)
+  })
+
+  it('esa misma valuación entra una vez que no hay más operaciones por cargar', () => {
+    const contributions = [{ date: '2024-03-10' }, { date: '2024-02-05' }]
+    const valuations = [{ date: '2024-01-01', value_usd: 100 }]
+    const events = mergeAssetHistory({ contributions, valuations, hasMore: false })
+    expect(events.some((e) => e.type === 'valuation' && e.date === '2024-01-01')).toBe(true)
+  })
+
+  it('el orden final es por fecha descendente', () => {
+    const contributions = [{ date: '2024-03-10' }, { date: '2024-01-15' }]
+    const valuations = [{ date: '2024-02-01', value_usd: 100 }]
+    const events = mergeAssetHistory({ contributions, valuations, hasMore: false })
+    expect(events.map((e) => e.date)).toEqual(['2024-03-10', '2024-02-01', '2024-01-15'])
   })
 })
 

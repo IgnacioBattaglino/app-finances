@@ -16,6 +16,19 @@ export async function getLatestValuations() {
   return latest
 }
 
+// Todas las valuaciones de un activo puntual, para el historial de detalle.
+// A diferencia de getLatestValuations, acá sí importa la serie completa, no
+// solo la última — pero está acotada a un activo, nunca se trae de todos.
+export async function getValuations({ assetId }) {
+  const { data, error } = await supabase
+    .from('asset_valuations')
+    .select('*')
+    .eq('asset_id', assetId)
+    .order('date', { ascending: false })
+  if (error) throw error
+  return data
+}
+
 export async function upsertValuation({ assetId, date, valueUsd }) {
   const { data, error } = await supabase
     .from('asset_valuations')

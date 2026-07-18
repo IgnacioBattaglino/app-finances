@@ -29,7 +29,7 @@ function toRow({
   }
 }
 
-export async function getContributions({ assetId, month, year } = {}) {
+export async function getContributions({ assetId, month, year, limit, offset = 0 } = {}) {
   let query = supabase.from('contributions').select('*')
 
   if (assetId) query = query.eq('asset_id', assetId)
@@ -42,11 +42,19 @@ export async function getContributions({ assetId, month, year } = {}) {
     query = query.gte('date', start).lt('date', next)
   }
 
+  query = query.order('date', { ascending: false }).order('created_at', { ascending: false })
+  if (limit != null) query = query.range(offset, offset + limit - 1)
+
   const { data, error } = await query
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
   if (error) throw error
   return data
+}
+
+// Separa una tanda de `pageSize + 1` filas (pedidas de más a propósito) en la
+// página a mostrar + si hay más para cargar — evita una segunda ida y vuelta
+// solo para saber si mostrar "Ver más".
+export function splitPage(rows, pageSize) {
+  return { items: rows.slice(0, pageSize), hasMore: rows.length > pageSize }
 }
 
 export async function createContribution(fields) {

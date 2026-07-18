@@ -5,6 +5,7 @@ import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Movements from './pages/Movements.jsx'
 import Portfolio from './pages/Portfolio.jsx'
+import AssetDetail from './pages/AssetDetail.jsx'
 import Goal from './pages/Goal.jsx'
 import Debts from './pages/Debts.jsx'
 import Settings from './pages/Settings.jsx'
@@ -18,6 +19,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/movimientos" element={<Movements />} />
           <Route path="/portafolio" element={<Portfolio />} />
+          <Route path="/portafolio/:assetId" element={<AssetDetail />} />
           <Route path="/objetivo" element={<Goal />} />
           <Route path="/deudas" element={<Debts />} />
           <Route path="/ajustes" element={<Settings />} />

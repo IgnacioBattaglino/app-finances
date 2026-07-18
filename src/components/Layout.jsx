@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useMatch } from 'react-router-dom'
 import RingsMark from './RingsMark.jsx'
 
 const tabs = [
@@ -68,6 +68,10 @@ function TabIcon({ children, className }) {
 }
 
 function Layout() {
+  // En el detalle de un activo, la tab bar mobile la reemplaza la barra de
+  // acciones propia de esa pantalla (Aportar/Retirar) — ver AssetDetail.
+  const isAssetDetail = useMatch('/portafolio/:assetId')
+
   return (
     <div className="min-h-dvh bg-paper text-ink md:flex">
       {/* Rail lateral (desktop) */}
@@ -103,26 +107,28 @@ function Layout() {
         </div>
       </main>
 
-      {/* Tab bar inferior (celular) */}
-      <nav className="fixed inset-x-0 bottom-0 border-t border-line bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        <div className="mx-auto flex max-w-lg">
-          {tabs.map(({ to, label, icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition ${
-                  isActive ? 'text-pine' : 'text-ink-soft'
-                }`
-              }
-            >
-              <TabIcon className="h-6 w-6">{icon}</TabIcon>
-              {label}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
+      {/* Tab bar inferior (celular) — oculta en el detalle de un activo */}
+      {!isAssetDetail && (
+        <nav className="fixed inset-x-0 bottom-0 border-t border-line bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+          <div className="mx-auto flex max-w-lg">
+            {tabs.map(({ to, label, icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/'}
+                className={({ isActive }) =>
+                  `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition ${
+                    isActive ? 'text-pine' : 'text-ink-soft'
+                  }`
+                }
+              >
+                <TabIcon className="h-6 w-6">{icon}</TabIcon>
+                {label}
+              </NavLink>
+            ))}
+          </div>
+        </nav>
+      )}
     </div>
   )
 }

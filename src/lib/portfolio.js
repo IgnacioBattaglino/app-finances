@@ -137,3 +137,89 @@ export function computePortfolioGain(assets, valuations) {
   }
   return { contributed, value, gain: value - contributed }
 }
+
+// Precio promedio ponderado de compra: Σ(amount_usd) ÷ Σ(quantity) sobre las
+// operaciones de ENTRADA con cantidad > 0 (aportes y patas de entrada de
+// transferencias comparten esa forma). Retiros y patas de salida no son
+// compras y no entran. null si no hay ninguna operación con cantidad.
+export function averagePurchasePrice(contributions) {
+  let totalAmount = 0
+  let totalQuantity = 0
+  for (const c of contributions) {
+    if (c.direction === 'out') continue
+    const qty = Number(c.quantity ?? 0)
+    if (!(qty > 0)) continue
+    totalAmount += Number(c.amount_usd)
+    totalQuantity += qty
+  }
+  return totalQuantity > 0 ? totalAmount / totalQuantity : null
+}
+
+// Etiqueta cada operación recorriendo el historial COMPLETO en orden
+// cronológico (nunca la página visible: la posición real depende de todo lo
+// anterior). Para activos que manejan cantidad (cualquier fila con
+// quantity > 0) la posición relevante es la cantidad remanente; si no, es el
+// aportado remanente (mismo fold que computeContributed). "Liquidación" es
+// un retiro sin transfer_id que deja esa posición exactamente en 0
+// (redondeado, para no arrastrar ruido de punto flotante); cualquier otro
+// retiro sin transfer_id es "Retiro" — sin importar si realized_gain es 0 o
+// no: con el aportado ya en 0, cada venta futura de un activo ganador tiene
+// realized_gain≠0 para siempre, aunque no vacíe la posición.
+export function classifyOperations(contributions) {
+  const usesQuantity = contributions.some((c) => Number(c.quantity ?? 0) > 0)
+  const sorted = [...contributions].sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1
+    return (a.created_at ?? '') < (b.created_at ?? '')
+      ? -1
+      : (a.created_at ?? '') > (b.created_at ?? '')
+        ? 1
+        : 0
+  })
+
+  const labels = {}
+  let runningQuantity = 0
+  let runningContributed = 0
+
+  for (const c of sorted) {
+    const amount = Number(c.amount_usd)
+    const qty = Number(c.quantity ?? 0)
+    if (c.direction !== 'out') {
+      labels[c.id] = c.transfer_id ? 'Transferencia recibida' : 'Aporte'
+      runningQuantity += qty
+      runningContributed += amount
+      continue
+    }
+    runningQuantity -= qty
+    runningContributed -= amount - Number(c.realized_gain ?? 0)
+    if (c.transfer_id) {
+      labels[c.id] = 'Transferencia enviada'
+      continue
+    }
+    const remaining = usesQuantity ? runningQuantity : runningContributed
+    labels[c.id] = Math.round(remaining * 1e8) / 1e8 <= 0 ? 'Liquidación' : 'Retiro'
+  }
+  return labels
+}
+
+// Combina operaciones ya paginadas + valuaciones manuales del activo en un
+// único historial ordenado desc. Una valuación solo entra si su fecha cae
+// dentro del rango ya cargado (>= fecha de la operación más vieja cargada):
+// con hasMore=true no sabemos si faltan operaciones más viejas entre medio,
+// así que se posterga hasta que se cargue esa página; con hasMore=false
+// (llegamos al final) se muestran todas.
+export function mergeAssetHistory({ contributions, valuations, hasMore }) {
+  const floorDate = contributions.at(-1)?.date ?? null
+  const visible = !hasMore
+    ? valuations
+    : valuations.filter((v) => floorDate !== null && v.date >= floorDate)
+  const events = [
+    ...contributions.map((c) => ({ type: 'contribution', date: c.date, data: c })),
+    ...visible.map((v) => ({ type: 'valuation', date: v.date, data: v })),
+  ]
+  events.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1
+    if (a.type === b.type) return 0
+    return a.type === 'contribution' ? -1 : 1
+  })
+  return events
+}

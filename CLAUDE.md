@@ -29,6 +29,7 @@ PWA de finanzas personales con enfoque FIRE (Financial Independence, Retire Earl
 - Eliminar (permanente): botón rojo + confirmación que dice explícitamente "es permanente". Archivar (reversible): botón neutro + confirmación suave, sin esa palabra.
 - Botón primario de los modales: siempre "Guardar", salvo un verbo explícito que describa mejor la acción (ej. "Liquidar" en la liquidación de una posición — no es un guardado genérico, es vender).
 - Errores: siempre con `FormError` (`src/components/form/`) — mensaje en español + detalle técnico opcional, nunca `e.message` concatenado al mensaje.
+- Todo bottom sheet (modal) o barra fija inferior nueva usa `useVisualViewportHeight` (`src/hooks/useVisualViewportHeight.js`) para acotar su alto al teclado on-screen de iOS, y respeta `env(safe-area-inset-bottom)`.
 
 ## Comandos
 - `npm run dev` — servidor de desarrollo (Vite)
