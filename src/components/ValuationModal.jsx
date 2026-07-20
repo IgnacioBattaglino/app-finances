@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { upsertValuation } from '../lib/valuations.js'
 import { todayISO, formatUSD, formatDay } from '../lib/format.js'
+import FormSheet from './FormSheet.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError from './form/FormError.jsx'
 
@@ -19,15 +20,6 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
     setError(null)
     setBusy(false)
   }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    function onKey(e) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
 
   if (!open) return null
 
@@ -55,36 +47,25 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 md:items-center"
-      onClick={onClose}
+    <FormSheet
+      title="Actualizar valores"
+      onClose={onClose}
+      action={
+        <button
+          type="submit"
+          form="valuation-form"
+          disabled={filled.length === 0 || busy}
+          className="text-[15px] font-semibold text-pine disabled:opacity-40"
+        >
+          {busy ? 'Guardando…' : 'Guardar'}
+        </button>
+      }
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="animate-rise w-full max-w-lg rounded-t-2xl bg-paper p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:rounded-2xl md:pb-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">
-            Cancelar
-          </button>
-          <h2 className="text-base font-semibold">Actualizar valores</h2>
-          <button
-            type="submit"
-            form="valuation-form"
-            disabled={filled.length === 0 || busy}
-            className="text-[15px] font-semibold text-pine disabled:opacity-40"
-          >
-            {busy ? 'Guardando…' : 'Guardar'}
-          </button>
-        </div>
+      <p className="mb-3 px-1 text-xs text-ink-soft">
+        Valor en USD a la fecha elegida. Los que dejes vacíos no se tocan.
+      </p>
 
-        <p className="mb-3 px-1 text-xs text-ink-soft">
-          Valor en USD a la fecha elegida. Los que dejes vacíos no se tocan.
-        </p>
-
-        <form id="valuation-form" onSubmit={handleSubmit} className="space-y-3">
+      <form id="valuation-form" onSubmit={handleSubmit} className="space-y-3">
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             <CollapsedDateField value={date} onChange={setDate} />
             {assets.map((asset) => {
@@ -120,9 +101,8 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
           </div>
 
           <FormError message={error?.message} detail={error?.detail} />
-        </form>
-      </div>
-    </div>
+      </form>
+    </FormSheet>
   )
 }
 

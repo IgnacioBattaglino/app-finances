@@ -3,7 +3,7 @@ import { createWithdrawal } from '../../lib/contributions.js'
 import { archiveAsset } from '../../lib/assets.js'
 import { decomposeWithdrawal, heldQuantity } from '../../lib/portfolio.js'
 import { todayISO, formatUSD } from '../../lib/format.js'
-import { useVisualViewportHeight } from '../../hooks/useVisualViewportHeight.js'
+import FormSheet from '../FormSheet.jsx'
 import BinaryChoice from '../form/BinaryChoice.jsx'
 import CollapsedDateField from '../form/CollapsedDateField.jsx'
 import FormError from '../form/FormError.jsx'
@@ -28,7 +28,6 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
   const [date, setDate] = useState(todayISO())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const viewportHeight = useVisualViewportHeight()
 
   useEffect(() => {
     if (!open || !asset) return
@@ -42,15 +41,6 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
     setBusy(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, asset])
-
-  useEffect(() => {
-    if (!open) return
-    function onKey(e) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
 
   if (!open || !asset) return null
 
@@ -94,33 +84,21 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 md:items-center"
-      onClick={onClose}
+    <FormSheet
+      title={`Liquidar ${asset.name}`}
+      onClose={onClose}
+      action={
+        <button
+          type="submit"
+          form="liquidate-form"
+          disabled={!valid || busy}
+          className="text-[15px] font-semibold text-pine disabled:opacity-40"
+        >
+          {busy ? 'Liquidando…' : 'Liquidar'}
+        </button>
+      }
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="animate-rise w-full max-w-lg overflow-y-auto rounded-t-2xl bg-paper p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:rounded-2xl md:pb-4"
-        style={viewportHeight ? { maxHeight: viewportHeight - 16 } : undefined}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">
-            Cancelar
-          </button>
-          <h2 className="text-base font-semibold">Liquidar {asset.name}</h2>
-          <button
-            type="submit"
-            form="liquidate-form"
-            disabled={!valid || busy}
-            className="text-[15px] font-semibold text-pine disabled:opacity-40"
-          >
-            {busy ? 'Liquidando…' : 'Liquidar'}
-          </button>
-        </div>
-
-        <form id="liquidate-form" onSubmit={handleSubmit} className="space-y-3">
+      <form id="liquidate-form" onSubmit={handleSubmit} className="space-y-3">
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
@@ -207,9 +185,8 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
 
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />
-        </form>
-      </div>
-    </div>
+      </form>
+    </FormSheet>
   )
 }
 

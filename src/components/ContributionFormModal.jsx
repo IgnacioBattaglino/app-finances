@@ -8,7 +8,7 @@ import {
 } from '../lib/contributions.js'
 import { withdrawalExceedsValue, withdrawalGuardBlocks, heldQuantity } from '../lib/portfolio.js'
 import { todayISO, formatUSD } from '../lib/format.js'
-import { useVisualViewportHeight } from '../hooks/useVisualViewportHeight.js'
+import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError from './form/FormError.jsx'
@@ -71,7 +71,6 @@ function ContributionFormModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const viewportHeight = useVisualViewportHeight()
 
   const editing = Boolean(initial?.id)
   const copy = COPY[operation]
@@ -88,15 +87,6 @@ function ContributionFormModal({
     setConfirmDelete(false)
     setBusy(false)
   }, [open, initial, asset])
-
-  useEffect(() => {
-    if (!open) return
-    function onKey(e) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
 
   if (!open || !asset) return null
 
@@ -204,33 +194,21 @@ function ContributionFormModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 md:items-center"
-      onClick={onClose}
+    <FormSheet
+      title={copy.title(asset.name)}
+      onClose={onClose}
+      action={
+        <button
+          type="submit"
+          form="contribution-form"
+          disabled={!valid || busy}
+          className="text-[15px] font-semibold text-pine disabled:opacity-40"
+        >
+          {busy ? 'Guardando…' : 'Guardar'}
+        </button>
+      }
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="animate-rise w-full max-w-lg overflow-y-auto rounded-t-2xl bg-paper p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:rounded-2xl md:pb-4"
-        style={viewportHeight ? { maxHeight: viewportHeight - 16 } : undefined}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">
-            Cancelar
-          </button>
-          <h2 className="text-base font-semibold">{copy.title(asset.name)}</h2>
-          <button
-            type="submit"
-            form="contribution-form"
-            disabled={!valid || busy}
-            className="text-[15px] font-semibold text-pine disabled:opacity-40"
-          >
-            {busy ? 'Guardando…' : 'Guardar'}
-          </button>
-        </div>
-
-        <form id="contribution-form" onSubmit={handleSubmit} className="space-y-3">
+      <form id="contribution-form" onSubmit={handleSubmit} className="space-y-3">
           {initial?.transfer_id && (
             <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">
               Parte de una transferencia — la otra pata no se modifica sola.
@@ -354,9 +332,8 @@ function ContributionFormModal({
                 Eliminar {copy.entity}
               </button>
             ))}
-        </form>
-      </div>
-    </div>
+      </form>
+    </FormSheet>
   )
 }
 

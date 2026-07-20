@@ -1,3 +1,18 @@
+// Tamaño de fuente del valor según su largo: en la grilla de 3 columnas en
+// pantallas angostas un valor de 6+ dígitos con decimales (ej. "US$
+// 12.568,8") no entra a 15px y se recortaba. Bajamos la fuente por largo
+// hasta un piso; combinado con wrap permitido (whitespace-normal + break),
+// el valor completo siempre queda visible — las cards son grid items en la
+// misma fila, así que si uno envuelve, las tres crecen parejo y mantienen
+// igual altura.
+function valueSizeClass(value) {
+  const len = String(value).length
+  if (len <= 9) return 'text-[15px]'
+  if (len <= 11) return 'text-[13px]'
+  if (len <= 13) return 'text-[12px]'
+  return 'text-[11px]'
+}
+
 // Una métrica de la grilla del detalle: label + valor + botón (i), siempre
 // la misma altura. La explicación de qué significa NO vive acá adentro —
 // expandirla dentro de la card rompía el layout (cards de alturas
@@ -20,7 +35,11 @@ function MetricCard({ label, value, active, onToggle }) {
           i
         </button>
       </div>
-      <p className="font-money mt-1 text-[15px] font-semibold">{value}</p>
+      <p
+        className={`font-money mt-1 font-semibold leading-tight tabular-nums break-words ${valueSizeClass(value)}`}
+      >
+        {value}
+      </p>
     </div>
   )
 }
