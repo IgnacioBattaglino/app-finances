@@ -203,16 +203,6 @@ function ContributionFormModal({
     }
   }
 
-  // El teclado on-screen de iOS achica el visual viewport sin mover el
-  // layout viewport: acotamos la hoja a ese alto real (si el navegador lo
-  // soporta) y, al enfocar un campo, lo llevamos a la vista — cubre el caso
-  // en que el campo enfocado por autoFocus queda tapado al abrir el modal.
-  function handleFocus(event) {
-    const tag = event.target.tagName
-    if (tag !== 'INPUT' && tag !== 'SELECT') return
-    setTimeout(() => event.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
-  }
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 md:items-center"
@@ -224,7 +214,6 @@ function ContributionFormModal({
         className="animate-rise w-full max-w-lg overflow-y-auto rounded-t-2xl bg-paper p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:rounded-2xl md:pb-4"
         style={viewportHeight ? { maxHeight: viewportHeight - 16 } : undefined}
         onClick={(e) => e.stopPropagation()}
-        onFocus={handleFocus}
       >
         <div className="mb-4 flex items-center justify-between">
           <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">

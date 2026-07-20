@@ -29,7 +29,7 @@ PWA de finanzas personales con enfoque FIRE (Financial Independence, Retire Earl
 - Eliminar (permanente): botón rojo + confirmación que dice explícitamente "es permanente". Archivar (reversible): botón neutro + confirmación suave, sin esa palabra.
 - Botón primario de los modales: siempre "Guardar", salvo un verbo explícito que describa mejor la acción (ej. "Liquidar" en la liquidación de una posición — no es un guardado genérico, es vender).
 - Errores: siempre con `FormError` (`src/components/form/`) — mensaje en español + detalle técnico opcional, nunca `e.message` concatenado al mensaje.
-- Todo bottom sheet (modal) o barra fija inferior nueva usa `useVisualViewportHeight` (`src/hooks/useVisualViewportHeight.js`) para acotar su alto al teclado on-screen de iOS, y respeta `env(safe-area-inset-bottom)`.
+- Todo bottom sheet (modal) o barra fija inferior nueva usa `useVisualViewportHeight` (`src/hooks/useVisualViewportHeight.js`) para acotar su alto al teclado on-screen de iOS, y respeta `env(safe-area-inset-bottom)`. El hook no puede depender solo del evento `resize` de `visualViewport`: en una PWA standalone de iOS (agregada a pantalla de inicio) ese evento es poco confiable y puede no disparar nunca (bug de WebKit sin arreglar). Por eso releé el alto directamente en foco/blur de los campos, con reintentos escalonados para la animación del teclado — `resize` queda como refinamiento adicional, no como mecanismo principal. `interactive-widget` del viewport meta NO es alternativa: Safari no lo soporta en ninguna versión.
 
 ## Comandos
 - `npm run dev` — servidor de desarrollo (Vite)

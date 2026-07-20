@@ -93,12 +93,6 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
     }
   }
 
-  function handleFocus(event) {
-    const tag = event.target.tagName
-    if (tag !== 'INPUT' && tag !== 'SELECT') return
-    setTimeout(() => event.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
-  }
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 md:items-center"
@@ -110,7 +104,6 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
         className="animate-rise w-full max-w-lg overflow-y-auto rounded-t-2xl bg-paper p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:rounded-2xl md:pb-4"
         style={viewportHeight ? { maxHeight: viewportHeight - 16 } : undefined}
         onClick={(e) => e.stopPropagation()}
-        onFocus={handleFocus}
       >
         <div className="mb-4 flex items-center justify-between">
           <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">
