@@ -2,16 +2,12 @@ import { useEffect, useState } from 'react'
 import { createTransfer } from '../../lib/contributions.js'
 import { withdrawalExceedsValue, withdrawalGuardBlocks } from '../../lib/portfolio.js'
 import { todayISO, formatUSD } from '../../lib/format.js'
+import { round } from '../../lib/money.js'
 import FormSheet from '../FormSheet.jsx'
 import CollapsedDateField from '../form/CollapsedDateField.jsx'
 import FormError from '../form/FormError.jsx'
 import MissingHint from '../form/MissingHint.jsx'
 import ExchangeRateField from './ExchangeRateField.jsx'
-
-function round(n, decimals) {
-  const f = 10 ** decimals
-  return Math.round(n * f) / f
-}
 
 function unitPriceOf(asset, prices) {
   if (asset?.valuation_mode !== 'live') return null

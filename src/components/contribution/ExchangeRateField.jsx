@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getMepRate } from '../../lib/prices.js'
 import { formatARS, formatUSD } from '../../lib/format.js'
-
-function round2(n) {
-  return Math.round(n * 100) / 100
-}
+import { round } from '../../lib/money.js'
 
 const segmentClass = (active) =>
   `rounded-md px-2 py-1 transition ${active ? 'bg-card shadow-sm' : 'text-ink-soft'}`
@@ -16,14 +13,14 @@ function FrozenRateField({ initialRate, onChange }) {
   const [rate, setRate] = useState(String(initialRate))
 
   useEffect(() => {
-    onChange({ rate: round2(Number(initialRate)) })
+    onChange({ rate: round(Number(initialRate)) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function handleChange(v) {
     setRate(v)
     const n = Number(v.replace(',', '.'))
-    onChange({ rate: n > 0 ? round2(n) : null })
+    onChange({ rate: n > 0 ? round(n) : null })
   }
 
   if (!expanded) {
@@ -59,7 +56,7 @@ function FrozenRateField({ initialRate, onChange }) {
         onClick={() => {
           setExpanded(false)
           setRate(String(initialRate))
-          onChange({ rate: round2(Number(initialRate)) })
+          onChange({ rate: round(Number(initialRate)) })
         }}
         className="mt-1 text-xs text-ink-soft underline decoration-dotted"
       >
@@ -85,7 +82,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
       if (result) {
         setMepLive(true)
         setRate(result.rate)
-        onChange({ rate: round2(result.rate) })
+        onChange({ rate: round(result.rate) })
       } else {
         setMepLive(false)
         setMode('manual')
@@ -102,7 +99,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
     setPesos(v)
     const p = Number(v.replace(',', '.'))
     const derived = p > 0 && fixedAmountUsd > 0 ? p / fixedAmountUsd : null
-    onChange({ rate: derived ? round2(derived) : null })
+    onChange({ rate: derived ? round(derived) : null })
   }
 
   if (mode === 'auto') {
@@ -150,7 +147,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
           type="button"
           onClick={() => {
             setMode('auto')
-            onChange({ rate: rate ? round2(rate) : null })
+            onChange({ rate: rate ? round(rate) : null })
           }}
           className="mt-1 text-xs text-ink-soft underline decoration-dotted"
         >
@@ -199,11 +196,11 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, onChange }) {
     if (mode === 'auto') {
       const usd =
         currency === 'usd' ? amountValue : rate > 0 && amountValue > 0 ? amountValue / rate : null
-      onChange({ amountUsd: usd > 0 ? usd : null, rate: rate ? round2(rate) : null })
+      onChange({ amountUsd: usd > 0 ? usd : null, rate: rate ? round(rate) : null })
     } else {
       onChange({
         amountUsd: dolaresValue > 0 ? dolaresValue : null,
-        rate: derivedRate ? round2(derivedRate) : null,
+        rate: derivedRate ? round(derivedRate) : null,
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

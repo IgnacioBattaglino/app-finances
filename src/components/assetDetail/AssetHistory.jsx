@@ -46,7 +46,15 @@ function ValuationRow({ valuation }) {
 
 // Historial completo del activo: operaciones + valuaciones ya intercaladas
 // por mergeAssetHistory, más el "Ver más" de la paginación de operaciones.
-function AssetHistory({ events, labels, hasMore, loadingMore, onLoadMore, onEditContribution }) {
+function AssetHistory({
+  events,
+  labels,
+  hasMore,
+  loadingMore,
+  loadMoreError,
+  onLoadMore,
+  onEditContribution,
+}) {
   if (events.length === 0) {
     return <p className="px-1 text-sm text-ink-soft">Todavía no hay operaciones.</p>
   }
@@ -68,14 +76,21 @@ function AssetHistory({ events, labels, hasMore, loadingMore, onLoadMore, onEdit
         )}
       </div>
       {hasMore && (
-        <button
-          type="button"
-          onClick={onLoadMore}
-          disabled={loadingMore}
-          className="w-full rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60 disabled:opacity-50"
-        >
-          {loadingMore ? 'Cargando…' : 'Ver más'}
-        </button>
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="w-full rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60 disabled:opacity-50"
+          >
+            {loadingMore ? 'Cargando…' : 'Ver más'}
+          </button>
+          {loadMoreError && (
+            <p className="text-center text-xs text-clay">
+              No se pudo cargar más. Reintentá.
+            </p>
+          )}
+        </div>
       )}
     </div>
   )

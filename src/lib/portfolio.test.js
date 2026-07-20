@@ -234,6 +234,30 @@ describe('classifyOperations', () => {
     expect(labels.c1).toBe('Aporte')
     expect(labels.c2).toBe('Transferencia recibida')
   })
+
+  it('filas mixtas qty/no-qty en un activo live: el retiro que zerea la cantidad se marca Liquidación aunque quede tenencia sin cantidad (limitación documentada del invariante)', () => {
+    // Al menos una fila con quantity → usesQuantity=true, así que la posición
+    // se cuenta por cantidad. La compra sin quantity (c2) no suma a
+    // runningQuantity, así que el retiro c3 la lleva a 0 y se marca
+    // "Liquidación" aunque c2 haya cargado tenencia real. Ver el comentario
+    // de classifyOperations: el invariante es que toda entrada live traiga
+    // quantity; este test fija la consecuencia de romperlo.
+    const contributions = [
+      { id: 'c1', date: '2024-01-01', direction: 'in', amount_usd: 500, quantity: 0.5 },
+      { id: 'c2', date: '2024-02-01', direction: 'in', amount_usd: 1000, quantity: null },
+      {
+        id: 'c3',
+        date: '2024-03-01',
+        direction: 'out',
+        amount_usd: 700,
+        quantity: 0.5,
+        realized_gain: 0,
+      },
+    ]
+    const labels = classifyOperations(contributions)
+    expect(labels.c2).toBe('Aporte')
+    expect(labels.c3).toBe('Liquidación')
+  })
 })
 
 describe('mergeAssetHistory', () => {
@@ -266,6 +290,13 @@ describe('mergeAssetHistory', () => {
     const valuations = [{ date: '2024-02-01', value_usd: 100 }]
     const events = mergeAssetHistory({ contributions, valuations, hasMore: false })
     expect(events.map((e) => e.date)).toEqual(['2024-03-10', '2024-02-01', '2024-01-15'])
+  })
+
+  it('con la misma fecha, la operación va antes que la valuación (desempate estable)', () => {
+    const contributions = [{ id: 'c1', date: '2024-02-01' }]
+    const valuations = [{ id: 'v1', date: '2024-02-01', value_usd: 100 }]
+    const events = mergeAssetHistory({ contributions, valuations, hasMore: false })
+    expect(events.map((e) => e.type)).toEqual(['contribution', 'valuation'])
   })
 })
 

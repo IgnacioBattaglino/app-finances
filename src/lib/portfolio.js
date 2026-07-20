@@ -1,13 +1,11 @@
+import { round } from './money.js'
+
 // Precio en vivo: hoy un solo proveedor (CoinGecko por coingecko_id). Sumar
 // un proveedor de tickers a futuro (fase 2 de precios automáticos) es
 // agregar una rama acá, no reescribir valueAsset.
 function resolveLivePrice(asset, cryptoPrices) {
   const price = cryptoPrices?.[asset.coingecko_id]?.usd
   return typeof price === 'number' ? price : null
-}
-
-function round2(n) {
-  return Math.round(n * 100) / 100
 }
 
 // Aportado neto de un activo: entradas suman completo; salidas restan solo
@@ -22,7 +20,7 @@ export function computeContributed(contributions) {
     const amount = Number(c.amount_usd)
     total += c.direction === 'out' ? -(amount - Number(c.realized_gain ?? 0)) : amount
   }
-  return round2(total)
+  return round(total)
 }
 
 // Descompone un retiro en capital devuelto vs. ganancia/pérdida realizada
@@ -37,7 +35,7 @@ export function computeContributed(contributions) {
 //   ganancia, negativa si el activo se vació en pérdida.
 export function decomposeWithdrawal({ contributedBefore, amount, emptiesAsset }) {
   if (amount > contributedBefore || emptiesAsset) {
-    return { realizedGain: round2(amount - contributedBefore) }
+    return { realizedGain: round(amount - contributedBefore) }
   }
   return { realizedGain: 0 }
 }
@@ -65,7 +63,7 @@ export function heldQuantity(asset, contributions) {
       (sum, c) => sum + (c.direction === 'out' ? -Number(c.quantity ?? 0) : Number(c.quantity ?? 0)),
       0,
     )
-  return Math.round(total * 1e8) / 1e8
+  return round(total, 8)
 }
 
 // Cálculo puro del valor de un activo, según el valuation_mode del activo
@@ -165,6 +163,12 @@ export function averagePurchasePrice(contributions) {
 // retiro sin transfer_id es "Retiro" — sin importar si realized_gain es 0 o
 // no: con el aportado ya en 0, cada venta futura de un activo ganador tiene
 // realized_gain≠0 para siempre, aunque no vacíe la posición.
+//
+// Invariante asumido (activos de precio en vivo): TODA entrada que suma
+// posición trae quantity > 0. Si se mezclan filas con y sin quantity en un
+// mismo activo live, runningQuantity subestima la tenencia real y un retiro
+// puede marcar "Liquidación" antes de tiempo (posición contada en 0 aunque
+// todavía haya tenencia cargada sin cantidad). Ver el test del caso mixto.
 export function classifyOperations(contributions) {
   const usesQuantity = contributions.some((c) => Number(c.quantity ?? 0) > 0)
   const sorted = [...contributions].sort((a, b) => {
@@ -196,7 +200,7 @@ export function classifyOperations(contributions) {
       continue
     }
     const remaining = usesQuantity ? runningQuantity : runningContributed
-    labels[c.id] = Math.round(remaining * 1e8) / 1e8 <= 0 ? 'Liquidación' : 'Retiro'
+    labels[c.id] = round(remaining, 8) <= 0 ? 'Liquidación' : 'Retiro'
   }
   return labels
 }

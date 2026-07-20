@@ -8,6 +8,7 @@ import {
 } from '../lib/contributions.js'
 import { withdrawalExceedsValue, withdrawalGuardBlocks, heldQuantity } from '../lib/portfolio.js'
 import { todayISO, formatUSD } from '../lib/format.js'
+import { round } from '../lib/money.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
@@ -15,10 +16,6 @@ import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
 import QuantityAmountField from './contribution/QuantityAmountField.jsx'
 import ExchangeRateField from './contribution/ExchangeRateField.jsx'
-
-function round2(n) {
-  return Math.round(n * 100) / 100
-}
 
 // Copy espejo: aporte y retiro son la misma forma, solo cambia cómo se lee.
 const COPY = {
@@ -140,8 +137,8 @@ function ContributionFormModal({
     if (!valid || busy) return
     setBusy(true)
     setError(null)
-    const roundedAmount = round2(finalAmountUsd)
-    const roundedRate = round2(mepRate)
+    const roundedAmount = round(finalAmountUsd)
+    const roundedRate = round(mepRate)
     const transferId = initial?.transfer_id ?? null
     try {
       let saved

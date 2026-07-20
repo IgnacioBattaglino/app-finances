@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { round } from './money.js'
 
 const ADJUSTMENT_CATEGORY = 'Ajuste de saldo'
 
@@ -68,7 +69,7 @@ export async function computeCurrentLiquid() {
 // exactamente lo declarado, y guarda la reconciliación enlazada.
 export async function reconcile({ date, declaredAmount }) {
   const { current, isFirst } = await computeCurrentLiquid()
-  const difference = Math.round((declaredAmount - current) * 100) / 100
+  const difference = round(declaredAmount - current)
 
   let adjustment = null
   if (Math.abs(difference) >= 0.01) {

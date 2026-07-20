@@ -92,6 +92,77 @@ async function checkAnon(client, table) {
   }
 }
 
+// create_transfer (migración 0017) no debe permitir transferir hacia/desde un
+// activo ajeno. Verificación estrictamente no destructiva: la función valida
+// la pertenencia ANTES de insertar, así que un activo ajeno se rechaza sin
+// escribir; igual contamos contributions antes/después para probar que no
+// hubo ninguna escritura parcial. Si la función todavía no existe (migración
+// sin correr), se reporta PENDIENTE y no se marca como fallo.
+async function checkTransferGuard(client) {
+  console.log(`\n${BOLD}create_transfer — no debe permitir transferir activos ajenos${RESET}`)
+
+  const { data: assetRows, error: assetErr } = await client.from('assets').select('id').limit(1)
+  if (assetErr) {
+    printRow('create_transfer', null, false, assetErr.message)
+    return false
+  }
+  const ownedId = assetRows?.[0]?.id ?? null
+
+  async function countContributions() {
+    const { count, error } = await client
+      .from('contributions')
+      .select('id', { count: 'exact', head: true })
+    return error ? null : count
+  }
+
+  const before = await countContributions()
+  let ok = true
+  let pending = false
+
+  const cases = []
+  if (ownedId) {
+    cases.push(['origen propio → destino ajeno', ownedId, crypto.randomUUID()])
+  }
+  cases.push(['origen ajeno → destino ajeno', crypto.randomUUID(), crypto.randomUUID()])
+
+  for (const [label, fromId, toId] of cases) {
+    const { error } = await client.rpc('create_transfer', {
+      p_from_asset_id: fromId,
+      p_to_asset_id: toId,
+      p_date: '2020-01-01',
+      p_amount_usd: 1,
+      p_from_quantity: null,
+      p_to_quantity: null,
+      p_mep_rate: 1,
+      p_realized_gain: 0,
+    })
+    if (error && (error.code === 'PGRST202' || /Could not find the function/i.test(error.message))) {
+      printRow(label, null, true, 'función aún no existe — corré la migración 0017 (PENDIENTE)')
+      pending = true
+      continue
+    }
+    const rejected = Boolean(error)
+    printRow(label, null, rejected, rejected ? 'rechazado' : 'FUGA: aceptó un activo ajeno')
+    ok = ok && rejected
+  }
+
+  if (!pending) {
+    const after = await countContributions()
+    if (before !== null && after !== null) {
+      const noWrites = before === after
+      printRow(
+        'sin escrituras parciales',
+        after,
+        noWrites,
+        noWrites ? '' : `FUGA: contributions pasó de ${before} a ${after}`,
+      )
+      ok = ok && noWrites
+    }
+  }
+
+  return ok
+}
+
 async function main() {
   const authClient = createClient(SUPABASE_URL, SUPABASE_KEY, clientOptions)
   const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
@@ -125,6 +196,8 @@ async function main() {
     printRow(table, result.count, result.ok, result.note)
     allOk = allOk && result.ok
   }
+
+  allOk = (await checkTransferGuard(authClient)) && allOk
 
   await authClient.auth.signOut()
 

@@ -1,9 +1,5 @@
 import { formatUSD } from '../../lib/format.js'
-
-function round(n, decimals) {
-  const f = 10 ** decimals
-  return Math.round(n * f) / f
-}
+import { round } from '../../lib/money.js'
 
 // Deriva el monto USD a partir de la cantidad y el precio unitario; null si
 // no hay nada que derivar (cantidad vacía/no numérica, o sin precio).

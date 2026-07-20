@@ -1,9 +1,6 @@
 import { supabase } from './supabase.js'
 import { computeContributed, decomposeWithdrawal } from './portfolio.js'
-
-function round2(n) {
-  return Math.round(n * 100) / 100
-}
+import { round } from './money.js'
 
 function toRow({
   assetId,
@@ -88,14 +85,14 @@ export async function createWithdrawal({
   const contributedBefore = computeContributed(own)
   const { realizedGain } = decomposeWithdrawal({
     contributedBefore,
-    amount: round2(amountUsd),
+    amount: round(amountUsd),
     emptiesAsset,
   })
 
   return createContribution({
     assetId,
     date,
-    amountUsd: round2(amountUsd),
+    amountUsd: round(amountUsd),
     quantity,
     mepRate,
     affectsLiquid,
@@ -105,10 +102,17 @@ export async function createWithdrawal({
   })
 }
 
-// Transferencia entre activos: retiro + aporte vinculados por transfer_id.
-// affects_liquid se fuerza a false en ambas filas por código, no es un
-// default editable en la UI — la plata nunca sale del mundo invertido, no
-// debe tocar el líquido.
+// Transferencia entre activos: retiro + aporte, atómicos. Antes eran dos
+// escrituras separadas (createWithdrawal + createContribution); si la segunda
+// fallaba quedaba un retiro huérfano. Ahora una sola llamada a la función de
+// Postgres create_transfer (migración 0017) inserta las dos patas en una
+// transacción, con el mismo transfer_id y validando la pertenencia de ambos
+// activos. affects_liquid se fuerza a false en ambas filas dentro de la
+// función — la plata nunca sale del mundo invertido, no toca el líquido.
+//
+// El realized_gain del retiro (Opción A, "primero capital") se sigue
+// calculando acá y se pasa a la función: la lógica de negocio vive en un solo
+// lugar (portfolio.js), la base solo garantiza atomicidad y pertenencia.
 export async function createTransfer({
   fromAssetId,
   toAssetId,
@@ -120,29 +124,26 @@ export async function createTransfer({
   contributions,
   emptiesAsset = false,
 }) {
-  const transferId = crypto.randomUUID()
-  const withdrawal = await createWithdrawal({
-    assetId: fromAssetId,
-    date,
-    amountUsd,
-    quantity: fromQuantity,
-    mepRate,
-    affectsLiquid: false,
-    contributions,
+  const own = contributions.filter((c) => c.asset_id === fromAssetId)
+  const contributedBefore = computeContributed(own)
+  const { realizedGain } = decomposeWithdrawal({
+    contributedBefore,
+    amount: round(amountUsd),
     emptiesAsset,
-    transferId,
   })
-  const deposit = await createContribution({
-    assetId: toAssetId,
-    date,
-    amountUsd: round2(amountUsd),
-    quantity: toQuantity,
-    mepRate,
-    affectsLiquid: false,
-    direction: 'in',
-    transferId,
+
+  const { data, error } = await supabase.rpc('create_transfer', {
+    p_from_asset_id: fromAssetId,
+    p_to_asset_id: toAssetId,
+    p_date: date,
+    p_amount_usd: round(amountUsd),
+    p_from_quantity: fromQuantity ?? null,
+    p_to_quantity: toQuantity ?? null,
+    p_mep_rate: round(mepRate),
+    p_realized_gain: realizedGain,
   })
-  return { withdrawal, deposit }
+  if (error) throw error
+  return data
 }
 
 // Edita un retiro existente: recalcula su realized_gain contra el aportado
@@ -165,14 +166,14 @@ export async function updateWithdrawal({
   const contributedBefore = computeContributed(own)
   const { realizedGain } = decomposeWithdrawal({
     contributedBefore,
-    amount: round2(amountUsd),
+    amount: round(amountUsd),
     emptiesAsset,
   })
 
   return updateContribution(id, {
     assetId,
     date,
-    amountUsd: round2(amountUsd),
+    amountUsd: round(amountUsd),
     quantity,
     mepRate,
     affectsLiquid,

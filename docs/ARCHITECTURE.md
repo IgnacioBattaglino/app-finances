@@ -82,6 +82,8 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | quantity | numeric(20,8) | opcional; unidades compradas (ej: 0.001 BTC) |
 | mep_rate | numeric(10,2) NOT NULL | dólar MEP del día del aporte (congelado) |
 | affects_liquid | boolean NOT NULL default true | true = inversión con plata del bolsillo, resta del líquido; false = tenencia preexistente / carga inicial, no resta (sí suma al portafolio) |
+| via_mep | boolean | **columna presente, lógica pendiente** (migración 0017): marca de que la operación se hizo vía dólar MEP. Hoy ningún código la lee ni la escribe |
+| empties_asset | boolean | **columna presente, lógica pendiente** (migración 0017): marca explícita de liquidación (vaciado del activo). Hoy el formulario captura ese dato y lo descarta; cuando se persista, reemplazará la inferencia por posición de classifyOperations (ver portfolio.js). Hoy ningún código la lee ni la escribe |
 | created_at | timestamptz default now() | |
 
 ### asset_valuations
@@ -166,6 +168,7 @@ Justificación de target_allocation como JSONB y no tabla: son 5 valores que se 
 - Multiusuario con Supabase Auth (email + contraseña). Registro semi-cerrado: las cuentas las crea el administrador; no hay signup público.
 - RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009, asset_types en la 0014): "own rows" en las tablas raíz (user_id = auth.uid()) y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
 - Trigger handle_new_user (migración 0007, redefinido en 0010, 0012, 0014 y 0015): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas las del sistema "Ajuste de saldo" (expense e income, con is_system = true), que usa la reconciliación del líquido —, sus 5 bolsas de activos default (asset_types, sin valuation_mode desde la 0015) y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql; para usuarios anteriores a la 0014, el backfill de asset_types va incluido en esa misma migración (idempotente).
+- Función create_transfer (migración 0017): transferencia atómica entre activos. Inserta las dos patas (retiro 'out' + aporte 'in', mismo transfer_id) en una sola transacción, evitando el retiro huérfano que dejaba la doble escritura del cliente si la segunda fallaba. SECURITY INVOKER — RLS ("own via asset") sigue aplicando; además valida explícitamente, antes de insertar, que ambos activos pertenezcan a auth.uid() (rechaza sin escribir nada). El realized_gain del retiro se calcula en el cliente (lib/portfolio.js) y se pasa como parámetro; la función no reimplementa esa lógica. Solo authenticated puede ejecutarla. La misma migración crea el índice contributions(asset_id), que sirve a todas las consultas por activo del portafolio y del detalle.
 
 ## Decisiones registradas (ADRs en docs/adr/)
 

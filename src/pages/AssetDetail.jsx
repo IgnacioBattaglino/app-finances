@@ -43,6 +43,7 @@ function AssetDetail() {
   const [contributions, setContributions] = useState([]) // página visible del historial
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [loadMoreError, setLoadMoreError] = useState(false)
   const [valuations, setValuations] = useState([])
   const [prices, setPrices] = useState({})
   const [pricesAt, setPricesAt] = useState(null)
@@ -60,9 +61,14 @@ function AssetDetail() {
   const [valuationModal, setValuationModal] = useState(false)
   const [assetFormModal, setAssetFormModal] = useState(false)
 
-  async function load() {
+  // isCancelled permite que una carga en vuelo se descarte si el usuario
+  // navega a otro activo antes de que resuelva (ver el useEffect). Los
+  // llamados manuales (refresh, reintentar) no pasan nada y nunca se
+  // cancelan.
+  async function load(isCancelled = () => false) {
     setLoading(true)
     setError(null)
+    setLoadMoreError(false)
     try {
       const [assetsData, assetTypesData, allContributions, firstPage, valuationsData] =
         await Promise.all([
@@ -72,6 +78,7 @@ function AssetDetail() {
           getContributions({ assetId, limit: PAGE_SIZE + 1 }),
           getValuations({ assetId }),
         ])
+      if (isCancelled()) return
       setAssets(assetsData)
       setAssetTypes(assetTypesData)
       setFullContributions(allContributions)
@@ -80,14 +87,19 @@ function AssetDetail() {
       setHasMore(more)
       setValuations(valuationsData)
     } catch (e) {
+      if (isCancelled()) return
       setError('No se pudo cargar el activo. ' + e.message)
     } finally {
-      setLoading(false)
+      if (!isCancelled()) setLoading(false)
     }
   }
 
   useEffect(() => {
-    load()
+    let cancelled = false
+    load(() => cancelled)
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetId])
 
@@ -111,15 +123,23 @@ function AssetDetail() {
 
   async function loadMore() {
     setLoadingMore(true)
-    const page = await getContributions({
-      assetId,
-      limit: PAGE_SIZE + 1,
-      offset: contributions.length,
-    })
-    const { items, hasMore: more } = splitPage(page, PAGE_SIZE)
-    setContributions((prev) => [...prev, ...items])
-    setHasMore(more)
-    setLoadingMore(false)
+    setLoadMoreError(false)
+    try {
+      const page = await getContributions({
+        assetId,
+        limit: PAGE_SIZE + 1,
+        offset: contributions.length,
+      })
+      const { items, hasMore: more } = splitPage(page, PAGE_SIZE)
+      setContributions((prev) => [...prev, ...items])
+      setHasMore(more)
+    } catch {
+      // hasMore no cambia, así que el botón "Ver más" sigue disponible para
+      // reintentar; mostramos un aviso breve al lado.
+      setLoadMoreError(true)
+    } finally {
+      setLoadingMore(false)
+    }
   }
 
   function closeModals() {
@@ -190,19 +210,21 @@ function AssetDetail() {
         <div className="hidden shrink-0 gap-2 md:flex">
           <button
             type="button"
+            disabled={loading}
             onClick={() =>
               setContributionModal({ open: true, operation: 'contribution', editing: null })
             }
-            className="rounded-xl bg-pine px-4 py-2 text-sm font-semibold text-white transition active:bg-pine-deep"
+            className="rounded-xl bg-pine px-4 py-2 text-sm font-semibold text-white transition active:bg-pine-deep disabled:opacity-40"
           >
             Aportar
           </button>
           <button
             type="button"
+            disabled={loading}
             onClick={() =>
               setContributionModal({ open: true, operation: 'withdrawal', editing: null })
             }
-            className="rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium transition active:bg-mist/60"
+            className="rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium transition active:bg-mist/60 disabled:opacity-40"
           >
             Retirar
           </button>
@@ -214,7 +236,7 @@ function AssetDetail() {
       ) : error ? (
         <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
           <p className="text-sm text-clay">{error}</p>
-          <button type="button" onClick={load} className="text-sm font-semibold text-clay underline">
+          <button type="button" onClick={() => load()} className="text-sm font-semibold text-clay underline">
             Reintentar
           </button>
         </div>
@@ -276,6 +298,7 @@ function AssetDetail() {
             labels={labels}
             hasMore={hasMore}
             loadingMore={loadingMore}
+            loadMoreError={loadMoreError}
             onLoadMore={loadMore}
             onEditContribution={(c) =>
               setContributionModal({
@@ -320,19 +343,21 @@ function AssetDetail() {
       <nav className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-line bg-paper/95 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur md:hidden">
         <button
           type="button"
+          disabled={loading}
           onClick={() =>
             setContributionModal({ open: true, operation: 'contribution', editing: null })
           }
-          className="flex-1 rounded-xl bg-pine py-2.5 text-sm font-semibold text-white transition active:bg-pine-deep"
+          className="flex-1 rounded-xl bg-pine py-2.5 text-sm font-semibold text-white transition active:bg-pine-deep disabled:opacity-40"
         >
           Aportar
         </button>
         <button
           type="button"
+          disabled={loading}
           onClick={() =>
             setContributionModal({ open: true, operation: 'withdrawal', editing: null })
           }
-          className="flex-1 rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60"
+          className="flex-1 rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60 disabled:opacity-40"
         >
           Retirar
         </button>

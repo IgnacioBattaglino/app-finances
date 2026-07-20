@@ -3,16 +3,13 @@ import { createWithdrawal } from '../../lib/contributions.js'
 import { archiveAsset } from '../../lib/assets.js'
 import { decomposeWithdrawal, heldQuantity } from '../../lib/portfolio.js'
 import { todayISO, formatUSD } from '../../lib/format.js'
+import { round } from '../../lib/money.js'
 import FormSheet from '../FormSheet.jsx'
 import BinaryChoice from '../form/BinaryChoice.jsx'
 import CollapsedDateField from '../form/CollapsedDateField.jsx'
 import FormError from '../form/FormError.jsx'
 import MissingHint from '../form/MissingHint.jsx'
 import ExchangeRateField from './ExchangeRateField.jsx'
-
-function round2(n) {
-  return Math.round(n * 100) / 100
-}
 
 // Confirmación, no formulario de carga: calcula y muestra las consecuencias
 // antes de tocar nada. El guard de retiro (withdrawalExceedsValue) NO
@@ -49,7 +46,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
   const contributedBefore = valuation?.contributed ?? 0
   const { realizedGain } =
     amountValue > 0
-      ? decomposeWithdrawal({ contributedBefore, amount: round2(amountValue), emptiesAsset: true })
+      ? decomposeWithdrawal({ contributedBefore, amount: round(amountValue), emptiesAsset: true })
       : { realizedGain: 0 }
 
   const missing = []
@@ -68,9 +65,9 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
       const saved = await createWithdrawal({
         assetId: asset.id,
         date,
-        amountUsd: round2(amountValue),
+        amountUsd: round(amountValue),
         quantity: quantityValue > 0 ? quantityValue : null,
-        mepRate: round2(mepRate),
+        mepRate: round(mepRate),
         affectsLiquid: destination === 'liquid',
         contributions,
         emptiesAsset: true,
