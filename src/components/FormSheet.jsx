@@ -30,14 +30,21 @@ function FormSheet({ title, action, onClose, children }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // Mejora (no requisito): al enfocar un campo, lo acercamos al centro del
-  // cuerpo visible. La alcanzabilidad ya está garantizada por el layout;
-  // esto solo evita que el campo quede pegado al borde del teclado.
+  // Al enfocar un campo, lo anclamos ARRIBA del cuerpo scrolleable para que
+  // quede por encima del teclado. Esto es OBLIGATORIO, no una mejora: en una
+  // PWA standalone de iOS, WebKit NO auto-scrollea un contenedor anidado
+  // (overflow-y-auto) para revelar el campo enfocado — solo maneja el scroll
+  // del documento raíz. Como el cuerpo del sheet es un scroller anidado, si no
+  // lo hacemos nosotros el teclado tapa cualquier campo que caiga en la mitad
+  // de abajo. `block: 'start'` lo lleva al tope (justo debajo del header);
+  // scroll instantáneo (sin 'smooth', poco confiable en standalone y se
+  // cancela con la animación del teclado). El delay deja que el teclado
+  // empiece a abrir y que el scroll por defecto de iOS no pise al nuestro.
   function handleFieldFocus(e) {
     const el = e.target
     if (el.tagName !== 'INPUT' && el.tagName !== 'SELECT' && el.tagName !== 'TEXTAREA') return
     setTimeout(() => {
-      if (el.isConnected) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      if (el.isConnected) el.scrollIntoView({ block: 'start' })
     }, 300)
   }
 

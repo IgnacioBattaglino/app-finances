@@ -47,7 +47,6 @@ function FrozenRateField({ initialRate, onChange }) {
           onChange={(e) => handleChange(e.target.value)}
           inputMode="decimal"
           required
-          autoFocus
           className="font-money w-28 bg-transparent text-right text-[15px] outline-none"
         />
       </label>
@@ -133,7 +132,6 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
           inputMode="decimal"
           placeholder="0"
           required
-          autoFocus
           className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
         />
       </label>
@@ -235,7 +233,6 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, onChange }) {
                 inputMode="decimal"
                 placeholder="0"
                 required
-                autoFocus
                 className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
               />
             </div>
@@ -278,7 +275,6 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, onChange }) {
           inputMode="decimal"
           placeholder="0"
           required
-          autoFocus
           className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
         />
       </label>

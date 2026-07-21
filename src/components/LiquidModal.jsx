@@ -80,7 +80,6 @@ function LiquidModal({ open, onClose, onSaved }) {
                   onChange={(e) => setDeclared(e.target.value)}
                   inputMode="decimal"
                   placeholder="0"
-                  autoFocus
                   required
                   className="font-money w-32 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
                 />

@@ -108,7 +108,6 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
                     inputMode="decimal"
                     placeholder="0"
                     required
-                    autoFocus
                     className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
                   />
                 </div>
