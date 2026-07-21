@@ -93,6 +93,7 @@ function TransactionFormModal({
     <FormSheet
       title={editing ? 'Editar movimiento' : 'Nuevo movimiento'}
       onClose={onClose}
+      startExpanded
       action={
         <button
           type="submit"
