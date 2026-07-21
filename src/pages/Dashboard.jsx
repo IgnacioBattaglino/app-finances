@@ -2,6 +2,7 @@ import { useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import { getCategories } from '../lib/categories.js'
+import { APP_VERSION } from '../version.js'
 
 function Dashboard() {
   const [modalOpen, setModalOpen] = useState(false)
@@ -39,6 +40,9 @@ function Dashboard() {
         onClose={() => setModalOpen(false)}
         onSaved={() => setModalOpen(false)}
       />
+
+      {/* Marca de versión para confirmar a ojo si un deploy se aplicó */}
+      <p className="mt-8 text-xs text-ink-soft">versión {APP_VERSION}</p>
     </div>
   )
 }
