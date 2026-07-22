@@ -25,7 +25,7 @@ function QuantityAmountField({
   onChange,
   editing = false,
   quantityLabel = 'Cantidad',
-  amountLabel = 'Monto USD',
+  amountLabel = 'Monto',
 }) {
   const linked = !editing && unitPrice != null
 

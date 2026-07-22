@@ -11,6 +11,15 @@ import FormError from '../form/FormError.jsx'
 import MissingHint from '../form/MissingHint.jsx'
 import ExchangeRateField from './ExchangeRateField.jsx'
 
+const DESTINATION_OPTIONS = [
+  { value: 'liquid', label: 'A mi líquido', help: 'Entra a tu efectivo disponible y sube tu líquido.' },
+  {
+    value: 'outside',
+    label: 'Afuera',
+    help: 'Plata que no estaba en la app (un sueldo, un regalo). No toca tu líquido.',
+  },
+]
+
 // Confirmación, no formulario de carga: calcula y muestra las consecuencias
 // antes de tocar nada. El guard de retiro (withdrawalExceedsValue) NO
 // aplica acá — el monto editable ES el precio real de venta y manda sobre
@@ -50,7 +59,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
       : { realizedGain: 0 }
 
   const missing = []
-  if (!(amountValue > 0)) missing.push('monto de venta')
+  if (!(amountValue > 0)) missing.push('monto')
   if (asset.valuation_mode === 'live' && !(quantityValue > 0)) missing.push('cantidad')
   if (!(mepRate > 0)) missing.push('tipo de cambio')
   if (!date) missing.push('fecha')
@@ -99,7 +108,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[15px]">Monto de venta</span>
+                <span className="text-[15px]">Monto</span>
                 <div className="flex items-center gap-1">
                   <span className="text-[15px] text-ink-soft">US$</span>
                   <input
@@ -114,7 +123,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
               </div>
               <p className="mt-1 text-xs text-ink-soft">
                 {valuation?.source === 'none'
-                  ? 'Sin valuación conocida — indicá el monto de venta.'
+                  ? 'Sin valuación conocida — indicá el monto.'
                   : valuation?.source === 'stale'
                     ? 'Último valor conocido — ajustalo si vendiste por otro monto.'
                     : `Se registra un retiro por este monto (valor actual: ${formatUSD(valuation?.value ?? 0)}).`}
@@ -147,23 +156,20 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
 
             <ExchangeRateField
               fixedAmountUsd={amountValue || null}
-              pesosQuestion="¿Cuántos pesos recibiste?"
+              pesosQuestion="¿Cuántos pesos moviste?"
               onChange={({ rate }) => setMepRate(rate)}
             />
 
             <div className="px-4 py-3">
               <p className="mb-2 text-[15px]">¿A dónde va?</p>
               <BinaryChoice
-                options={[
-                  { value: 'liquid', label: 'A mi líquido' },
-                  { value: 'outside', label: 'Afuera' },
-                ]}
+                options={DESTINATION_OPTIONS}
                 value={destination}
                 onChange={setDestination}
               />
-              {destination === 'outside' && (
-                <p className="mt-1.5 text-xs text-ink-soft">No toca tu saldo líquido.</p>
-              )}
+              <p className="mt-1.5 text-xs text-ink-soft">
+                {DESTINATION_OPTIONS.find((o) => o.value === destination)?.help}
+              </p>
             </div>
 
             <label className="flex items-center justify-between gap-3 px-4 py-3">

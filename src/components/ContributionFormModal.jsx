@@ -17,32 +17,34 @@ import MissingHint from './form/MissingHint.jsx'
 import QuantityAmountField from './contribution/QuantityAmountField.jsx'
 import ExchangeRateField from './contribution/ExchangeRateField.jsx'
 
+const OUTSIDE_HELP = 'Plata que no estaba en la app (un sueldo, un regalo). No toca tu líquido.'
+
 // Copy espejo: aporte y retiro son la misma forma, solo cambia cómo se lee.
 const COPY = {
   contribution: {
     title: (name) => `Aportar a ${name}`,
     entity: 'aporte',
     quantity: 'Cantidad',
-    pesos: 'Pesos invertidos',
-    dolares: 'Dólares recibidos',
-    pesosQuestion: '¿Cuántos pesos pusiste?',
+    pesos: 'Pesos',
+    dolares: 'Dólares',
+    pesosQuestion: '¿Cuántos pesos moviste?',
     originLabel: '¿De dónde sale?',
     originOptions: [
-      { value: 'liquid', label: 'De mi líquido' },
-      { value: 'outside', label: 'De afuera' },
+      { value: 'liquid', label: 'De mi líquido', help: 'Sale de tu efectivo disponible y baja tu líquido.' },
+      { value: 'outside', label: 'De afuera', help: OUTSIDE_HELP },
     ],
   },
   withdrawal: {
     title: (name) => `Retirar de ${name}`,
     entity: 'retiro',
-    quantity: 'Cantidad vendida',
-    pesos: 'Pesos recibidos',
-    dolares: 'Dólares vendidos',
-    pesosQuestion: '¿Cuántos pesos recibiste?',
+    quantity: 'Cantidad',
+    pesos: 'Pesos',
+    dolares: 'Dólares',
+    pesosQuestion: '¿Cuántos pesos moviste?',
     originLabel: '¿A dónde va?',
     originOptions: [
-      { value: 'liquid', label: 'A mi líquido' },
-      { value: 'outside', label: 'Afuera' },
+      { value: 'liquid', label: 'A mi líquido', help: 'Entra a tu efectivo disponible y sube tu líquido.' },
+      { value: 'outside', label: 'Afuera', help: OUTSIDE_HELP },
     ],
   },
 }
@@ -215,19 +217,21 @@ function ContributionFormModal({
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             {editing && (
               <>
+                {isLive && (
+                  <label className="flex items-center justify-between gap-3 px-4 py-3">
+                    <span className="text-[15px]">{copy.quantity}</span>
+                    <input
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="ej: 0,001"
+                      required
+                      className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                    />
+                  </label>
+                )}
                 <label className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span className="text-[15px]">{copy.quantity}</span>
-                  <input
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    inputMode="decimal"
-                    placeholder={isLive ? 'ej: 0,001' : 'Opcional'}
-                    required={isLive}
-                    className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
-                  />
-                </label>
-                <label className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span className="text-[15px]">Monto USD</span>
+                  <span className="text-[15px]">Monto</span>
                   <div className="flex items-center gap-1">
                     <span className="text-[15px] text-ink-soft">US$</span>
                     <input
@@ -268,15 +272,15 @@ function ContributionFormModal({
               }}
             />
 
-            {!editing && !linkedMode && (
+            {!editing && !linkedMode && isLive && (
               <label className="flex items-center justify-between gap-3 px-4 py-3">
                 <span className="text-[15px]">{copy.quantity}</span>
                 <input
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   inputMode="decimal"
-                  placeholder={isLive ? 'ej: 0,001' : 'Opcional'}
-                  required={isLive}
+                  placeholder="ej: 0,001"
+                  required
                   className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
                 />
               </label>
@@ -285,9 +289,9 @@ function ContributionFormModal({
             <div className="px-4 py-3">
               <p className="mb-2 text-[15px]">{copy.originLabel}</p>
               <BinaryChoice options={copy.originOptions} value={origin} onChange={setOrigin} />
-              {origin === 'outside' && (
-                <p className="mt-1.5 text-xs text-ink-soft">No toca tu saldo líquido.</p>
-              )}
+              <p className="mt-1.5 text-xs text-ink-soft">
+                {copy.originOptions.find((o) => o.value === origin)?.help}
+              </p>
             </div>
 
             <CollapsedDateField value={date} onChange={setDate} />

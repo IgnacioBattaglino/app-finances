@@ -46,9 +46,11 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
     }
   }
 
+  const title = assets.length === 1 ? `Valuar ${assets[0].name}` : 'Actualizar valuaciones'
+
   return (
     <FormSheet
-      title="Actualizar valores"
+      title={title}
       onClose={onClose}
       action={
         <button
@@ -62,7 +64,8 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
       }
     >
       <p className="mb-3 px-1 text-xs text-ink-soft">
-        Valor en USD a la fecha elegida. Los que dejes vacíos no se tocan.
+        ¿Cuánto vale hoy en total, en dólares? No es el precio de una unidad. Los que dejes
+        vacíos no se tocan.
       </p>
 
       <form id="valuation-form" onSubmit={handleSubmit} className="space-y-3">
@@ -80,7 +83,7 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
                     <span className="block text-xs text-ink-soft">
                       {last
                         ? `Último: ${formatUSD(last.value_usd)} (${formatDay(last.date)})`
-                        : 'Sin valuación previa'}
+                        : 'Nunca lo valuaste'}
                     </span>
                   </span>
                   <div className="flex items-center gap-1">

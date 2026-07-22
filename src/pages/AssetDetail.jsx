@@ -174,6 +174,7 @@ function AssetDetail() {
   const neutral = asset?.yields === false || asset?.valuation_mode === 'contributed'
   const canLiquidate = valuation ? !(valuation.contributed === 0 && !valuation.value) : false
   const onlyContributed = asset?.valuation_mode === 'contributed'
+  const isLive = asset?.valuation_mode === 'live'
 
   const labels = classifyOperations(fullContributions)
   const history = mergeAssetHistory({ contributions, valuations, hasMore })
@@ -259,8 +260,12 @@ function AssetDetail() {
             />
           </div>
 
-          <div className={`mt-4 grid gap-2 ${onlyContributed ? 'grid-cols-1' : 'grid-cols-3'}`}>
-            {!onlyContributed && (
+          <div
+            className={`mt-4 grid gap-2 ${
+              isLive ? 'grid-cols-3' : onlyContributed ? 'grid-cols-1' : 'grid-cols-2'
+            }`}
+          >
+            {isLive && (
               <MetricCard
                 label="Precio prom. de compra"
                 value={avgPrice !== null ? formatUSD(avgPrice) : '—'}
@@ -270,7 +275,7 @@ function AssetDetail() {
             )}
             {!onlyContributed && (
               <MetricCard
-                label="Precio actual"
+                label={isLive ? 'Precio actual' : 'Valuación actual'}
                 value={valuation?.value != null ? formatUSD(valuation.value) : '—'}
                 active={expandedMetric === 'current'}
                 onToggle={() => setExpandedMetric((e) => (e === 'current' ? null : 'current'))}
@@ -309,31 +314,41 @@ function AssetDetail() {
             }
           />
 
-          <div className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm">
-            <button
-              type="button"
-              onClick={() => setTransferModal(true)}
-              className="font-medium text-pine"
-            >
-              Transferir
-            </button>
-            {canLiquidate && (
+          <div className="mt-6 space-y-3 text-sm">
+            <div>
               <button
                 type="button"
-                onClick={() => setLiquidateModal(true)}
+                onClick={() => setTransferModal(true)}
                 className="font-medium text-pine"
               >
-                Liquidar
+                Transferir
               </button>
+              <p className="mt-0.5 text-xs text-ink-soft">Mover valor de este activo a otro tuyo.</p>
+            </div>
+            {canLiquidate && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setLiquidateModal(true)}
+                  className="font-medium text-pine"
+                >
+                  Liquidar
+                </button>
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  Vender todo y cerrar la posición. Para vender una parte, usá Retirar.
+                </p>
+              </div>
             )}
             {asset.valuation_mode === 'manual' && (
-              <button
-                type="button"
-                onClick={() => setValuationModal(true)}
-                className="font-medium text-pine"
-              >
-                Actualizar valuación
-              </button>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setValuationModal(true)}
+                  className="font-medium text-pine"
+                >
+                  Actualizar valuación
+                </button>
+              </div>
             )}
           </div>
         </>

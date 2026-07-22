@@ -6,9 +6,9 @@ import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
 
 const VALUATION_MODES = [
-  ['contributed', 'Aportado', 'Vale lo aportado; nunca pide carga de valor.'],
-  ['manual', 'Manual', 'Pedís el valor a mano cada tanto.'],
-  ['live', 'Vivo', 'Precio automático por identificador — hoy solo cripto vía CoinGecko; el resto cae a carga manual.'],
+  ['contributed', 'Vale lo que pusiste', 'Vale exactamente lo que aportaste. Para efectivo y reservas que no cambian de valor.'],
+  ['manual', 'Valuación manual', 'Vos cargás cada tanto cuánto vale en total.'],
+  ['live', 'Valuación automática', 'El precio se busca solo. Hoy solo cripto; el resto se valúa a mano.'],
 ]
 
 // Sugerencia al elegir bolsa: el modo más frecuente entre los activos que ya
@@ -42,7 +42,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   const [error, setError] = useState(null)
   const [confirmArchive, setConfirmArchive] = useState(false)
 
-  // "+ Nueva bolsa" embebido: el resto de la gestión (renombrar, archivar,
+  // "+ Nuevo grupo" embebido: el resto de la gestión (renombrar, archivar,
   // restaurar, eliminar) vive en Ajustes.
   const [creatingBolsa, setCreatingBolsa] = useState(false)
 
@@ -86,7 +86,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
 
   const missing = []
   if (!name.trim()) missing.push('nombre')
-  if (!assetTypeId) missing.push('bolsa')
+  if (!assetTypeId) missing.push('grupo de activos')
   if (!valuationMode) missing.push('modo de valuación')
   const valid = missing.length === 0
 
@@ -155,7 +155,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="ej: Bitcoin, Colchón USD"
+                placeholder="¿Qué activo es? ej: Bitcoin, Dólares en casa"
                 required
                 className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
               />
@@ -163,7 +163,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
 
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[15px]">Bolsa</span>
+                <span className="text-[15px]">Grupo de activos</span>
                 {!creatingBolsa && (
                   <select
                     value={assetTypeId}
@@ -175,14 +175,15 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                         {at.name}
                       </option>
                     ))}
-                    <option value="__new__">+ Nueva bolsa</option>
+                    <option value="__new__">+ Nuevo grupo</option>
                   </select>
                 )}
               </div>
 
               {!creatingBolsa && (
                 <p className="mt-1.5 text-xs text-ink-soft">
-                  Renombrar y archivar bolsas: en Ajustes.
+                  Agrupá tus activos por categoría (cripto, efectivo, acciones) para ver cómo
+                  rinde cada grupo. Renombrar y archivar grupos: en Ajustes.
                 </p>
               )}
 
@@ -198,7 +199,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
 
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[15px]">Modo de valuación</span>
+                <span className="text-[15px]">¿De dónde sale el valor de este activo?</span>
               </div>
               <div className="mt-2 flex rounded-lg bg-mist p-0.5 text-xs font-medium">
                 {VALUATION_MODES.map(([value, label]) => (
@@ -224,7 +225,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
               <input
                 value={ticker}
                 onChange={(e) => setTicker(e.target.value)}
-                placeholder="Opcional, ej: AAPL"
+                placeholder="Opcional — ej: AAPL"
                 className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
               />
             </label>
@@ -265,8 +266,8 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                 </button>
               </div>
               <p className="mt-1 text-xs text-ink-soft">
-                Desactivalo para reservas de valor como efectivo: no cuentan en
-                el % de rendimiento del portafolio.
+                Apagalo si no querés que este activo modifique el % de rendimiento de tu
+                portafolio ni el de su grupo.
               </p>
             </div>
           </div>

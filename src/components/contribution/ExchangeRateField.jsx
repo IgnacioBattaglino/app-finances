@@ -6,6 +6,8 @@ import { round } from '../../lib/money.js'
 const segmentClass = (active) =>
   `rounded-md px-2 py-1 transition ${active ? 'bg-card shadow-sm' : 'text-ink-soft'}`
 
+const MEP_HELP = 'Dólar MEP (el que se usa para comprar dólares con pesos en el mercado).'
+
 // Congelado: editando un registro existente. El monto ya está fijo — cambiar
 // la tasa es corregir un solo número, no re-derivar nada.
 function FrozenRateField({ initialRate, onChange }) {
@@ -25,15 +27,18 @@ function FrozenRateField({ initialRate, onChange }) {
 
   if (!expanded) {
     return (
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="text-[13px] text-ink-soft underline decoration-dotted"
-        >
-          {formatARS(Number(initialRate))} (guardado) · cambiar
-        </button>
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="text-[13px] text-ink-soft underline decoration-dotted"
+          >
+            {formatARS(Number(initialRate))} (guardado) · cambiar
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
       </div>
     )
   }
@@ -50,6 +55,7 @@ function FrozenRateField({ initialRate, onChange }) {
           className="font-money w-28 bg-transparent text-right text-[15px] outline-none"
         />
       </label>
+      <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
       <button
         type="button"
         onClick={() => {
@@ -106,15 +112,18 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
       return <p className="px-4 py-3 text-xs text-ink-soft">Buscando cotización…</p>
     }
     return (
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
-        <button
-          type="button"
-          onClick={() => setMode('manual')}
-          className="text-[13px] text-ink-soft underline decoration-dotted"
-        >
-          Se registra con MEP del día ({formatARS(rate)}) · usar otro
-        </button>
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
+          <button
+            type="button"
+            onClick={() => setMode('manual')}
+            className="text-[13px] text-ink-soft underline decoration-dotted"
+          >
+            Se registra con MEP del día ({formatARS(rate)}) · usar otro
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
       </div>
     )
   }
@@ -135,6 +144,9 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
           className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
         />
       </label>
+      <p className="mt-1 text-xs text-ink-soft">
+        Solo lo usamos para calcular el tipo de cambio. El movimiento se guarda en dólares.
+      </p>
       <p className="mt-1 text-xs text-ink-soft">
         {mepLive === false && 'No se pudo traer el MEP del día. '}
         Tipo de cambio:{' '}
@@ -249,16 +261,19 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, onChange }) {
           {mepLive === null ? (
             <p className="text-xs text-ink-soft">Buscando cotización…</p>
           ) : (
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
-              <button
-                type="button"
-                onClick={() => setMode('manual')}
-                className="text-[13px] text-ink-soft underline decoration-dotted"
-              >
-                MEP {formatARS(rate)} (hoy) · usar otro
-              </button>
-            </div>
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
+                <button
+                  type="button"
+                  onClick={() => setMode('manual')}
+                  className="text-[13px] text-ink-soft underline decoration-dotted"
+                >
+                  MEP {formatARS(rate)} (hoy) · usar otro
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
+            </>
           )}
         </div>
       </>
@@ -294,6 +309,7 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, onChange }) {
           Tipo de cambio:{' '}
           {derivedRate ? <span className="font-money">{formatARS(derivedRate)}</span> : '—'}
         </p>
+        <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
         {mepLive !== false && (
           <button
             type="button"
@@ -313,9 +329,9 @@ function ExchangeRateField({
   initialRate = null,
   fixedAmountUsd = null,
   amountLabel = 'Monto',
-  pesosLabel = 'Pesos invertidos',
-  dolaresLabel = 'Dólares recibidos',
-  pesosQuestion = '¿Cuántos pesos pusiste?',
+  pesosLabel = 'Pesos',
+  dolaresLabel = 'Dólares',
+  pesosQuestion = '¿Cuántos pesos moviste?',
   onChange,
 }) {
   if (editing) {

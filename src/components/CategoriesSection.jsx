@@ -7,6 +7,7 @@ import {
   restoreCategory,
   renameCategory,
 } from '../lib/categories.js'
+import FormError from './form/FormError.jsx'
 
 function CategoryRow({ category, onRename, onArchive }) {
   const [editing, setEditing] = useState(false)
@@ -172,7 +173,7 @@ function CategoriesSection() {
       setCategories(active)
       setArchived(inactive)
     } catch (e) {
-      setError('No se pudieron cargar las categorías. ' + e.message)
+      setError({ message: 'No se pudieron cargar las categorías.', detail: e.message })
     } finally {
       setLoading(false)
     }
@@ -197,7 +198,7 @@ function CategoriesSection() {
       setArchived((prev) => prev.filter((cat) => cat.id !== created.id))
       setNewName('')
     } catch (e) {
-      setError('No se pudo crear la categoría. ' + e.message)
+      setError({ message: 'No se pudo crear la categoría.', detail: e.message })
     } finally {
       setCreating(false)
     }
@@ -213,7 +214,7 @@ function CategoriesSection() {
           .sort((a, b) => a.name.localeCompare(b.name)),
       )
     } catch (e) {
-      setError('No se pudo renombrar la categoría. ' + e.message)
+      setError({ message: 'No se pudo renombrar la categoría.', detail: e.message })
       throw e
     }
   }
@@ -232,7 +233,7 @@ function CategoriesSection() {
         )
       }
     } catch (e) {
-      setError('No se pudo archivar la categoría. ' + e.message)
+      setError({ message: 'No se pudo archivar la categoría.', detail: e.message })
     }
   }
 
@@ -245,7 +246,7 @@ function CategoriesSection() {
         [...prev, restored].sort((a, b) => a.name.localeCompare(b.name)),
       )
     } catch (e) {
-      setError('No se pudo restaurar la categoría. ' + e.message)
+      setError({ message: 'No se pudo restaurar la categoría.', detail: e.message })
     }
   }
 
@@ -256,7 +257,7 @@ function CategoriesSection() {
     <section className="space-y-4">
       {error && (
         <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
-          <p className="text-sm text-clay">{error}</p>
+          <FormError message={error.message} detail={error.detail} />
           <button
             type="button"
             onClick={load}
@@ -344,7 +345,7 @@ function CategoriesSection() {
                       <span className="text-[15px] text-ink-soft">
                         {cat.name}
                         <span className="ml-2 text-[10px] uppercase tracking-wide">
-                          {cat.kind === 'expense' ? 'gasto' : 'ingreso'}
+                          {cat.kind === 'expense' ? 'Gasto' : 'Ingreso'}
                         </span>
                       </span>
                       <button

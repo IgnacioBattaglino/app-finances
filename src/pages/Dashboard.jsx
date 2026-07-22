@@ -21,7 +21,7 @@ function Dashboard() {
     <div>
       <PageHeader
         title="Inicio"
-        description="Patrimonio, resumen del mes y avance hacia tu objetivo."
+        description="Tu resumen. Por ahora, cargá un gasto rápido desde acá."
       />
 
       {/* La acción más frecuente: cargar un gasto en segundos */}

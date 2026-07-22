@@ -150,15 +150,20 @@ function TransactionFormModal({
               </select>
             </label>
             <CollapsedDateField value={date} onChange={setDate} />
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Descripción</span>
-              <input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Opcional"
-                className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
-              />
-            </label>
+            <div className="px-4 py-3">
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-[15px]">Descripción</span>
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Opcional — ej: super, alquiler"
+                  className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                />
+              </label>
+              <p className="mt-1.5 text-xs text-ink-soft">
+                Se ve en la lista, al lado de la categoría.
+              </p>
+            </div>
           </div>
 
           <FormError message={error?.message} detail={error?.detail} />

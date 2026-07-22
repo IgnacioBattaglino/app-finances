@@ -24,7 +24,7 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
       setName('')
       onCreated(created)
     } catch (e) {
-      setError({ message: 'No se pudo crear la bolsa.', detail: e.message })
+      setError({ message: 'No se pudo crear el grupo.', detail: e.message })
     } finally {
       setBusy(false)
     }
@@ -35,12 +35,12 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Nombre de la bolsa"
+        placeholder="¿Cómo se llama? ej: Cripto, Efectivo"
         disabled={busy}
         className="w-full rounded-lg bg-mist px-3 py-1.5 text-[15px] outline-none placeholder:text-ink-soft/60"
       />
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[15px]">Cuenta en el rendimiento (default)</span>
+        <span className="text-[15px]">Los activos nuevos cuentan en el rendimiento</span>
         <button
           type="button"
           role="switch"
@@ -69,7 +69,7 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
           disabled={busy || !name.trim()}
           className="font-semibold text-pine disabled:opacity-50"
         >
-          {busy ? 'Creando…' : 'Crear bolsa'}
+          {busy ? 'Creando…' : 'Crear grupo'}
         </button>
       </div>
       <FormError message={error?.message} detail={error?.detail} />

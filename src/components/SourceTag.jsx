@@ -26,9 +26,9 @@ function SourceTag({ valuation }) {
     return <span className="shrink-0 text-xs text-ink-soft">valuado {formatDay(valuation.date)}</span>
   }
   if (valuation.source === 'contributed') {
-    return <span className="shrink-0 text-xs text-ink-soft">no requiere valuación</span>
+    return <span className="shrink-0 text-xs text-ink-soft">vale lo que pusiste</span>
   }
-  return <span className="shrink-0 text-xs text-clay">sin valuación — no suma al total</span>
+  return <span className="shrink-0 text-xs text-clay">Sin valuar — no suma al total</span>
 }
 
 export default SourceTag

@@ -138,7 +138,7 @@ function Portfolio() {
       ) : assets.length === 0 ? (
         <div className="rounded-2xl border border-line bg-card px-4 py-8 text-center">
           <p className="text-sm text-ink-soft">
-            Creá tu primer activo para empezar a registrar aportes.
+            Todavía no tenés activos. Creá el primero para empezar a seguir tus inversiones.
           </p>
           <button
             type="button"
@@ -176,9 +176,9 @@ function Portfolio() {
           {unvalued.length > 0 && (
             <p className="rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-xs text-clay">
               {unvalued.length === 1
-                ? `"${unvalued[0].name}" no tiene valuación y no suma al total.`
-                : `${unvalued.length} activos sin valuación no suman al total.`}{' '}
-              Usá "Actualizar valores".
+                ? `«${unvalued[0].name}» todavía no tiene valuación, así que no suma al total.`
+                : `${unvalued.length} activos todavía no tienen valuación, así que no suman al total.`}{' '}
+              Usá «Actualizar valuaciones».
             </p>
           )}
 
@@ -197,7 +197,7 @@ function Portfolio() {
                 onClick={() => setValuationModal({ open: true, assets: manualAssets })}
                 className="flex-1 rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60"
               >
-                Actualizar valores
+                Actualizar valuaciones
               </button>
             )}
           </div>

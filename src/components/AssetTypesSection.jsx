@@ -148,21 +148,21 @@ function AssetTypeRow({ assetType, onRename, onToggleTotal, onArchive, onDelete 
         </button>
       </div>
       <p className="mt-1 text-xs text-ink-soft">
-        Si lo apagás, esta bolsa se ve pero no suma al valor total ni al rendimiento general.
+        Si lo apagás, este grupo se ve pero no suma al valor total ni al rendimiento general.
       </p>
 
       <div className="mt-2 text-xs">
         {action === 'blocked' && (
           <p className="text-ink-soft">
             Tiene {counts.active} activo{counts.active === 1 ? '' : 's'} activo
-            {counts.active === 1 ? '' : 's'}. Moveló{counts.active === 1 ? '' : 's'} a otra bolsa o
-            archivalo{counts.active === 1 ? '' : 's'} para poder gestionar esta bolsa.
+            {counts.active === 1 ? '' : 's'}. Moveló{counts.active === 1 ? '' : 's'} a otro grupo o
+            archivalo{counts.active === 1 ? '' : 's'} para poder gestionar este grupo.
           </p>
         )}
         {action === 'archive' &&
           (confirmArchive ? (
             <div className="flex items-center justify-between rounded-xl border border-line bg-mist/50 px-3 py-2">
-              <span>¿Archivar esta bolsa?</span>
+              <span>¿Archivar este grupo?</span>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -189,13 +189,13 @@ function AssetTypeRow({ assetType, onRename, onToggleTotal, onArchive, onDelete 
               disabled={busy}
               className="text-ink-soft underline decoration-dotted"
             >
-              Archivar bolsa
+              Archivar grupo
             </button>
           ))}
         {action === 'delete' &&
           (confirmDelete ? (
             <div className="flex items-center justify-between rounded-xl border border-clay/20 bg-clay/5 px-3 py-2">
-              <span className="text-clay">¿Eliminar esta bolsa? Es permanente.</span>
+              <span className="text-clay">¿Eliminar este grupo? Es permanente.</span>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -222,7 +222,7 @@ function AssetTypeRow({ assetType, onRename, onToggleTotal, onArchive, onDelete 
               disabled={busy}
               className="text-clay underline decoration-dotted"
             >
-              Eliminar bolsa
+              Eliminar grupo
             </button>
           ))}
       </div>
@@ -246,7 +246,7 @@ function AssetTypesSection() {
       setAssetTypes(active.map((at, i) => ({ ...at, _counts: counts[i] })))
       setArchived(inactive)
     } catch (e) {
-      setError({ message: 'No se pudieron cargar las bolsas.', detail: e.message })
+      setError({ message: 'No se pudieron cargar los grupos.', detail: e.message })
     } finally {
       setLoading(false)
     }
@@ -262,7 +262,7 @@ function AssetTypesSection() {
       const updated = await renameAssetType(id, name)
       setAssetTypes((prev) => prev.map((at) => (at.id === id ? { ...at, ...updated } : at)))
     } catch (e) {
-      setError({ message: 'No se pudo renombrar la bolsa.', detail: e.message })
+      setError({ message: 'No se pudo renombrar el grupo.', detail: e.message })
       throw e
     }
   }
@@ -273,7 +273,7 @@ function AssetTypesSection() {
       const updated = await setIncludeInTotal(id, nextValue)
       setAssetTypes((prev) => prev.map((at) => (at.id === id ? { ...at, ...updated } : at)))
     } catch (e) {
-      setError({ message: 'No se pudo actualizar la bolsa.', detail: e.message })
+      setError({ message: 'No se pudo actualizar el grupo.', detail: e.message })
     }
   }
 
@@ -289,7 +289,7 @@ function AssetTypesSection() {
         )
       }
     } catch (e) {
-      setError({ message: 'No se pudo archivar la bolsa.', detail: e.message })
+      setError({ message: 'No se pudo archivar el grupo.', detail: e.message })
     }
   }
 
@@ -305,7 +305,7 @@ function AssetTypesSection() {
         ),
       )
     } catch (e) {
-      setError({ message: 'No se pudo restaurar la bolsa.', detail: e.message })
+      setError({ message: 'No se pudo restaurar el grupo.', detail: e.message })
     }
   }
 
@@ -315,7 +315,7 @@ function AssetTypesSection() {
       await deleteAssetType(id)
       setAssetTypes((prev) => prev.filter((a) => a.id !== id))
     } catch (e) {
-      setError({ message: 'No se pudo eliminar la bolsa.', detail: e.message })
+      setError({ message: 'No se pudo eliminar el grupo.', detail: e.message })
     }
   }
 
@@ -330,7 +330,7 @@ function AssetTypesSection() {
   return (
     <section className="space-y-4">
       <h3 className="mb-1.5 px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-        Bolsas
+        Grupos de activos
       </h3>
 
       <FormError message={error?.message} detail={error?.detail} />
@@ -341,7 +341,7 @@ function AssetTypesSection() {
         <>
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             {assetTypes.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-ink-soft">Sin bolsas</p>
+              <p className="px-4 py-3 text-sm text-ink-soft">Sin grupos</p>
             ) : (
               assetTypes.map((at) => (
                 <AssetTypeRow

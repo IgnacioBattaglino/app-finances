@@ -218,7 +218,7 @@ function TransferFormModal({
 
             {fromAsset.valuation_mode === 'live' && (
               <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[15px]">Cantidad en {fromAsset.name}</span>
+                <span className="text-[15px]">Cantidad que sale</span>
                 <input
                   value={fromQuantity}
                   onChange={(e) => handleFromQuantity(e.target.value)}
@@ -247,7 +247,7 @@ function TransferFormModal({
 
             {destAsset?.valuation_mode === 'live' && (
               <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[15px]">Cantidad en {destAsset.name}</span>
+                <span className="text-[15px]">Cantidad que entra</span>
                 <input
                   value={toQuantity}
                   onChange={(e) => handleToQuantity(e.target.value)}
@@ -261,7 +261,7 @@ function TransferFormModal({
 
             <ExchangeRateField
               fixedAmountUsd={finalAmountUsd || null}
-              pesosQuestion="¿Cuántos pesos movés?"
+              pesosQuestion="¿Cuántos pesos moviste?"
               onChange={({ rate }) => setMepRate(rate)}
             />
 

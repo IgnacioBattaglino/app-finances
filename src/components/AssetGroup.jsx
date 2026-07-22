@@ -62,9 +62,10 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
   const value = assets.reduce((sum, a) => sum + (valuations[a.id].value ?? 0), 0)
   // Ganancia solo sobre activos con valor que buscan rendimiento (sin valuación
   // ≠ pérdida; los que no rinden no aguan el %). Esto es el rendimiento propio
-  // del grupo — se muestra igual aunque la bolsa esté fuera del total general.
+  // del grupo — se muestra igual aunque el grupo esté fuera del total general.
   const { contributed: valuedContributed, gain } = computePortfolioGain(assets, valuations)
   const allUnvalued = assets.every((a) => valuations[a.id].value === null)
+  const outOfTotal = assetType.include_in_total === false
 
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-card">
@@ -72,7 +73,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-1.5 text-[15px] font-semibold">
             {assetType.name}
-            {assetType.include_in_total === false && (
+            {outOfTotal && (
               <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-ink-soft">
                 fuera del total
               </span>
@@ -88,6 +89,11 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
           </span>
           <Gain value={gain} base={valuedContributed} className="text-xs" />
         </div>
+        {outOfTotal && (
+          <p className="mt-1 text-xs text-ink-soft">
+            Este grupo se ve, pero no suma al valor total.
+          </p>
+        )}
       </div>
 
       <div className="divide-y divide-line border-t border-line">
