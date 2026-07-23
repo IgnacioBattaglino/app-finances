@@ -1,4 +1,4 @@
-// Edge Function: refresh-prices
+// Edge Function: refresh_prices
 //
 // Alimenta instrument_prices (precios diarios compartidos). La llama el cron
 // diario (pg_cron -> pg_net) y también se usa para el backfill histórico.
@@ -21,7 +21,7 @@
 // escritor de instrument_prices). Protegida por CRON_SECRET (bearer): sin el
 // header correcto responde 401.
 //
-// Deploy y variables: ver supabase/functions/refresh-prices/README.md
+// Deploy y variables: ver supabase/functions/refresh_prices/README.md
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 

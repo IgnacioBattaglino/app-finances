@@ -190,7 +190,7 @@ grant execute on function public.get_instrument_series(uuid, date, date) to auth
 -- (supabase_vault), NO se commitean acá. Antes de correr esta migración, cargá
 -- ambos secretos con el snippet que viene en las instrucciones (se corre una
 -- sola vez, no se commitea con valores reales):
---     vault: 'edge_refresh_prices_url'  -> https://<ref>.supabase.co/functions/v1/refresh-prices
+--     vault: 'edge_refresh_prices_url'  -> https://<ref>.supabase.co/functions/v1/refresh_prices
 --     vault: 'cron_secret'              -> el mismo valor que CRON_SECRET en la Edge Function
 --
 -- Idempotente: si ya existe un job con este nombre, lo desagenda antes de

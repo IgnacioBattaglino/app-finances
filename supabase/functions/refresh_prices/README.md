@@ -1,7 +1,14 @@
-# Edge Function: `refresh-prices`
+# Edge Function: `refresh_prices`
 
 Alimenta `instrument_prices` (historial de precios diarios compartido). La llama
 el cron diario (`pg_cron` → `pg_net`) y también sirve para el backfill histórico.
+
+> El nombre lleva **guion bajo** (`refresh_prices`), no guion medio. Tiene que
+> coincidir exactamente con el nombre de la función desplegada en el dashboard
+> de Supabase y con la URL cargada en el Vault (paso B) — un guion distinto
+> rompe la URL y el cron falla en silencio. (El jobname del cron,
+> `refresh-prices-daily`, sí lleva guion medio: es un identificador de
+> `pg_cron` sin relación con el nombre de la función, no lo cambies.)
 
 Todo lo de acá se hace **una sola vez, a mano** (asumo que no tenés el CLI de
 Supabase). Orden recomendado: **A) desplegar la función → B) cargar los secretos
@@ -15,7 +22,7 @@ del Vault → C) correr la migración `0018` → D) backfill → E) verificar**.
    password: no la commitees). Guardala a mano en algún lado seguro.
 2. Dashboard de Supabase → **Edge Functions** → **Deploy a new function** (o
    "Create function").
-3. Nombre: **`refresh-prices`** (exacto — la URL sale de acá).
+3. Nombre: **`refresh_prices`** (exacto — la URL sale de acá).
 4. **Verify JWT: apagado (OFF).** La función hace su propia auth con
    `CRON_SECRET`; el cron no manda un JWT de Supabase, así que si dejás la
    verificación de JWT prendida rechaza la llamada del cron.
@@ -25,7 +32,7 @@ del Vault → C) correr la migración `0018` → D) backfill → E) verificar**.
    - `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` **NO hace falta cargarlos**:
      Supabase los inyecta solos en toda Edge Function.
 
-La URL queda: `https://<TU-REF>.supabase.co/functions/v1/refresh-prices`
+La URL queda: `https://<TU-REF>.supabase.co/functions/v1/refresh_prices`
 (`<TU-REF>` es el ref del proyecto, lo ves en la URL del dashboard).
 
 ---
@@ -38,7 +45,7 @@ migración. Corré esto en el **SQL Editor** reemplazando los dos placeholders.
 
 ```sql
 select vault.create_secret(
-  'https://<TU-REF>.supabase.co/functions/v1/refresh-prices',
+  'https://<TU-REF>.supabase.co/functions/v1/refresh_prices',
   'edge_refresh_prices_url'
 );
 select vault.create_secret(
@@ -76,7 +83,7 @@ si se corta a la mitad, volvés a correrlo y listo.
 
 ```sh
 curl -i -X POST \
-  "https://<TU-REF>.supabase.co/functions/v1/refresh-prices?mode=backfill&days=365" \
+  "https://<TU-REF>.supabase.co/functions/v1/refresh_prices?mode=backfill&days=365" \
   -H "Authorization: Bearer <TU_CRON_SECRET>"
 ```
 
