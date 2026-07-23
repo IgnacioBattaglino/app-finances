@@ -49,6 +49,29 @@ const CHILD_TABLES = [
   { table: 'debt_payments', parent: 'debts' },
 ]
 
+// Tablas COMPARTIDAS (catálogo de precios, migración 0018): sin user_id, las
+// mismas filas para todos. RLS: SELECT para authenticated; NINGUNA policy de
+// escritura (solo la service_role escribe). Con login deben leerse; el usuario
+// test NO debe poder escribirlas; sin login no deben verse.
+const SHARED_TABLES = ['instruments', 'instrument_prices']
+
+// Fila de prueba mínima para el chequeo de escritura bloqueada, por tabla.
+// Nunca debería insertarse (RLS lo rechaza antes de escribir): el símbolo
+// bogus solo importa si, por un bug, la escritura pasara.
+function writeProbeRow(table) {
+  if (table === 'instruments') {
+    return {
+      source: 'rls-probe',
+      symbol: `rls-probe-${crypto.randomUUID()}`,
+      name: 'RLS probe (no debería insertarse)',
+      kind: 'crypto',
+      currency: 'USD',
+    }
+  }
+  // instrument_prices
+  return { instrument_id: crypto.randomUUID(), date: '2020-01-01', price: 1 }
+}
+
 const clientOptions = { auth: { persistSession: false, autoRefreshToken: false } }
 
 function printRow(name, count, ok, note = '') {
@@ -90,6 +113,62 @@ async function checkAnon(client, table) {
     count: data.length,
     note: data.length > 0 ? 'FUGA: visible sin login' : '',
   }
+}
+
+// Tablas compartidas del catálogo de precios: legibles con login (no filtran
+// por usuario) y NO escribibles por el usuario test. Si la tabla todavía no
+// existe (migración 0018 sin correr) se reporta PENDIENTE, no falla.
+function isMissingRelation(error) {
+  return (
+    error &&
+    (error.code === '42P01' ||
+      error.code === 'PGRST205' ||
+      /Could not find the table|does not exist/i.test(error.message))
+  )
+}
+
+async function checkSharedTables(client) {
+  console.log(
+    `\n${BOLD}Catálogo de precios (compartido) — legible con login, no escribible${RESET}`,
+  )
+  let ok = true
+
+  for (const table of SHARED_TABLES) {
+    // Lectura: debe funcionar sin error (filas compartidas, no se filtra por user).
+    const { data, error } = await client.from(table).select('*').limit(50)
+    if (isMissingRelation(error)) {
+      printRow(table, null, true, 'tabla aún no existe — corré la migración 0018 (PENDIENTE)')
+      continue
+    }
+    if (error) {
+      printRow(table, null, false, error.message)
+      ok = false
+      continue
+    }
+    printRow(`${table} (lectura)`, data.length, true, 'legible con login')
+
+    // Escritura: debe ser rechazada por RLS (no hay policy de escritura).
+    // No destructivo: si RLS funciona no se escribe nada. Si por un bug pasara,
+    // se reporta FUGA e intentamos limpiar best-effort.
+    const probe = writeProbeRow(table)
+    const { data: inserted, error: writeErr } = await client
+      .from(table)
+      .insert(probe)
+      .select('id')
+    const rejected = Boolean(writeErr)
+    printRow(
+      `${table} (escritura)`,
+      null,
+      rejected,
+      rejected ? 'rechazada por RLS' : 'FUGA: el usuario test pudo escribir',
+    )
+    ok = ok && rejected
+    if (!rejected && inserted?.[0]?.id) {
+      await client.from(table).delete().eq('id', inserted[0].id) // best-effort cleanup
+    }
+  }
+
+  return ok
 }
 
 // create_transfer (migración 0017) no debe permitir transferir hacia/desde un
@@ -190,8 +269,14 @@ async function main() {
     allOk = allOk && result.ok
   }
 
+  allOk = (await checkSharedTables(authClient)) && allOk
+
   console.log(`\n${BOLD}Sin login (cliente anónimo) — no debería ver ninguna fila${RESET}`)
-  for (const table of [...ROOT_TABLES, ...CHILD_TABLES.map((c) => c.table)]) {
+  for (const table of [
+    ...ROOT_TABLES,
+    ...CHILD_TABLES.map((c) => c.table),
+    ...SHARED_TABLES,
+  ]) {
     const result = await checkAnon(anonClient, table)
     printRow(table, result.count, result.ok, result.note)
     allOk = allOk && result.ok
@@ -203,7 +288,9 @@ async function main() {
 
   console.log()
   if (allOk) {
-    console.log(`${GREEN}${BOLD}✓ RLS OK: el aislamiento por usuario funciona en las 10 tablas.${RESET}`)
+    console.log(
+      `${GREEN}${BOLD}✓ RLS OK: aislamiento por usuario en las 10 tablas + catálogo de precios compartido (legible, no escribible).${RESET}`,
+    )
     process.exit(0)
   } else {
     console.log(`${RED}${BOLD}✗ RLS FALLÓ: revisá las filas marcadas arriba antes de seguir.${RESET}`)

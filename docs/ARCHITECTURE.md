@@ -66,7 +66,8 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | asset_type_id | uuid FK → asset_types | NOT NULL; reemplaza a `type` |
 | type | text | **deprecada** (migración 0014: se relajó NOT NULL y se sacó el CHECK); no la lee ni la escribe el código nuevo. Se elimina en una migración futura |
 | valuation_mode | text NOT NULL | 'contributed' (vale lo aportado, nunca pide valuación; hoy efectivo), 'manual' (valuación periódica; hoy CEDEAR/bono/fondo), o 'live' (precio por API con identificador por activo; hoy cripto) (CHECK). Migración 0015: antes vivía en asset_types; ahora es del activo — moverlo de bolsa no la afecta |
-| coingecko_id | text | identificador para precio en vivo (activos con valuation_mode='live'); hoy solo CoinGecko |
+| coingecko_id | text | identificador para precio en vivo (activos con valuation_mode='live'); hoy solo CoinGecko. **En transición** (migración 0018): lo reemplaza `instrument_id` → instruments; sigue siendo el que lee el frontend hoy, no se borra hasta verificar el código nuevo en prod |
+| instrument_id | uuid FK → instruments | nullable (migración 0018): referencia al catálogo compartido de precios. La 0018 lo completa desde coingecko_id; el frontend todavía no lo lee |
 | ticker | text | opcional; símbolo del activo (ej: AAPL, AL30, BTC). Hoy informativo; habilita valuación automática por ticker en el futuro |
 | yields | boolean NOT NULL default true | false = reserva de valor (ej: efectivo/colchón); se excluye del cálculo de rendimiento del portafolio pero sigue sumando al valor total. Por activo, independiente del default de la bolsa |
 | is_archived | boolean NOT NULL default false | |
@@ -150,6 +151,33 @@ Una fila por usuario (la crea el trigger de sembrado al registrarse).
 
 Justificación de target_allocation como JSONB y no tabla: son 5 valores que se leen y escriben siempre juntos como una unidad de configuración; una tabla aparte agregaría joins sin beneficio. Si en el futuro la asignación necesitara historia propia, se migra a tabla.
 
+### instruments (migración 0018)
+Catálogo COMPARTIDO de activos cotizables. **No lleva user_id**: las mismas filas para todos (un precio de mercado es público). Ver ADR-006.
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | uuid PK | |
+| source | text NOT NULL | fuente LÓGICA: 'coingecko', 'mep', 'pending' (placeholder para acciones/ETFs, sin proveedor elegido aún). No es el proveedor HTTP: para 'mep' la Edge Function usa dolarapi (diario) y argentinadatos (backfill) bajo el mismo instrumento |
+| symbol | text NOT NULL | identificador dentro de la fuente ('bitcoin', 'AAPL', 'mep') |
+| name | text NOT NULL | nombre para mostrar |
+| kind | text NOT NULL | 'crypto'|'stock'|'etf'|'bond'|'cedear'|'currency' |
+| currency | text NOT NULL | moneda del precio: 'USD' o 'ARS' |
+| is_active | boolean NOT NULL default true | si el cron lo consulta (las 'pending' arrancan en false) |
+| created_at | timestamptz default now() | |
+| | | UNIQUE (source, symbol) — permite el on-conflict idempotente del seed y la migración de datos |
+
+### instrument_prices (migración 0018)
+Precio diario por instrumento. COMPARTIDA (sin user_id). La llena el cron; se lee con carry-forward.
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | uuid PK | |
+| instrument_id | uuid FK → instruments | NOT NULL, on delete cascade |
+| date | date NOT NULL | |
+| price | numeric(20,8) NOT NULL | |
+| fetched_at | timestamptz NOT NULL default now() | cuándo lo trajo el cron |
+| | | UNIQUE (instrument_id, date) — upsert idempotente; índice (instrument_id, date desc) |
+
+RLS de ambas: SELECT para authenticated, **ninguna policy de escritura** — el único escritor es la Edge Function con la service_role key (bypassa RLS). `assets.instrument_id` (nullable, FK → instruments, migración 0018) reemplaza a futuro al `coingecko_id` suelto; la 0018 migra los datos existentes pero NO borra `coingecko_id`. Lectura con carry-forward: función `get_instrument_series(asset_id, from, to)` (SECURITY INVOKER) — activos con instrumento leen instrument_prices, los de valuación manual caen a su última asset_valuation, cada día hereda el último precio conocido.
+
 ## Fórmulas (referencia para implementación)
 
 - Objetivo FIRE (USD) = desired_monthly_income_usd × 12 / safe_withdrawal_rate.
@@ -168,6 +196,7 @@ Justificación de target_allocation como JSONB y no tabla: son 5 valores que se 
 - Multiusuario con Supabase Auth (email + contraseña). Registro semi-cerrado: las cuentas las crea el administrador; no hay signup público.
 - RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009, asset_types en la 0014): "own rows" en las tablas raíz (user_id = auth.uid()) y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
 - Trigger handle_new_user (migración 0007, redefinido en 0010, 0012, 0014 y 0015): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas las del sistema "Ajuste de saldo" (expense e income, con is_system = true), que usa la reconciliación del líquido —, sus 5 bolsas de activos default (asset_types, sin valuation_mode desde la 0015) y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql; para usuarios anteriores a la 0014, el backfill de asset_types va incluido en esa misma migración (idempotente).
+- Catálogo de precios compartido (migración 0018): instruments e instrument_prices NO llevan user_id y tienen solo policy de SELECT para authenticated (anon no lee). No hay policy de escritura: el único escritor es la Edge Function refresh-prices con la service_role key, que bypassa RLS. El cron (pg_cron a las 12:00 UTC = 09:00 ART) la llama vía pg_net; la URL y el secreto de autorización viven en Supabase Vault, no en el repo. Ver ADR-006 y supabase/functions/refresh-prices/README.md.
 - Función create_transfer (migración 0017): transferencia atómica entre activos. Inserta las dos patas (retiro 'out' + aporte 'in', mismo transfer_id) en una sola transacción, evitando el retiro huérfano que dejaba la doble escritura del cliente si la segunda fallaba. SECURITY INVOKER — RLS ("own via asset") sigue aplicando; además valida explícitamente, antes de insertar, que ambos activos pertenezcan a auth.uid() (rechaza sin escribir nada). El realized_gain del retiro se calcula en el cliente (lib/portfolio.js) y se pasa como parámetro; la función no reimplementa esa lógica. Solo authenticated puede ejecutarla. La misma migración crea el índice contributions(asset_id), que sirve a todas las consultas por activo del portafolio y del detalle.
 
 ## Decisiones registradas (ADRs en docs/adr/)
@@ -177,3 +206,4 @@ Justificación de target_allocation como JSONB y no tabla: son 5 valores que se 
 - ADR-003: target_allocation como JSONB en settings, no tabla propia.
 - ADR-004: migración temprana a multiusuario con aislamiento a nivel base de datos.
 - ADR-005: valuation_mode pasa de la bolsa (asset_types) al activo (assets).
+- ADR-006: historial de precios diarios como catálogo compartido (instruments/instrument_prices), alimentado por cron; MEP con dos orígenes (dolarapi diario, argentinadatos histórico).

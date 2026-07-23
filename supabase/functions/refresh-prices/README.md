@@ -1,0 +1,115 @@
+# Edge Function: `refresh-prices`
+
+Alimenta `instrument_prices` (historial de precios diarios compartido). La llama
+el cron diario (`pg_cron` → `pg_net`) y también sirve para el backfill histórico.
+
+Todo lo de acá se hace **una sola vez, a mano** (asumo que no tenés el CLI de
+Supabase). Orden recomendado: **A) desplegar la función → B) cargar los secretos
+del Vault → C) correr la migración `0018` → D) backfill → E) verificar**.
+
+---
+
+## A. Desplegar la función (dashboard, sin CLI)
+
+1. Elegí un secreto para `CRON_SECRET` (una cadena larga al azar, tratala como
+   password: no la commitees). Guardala a mano en algún lado seguro.
+2. Dashboard de Supabase → **Edge Functions** → **Deploy a new function** (o
+   "Create function").
+3. Nombre: **`refresh-prices`** (exacto — la URL sale de acá).
+4. **Verify JWT: apagado (OFF).** La función hace su propia auth con
+   `CRON_SECRET`; el cron no manda un JWT de Supabase, así que si dejás la
+   verificación de JWT prendida rechaza la llamada del cron.
+5. Pegá el contenido de `index.ts` de esta carpeta y desplegá.
+6. En la función → **Secrets / Environment variables**, agregá:
+   - `CRON_SECRET` = el valor del paso 1.
+   - `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` **NO hace falta cargarlos**:
+     Supabase los inyecta solos en toda Edge Function.
+
+La URL queda: `https://<TU-REF>.supabase.co/functions/v1/refresh-prices`
+(`<TU-REF>` es el ref del proyecto, lo ves en la URL del dashboard).
+
+---
+
+## B. Cargar los secretos del Vault (SQL Editor, una vez)
+
+El cron lee la URL y el secreto del Vault para no tenerlos hardcodeados en la
+migración. Corré esto en el **SQL Editor** reemplazando los dos placeholders.
+**No commitees este snippet con los valores reales.**
+
+```sql
+select vault.create_secret(
+  'https://<TU-REF>.supabase.co/functions/v1/refresh-prices',
+  'edge_refresh_prices_url'
+);
+select vault.create_secret(
+  '<EL_MISMO_CRON_SECRET_DEL_PASO_A1>',
+  'cron_secret'
+);
+```
+
+Si ya los habías cargado y querés cambiarlos, usá `vault.update_secret` en vez
+de `create_secret` (el nombre es único):
+
+```sql
+select vault.update_secret(
+  (select id from vault.secrets where name = 'cron_secret'),
+  '<NUEVO_VALOR>'
+);
+```
+
+---
+
+## C. Correr la migración
+
+Corré `supabase/migrations/0018_price_history.sql` en el SQL Editor. Crea las
+tablas, migra los `coingecko_id`, siembra el catálogo y agenda el cron leyendo
+los secretos del paso B. (Si corrés la migración antes del paso B, el cron
+quedará agendado pero fallará al ejecutarse hasta que existan los secretos —
+reordenar es gratis, no hay que re-agendar nada.)
+
+---
+
+## D. Backfill histórico (una vez, re-ejecutable)
+
+Trae ~1 año hacia atrás de los instrumentos activos. Es idempotente (upsert):
+si se corta a la mitad, volvés a correrlo y listo.
+
+```sh
+curl -i -X POST \
+  "https://<TU-REF>.supabase.co/functions/v1/refresh-prices?mode=backfill&days=365" \
+  -H "Authorization: Bearer <TU_CRON_SECRET>"
+```
+
+Respuesta esperada: `200` con un JSON tipo
+`{"mode":"backfill","sources":{"coingecko":"N filas","mep":"M filas"}}`.
+Tarda un rato: el backfill de CoinGecko espera ~2,5 s entre cada moneda para
+respetar el rate limit de la API pública.
+
+Podés disparar una corrida **diaria** manual igual pero sin `?mode=backfill`.
+
+---
+
+## E. Verificar a mano que quedó bien
+
+En el SQL Editor:
+
+```sql
+-- ¿El cron está agendado?
+select jobname, schedule, active from cron.job where jobname = 'refresh-prices-daily';
+
+-- ¿Corrió? (status 'succeeded' y sin error). Se llena tras la primera corrida.
+select status, return_message, start_time
+from cron.job_run_details
+where jobid = (select jobid from cron.job where jobname = 'refresh-prices-daily')
+order by start_time desc limit 5;
+
+-- ¿Guardó precios? (últimos upserts)
+select i.source, i.symbol, p.date, p.price, p.fetched_at
+from instrument_prices p
+join instruments i on i.id = p.instrument_id
+order by p.fetched_at desc limit 20;
+```
+
+Para probar el cron sin esperar a las 12:00 UTC, reprogramalo un par de minutos
+adelante (ej. si son las 14:05 UTC, `'8 14 * * *'`), esperá, revisá
+`cron.job_run_details`, y volvé a dejarlo en `'0 12 * * *'`.

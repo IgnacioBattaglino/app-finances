@@ -118,6 +118,7 @@ El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD 
 - Precios cripto en USD: API pública (CoinGecko), para cualquier activo con coingecko_id.
 - Dólar MEP: API pública (dolarapi.com).
 - Todo lo demás: carga manual.
+- 🟡 Historial de precios diarios (solo base de datos por ahora, sin UI): un cron del servidor guarda cada día el precio de cripto (CoinGecko) y del MEP (dolarapi) en un catálogo compartido, y hay una carga histórica hacia atrás (CoinGecko + argentinadatos para el MEP viejo). Habilita a futuro los gráficos de evolución sin depender de que las APIs estén arriba en el momento de mirar. La lectura resuelve huecos con carry-forward (cada día sin dato hereda el último). Ver ARCHITECTURE.md (instruments / instrument_prices) y ADR-006.
 
 ## Fuera de alcance de v1 (fase 2, el diseño debe soportarlo sin romperse)
 
