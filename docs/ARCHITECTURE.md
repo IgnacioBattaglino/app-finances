@@ -151,17 +151,17 @@ Una fila por usuario (la crea el trigger de sembrado al registrarse).
 
 Justificación de target_allocation como JSONB y no tabla: son 5 valores que se leen y escriben siempre juntos como una unidad de configuración; una tabla aparte agregaría joins sin beneficio. Si en el futuro la asignación necesitara historia propia, se migra a tabla.
 
-### instruments (migración 0018)
+### instruments (migración 0018, semilla data912 en 0019)
 Catálogo COMPARTIDO de activos cotizables. **No lleva user_id**: las mismas filas para todos (un precio de mercado es público). Ver ADR-006.
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | uuid PK | |
-| source | text NOT NULL | fuente LÓGICA: 'coingecko', 'mep', 'pending' (placeholder para acciones/ETFs, sin proveedor elegido aún). No es el proveedor HTTP: para 'mep' la Edge Function usa dolarapi (diario) y argentinadatos (backfill) bajo el mismo instrumento |
-| symbol | text NOT NULL | identificador dentro de la fuente ('bitcoin', 'AAPL', 'mep') |
+| source | text NOT NULL | fuente LÓGICA: 'coingecko', 'mep', 'data912' (acciones argentinas, CEDEARs y bonos soberanos vía BYMA, migración 0019), 'pending' (placeholder para lo que todavía no tiene proveedor — ahí quedaron acciones/ETFs en USD que no cotizan en BYMA; is_active=false). No es el proveedor HTTP: para 'mep' la Edge Function usa dolarapi (diario) y argentinadatos (backfill) bajo el mismo instrumento |
+| symbol | text NOT NULL | identificador dentro de la fuente ('bitcoin', 'AAPL', 'mep'); para 'data912' es el ticker BASE de BYMA, sin los sufijos de liquidación C/D (misma especie a otro tipo de cambio implícito, no otro instrumento) |
 | name | text NOT NULL | nombre para mostrar |
-| kind | text NOT NULL | 'crypto'|'stock'|'etf'|'bond'|'cedear'|'currency' |
-| currency | text NOT NULL | moneda del precio: 'USD' o 'ARS' |
-| is_active | boolean NOT NULL default true | si el cron lo consulta (las 'pending' arrancan en false) |
+| kind | text NOT NULL | 'crypto'\|'stock'\|'etf'\|'bond'\|'cedear'\|'corp_bond'\|'currency'. 'corp_bond' (obligaciones negociables, panel data912 arg_corp) está soportado por la Edge Function pero sin instrumentos sembrados todavía — no tienen histórico en data912 |
+| currency | text NOT NULL | moneda del precio: 'USD' o 'ARS'. Los instrumentos 'data912' son todos 'ARS' (precio de mercado en BYMA) |
+| is_active | boolean NOT NULL default true | si el cron lo consulta (las 'pending' están en false) |
 | created_at | timestamptz default now() | |
 | | | UNIQUE (source, symbol) — permite el on-conflict idempotente del seed y la migración de datos |
 

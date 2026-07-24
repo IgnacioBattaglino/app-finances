@@ -78,8 +78,17 @@ reordenar es gratis, no hay que re-agendar nada.)
 
 ## D. Backfill histórico (una vez, re-ejecutable)
 
-Trae ~1 año hacia atrás de los instrumentos activos. Es idempotente (upsert):
-si se corta a la mitad, volvés a correrlo y listo.
+Trae ~1 año hacia atrás para coingecko y mep (`days` controla cuánto). **data912
+ignora `days`**: la API no soporta rango de fechas, siempre trae toda la
+historia disponible por ticker (para acciones/bonos líderes puede ser +20
+años). Es idempotente (upsert): si se corta a la mitad, volvés a correrlo y
+listo.
+
+data912 además NO recorre todo el catálogo activo: solo trae historia para
+instrumentos ya referenciados por algún activo de usuario o que ya tengan
+precios cargados (ver el comentario de `data912BackfillTargets` en
+`index.ts`). Instrumentos sembrados pero que nadie usa todavía no se
+backfillean hasta que alguien los use.
 
 ```sh
 curl -i -X POST \
@@ -88,7 +97,7 @@ curl -i -X POST \
 ```
 
 Respuesta esperada: `200` con un JSON tipo
-`{"mode":"backfill","sources":{"coingecko":"N filas","mep":"M filas"}}`.
+`{"mode":"backfill","sources":{"coingecko":"N filas","mep":"M filas","data912":"N filas"}}`.
 Tarda un rato: el backfill de CoinGecko espera ~2,5 s entre cada moneda para
 respetar el rate limit de la API pública.
 
