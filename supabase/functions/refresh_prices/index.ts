@@ -14,7 +14,8 @@
 //               rate limiting explícito entre monedas).
 //               data912 -> un request por instrumento, serie completa (data912
 //               no soporta rango de fechas); ver data912BackfillTargets para
-//               por qué esto NO recorre todo el catálogo activo.
+//               por qué esto NO recorre todo el catálogo activo (salvo
+//               ?force=true, ver README).
 //
 // Idempotente: upsert por (instrument_id, date), en lotes (ver UPSERT_CHUNK_SIZE:
 // con historia completa por ticker un solo upsert() podría ser demasiado
@@ -229,7 +230,8 @@ async function data912Daily(instruments: Instrument[], date: string): Promise<Pr
 // ya usa algún usuario (assets.instrument_id) o que ya tienen precios cargados
 // (para completar huecos o extender la serie de una corrida anterior). El
 // resto queda sin historia hasta que alguien lo use -- momento en el que el
-// próximo backfill ya lo va a levantar.
+// próximo backfill ya lo va a levantar. ?force=true en el request salta este
+// filtro (ver handler) y backfillea todos los instrumentos data912 activos.
 async function data912BackfillTargets(
   supabase: ReturnType<typeof createClient>,
   candidates: Instrument[],
@@ -296,6 +298,10 @@ Deno.serve(async (req) => {
   const url = new URL(req.url)
   const mode = url.searchParams.get('mode') === 'backfill' ? 'backfill' : 'daily'
   const days = Math.max(1, Math.min(365, Number(url.searchParams.get('days')) || 365))
+  // Salteo explícito de data912BackfillTargets: backfillea TODOS los
+  // instrumentos data912 activos, no solo los ya usados/con precios. Ver
+  // README para cuándo usarlo (arranque de instrumentos recién sembrados).
+  const force = url.searchParams.get('force') === 'true'
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
@@ -330,7 +336,7 @@ Deno.serve(async (req) => {
         rows = mode === 'backfill' ? await mepBackfill(list, days) : await mepDaily(list, today)
       } else if (source === 'data912') {
         if (mode === 'backfill') {
-          const targets = await data912BackfillTargets(supabase, list)
+          const targets = force ? list : await data912BackfillTargets(supabase, list)
           rows = await data912Backfill(targets)
         } else {
           rows = await data912Daily(list, today)

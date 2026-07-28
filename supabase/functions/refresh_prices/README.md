@@ -96,6 +96,21 @@ curl -i -X POST \
   -H "Authorization: Bearer <TU_CRON_SECRET>"
 ```
 
+**`&force=true`** salta ese filtro para data912 y backfillea **todos** los
+instrumentos data912 activos, los usados y los que no. Sirve para el arranque
+inicial de instrumentos recién sembrados (todavía sin ningún `asset` que los
+referencie ni precios cargados — sin `force` esa corrida no trae nada). Ojo
+con un catálogo grande: es un request HTTP por instrumento, secuencial, sin
+delay pero ~1s cada uno — con muchos instrumentos sembrados puede tardar
+varios minutos y arriesgar el timeout de la Edge Function. Usalo puntualmente
+después de sembrar instrumentos nuevos, no como corrida de rutina.
+
+```sh
+curl -i -X POST \
+  "https://<TU-REF>.supabase.co/functions/v1/refresh_prices?mode=backfill&force=true" \
+  -H "Authorization: Bearer <TU_CRON_SECRET>"
+```
+
 Respuesta esperada: `200` con un JSON tipo
 `{"mode":"backfill","sources":{"coingecko":"N filas","mep":"M filas","data912":"N filas"}}`.
 Tarda un rato: el backfill de CoinGecko espera ~2,5 s entre cada moneda para
