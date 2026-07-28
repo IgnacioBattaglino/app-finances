@@ -8,10 +8,15 @@
 //               MEP -> dolarapi (misma fuente que usan hoy los formularios).
 //               Cripto -> CoinGecko simple/price (una llamada para todos los ids).
 //               data912 -> panel en vivo de BYMA (una llamada por panel, 4 fijas).
-//   - backfill (?mode=backfill&days=365): serie histórica hacia atrás.
+//   - backfill (?mode=backfill&days=365): serie histórica hacia atrás. `days`
+//               solo afecta a mep -- coingecko siempre pide historia completa
+//               (days='max', igual criterio que data912; ver coingeckoBackfill).
 //               MEP -> argentinadatos (dolarapi no da histórico).
-//               Cripto -> CoinGecko market_chart (una llamada por moneda, con
-//               rate limiting explícito entre monedas).
+//               Cripto -> CoinGecko market_chart, una llamada por moneda, con
+//               reintento ante 429 y upsert INMEDIATO por moneda (no se
+//               acumula todo en memoria): si la corrida se corta a mitad de
+//               camino, lo ya guardado no se pierde, y volver a correrla
+//               completa el resto. Ver coingeckoBackfill.
 //               data912 -> un request por instrumento, serie completa (data912
 //               no soporta rango de fechas); ver data912BackfillTargets para
 //               por qué esto NO recorre todo el catálogo activo (salvo
@@ -36,9 +41,18 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const CRON_SECRET = Deno.env.get('CRON_SECRET')!
 
-// Rate limiting de la API pública de CoinGecko (sin API key): ~5-15 req/min.
-// Dejamos un colchón amplio entre llamadas del backfill (una por moneda).
-const COINGECKO_BACKFILL_DELAY_MS = 2500
+// Rate limiting de la API pública de CoinGecko (sin API key): documentado como
+// ~5-15 req/min. Con 2500ms (~24 req/min) el backfill terminaba rechazado por
+// 429 a partir de la 6ta moneda: solo las primeras ~5 traían historia y el
+// resto fallaba en silencio. 13000ms da ~4,6 req/min, con margen incluso
+// contra el piso de ese rango.
+const COINGECKO_BACKFILL_DELAY_MS = 13000
+
+// Reintentos por moneda ante 429 (rate limit) u otro error transitorio (5xx,
+// fallo de red): espera creciente (5s, 10s) antes del 2do y 3er intento. Si
+// se agotan, esa moneda se da por perdida y se loguea -- no mata la corrida.
+const COINGECKO_RETRY_MAX_ATTEMPTS = 3
+const COINGECKO_RETRY_BASE_MS = 5000
 
 // Tamaño de lote para el upsert a instrument_prices. Con historia completa por
 // ticker (data912 backfill puede traer miles de filas de un solo instrumento)
@@ -78,6 +92,50 @@ async function fetchJson(url: string): Promise<unknown | null> {
   }
 }
 
+// Como fetchJson, pero reintenta con espera creciente cuando la respuesta es
+// 429 (rate limit) o 5xx, o cuando fetch tira una excepción de red -- casos
+// transitorios donde reintentar más tarde suele alcanzar. Si se agotan los
+// intentos, se comporta como fetchJson: loguea y devuelve null para que el
+// llamador decida cómo seguir (ej. saltear esa moneda sin matar la corrida).
+async function fetchJsonWithRetry(
+  url: string,
+  maxAttempts = COINGECKO_RETRY_MAX_ATTEMPTS,
+): Promise<unknown | null> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const isLastAttempt = attempt === maxAttempts
+    try {
+      const res = await fetch(url)
+
+      if (res.status === 429 || res.status >= 500) {
+        if (isLastAttempt) {
+          console.error(`fetch ${url} -> HTTP ${res.status} (agotados los reintentos)`)
+          return null
+        }
+        const waitMs = COINGECKO_RETRY_BASE_MS * 2 ** (attempt - 1)
+        console.error(`fetch ${url} -> HTTP ${res.status}, reintento ${attempt}/${maxAttempts} en ${waitMs}ms`)
+        await sleep(waitMs)
+        continue
+      }
+
+      if (!res.ok) {
+        console.error(`fetch ${url} -> HTTP ${res.status}`)
+        return null
+      }
+
+      return await res.json()
+    } catch (e) {
+      if (isLastAttempt) {
+        console.error(`fetch ${url} -> ${(e as Error).message} (agotados los reintentos)`)
+        return null
+      }
+      const waitMs = COINGECKO_RETRY_BASE_MS * 2 ** (attempt - 1)
+      console.error(`fetch ${url} -> ${(e as Error).message}, reintento ${attempt}/${maxAttempts} en ${waitMs}ms`)
+      await sleep(waitMs)
+    }
+  }
+  return null
+}
+
 type Instrument = {
   id: string
   source: string
@@ -86,6 +144,23 @@ type Instrument = {
 }
 
 type PriceRow = { instrument_id: string; date: string; price: number }
+
+type SupabaseClient = ReturnType<typeof createClient>
+
+// Sube filas a instrument_prices en lotes (ver UPSERT_CHUNK_SIZE). Compartido
+// por el handler (fuentes que acumulan todo en memoria y upsertean al final)
+// y por coingeckoBackfill (que upsertea moneda por moneda apenas la descarga).
+async function upsertPriceRows(supabase: SupabaseClient, rows: PriceRow[]): Promise<void> {
+  if (rows.length === 0) return
+  const stamped = rows.map((r) => ({ ...r, fetched_at: new Date().toISOString() }))
+  for (let i = 0; i < stamped.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = stamped.slice(i, i + UPSERT_CHUNK_SIZE)
+    const { error } = await supabase
+      .from('instrument_prices')
+      .upsert(chunk, { onConflict: 'instrument_id,date' })
+    if (error) throw new Error(error.message)
+  }
+}
 
 // ── CoinGecko ────────────────────────────────────────────────────────────────
 
@@ -104,34 +179,49 @@ async function coingeckoDaily(instruments: Instrument[], date: string): Promise<
   return rows
 }
 
-// Backfill: una llamada market_chart POR moneda (con delay entre monedas).
-// Devuelve prices [[ms, price], ...]. NO pasamos interval=daily: en la API
-// pública de CoinGecko ese parámetro es de plan enterprise; con days>90 la
-// granularidad diaria ya viene por default, que es justo lo que pedimos (365).
+// Backfill: una llamada market_chart POR moneda (con delay entre monedas,
+// más reintento con backoff ante 429/5xx -- ver fetchJsonWithRetry). NO
+// pasamos interval=daily: en la API pública de CoinGecko ese parámetro es de
+// plan enterprise; con days>90 la granularidad diaria ya viene por default.
 //
-// days acepta 'max' (historia completa, lo que soporta la API pública de
-// CoinGecko) preparado para cuando se decida ampliar cripto a historia
-// completa como data912 -- sin cambio de comportamiento todavía: el handler
-// sigue llamando esta función con el days numérico de siempre.
-async function coingeckoBackfill(instruments: Instrument[], days: number | 'max'): Promise<PriceRow[]> {
-  const rows: PriceRow[] = []
+// Upsert INMEDIATO por moneda (no acumula todo en memoria para upsertear al
+// final): si la corrida se corta a mitad de camino -- por timeout de la Edge
+// Function, con 13 monedas y ~13s de por medio entre cada una es una
+// posibilidad real -- lo ya guardado no se pierde. Volver a correr el
+// backfill completa lo que falte; es idempotente.
+//
+// days acepta 'max' (historia completa) además de un número de días; el
+// handler siempre llama con 'max' para cripto, mismo criterio que data912.
+async function coingeckoBackfill(
+  supabase: SupabaseClient,
+  instruments: Instrument[],
+  days: number | 'max',
+): Promise<number> {
+  let totalWritten = 0
   for (let idx = 0; idx < instruments.length; idx++) {
     const inst = instruments[idx]
     const url =
       `https://api.coingecko.com/api/v3/coins/${inst.symbol}/market_chart` +
       `?vs_currency=usd&days=${days}`
-    const data = (await fetchJson(url)) as { prices?: [number, number][] } | null
+    const data = (await fetchJsonWithRetry(url)) as { prices?: [number, number][] } | null
     if (data?.prices) {
       // Una fila por fecha ART (última muestra del día gana).
       const byDate = new Map<string, number>()
       for (const [ms, price] of data.prices) byDate.set(msToArgentinaDate(ms), price)
-      for (const [date, price] of byDate) rows.push({ instrument_id: inst.id, date, price })
+      const coinRows: PriceRow[] = []
+      for (const [date, price] of byDate) coinRows.push({ instrument_id: inst.id, date, price })
+      try {
+        await upsertPriceRows(supabase, coinRows)
+        totalWritten += coinRows.length
+      } catch (e) {
+        console.error(`CoinGecko backfill: upsert falló para ${inst.symbol}: ${(e as Error).message}`)
+      }
     } else {
-      console.error(`CoinGecko market_chart sin datos para ${inst.symbol}`)
+      console.error(`CoinGecko market_chart sin datos para ${inst.symbol} (reintentos agotados o sin precios)`)
     }
     if (idx < instruments.length - 1) await sleep(COINGECKO_BACKFILL_DELAY_MS)
   }
-  return rows
+  return totalWritten
 }
 
 // ── Dólar MEP ─────────────────────────────────────────────────────────────────
@@ -233,7 +323,7 @@ async function data912Daily(instruments: Instrument[], date: string): Promise<Pr
 // próximo backfill ya lo va a levantar. ?force=true en el request salta este
 // filtro (ver handler) y backfillea todos los instrumentos data912 activos.
 async function data912BackfillTargets(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   candidates: Instrument[],
 ): Promise<Instrument[]> {
   const ids = candidates.map((i) => i.id)
@@ -297,6 +387,8 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url)
   const mode = url.searchParams.get('mode') === 'backfill' ? 'backfill' : 'daily'
+  // Solo afecta a mep: coingecko siempre pide historia completa (days='max',
+  // ver coingeckoBackfill) y data912 no soporta rango de fechas.
   const days = Math.max(1, Math.min(365, Number(url.searchParams.get('days')) || 365))
   // Salteo explícito de data912BackfillTargets: backfillea TODOS los
   // instrumentos data912 activos, no solo los ya usados/con precios. Ver
@@ -329,9 +421,18 @@ Deno.serve(async (req) => {
 
   for (const [source, list] of bySource) {
     try {
+      if (source === 'coingecko' && mode === 'backfill') {
+        // Caso especial: upsertea moneda por moneda adentro de la función (no
+        // acumula todo en memoria para upsertear al final, ver coingeckoBackfill),
+        // así que no pasa por el upsert genérico de abajo.
+        const written = await coingeckoBackfill(supabase, list, 'max')
+        ;(summary.sources as Record<string, unknown>)[source] = written > 0 ? `${written} filas` : 'sin filas'
+        continue
+      }
+
       let rows: PriceRow[] = []
       if (source === 'coingecko') {
-        rows = mode === 'backfill' ? await coingeckoBackfill(list, days) : await coingeckoDaily(list, today)
+        rows = await coingeckoDaily(list, today)
       } else if (source === 'mep') {
         rows = mode === 'backfill' ? await mepBackfill(list, days) : await mepDaily(list, today)
       } else if (source === 'data912') {
@@ -354,16 +455,7 @@ Deno.serve(async (req) => {
         continue
       }
 
-      // Upsert idempotente por (instrument_id, date), en lotes (ver UPSERT_CHUNK_SIZE).
-      const stamped = rows.map((r) => ({ ...r, fetched_at: new Date().toISOString() }))
-      for (let i = 0; i < stamped.length; i += UPSERT_CHUNK_SIZE) {
-        const chunk = stamped.slice(i, i + UPSERT_CHUNK_SIZE)
-        const { error: upErr } = await supabase
-          .from('instrument_prices')
-          .upsert(chunk, { onConflict: 'instrument_id,date' })
-        if (upErr) throw new Error(upErr.message)
-      }
-
+      await upsertPriceRows(supabase, rows)
       ;(summary.sources as Record<string, unknown>)[source] = `${rows.length} filas`
     } catch (e) {
       // Falla de una fuente: se loguea y se sigue con las demás.
