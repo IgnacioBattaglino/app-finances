@@ -86,12 +86,36 @@ Es idempotente (upsert): si se corta a la mitad, volvés a correrlo y listo.
 
 **coingecko** además saltea monedas que ya tienen historia "profunda" (más de
 `COINGECKO_BACKFILL_COVERAGE_DAYS` = 90 días de antigüedad en el precio más
-viejo guardado; ver `coingeckoBackfillTargets` en `index.ts`) y upsertea
-moneda por moneda apenas la descarga, no al final. Las dos cosas juntas
-resuelven el problema de origen (rate limit de la API pública, ~5-15 req/min:
-por eso hay 13s de delay entre monedas) sin perder progreso si la corrida se
-corta: cada re-corrida solo repite las monedas que todavía no tienen historia
-profunda, así que avanza más lejos en vez de arrancar siempre desde cero.
+viejo guardado; ver `coingeckoBackfillTargets` en `index.ts`), upsertea moneda
+por moneda apenas la descarga (no al final), y procesa como máximo `?limit=N`
+monedas pendientes **por invocación** (default `COINGECKO_BACKFILL_DEFAULT_LIMIT`
+= 3). El espaciado grande para respetar el rate limit de la API pública
+(~5-15 req/min) NO es un sleep largo adentro de la función -- eso fue lo que
+agotaba el presupuesto de ejecución (`WORKER_RESOURCE_LIMIT`) antes de llegar
+a cubrir las 13 monedas del catálogo en una sola corrida. En cambio, es el
+espaciado ENTRE invocaciones, a tu cargo:
+
+```sh
+# Llamada 1: procesa hasta 3 monedas pendientes.
+curl -s -X POST \
+  "https://<TU-REF>.supabase.co/functions/v1/refresh_prices?mode=backfill&limit=3" \
+  -H "Authorization: Bearer <TU_CRON_SECRET>"
+# -> {"mode":"backfill","sources":{"coingecko":{"procesadas":3,"filas":18742,
+#     "salteadas_completas":0,"fallidas":[],"quedan_pendientes":10}, ...}}
+
+# Esperás ~1 min (a mano, o con cualquier scheduler) y repetís. Cada llamada
+# saltea las que ya quedaron completas en la anterior, así que avanza:
+curl -s -X POST \
+  "https://<TU-REF>.supabase.co/functions/v1/refresh_prices?mode=backfill&limit=3" \
+  -H "Authorization: Bearer <TU_CRON_SECRET>"
+# -> {"...":{"procesadas":3,"filas":21005,"salteadas_completas":3,"fallidas":[],"quedan_pendientes":7}}
+```
+
+`quedan_pendientes` es la cuenta a mirar: cuando llega a 0, terminaste. Si
+`fallidas` no está vacío, esas monedas agotaron los 3 reintentos (ver
+`fetchJsonWithRetry`) y van a reintentarse solas en la próxima invocación
+(siguen sin historia profunda, así que `coingeckoBackfillTargets` no las
+saltea).
 
 **data912** además NO recorre todo el catálogo activo: solo trae historia para
 instrumentos ya referenciados por algún activo de usuario o que ya tengan
