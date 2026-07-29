@@ -78,13 +78,22 @@ reordenar es gratis, no hay que re-agendar nada.)
 
 ## D. Backfill histórico (una vez, re-ejecutable)
 
-Trae ~1 año hacia atrás para coingecko y mep (`days` controla cuánto). **data912
-ignora `days`**: la API no soporta rango de fechas, siempre trae toda la
-historia disponible por ticker (para acciones/bonos líderes puede ser +20
-años). Es idempotente (upsert): si se corta a la mitad, volvés a correrlo y
-listo.
+`days` **solo controla mep** (cuántos días hacia atrás). coingecko y data912
+siempre traen historia completa: coingecko pide `days=max` a CoinGecko, data912
+ignora cualquier rango de fechas (la API no lo soporta) y siempre devuelve
+todo lo que tenga por ticker (para acciones/bonos líderes puede ser +20 años).
+Es idempotente (upsert): si se corta a la mitad, volvés a correrlo y listo.
 
-data912 además NO recorre todo el catálogo activo: solo trae historia para
+**coingecko** además saltea monedas que ya tienen historia "profunda" (más de
+`COINGECKO_BACKFILL_COVERAGE_DAYS` = 90 días de antigüedad en el precio más
+viejo guardado; ver `coingeckoBackfillTargets` en `index.ts`) y upsertea
+moneda por moneda apenas la descarga, no al final. Las dos cosas juntas
+resuelven el problema de origen (rate limit de la API pública, ~5-15 req/min:
+por eso hay 13s de delay entre monedas) sin perder progreso si la corrida se
+corta: cada re-corrida solo repite las monedas que todavía no tienen historia
+profunda, así que avanza más lejos en vez de arrancar siempre desde cero.
+
+**data912** además NO recorre todo el catálogo activo: solo trae historia para
 instrumentos ya referenciados por algún activo de usuario o que ya tengan
 precios cargados (ver el comentario de `data912BackfillTargets` en
 `index.ts`). Instrumentos sembrados pero que nadie usa todavía no se
