@@ -78,56 +78,30 @@ reordenar es gratis, no hay que re-agendar nada.)
 
 ## D. Backfill histórico (una vez, re-ejecutable)
 
-`days` **solo controla mep** (cuántos días hacia atrás). coingecko y data912
-siempre traen historia completa: coingecko pide `days=max` a CoinGecko, data912
-ignora cualquier rango de fechas (la API no lo soporta) y siempre devuelve
-todo lo que tenga por ticker (para acciones/bonos líderes puede ser +20 años).
-Es idempotente (upsert): si se corta a la mitad, volvés a correrlo y listo.
+`days` **solo controla mep** (cuántos días hacia atrás). binance y data912
+siempre traen historia completa; el fallback de coingecko (instrumentos cripto
+sin par de Binance, ver ADR-006 — hoy ninguno) usa un tope fijo de 365 días,
+nunca `'max'` (el plan público de CoinGecko lo rechaza fuera de plan pago). Es
+idempotente (upsert): si se corta a la mitad, volvés a correrlo y listo.
 
-**coingecko** además saltea monedas que ya tienen historia "profunda" (más de
-`COINGECKO_BACKFILL_COVERAGE_DAYS` = 90 días de antigüedad en el precio más
-viejo guardado; ver `coingeckoBackfillTargets` en `index.ts`), upsertea moneda
-por moneda apenas la descarga (no al final), y procesa como máximo `?limit=N`
-monedas pendientes **por invocación** (default `COINGECKO_BACKFILL_DEFAULT_LIMIT`
-= 3). El espaciado grande para respetar el rate limit de la API pública
-(~5-15 req/min) NO es un sleep largo adentro de la función -- eso fue lo que
-agotaba el presupuesto de ejecución (`WORKER_RESOURCE_LIMIT`) antes de llegar
-a cubrir las 13 monedas del catálogo en una sola corrida. En cambio, es el
-espaciado ENTRE invocaciones, a tu cargo:
+**binance** es la fuente primaria de cripto (histórico, diario y precio en
+vivo de la app — ver ADR-006, "Cripto: unificado en Binance"). Sus límites son
+mucho más holgados que los de CoinGecko: las 13 monedas sembradas entran
+cómodas en una sola invocación, sin batching ni salteo de completas. Una
+corrida típica tarda bajo el minuto:
 
 ```sh
-# Llamada 1: procesa hasta 3 monedas pendientes.
 curl -s -X POST \
-  "https://<TU-REF>.supabase.co/functions/v1/refresh_prices?mode=backfill&limit=3" \
+  "https://<TU-REF>.supabase.co/functions/v1/refresh_prices?mode=backfill" \
   -H "Authorization: Bearer <TU_CRON_SECRET>"
-# -> {"mode":"backfill","sources":{"coingecko":{"procesadas":3,"filas":18742,
-#     "salteadas_completas":0,"fallidas":[],"quedan_pendientes":10}, ...}}
-
-# Esperás ~1 min (a mano, o con cualquier scheduler) y repetís. Cada llamada
-# saltea las que ya quedaron completas en la anterior, así que avanza:
-curl -s -X POST \
-  "https://<TU-REF>.supabase.co/functions/v1/refresh_prices?mode=backfill&limit=3" \
-  -H "Authorization: Bearer <TU_CRON_SECRET>"
-# -> {"...":{"procesadas":3,"filas":21005,"salteadas_completas":3,"fallidas":[],"quedan_pendientes":7}}
+# -> {"mode":"backfill","sources":{"binance":"39481 filas","mep":"..." ,"data912":"..."}}
 ```
 
-`quedan_pendientes` es la cuenta a mirar: cuando llega a 0, terminaste. Si
-`fallidas` no está vacío, esas monedas agotaron los 3 reintentos (ver
-`fetchJsonWithRetry`) y van a reintentarse solas en la próxima invocación
-(siguen sin historia profunda, así que `coingeckoBackfillTargets` no las
-saltea).
-
-**data912** además NO recorre todo el catálogo activo: solo trae historia para
+**data912** NO recorre todo el catálogo activo: solo trae historia para
 instrumentos ya referenciados por algún activo de usuario o que ya tengan
 precios cargados (ver el comentario de `data912BackfillTargets` en
 `index.ts`). Instrumentos sembrados pero que nadie usa todavía no se
 backfillean hasta que alguien los use.
-
-```sh
-curl -i -X POST \
-  "https://<TU-REF>.supabase.co/functions/v1/refresh_prices?mode=backfill&days=365" \
-  -H "Authorization: Bearer <TU_CRON_SECRET>"
-```
 
 **`&force=true`** salta ese filtro para data912 y backfillea **todos** los
 instrumentos data912 activos, los usados y los que no. Sirve para el arranque
@@ -145,9 +119,7 @@ curl -i -X POST \
 ```
 
 Respuesta esperada: `200` con un JSON tipo
-`{"mode":"backfill","sources":{"coingecko":"N filas","mep":"M filas","data912":"N filas"}}`.
-Tarda un rato: el backfill de CoinGecko espera ~2,5 s entre cada moneda para
-respetar el rate limit de la API pública.
+`{"mode":"backfill","sources":{"binance":"N filas","mep":"M filas","data912":"N filas"}}`.
 
 Podés disparar una corrida **diaria** manual igual pero sin `?mode=backfill`.
 

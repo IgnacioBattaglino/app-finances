@@ -6,23 +6,30 @@
 // Modos:
 //   - daily   (default): precio de HOY (fecha ART) para cada instrumento activo.
 //               MEP -> dolarapi (misma fuente que usan hoy los formularios).
-//               Cripto -> CoinGecko simple/price (una llamada para todos los ids).
+//               Binance -> ticker/price, una sola llamada batch con todos los
+//               pares (?symbols=[...]). Es la fuente PRIMARIA de cripto (ver
+//               ADR-006, "Cripto: unificado en Binance") -- histórico, diario
+//               y precio en vivo de la app salen los tres de acá, sin
+//               escalón entre orígenes.
+//               CoinGecko -> simple/price. Fallback SOLO para instrumentos
+//               cripto sin par de Binance conocido (source='coingecko'); hoy
+//               ningún instrumento sembrado usa este camino.
 //               data912 -> panel en vivo de BYMA (una llamada por panel, 4 fijas).
 //   - backfill (?mode=backfill&days=365): serie histórica hacia atrás. `days`
-//               solo afecta a mep -- coingecko siempre pide historia completa
-//               (days='max', igual criterio que data912; ver coingeckoBackfill).
+//               solo afecta a mep -- Binance y data912 siempre traen historia
+//               completa, y el fallback de CoinGecko usa un tope fijo (365,
+//               ver COINGECKO_FALLBACK_DAYS), no 'max' (rechazado fuera de
+//               plan pago).
 //               MEP -> argentinadatos (dolarapi no da histórico).
-//               Cripto -> CoinGecko market_chart, una llamada por moneda, con
-//               reintento ante 429 y upsert INMEDIATO por moneda (no se
-//               acumula todo en memoria): si la corrida se corta a mitad de
-//               camino, lo ya guardado no se pierde. Saltea monedas que ya
-//               tienen historia profunda (coingeckoBackfillTargets) y procesa
-//               como máximo ?limit=N de las pendientes por invocación
-//               (default COINGECKO_BACKFILL_DEFAULT_LIMIT): el espaciado
-//               grande entre monedas lo da el espaciado ENTRE invocaciones
-//               (a cargo de quien llama), no un sleep largo adentro de la
-//               función -- eso agotaba el presupuesto de ejecución antes de
-//               llegar a las últimas monedas. Ver coingeckoBackfill.
+//               Binance -> /klines, paginado de a BINANCE_KLINES_LIMIT velas
+//               diarias por par, avanzando startTime hasta agotar la
+//               historia (ver binanceBackfillOne). Límites de Binance mucho
+//               más holgados que CoinGecko: las 13 monedas sembradas entran
+//               cómodas en una sola invocación, sin necesitar el
+//               batching/reintento progresivo que hizo falta para
+//               sobrevivir al rate limit de CoinGecko.
+//               CoinGecko -> fallback, market_chart con days=365 fijo, solo
+//               para instrumentos cripto sin par de Binance.
 //               data912 -> un request por instrumento, serie completa (data912
 //               no soporta rango de fechas); ver data912BackfillTargets para
 //               por qué esto NO recorre todo el catálogo activo (salvo
@@ -47,38 +54,36 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const CRON_SECRET = Deno.env.get('CRON_SECRET')!
 
-// Rate limiting de la API pública de CoinGecko (sin API key): documentado como
-// ~5-15 req/min. Con 2500ms (~24 req/min) el backfill terminaba rechazado por
-// 429 a partir de la 6ta moneda: solo las primeras ~5 traían historia y el
-// resto fallaba en silencio. Historial de este valor: subió a 13000ms para
-// respetar el límite, pero eso hacía que sostener el sleep de las 13 monedas
-// en UNA sola invocación agotara el presupuesto de ejecución de la Edge
-// Function (WORKER_RESOURCE_LIMIT) antes de llegar a las últimas -- dormir
-// no gasta rate limit, pero sí gasta el tiempo de vida del worker. La
-// solución no es un delay más corto solo: es no intentar las 13 en una
-// invocación (ver ?limit=N en el handler). Con tandas chicas, 6000ms
-// (~10 req/min) alcanza y sigue cómodo dentro del rango documentado.
+// Reintentos ante 429 (rate limit) u otro error transitorio (5xx, fallo de
+// red): espera creciente (5s, 10s) antes del 2do y 3er intento. Genérico --
+// lo usan tanto el backfill de Binance (paginado) como el fallback de
+// CoinGecko. Si se agotan, ese pedido se da por perdido y se loguea -- no
+// mata la corrida.
+const RETRY_MAX_ATTEMPTS = 3
+const RETRY_BASE_MS = 5000
+
+// Binance: límites MUCHO más holgados que CoinGecko para este volumen (peso
+// por defecto ~6000/min sin API key; unas pocas decenas de requests de
+// backfill no se acercan). No hace falta el delay largo que sí hacía falta
+// para CoinGecko -- ver BINANCE_BACKFILL_DELAY_MS.
+const BINANCE_KLINES_LIMIT = 1000
+const BINANCE_BACKFILL_DELAY_MS = 300
+
+// Fallback de cripto sin par de Binance: CoinGecko market_chart con un tope
+// FIJO de días, nunca 'max' -- confirmado contra la API real que el plan
+// público lo topea en ~365 días de todas formas, así que pedir 'max'
+// explícitamente no suma nada (ese soporte queda en el tipo de
+// coingeckoMarketChart por si algún día hay plan pago, pero no se usa).
+const COINGECKO_FALLBACK_DAYS = 365
+
+// Delay entre monedas del fallback de CoinGecko (rate limit público
+// ~5-15 req/min). Hoy ningún instrumento sembrado ejercita este camino (los
+// 13 tienen par de Binance); si en el futuro hay varios sin par, este delay
+// evita repetir el problema que forzó a rediseñar el backfill viejo de
+// CoinGecko (ver historial en git: WORKER_RESOURCE_LIMIT por sleep largo
+// acumulado). Con pocos instrumentos de fallback esperables, no hace falta
+// la infraestructura de batching/salteo que tuvo ese diseño.
 const COINGECKO_BACKFILL_DELAY_MS = 6000
-
-// Reintentos por moneda ante 429 (rate limit) u otro error transitorio (5xx,
-// fallo de red): espera creciente (5s, 10s) antes del 2do y 3er intento. Si
-// se agotan, esa moneda se da por perdida y se loguea -- no mata la corrida.
-const COINGECKO_RETRY_MAX_ATTEMPTS = 3
-const COINGECKO_RETRY_BASE_MS = 5000
-
-// Cuántas monedas pendientes procesa como máximo cada invocación del backfill
-// (?limit=N en la URL, ver el handler). El espaciado GRANDE entre tandas lo
-// controla quien llama la función (ej. una persona esperando ~1 min entre
-// invocaciones manuales), no un sleep largo adentro de la función.
-const COINGECKO_BACKFILL_DEFAULT_LIMIT = 3
-
-// Umbral para decidir si una moneda "ya tiene historia" y el backfill la
-// puede saltear (ver coingeckoBackfillTargets). El cron diario solo agrega UN
-// día por corrida: si el precio más viejo guardado está a menos de este
-// umbral de hoy, esa profundidad la pudo haber generado el cron solo con el
-// paso del tiempo, no necesariamente un backfill -- no se saltea. Si está más
-// lejos, es porque un backfill ya trajo historia real.
-const COINGECKO_BACKFILL_COVERAGE_DAYS = 90
 
 // Tamaño de lote para el upsert a instrument_prices. Con historia completa por
 // ticker (data912 backfill puede traer miles de filas de un solo instrumento)
@@ -97,11 +102,22 @@ function argentinaToday(): string {
   }).format(new Date()) // en-CA => YYYY-MM-DD
 }
 
-// Convierte un timestamp (ms) a fecha ART YYYY-MM-DD.
+// Convierte un timestamp (ms) a fecha ART YYYY-MM-DD. Usado por el fallback
+// de CoinGecko (market_chart devuelve muestras a horas arbitrarias del día;
+// bucketear por fecha ART tiene sentido para "qué vio el usuario ese día").
 function msToArgentinaDate(ms: number): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Argentina/Buenos_Aires',
   }).format(new Date(ms))
+}
+
+// Fecha UTC (YYYY-MM-DD) de un timestamp. A diferencia de msToArgentinaDate,
+// NO se corre a fecha ART: las velas diarias de Binance están definidas en
+// UTC (00:00:00 a 23:59:59), así que la fecha "correcta" de una vela es su
+// fecha UTC -- convertirla a ART correría TODAS las fechas un día para atrás
+// (una vela abierta 2020-05-13T00:00:00Z cae en 2020-05-12 en ART).
+function msToUtcDate(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10)
 }
 
 async function fetchJson(url: string): Promise<unknown | null> {
@@ -123,10 +139,7 @@ async function fetchJson(url: string): Promise<unknown | null> {
 // transitorios donde reintentar más tarde suele alcanzar. Si se agotan los
 // intentos, se comporta como fetchJson: loguea y devuelve null para que el
 // llamador decida cómo seguir (ej. saltear esa moneda sin matar la corrida).
-async function fetchJsonWithRetry(
-  url: string,
-  maxAttempts = COINGECKO_RETRY_MAX_ATTEMPTS,
-): Promise<unknown | null> {
+async function fetchJsonWithRetry(url: string, maxAttempts = RETRY_MAX_ATTEMPTS): Promise<unknown | null> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const isLastAttempt = attempt === maxAttempts
     try {
@@ -137,7 +150,7 @@ async function fetchJsonWithRetry(
           console.error(`fetch ${url} -> HTTP ${res.status} (agotados los reintentos)`)
           return null
         }
-        const waitMs = COINGECKO_RETRY_BASE_MS * 2 ** (attempt - 1)
+        const waitMs = RETRY_BASE_MS * 2 ** (attempt - 1)
         console.error(`fetch ${url} -> HTTP ${res.status}, reintento ${attempt}/${maxAttempts} en ${waitMs}ms`)
         await sleep(waitMs)
         continue
@@ -154,7 +167,7 @@ async function fetchJsonWithRetry(
         console.error(`fetch ${url} -> ${(e as Error).message} (agotados los reintentos)`)
         return null
       }
-      const waitMs = COINGECKO_RETRY_BASE_MS * 2 ** (attempt - 1)
+      const waitMs = RETRY_BASE_MS * 2 ** (attempt - 1)
       console.error(`fetch ${url} -> ${(e as Error).message}, reintento ${attempt}/${maxAttempts} en ${waitMs}ms`)
       await sleep(waitMs)
     }
@@ -173,9 +186,9 @@ type PriceRow = { instrument_id: string; date: string; price: number }
 
 type SupabaseClient = ReturnType<typeof createClient>
 
-// Sube filas a instrument_prices en lotes (ver UPSERT_CHUNK_SIZE). Compartido
-// por el handler (fuentes que acumulan todo en memoria y upsertean al final)
-// y por coingeckoBackfill (que upsertea moneda por moneda apenas la descarga).
+// Sube filas a instrument_prices en lotes (ver UPSERT_CHUNK_SIZE). Todas las
+// fuentes acumulan sus filas en memoria y el handler upsertea una sola vez al
+// final de cada una.
 async function upsertPriceRows(supabase: SupabaseClient, rows: PriceRow[]): Promise<void> {
   if (rows.length === 0) return
   const stamped = rows.map((r) => ({ ...r, fetched_at: new Date().toISOString() }))
@@ -205,116 +218,109 @@ async function coingeckoDaily(instruments: Instrument[], date: string): Promise<
   return rows
 }
 
-// El backfill saltea monedas que ya tienen historia "de verdad" (ver
-// COINGECKO_BACKFILL_COVERAGE_DAYS): sin esto, cada corrida vuelve a arrancar
-// desde la primera moneda de la lista, así que las que arrancan temprano se
-// re-procesan siempre y las últimas nunca llegan a backfillearse por más
-// veces que se reintente. Con el filtro, cada corrida (o cada tanda con
-// ?limit=N, ver el handler) avanza más lejos que la anterior en vez de
-// repetir trabajo.
+// Backfill FALLBACK: solo para instrumentos cripto sin par de Binance (ver
+// ADR-006). Una llamada market_chart POR moneda, con reintento ante 429/5xx.
+// days queda tipado 'number | max' por si algún día hay plan pago que sí
+// soporte 'max' (historia completa); HOY se llama siempre con
+// COINGECKO_FALLBACK_DAYS (365) porque el plan público topea ahí de todas
+// formas. NO pasamos interval=daily: en la API pública ese parámetro es de
+// plan enterprise; con days>90 la granularidad diaria ya viene por default.
 //
-// Un request por moneda (solo la fecha más vieja, LIMIT 1) -- mismo espíritu
-// que data912BackfillTargets, pero acá no alcanza con "tiene algún precio":
-// el cron diario también deja precios, solo que superficiales (un día por
-// corrida), así que hay que mirar qué tan atrás llega esa historia. Loguea
-// SIEMPRE (salteada o no) para poder verificar desde los logs de la función
-// que el criterio está distinguiendo bien las dos poblaciones.
-type CoingeckoTargets = { pending: Instrument[]; skippedCompleted: number }
-
-async function coingeckoBackfillTargets(
-  supabase: SupabaseClient,
-  candidates: Instrument[],
-): Promise<CoingeckoTargets> {
-  const today = Date.now()
-  const pending: Instrument[] = []
-  let skippedCompleted = 0
-  for (const inst of candidates) {
-    const { data, error } = await supabase
-      .from('instrument_prices')
-      .select('date')
-      .eq('instrument_id', inst.id)
-      .order('date', { ascending: true })
-      .limit(1)
-    if (error) {
-      console.error(
-        `CoinGecko ${inst.symbol}: no se pudo chequear historia previa (${error.message}), se trata como pendiente`,
-      )
-    }
-    const earliest = (data as { date: string }[] | null)?.[0]?.date
-    if (earliest) {
-      const daysCovered = Math.floor((today - new Date(earliest).getTime()) / 86400000)
-      if (daysCovered >= COINGECKO_BACKFILL_COVERAGE_DAYS) {
-        console.log(`CoinGecko ${inst.symbol}: ya tiene historia desde ${earliest} (~${daysCovered} días), salteado`)
-        skippedCompleted++
-        continue
-      }
-      console.log(`CoinGecko ${inst.symbol}: historia desde ${earliest} (~${daysCovered} días), pendiente`)
-    } else {
-      console.log(`CoinGecko ${inst.symbol}: sin precios todavía, pendiente`)
-    }
-    pending.push(inst)
+// Sin batching ni salteo de completas (a diferencia del backfill de Binance
+// de abajo, o del backfill de CoinGecko viejo antes de este cambio): el
+// volumen esperado acá es bajo (instrumentos sin par de Binance, hoy
+// ninguno), así que no hace falta esa infraestructura.
+async function coingeckoMarketChart(inst: Instrument, days: number | 'max'): Promise<PriceRow[]> {
+  const url = `https://api.coingecko.com/api/v3/coins/${inst.symbol}/market_chart?vs_currency=usd&days=${days}`
+  const data = (await fetchJsonWithRetry(url)) as { prices?: [number, number][] } | null
+  const byDate = new Map<string, number>()
+  if (data?.prices) {
+    for (const [ms, price] of data.prices) byDate.set(msToArgentinaDate(ms), price)
   }
-  return { pending, skippedCompleted }
+  return [...byDate].map(([date, price]) => ({ instrument_id: inst.id, date, price }))
 }
 
-// Backfill: una llamada market_chart POR moneda (con delay corto entre
-// monedas, más reintento con backoff ante 429/5xx -- ver fetchJsonWithRetry).
-// NO pasamos interval=daily: en la API pública de CoinGecko ese parámetro es
-// de plan enterprise; con days>90 la granularidad diaria ya viene por default.
-//
-// Upsert INMEDIATO por moneda (no acumula todo en memoria para upsertear al
-// final): si la corrida se corta a mitad de camino, lo ya guardado no se
-// pierde. El llamador (handler) ya le pasa una tanda chica (?limit=N, ver
-// coingeckoBackfillTargets) en vez de las 13 monedas juntas -- por eso el
-// delay entre monedas puede ser corto: ya no hace falta que la función
-// sobreviva sentada 2-3 minutos de sleep para cubrir el catálogo completo en
-// una sola invocación.
-//
-// days acepta 'max' (historia completa) además de un número de días; el
-// handler siempre llama con 'max' para cripto, mismo criterio que data912.
-type CoingeckoBackfillResult = { written: number; succeeded: string[]; failed: string[] }
-
-async function coingeckoBackfill(
-  supabase: SupabaseClient,
-  instruments: Instrument[],
-  days: number | 'max',
-): Promise<CoingeckoBackfillResult> {
-  const result: CoingeckoBackfillResult = { written: 0, succeeded: [], failed: [] }
+async function coingeckoBackfill(instruments: Instrument[]): Promise<PriceRow[]> {
+  const rows: PriceRow[] = []
   for (let idx = 0; idx < instruments.length; idx++) {
     const inst = instruments[idx]
-    const url =
-      `https://api.coingecko.com/api/v3/coins/${inst.symbol}/market_chart` +
-      `?vs_currency=usd&days=${days}`
-    const data = (await fetchJsonWithRetry(url)) as { prices?: [number, number][] } | null
-
-    // Una fila por fecha ART (última muestra del día gana). data.prices puede
-    // venir vacío ([]) para una moneda "zombie" (ver migración 0020, caso
-    // matic-network): eso NO cuenta como éxito, aunque la respuesta haya sido
-    // 200 -- sin filas para upsertear, es una moneda fallida como cualquier
-    // otra.
-    const byDate = new Map<string, number>()
-    if (data?.prices) {
-      for (const [ms, price] of data.prices) byDate.set(msToArgentinaDate(ms), price)
-    }
-
-    if (byDate.size === 0) {
-      console.error(`CoinGecko market_chart sin datos para ${inst.symbol} (reintentos agotados o sin precios)`)
-      result.failed.push(inst.symbol)
-    } else {
-      const coinRows: PriceRow[] = [...byDate].map(([date, price]) => ({ instrument_id: inst.id, date, price }))
-      try {
-        await upsertPriceRows(supabase, coinRows)
-        result.written += coinRows.length
-        result.succeeded.push(inst.symbol)
-      } catch (e) {
-        console.error(`CoinGecko backfill: upsert falló para ${inst.symbol}: ${(e as Error).message}`)
-        result.failed.push(inst.symbol)
-      }
-    }
-
+    const coinRows = await coingeckoMarketChart(inst, COINGECKO_FALLBACK_DAYS)
+    if (coinRows.length === 0) console.error(`CoinGecko fallback: sin datos para ${inst.symbol}`)
+    else rows.push(...coinRows)
     if (idx < instruments.length - 1) await sleep(COINGECKO_BACKFILL_DELAY_MS)
   }
-  return result
+  return rows
+}
+
+// ── Binance (fuente primaria de cripto) ─────────────────────────────────────
+// Histórico, diario y precio en vivo de la app salen los tres de Binance, sin
+// escalón entre orígenes (ver ADR-006, "Cripto: unificado en Binance"). El
+// catálogo guarda symbol = par de Binance (ej. 'BTCUSDT') para
+// source='binance'.
+
+// Diario: UNA sola llamada ticker/price batch para todos los pares del
+// catálogo (?symbols=["BTCUSDT",...]). Precio = último operado.
+async function binanceDaily(instruments: Instrument[], date: string): Promise<PriceRow[]> {
+  const symbols = instruments.map((i) => i.symbol)
+  const url = `https://api.binance.com/api/v3/ticker/price?symbols=${encodeURIComponent(JSON.stringify(symbols))}`
+  const data = (await fetchJson(url)) as { symbol: string; price: string }[] | null
+  if (!Array.isArray(data)) throw new Error('Binance ticker/price devolvió no-array')
+  const bySymbol = new Map(data.map((row) => [row.symbol, Number(row.price)]))
+  const rows: PriceRow[] = []
+  for (const inst of instruments) {
+    const price = bySymbol.get(inst.symbol)
+    if (typeof price === 'number') rows.push({ instrument_id: inst.id, date, price })
+    else console.error(`Binance sin precio para ${inst.symbol}`)
+  }
+  return rows
+}
+
+// Un kline de /api/v3/klines: [openTime, open, high, low, close, volume,
+// closeTime, ...resto sin usar]. Solo nos interesan openTime (índice 0, para
+// la fecha) y close (índice 4).
+type BinanceKline = [number, string, string, string, string, string, number, ...unknown[]]
+
+// Pagina /klines de a BINANCE_KLINES_LIMIT velas diarias por instrumento,
+// avanzando startTime al closeTime de la última vela +1ms hasta que una
+// página vuelve con menos del límite (fin de la historia real del par). Nos
+// quedamos con el cierre y la fecha UTC de cada vela (ver msToUtcDate).
+async function binanceBackfillOne(inst: Instrument): Promise<PriceRow[]> {
+  const rows: PriceRow[] = []
+  let startTime = 0
+  for (;;) {
+    const url =
+      `https://api.binance.com/api/v3/klines?symbol=${inst.symbol}` +
+      `&interval=1d&startTime=${startTime}&limit=${BINANCE_KLINES_LIMIT}`
+    const data = (await fetchJsonWithRetry(url)) as BinanceKline[] | null
+    if (!Array.isArray(data) || data.length === 0) break
+
+    for (const k of data) {
+      rows.push({ instrument_id: inst.id, date: msToUtcDate(k[0]), price: Number(k[4]) })
+    }
+
+    if (data.length < BINANCE_KLINES_LIMIT) break
+    startTime = data[data.length - 1][6] + 1
+    await sleep(BINANCE_BACKFILL_DELAY_MS)
+  }
+  return rows
+}
+
+// Backfill: pagina por instrumento (ver binanceBackfillOne). Rápido -- límites
+// de Binance mucho más holgados que CoinGecko -- así que las 13 monedas
+// sembradas entran cómodas en una sola invocación: a diferencia del backfill
+// de CoinGecko de antes de este cambio, no hace falta upsert incremental por
+// moneda ni batching por ?limit=N. Se acumula todo y se upsertea una sola vez
+// (mismo patrón que data912Backfill).
+async function binanceBackfill(instruments: Instrument[]): Promise<PriceRow[]> {
+  const rows: PriceRow[] = []
+  for (let idx = 0; idx < instruments.length; idx++) {
+    const inst = instruments[idx]
+    const coinRows = await binanceBackfillOne(inst)
+    if (coinRows.length === 0) console.error(`Binance: sin historia para ${inst.symbol}`)
+    else rows.push(...coinRows)
+    if (idx < instruments.length - 1) await sleep(BINANCE_BACKFILL_DELAY_MS)
+  }
+  return rows
 }
 
 // ── Dólar MEP ─────────────────────────────────────────────────────────────────
@@ -480,16 +486,13 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url)
   const mode = url.searchParams.get('mode') === 'backfill' ? 'backfill' : 'daily'
-  // Solo afecta a mep: coingecko siempre pide historia completa (days='max',
-  // ver coingeckoBackfill) y data912 no soporta rango de fechas.
+  // Solo afecta a mep: Binance y data912 siempre traen historia completa, y
+  // el fallback de CoinGecko usa un tope fijo (COINGECKO_FALLBACK_DAYS).
   const days = Math.max(1, Math.min(365, Number(url.searchParams.get('days')) || 365))
   // Salteo explícito de data912BackfillTargets: backfillea TODOS los
   // instrumentos data912 activos, no solo los ya usados/con precios. Ver
   // README para cuándo usarlo (arranque de instrumentos recién sembrados).
   const force = url.searchParams.get('force') === 'true'
-  // Cuántas monedas coingecko pendientes procesa esta invocación (ver
-  // COINGECKO_BACKFILL_DEFAULT_LIMIT y coingeckoBackfillTargets).
-  const coingeckoLimit = Math.max(1, Number(url.searchParams.get('limit')) || COINGECKO_BACKFILL_DEFAULT_LIMIT)
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
@@ -517,30 +520,13 @@ Deno.serve(async (req) => {
 
   for (const [source, list] of bySource) {
     try {
-      if (source === 'coingecko' && mode === 'backfill') {
-        // Caso especial: filtra primero las monedas que ya tienen historia
-        // (coingeckoBackfillTargets), procesa como máximo ?limit=N de las
-        // pendientes (no todas -- ver COINGECKO_BACKFILL_DEFAULT_LIMIT), y
-        // upsertea moneda por moneda adentro de la función (no acumula todo
-        // en memoria para upsertear al final, ver coingeckoBackfill), así que
-        // no pasa por el upsert genérico de abajo.
-        const { pending, skippedCompleted } = await coingeckoBackfillTargets(supabase, list)
-        const batch = pending.slice(0, coingeckoLimit)
-        const result = await coingeckoBackfill(supabase, batch, 'max')
-        const stillPending = pending.length - result.succeeded.length
-        ;(summary.sources as Record<string, unknown>)[source] = {
-          procesadas: batch.length,
-          filas: result.written,
-          salteadas_completas: skippedCompleted,
-          fallidas: result.failed,
-          quedan_pendientes: stillPending,
-        }
-        continue
-      }
-
       let rows: PriceRow[] = []
-      if (source === 'coingecko') {
-        rows = await coingeckoDaily(list, today)
+      if (source === 'binance') {
+        rows = mode === 'backfill' ? await binanceBackfill(list) : await binanceDaily(list, today)
+      } else if (source === 'coingecko') {
+        // Fallback: instrumentos cripto sin par de Binance (ver ADR-006).
+        // Hoy ninguno de los sembrados cae acá, los 13 tienen par confirmado.
+        rows = mode === 'backfill' ? await coingeckoBackfill(list) : await coingeckoDaily(list, today)
       } else if (source === 'mep') {
         rows = mode === 'backfill' ? await mepBackfill(list, days) : await mepDaily(list, today)
       } else if (source === 'data912') {

@@ -7,7 +7,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 - Frontend: React + Vite, Tailwind CSS. PWA instalable.
 - Backend y base de datos: Supabase (PostgreSQL). El frontend consulta Supabase directamente vía supabase-js.
 - Deploy: Vercel.
-- APIs externas: CoinGecko (precio BTC/USD), dolarapi.com (dólar MEP).
+- APIs externas: Binance (precio cripto — fuente primaria desde la migración 0021, ver ADR-006), CoinGecko (fallback de cripto), dolarapi.com (dólar MEP), data912.com (acciones argentinas, CEDEARs y bonos vía BYMA).
 
 ## Principios del modelo de datos
 
@@ -66,7 +66,7 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | asset_type_id | uuid FK → asset_types | NOT NULL; reemplaza a `type` |
 | type | text | **deprecada** (migración 0014: se relajó NOT NULL y se sacó el CHECK); no la lee ni la escribe el código nuevo. Se elimina en una migración futura |
 | valuation_mode | text NOT NULL | 'contributed' (vale lo aportado, nunca pide valuación; hoy efectivo), 'manual' (valuación periódica; hoy CEDEAR/bono/fondo), o 'live' (precio por API con identificador por activo; hoy cripto) (CHECK). Migración 0015: antes vivía en asset_types; ahora es del activo — moverlo de bolsa no la afecta |
-| coingecko_id | text | identificador para precio en vivo (activos con valuation_mode='live'); hoy solo CoinGecko. **En transición** (migración 0018): lo reemplaza `instrument_id` → instruments; sigue siendo el que lee el frontend hoy, no se borra hasta verificar el código nuevo en prod |
+| coingecko_id | text | identificador para precio en vivo (activos con valuation_mode='live'). Sigue siendo un id de CoinGecko sin cambios, pero desde que cripto se unificó en Binance (migración 0021, ver ADR-006) `getCryptoPrices` (`lib/prices.js`) lo resuelve primero contra Binance vía un mapa fijo coingecko_id→par, y cae a CoinGecko solo si no hay par conocido. **En transición** (migración 0018): lo reemplaza `instrument_id` → instruments; sigue siendo el que lee el frontend hoy, no se borra hasta verificar el código nuevo en prod |
 | instrument_id | uuid FK → instruments | nullable (migración 0018): referencia al catálogo compartido de precios. La 0018 lo completa desde coingecko_id; el frontend todavía no lo lee |
 | ticker | text | opcional; símbolo del activo (ej: AAPL, AL30, BTC). Hoy informativo; habilita valuación automática por ticker en el futuro |
 | yields | boolean NOT NULL default true | false = reserva de valor (ej: efectivo/colchón); se excluye del cálculo de rendimiento del portafolio pero sigue sumando al valor total. Por activo, independiente del default de la bolsa |
@@ -151,13 +151,14 @@ Una fila por usuario (la crea el trigger de sembrado al registrarse).
 
 Justificación de target_allocation como JSONB y no tabla: son 5 valores que se leen y escriben siempre juntos como una unidad de configuración; una tabla aparte agregaría joins sin beneficio. Si en el futuro la asignación necesitara historia propia, se migra a tabla.
 
-### instruments (migración 0018, semilla data912 en 0019)
+### instruments (migración 0018, semilla data912 en 0019, cripto a Binance en 0021)
 Catálogo COMPARTIDO de activos cotizables. **No lleva user_id**: las mismas filas para todos (un precio de mercado es público). Ver ADR-006.
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | uuid PK | |
-| source | text NOT NULL | fuente LÓGICA: 'coingecko', 'mep', 'data912' (acciones argentinas, CEDEARs y bonos soberanos vía BYMA, migración 0019), 'pending' (placeholder para lo que todavía no tiene proveedor — ahí quedaron acciones/ETFs en USD que no cotizan en BYMA; is_active=false). No es el proveedor HTTP: para 'mep' la Edge Function usa dolarapi (diario) y argentinadatos (backfill) bajo el mismo instrumento |
-| symbol | text NOT NULL | identificador dentro de la fuente ('bitcoin', 'AAPL', 'mep'); para 'data912' es el ticker BASE de BYMA, sin los sufijos de liquidación C/D (misma especie a otro tipo de cambio implícito, no otro instrumento) |
+| source | text NOT NULL | fuente LÓGICA: 'binance' (cripto, fuente primaria desde la migración 0021 — histórico, diario y precio en vivo de la app, ver ADR-006), 'coingecko' (fallback de cripto, SOLO para instrumentos sin par de Binance; hoy ninguno), 'mep', 'data912' (acciones argentinas, CEDEARs y bonos soberanos vía BYMA, migración 0019), 'pending' (placeholder para lo que todavía no tiene proveedor — ahí quedaron acciones/ETFs en USD que no cotizan en BYMA; is_active=false). No es el proveedor HTTP: para 'mep' la Edge Function usa dolarapi (diario) y argentinadatos (backfill) bajo el mismo instrumento |
+| symbol | text NOT NULL | identificador dentro de la fuente: para 'binance' es el PAR (ej. 'BTCUSDT'), para 'coingecko' el id de CoinGecko (ej. 'bitcoin'), para 'data912' el ticker BASE de BYMA sin sufijos de liquidación C/D (misma especie a otro tipo de cambio implícito, no otro instrumento) |
+| coingecko_id | text | (migración 0021) id de CoinGecko del instrumento cripto, preservado como referencia aunque source='binance' — no se lee en tiempo real, es para si en el futuro hace falta pasar ese instrumento a source='coingecko'. Sin relación con `assets.coingecko_id` (deprecada, ver más abajo) |
 | name | text NOT NULL | nombre para mostrar |
 | kind | text NOT NULL | 'crypto'\|'stock'\|'etf'\|'bond'\|'cedear'\|'corp_bond'\|'currency'. 'corp_bond' (obligaciones negociables, panel data912 arg_corp) está soportado por la Edge Function pero sin instrumentos sembrados todavía — no tienen histórico en data912 |
 | currency | text NOT NULL | moneda del precio: 'USD' o 'ARS'. Los instrumentos 'data912' son todos 'ARS' (precio de mercado en BYMA) |
