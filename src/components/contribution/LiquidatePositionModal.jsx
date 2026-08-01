@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createWithdrawal } from '../../lib/contributions.js'
 import { archiveAsset } from '../../lib/assets.js'
 import { decomposeWithdrawal, heldQuantity } from '../../lib/portfolio.js'
-import { todayISO, formatUSD } from '../../lib/format.js'
+import { todayISO, formatUSD, toDecimalInput } from '../../lib/format.js'
 import { round } from '../../lib/money.js'
 import FormSheet from '../FormSheet.jsx'
 import BinaryChoice from '../form/BinaryChoice.jsx'
@@ -37,8 +37,12 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
 
   useEffect(() => {
     if (!open || !asset) return
-    setAmount(valuation?.value != null ? String(valuation.value) : '')
-    setQuantity(asset.valuation_mode === 'live' ? String(heldQuantity(asset, contributions)) : '')
+    // Prellenado en el idioma numérico de la app (coma decimal), igual que
+    // cualquier otro valor que escribe la app dentro de un input.
+    setAmount(valuation?.value != null ? toDecimalInput(valuation.value) : '')
+    setQuantity(
+      asset.valuation_mode === 'live' ? toDecimalInput(heldQuantity(asset, contributions)) : '',
+    )
     setMepRate(null)
     setDestination('liquid')
     setArchiveAfter(true)

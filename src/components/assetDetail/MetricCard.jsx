@@ -1,16 +1,25 @@
 // Tamaño de fuente del valor según su largo: en la grilla de 3 columnas en
-// pantallas angostas un valor de 6+ dígitos con decimales (ej. "US$
-// 12.568,8") no entra a 15px y se recortaba. Bajamos la fuente por largo
-// hasta un piso; combinado con wrap permitido (whitespace-normal + break),
-// el valor completo siempre queda visible — las cards son grid items en la
-// misma fila, así que si uno envuelve, las tres crecen parejo y mantienen
-// igual altura.
+// pantallas angostas (a 390px cada card deja ~90px de ancho útil) un valor de
+// 6+ dígitos con decimales no entra a 15px. Bajamos la fuente por largo hasta
+// un piso, calibrado contra ese ancho con la tipografía monoespaciada
+// (~0,6em por carácter): a 11px entran 13 caracteres ("US$ 62.877,84"), a
+// 10px hasta 15.
 function valueSizeClass(value) {
   const len = String(value).length
   if (len <= 9) return 'text-[15px]'
   if (len <= 11) return 'text-[13px]'
-  if (len <= 13) return 'text-[12px]'
-  return 'text-[11px]'
+  if (len <= 12) return 'text-[12px]'
+  if (len <= 13) return 'text-[11px]'
+  return 'text-[10px]'
+}
+
+// El único corte permitido es entre el símbolo y la cifra, nunca a mitad de
+// número: Intl separa "US$" del monto con un espacio duro (NBSP), y
+// break-words lo ignoraba y partía la cifra al medio ("US$ 62.877,8" + "4").
+// Pasamos ese NBSP a espacio normal y sacamos break-words: si algo no entra,
+// baja el símbolo a su propia línea y el número queda entero.
+function wrappable(value) {
+  return String(value).replace(/\u00a0/g, ' ')
 }
 
 // Una métrica de la grilla del detalle: label + valor + botón (i), siempre
@@ -36,9 +45,9 @@ function MetricCard({ label, value, active, onToggle }) {
         </button>
       </div>
       <p
-        className={`font-money mt-1 font-semibold leading-tight tabular-nums break-words ${valueSizeClass(value)}`}
+        className={`font-money mt-1 font-semibold leading-tight tabular-nums ${valueSizeClass(value)}`}
       >
-        {value}
+        {wrappable(value)}
       </p>
     </div>
   )

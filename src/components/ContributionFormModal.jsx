@@ -7,7 +7,7 @@ import {
   updateWithdrawal,
 } from '../lib/contributions.js'
 import { withdrawalExceedsValue, withdrawalGuardBlocks, heldQuantity } from '../lib/portfolio.js'
-import { todayISO, formatUSD } from '../lib/format.js'
+import { todayISO, formatUSD, formatQuantity, toDecimalInput } from '../lib/format.js'
 import { round } from '../lib/money.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
@@ -76,8 +76,8 @@ function ContributionFormModal({
 
   useEffect(() => {
     if (!open) return
-    setQuantity(initial?.quantity ? String(Number(initial.quantity)) : '')
-    setAmountUsd(initial ? String(initial.amount_usd) : '')
+    setQuantity(initial?.quantity ? toDecimalInput(Number(initial.quantity)) : '')
+    setAmountUsd(initial ? toDecimalInput(Number(initial.amount_usd)) : '')
     setNonLiveAmountUsd(null)
     setMepRate(null)
     setDate(initial?.date ?? todayISO())
@@ -104,6 +104,13 @@ function ContributionFormModal({
   const finalQuantity = Number(String(quantity).replace(',', '.'))
   const affectsLiquid = origin === 'liquid'
 
+  // Con el vínculo cantidad↔monto activo, el monto ya lo fijan esos dos
+  // campos: al campo de tipo de cambio solo le queda registrar la cotización.
+  // Se le pasa 0 (no null) mientras el monto está vacío, para que no caiga al
+  // rail completo — ese rail abría un SEGUNDO campo llamado "Monto" pegado al
+  // primero, y encima uno cuyo valor se descartaba.
+  const rateFieldAmountUsd = editing ? null : linkedMode ? finalAmountUsd || 0 : null
+
   const guardValuation = operation === 'withdrawal' ? valuation : null
   const exceedsValue =
     guardValuation && finalAmountUsd > 0 && withdrawalExceedsValue(finalAmountUsd, guardValuation)
@@ -125,7 +132,7 @@ function ContributionFormModal({
   const valid = missing.length === 0
 
   const guardMessage = exceedsHoldings
-    ? `Estás retirando ${finalQuantity} un., pero solo tenés ${heldQty} un. de ${asset.name}.`
+    ? `Estás retirando ${formatQuantity(finalQuantity)} un., pero solo tenés ${formatQuantity(heldQty)} un. de ${asset.name}.`
     : exceedsValue
       ? guardBlocks
         ? `Este retiro supera el valor actual del activo (${formatUSD(guardValuation.value)}).`
@@ -262,7 +269,7 @@ function ContributionFormModal({
             <ExchangeRateField
               editing={editing}
               initialRate={initial?.mep_rate}
-              fixedAmountUsd={editing ? null : linkedMode ? finalAmountUsd || null : null}
+              fixedAmountUsd={rateFieldAmountUsd}
               pesosLabel={copy.pesos}
               dolaresLabel={copy.dolares}
               pesosQuestion={copy.pesosQuestion}

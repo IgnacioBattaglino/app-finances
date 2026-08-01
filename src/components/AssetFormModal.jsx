@@ -48,6 +48,10 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
 
   const editing = Boolean(initial?.id)
 
+  // Reset al abrir (o al cambiar de activo editado), nunca después:
+  // assetTypes y assets se leen acá solo como valores iniciales. Tenerlos en
+  // las deps volvía a correr el reset cuando "+ Nuevo grupo" recargaba los
+  // grupos, borrando lo ya escrito y pisando el grupo recién creado.
   useEffect(() => {
     if (!open) return
     const defaultAssetTypeId = initial?.asset_type_id ?? assetTypes[0]?.id ?? ''
@@ -63,7 +67,8 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
     setConfirmArchive(false)
     setBusy(false)
     setCreatingBolsa(false)
-  }, [open, initial, assetTypes, assets])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial])
 
   // Sugerencia: el default de rendimiento y el modo de valuación salen de la
   // bolsa elegida (el predominante entre sus activos). Solo tiene sentido al
@@ -232,7 +237,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
             {valuationMode === 'live' && (
               <div className="px-4 py-3">
                 <label className="flex items-center justify-between gap-3">
-                  <span className="text-[15px]">CoinGecko ID</span>
+                  <span className="text-[15px]">¿Qué cripto es?</span>
                   <input
                     value={coingeckoId}
                     onChange={(e) => setCoingeckoId(e.target.value)}
@@ -241,8 +246,10 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                   />
                 </label>
                 <p className="mt-1 text-xs text-ink-soft">
-                  Hoy solo cripto resuelve precio automático (vía CoinGecko) con este ID; el
-                  resto cae a carga manual.
+                  Escribí su nombre en inglés y en minúscula (bitcoin, ethereum, solana): con
+                  eso buscamos el precio solo, en Binance, y en CoinGecko si Binance no la
+                  cotiza. Por ahora solo cripto tiene precio automático; el resto se valúa a
+                  mano.
                 </p>
               </div>
             )}

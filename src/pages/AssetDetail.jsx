@@ -9,10 +9,11 @@ import {
   valueAsset,
   heldQuantity,
   averagePurchasePrice,
+  currentUnitPrice,
   classifyOperations,
   mergeAssetHistory,
 } from '../lib/portfolio.js'
-import { formatUSD } from '../lib/format.js'
+import { formatUSD, formatQuantity } from '../lib/format.js'
 import SourceTag from '../components/SourceTag.jsx'
 import Gain from '../components/Gain.jsx'
 import EditIcon from '../components/EditIcon.jsx'
@@ -29,6 +30,10 @@ const PAGE_SIZE = 20
 const METRIC_EXPLANATIONS = {
   avg: 'Promedio ponderado de tus compras: total invertido ÷ cantidad comprada. Compararlo con el precio actual te muestra cuánto rindió tu inversión.',
   current: 'Última cotización disponible, o tu última valuación manual si no hay precio en vivo.',
+  // Activos de precio en vivo: la métrica es por unidad, para poder leerla
+  // contra el promedio de compra de al lado.
+  currentUnit:
+    'Lo que vale UNA unidad hoy, comparable con tu precio promedio de compra. Sale de la última cotización disponible; si no hay precio en vivo, del precio implícito de tu última valuación manual.',
   contributed:
     'Capital propio en este activo: tus aportes menos la parte de capital de tus retiros. La diferencia con el valor actual es tu ganancia.',
 }
@@ -170,11 +175,25 @@ function AssetDetail() {
 
   const heldQty = asset?.valuation_mode === 'live' ? heldQuantity(asset, fullContributions) : 0
   const avgPrice = averagePurchasePrice(fullContributions)
+  // Precio de UNA unidad hoy, para que sea comparable con el promedio de
+  // compra de al lado (valuation.value es el total de la tenencia).
+  const unitPrice = asset ? currentUnitPrice(asset, fullContributions, valuation) : null
   const gain = valuation?.value != null ? valuation.value - valuation.contributed : null
   const neutral = asset?.yields === false || asset?.valuation_mode === 'contributed'
   const canLiquidate = valuation ? !(valuation.contributed === 0 && !valuation.value) : false
   const onlyContributed = asset?.valuation_mode === 'contributed'
   const isLive = asset?.valuation_mode === 'live'
+
+  // Precio en vivo: la métrica es por unidad (comparable con el promedio de
+  // compra). Valuación manual: es el valor total del activo, que es
+  // justamente lo que se cargó a mano.
+  const currentMetricValue = isLive
+    ? unitPrice !== null
+      ? formatUSD(unitPrice)
+      : '—'
+    : valuation?.value != null
+      ? formatUSD(valuation.value)
+      : '—'
 
   const labels = classifyOperations(fullContributions)
   const history = mergeAssetHistory({ contributions, valuations, hasMore })
@@ -244,12 +263,15 @@ function AssetDetail() {
       ) : (
         <>
           <div className="rounded-2xl border border-line bg-card px-4 py-4">
+            {/* Sin valuación no hay valor que mostrar: un "US$ 0" se lee como
+                que el activo no vale nada, cuando en realidad falta el dato
+                (el SourceTag de arriba lo dice: "Sin valuar"). */}
             <p className="font-money text-3xl tracking-tight">
-              {formatUSD(valuation?.value ?? 0)}
+              {valuation?.value != null ? formatUSD(valuation.value) : '—'}
             </p>
             {asset.valuation_mode === 'live' && (
               <p className="mt-1 text-xs text-ink-soft">
-                equivale a {heldQty} {asset.name}
+                equivale a {formatQuantity(heldQty)} {asset.name}
               </p>
             )}
             <Gain
@@ -276,7 +298,7 @@ function AssetDetail() {
             {!onlyContributed && (
               <MetricCard
                 label={isLive ? 'Precio actual' : 'Valuación actual'}
-                value={valuation?.value != null ? formatUSD(valuation.value) : '—'}
+                value={currentMetricValue}
                 active={expandedMetric === 'current'}
                 onToggle={() => setExpandedMetric((e) => (e === 'current' ? null : 'current'))}
               />
@@ -290,7 +312,7 @@ function AssetDetail() {
           </div>
           {expandedMetric && (
             <p className="mt-2 rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">
-              {METRIC_EXPLANATIONS[expandedMetric]}
+              {METRIC_EXPLANATIONS[expandedMetric === 'current' && isLive ? 'currentUnit' : expandedMetric]}
             </p>
           )}
 

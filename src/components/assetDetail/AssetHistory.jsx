@@ -1,4 +1,4 @@
-import { formatUSD, formatDay } from '../../lib/format.js'
+import { formatUSD, formatDay, formatQuantity } from '../../lib/format.js'
 
 // Operación (aporte/retiro/transferencia/liquidación): etiqueta ya resuelta
 // por classifyOperations, fecha, monto, y precio unitario implícito
@@ -18,7 +18,7 @@ function ContributionRow({ contribution: c, label, onClick }) {
         <span className="block text-[15px]">{label}</span>
         <span className="block text-xs text-ink-soft">
           {formatDay(c.date)}
-          {unitPrice !== null && ` · ${quantity} a ${formatUSD(unitPrice)}/un.`}
+          {unitPrice !== null && ` · ${formatQuantity(quantity)} a ${formatUSD(unitPrice)}/un.`}
         </span>
       </span>
       <span className={`font-money shrink-0 text-[15px] ${isOut ? 'text-clay' : ''}`}>

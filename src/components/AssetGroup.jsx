@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom'
-import { formatUSD, formatDay } from '../lib/format.js'
-import { computePortfolioGain, heldQuantity, averagePurchasePrice } from '../lib/portfolio.js'
+import { formatUSD, formatDay, formatQuantity } from '../lib/format.js'
+import {
+  computePortfolioGain,
+  heldQuantity,
+  averagePurchasePrice,
+  currentUnitPrice,
+} from '../lib/portfolio.js'
 import Gain from './Gain.jsx'
 import SourceTag from './SourceTag.jsx'
 
@@ -11,9 +16,9 @@ function secondLine(asset, valuation, own) {
   if (asset.valuation_mode === 'live') {
     const quantity = heldQuantity(asset, own)
     const avg = averagePurchasePrice(own)
-    const unitPrice = quantity > 0 && valuation.value !== null ? valuation.value / quantity : null
+    const unitPrice = currentUnitPrice(asset, own, valuation)
     const tickerPart = asset.ticker ? ` ${asset.ticker.toUpperCase()}` : ''
-    return `${quantity}${tickerPart} · prom. ${avg !== null ? formatUSD(avg) : '—'} → hoy ${
+    return `${formatQuantity(quantity)}${tickerPart} · prom. ${avg !== null ? formatUSD(avg) : '—'} → hoy ${
       unitPrice !== null ? formatUSD(unitPrice) : '—'
     }`
   }

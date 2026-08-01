@@ -4,7 +4,7 @@ import {
   updateTransaction,
   deleteTransaction,
 } from '../lib/transactions.js'
-import { todayISO } from '../lib/format.js'
+import { todayISO, toDecimalInput } from '../lib/format.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
@@ -37,7 +37,7 @@ function TransactionFormModal({
     setKind(initial?.kind ?? defaultKind)
     setCategoryId(initial?.category_id ?? '')
     setDescription(initial?.description ?? '')
-    setAmount(initial ? String(initial.amount_ars) : '')
+    setAmount(initial ? toDecimalInput(Number(initial.amount_ars)) : '')
     setError(null)
     setConfirmDelete(false)
     setBusy(false)

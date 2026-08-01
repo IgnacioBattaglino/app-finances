@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createTransfer } from '../../lib/contributions.js'
 import { withdrawalExceedsValue, withdrawalGuardBlocks } from '../../lib/portfolio.js'
-import { todayISO, formatUSD } from '../../lib/format.js'
+import { getCryptoPrices } from '../../lib/prices.js'
+import { todayISO, formatUSD, toDecimalInput } from '../../lib/format.js'
 import { round } from '../../lib/money.js'
 import FormSheet from '../FormSheet.jsx'
 import CollapsedDateField from '../form/CollapsedDateField.jsx'
@@ -9,10 +10,20 @@ import FormError from '../form/FormError.jsx'
 import MissingHint from '../form/MissingHint.jsx'
 import ExchangeRateField from './ExchangeRateField.jsx'
 
-function unitPriceOf(asset, prices) {
+function unitPriceOf(asset, ...priceMaps) {
   if (asset?.valuation_mode !== 'live') return null
-  const price = prices?.[asset.coingecko_id]?.usd
-  return typeof price === 'number' ? price : null
+  for (const map of priceMaps) {
+    const price = map?.[asset.coingecko_id]?.usd
+    if (typeof price === 'number') return price
+  }
+  return null
+}
+
+// Cantidad derivada de un monto, ya lista para escribir en un input (coma
+// decimal, sin separador de miles).
+function quantityFromAmount(amountRaw, unitPrice) {
+  const a = Number(String(amountRaw).replace(',', '.'))
+  return unitPrice && a > 0 ? toDecimalInput(round(a / unitPrice, 8)) : ''
 }
 
 // Transferir: el monto (USD) es un solo estado compartido por las dos patas.
@@ -39,11 +50,19 @@ function TransferFormModal({
   const [fromQuantity, setFromQuantity] = useState('')
   const [toQuantity, setToQuantity] = useState('')
   const [driver, setDriver] = useState(null) // 'amount' | 'from' | 'to' | null
-  const [fromLinked, setFromLinked] = useState(true)
-  const [toLinked, setToLinked] = useState(true)
+  // "Vínculo roto" = el usuario editó el campo derivado a mano. El vínculo en
+  // sí es derivado (hay precio y no se rompió), no estado: un precio que
+  // llega tarde lo enciende solo, sin necesidad de resetear el formulario.
+  const [fromLinkBroken, setFromLinkBroken] = useState(false)
+  const [toLinkBroken, setToLinkBroken] = useState(false)
   const [mepRate, setMepRate] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // Precios de activos que esta pantalla no cotiza (el detalle solo pide el
+  // del activo que se está mirando). Cachea por coingecko_id, no por
+  // formulario: no se limpia al cerrar.
+  const [destPrices, setDestPrices] = useState({})
+  const requestedPriceIds = useRef(new Set())
 
   useEffect(() => {
     if (!open) return
@@ -56,47 +75,76 @@ function TransferFormModal({
     setMepRate(null)
     setError(null)
     setBusy(false)
-    setFromLinked(unitPriceOf(fromAsset, prices) != null)
-  }, [open, fromAsset, prices])
-
+    setFromLinkBroken(false)
+  }, [open, fromAsset])
 
   // Cambiar el destino resetea su cantidad y su vínculo — es un activo
   // distinto, con otro precio (o ninguno).
   useEffect(() => {
-    const asset = assets.find((a) => a.id === destAssetId) ?? null
-    setToLinked(unitPriceOf(asset, prices) != null)
     setToQuantity('')
+    setToLinkBroken(false)
     setDriver((d) => (d === 'to' ? null : d))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destAssetId])
+
+  // El precio del destino se pide recién cuando el usuario elige uno: el
+  // detalle cotiza solo el activo que se está mirando, y transferir es una
+  // operación puntual — cotizar todos los activos cada vez que se abre la
+  // pantalla sería una llamada que casi nunca se usa. Un id ya pedido no se
+  // vuelve a pedir (aunque haya fallado): el formulario sigue usable a mano.
+  useEffect(() => {
+    const asset = assets.find((a) => a.id === destAssetId) ?? null
+    const id = asset?.valuation_mode === 'live' ? asset.coingecko_id : null
+    if (!id || prices?.[id] || requestedPriceIds.current.has(id)) return
+    requestedPriceIds.current.add(id)
+    let cancelled = false
+    getCryptoPrices([id]).then((result) => {
+      if (!cancelled && result) setDestPrices((prev) => ({ ...prev, ...result }))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [destAssetId, assets, prices])
+
+  const destAsset = assets.find((a) => a.id === destAssetId) ?? null
+  const fromUnitPrice = unitPriceOf(fromAsset, prices, destPrices)
+  const toUnitPrice = unitPriceOf(destAsset, prices, destPrices)
+  const fromLinked = fromUnitPrice != null && !fromLinkBroken
+  const toLinked = toUnitPrice != null && !toLinkBroken
+
+  // Cuando el precio llega con el formulario ya abierto (el del destino se
+  // pide al elegirlo), el monto ya escrito deriva la cantidad de ese lado sin
+  // que el usuario tenga que volver a tocar nada. Solo completa un campo
+  // vacío: nunca pisa algo escrito a mano.
+  useEffect(() => {
+    if (fromUnitPrice == null || fromLinkBroken) return
+    setFromQuantity((prev) => (prev === '' ? quantityFromAmount(amountUsd, fromUnitPrice) : prev))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromUnitPrice, fromLinkBroken])
+
+  useEffect(() => {
+    if (toUnitPrice == null || toLinkBroken) return
+    setToQuantity((prev) => (prev === '' ? quantityFromAmount(amountUsd, toUnitPrice) : prev))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toUnitPrice, toLinkBroken])
 
   if (!open || !fromAsset) return null
 
-  const destAsset = assets.find((a) => a.id === destAssetId) ?? null
-  const fromUnitPrice = unitPriceOf(fromAsset, prices)
-  const toUnitPrice = unitPriceOf(destAsset, prices)
-
   function handleAmount(raw) {
     if (driver !== null && driver !== 'amount') {
-      if (fromLinked) setFromLinked(false)
-      if (toLinked) setToLinked(false)
+      if (fromLinked) setFromLinkBroken(true)
+      if (toLinked) setToLinkBroken(true)
       setAmountUsd(raw)
       return
     }
     setDriver('amount')
     setAmountUsd(raw)
-    const a = Number(raw.replace(',', '.'))
-    if (fromLinked) {
-      setFromQuantity(fromUnitPrice && a > 0 ? String(round(a / fromUnitPrice, 8)) : '')
-    }
-    if (toLinked) {
-      setToQuantity(toUnitPrice && a > 0 ? String(round(a / toUnitPrice, 8)) : '')
-    }
+    if (fromLinked) setFromQuantity(quantityFromAmount(raw, fromUnitPrice))
+    if (toLinked) setToQuantity(quantityFromAmount(raw, toUnitPrice))
   }
 
   function handleFromQuantity(raw) {
     if (fromLinked && driver !== null && driver !== 'from') {
-      setFromLinked(false)
+      setFromLinkBroken(true)
       setFromQuantity(raw)
       return
     }
@@ -105,15 +153,13 @@ function TransferFormModal({
     setDriver('from')
     const q = Number(raw.replace(',', '.'))
     const a = fromUnitPrice && q > 0 ? round(q * fromUnitPrice, 2) : null
-    setAmountUsd(a != null ? String(a) : '')
-    if (toLinked) {
-      setToQuantity(a != null && toUnitPrice ? String(round(a / toUnitPrice, 8)) : '')
-    }
+    setAmountUsd(a != null ? toDecimalInput(a) : '')
+    if (toLinked) setToQuantity(a != null ? quantityFromAmount(a, toUnitPrice) : '')
   }
 
   function handleToQuantity(raw) {
     if (toLinked && driver !== null && driver !== 'to') {
-      setToLinked(false)
+      setToLinkBroken(true)
       setToQuantity(raw)
       return
     }
@@ -122,10 +168,8 @@ function TransferFormModal({
     setDriver('to')
     const q = Number(raw.replace(',', '.'))
     const a = toUnitPrice && q > 0 ? round(q * toUnitPrice, 2) : null
-    setAmountUsd(a != null ? String(a) : '')
-    if (fromLinked) {
-      setFromQuantity(a != null && fromUnitPrice ? String(round(a / fromUnitPrice, 8)) : '')
-    }
+    setAmountUsd(a != null ? toDecimalInput(a) : '')
+    if (fromLinked) setFromQuantity(a != null ? quantityFromAmount(a, fromUnitPrice) : '')
   }
 
   const finalAmountUsd = Number(amountUsd.replace(',', '.'))

@@ -20,6 +20,28 @@ export function formatUSD(value) {
   return usd.format(value)
 }
 
+const quantity = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 8 })
+
+// Cantidades de activos (unidades: 0,015 BTC). Mismo idioma numérico que el
+// resto de la app — coma decimal, punto de miles — y hasta 8 decimales, sin
+// rellenar con ceros.
+export function formatQuantity(value) {
+  return quantity.format(value)
+}
+
+const decimalInput = new Intl.NumberFormat('es-AR', {
+  maximumFractionDigits: 8,
+  useGrouping: false,
+})
+
+// Un número para ESCRIBIR dentro de un input decimal (ej. la cantidad que la
+// app deriva del monto): coma decimal como en el resto de la app, pero sin
+// separador de miles — el valor se vuelve a leer con Number() y un "1.234,5"
+// no se puede parsear de vuelta.
+export function toDecimalInput(value) {
+  return decimalInput.format(value)
+}
+
 export function formatPercent(value, decimals = 1) {
   return `${value.toFixed(decimals).replace('.', ',')}%`
 }

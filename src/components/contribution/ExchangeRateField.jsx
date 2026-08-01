@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getMepRate } from '../../lib/prices.js'
-import { formatARS, formatUSD } from '../../lib/format.js'
+import { formatARS, formatUSD, toDecimalInput } from '../../lib/format.js'
 import { round } from '../../lib/money.js'
 
 const segmentClass = (active) =>
@@ -12,7 +12,7 @@ const MEP_HELP = 'Dólar MEP (el que se usa para comprar dólares con pesos en e
 // la tasa es corregir un solo número, no re-derivar nada.
 function FrozenRateField({ initialRate, onChange }) {
   const [expanded, setExpanded] = useState(false)
-  const [rate, setRate] = useState(String(initialRate))
+  const [rate, setRate] = useState(toDecimalInput(Number(initialRate)))
 
   useEffect(() => {
     onChange({ rate: round(Number(initialRate)) })
@@ -60,7 +60,7 @@ function FrozenRateField({ initialRate, onChange }) {
         type="button"
         onClick={() => {
           setExpanded(false)
-          setRate(String(initialRate))
+          setRate(toDecimalInput(Number(initialRate)))
           onChange({ rate: round(Number(initialRate)) })
         }}
         className="mt-1 text-xs text-ink-soft underline decoration-dotted"
@@ -100,12 +100,16 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function handlePesos(v) {
-    setPesos(v)
-    const p = Number(v.replace(',', '.'))
+  // La tasa sale de pesos ÷ monto, y el monto puede llegar DESPUÉS de los
+  // pesos (lo fija el par cantidad↔monto, arriba en el formulario). Por eso
+  // se re-deriva ante cualquiera de los dos, no solo al escribir los pesos.
+  useEffect(() => {
+    if (mode !== 'manual') return
+    const p = Number(pesos.replace(',', '.'))
     const derived = p > 0 && fixedAmountUsd > 0 ? p / fixedAmountUsd : null
     onChange({ rate: derived ? round(derived) : null })
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, pesos, fixedAmountUsd])
 
   if (mode === 'auto') {
     if (mepLive === null) {
@@ -137,7 +141,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
         <span className="text-[15px]">{pesosQuestion}</span>
         <input
           value={pesos}
-          onChange={(e) => handlePesos(e.target.value)}
+          onChange={(e) => setPesos(e.target.value)}
           inputMode="decimal"
           placeholder="0"
           required

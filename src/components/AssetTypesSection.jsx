@@ -367,7 +367,7 @@ function AssetTypesSection() {
                 onClick={() => setShowArchived((prev) => !prev)}
                 className="px-4 text-sm text-ink-soft"
               >
-                {showArchived ? '▾' : '▸'} Archivadas ({archived.length})
+                {showArchived ? '▾' : '▸'} Archivados ({archived.length})
               </button>
               {showArchived && (
                 <div className="mt-1.5 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">

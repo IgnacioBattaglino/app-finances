@@ -4,6 +4,7 @@ import {
   decomposeWithdrawal,
   heldQuantity,
   averagePurchasePrice,
+  currentUnitPrice,
   classifyOperations,
   mergeAssetHistory,
 } from './portfolio.js'
@@ -132,6 +133,31 @@ describe('averagePurchasePrice', () => {
   })
 })
 
+describe('currentUnitPrice', () => {
+  const live = { id: 'a1', valuation_mode: 'live' }
+  const own = [
+    { asset_id: 'a1', direction: 'in', amount_usd: 100, quantity: 2 },
+    { asset_id: 'a1', direction: 'in', amount_usd: 100, quantity: 3 },
+  ]
+
+  it('es el precio de UNA unidad, no el valor total de la tenencia', () => {
+    // 5 unidades valuadas en 1000 → 200 la unidad (comparable con el promedio
+    // de compra, que sobre estos aportes da 40)
+    expect(currentUnitPrice(live, own, { value: 1000, contributed: 200 })).toBe(200)
+    expect(averagePurchasePrice(own)).toBe(40)
+  })
+
+  it('sirve igual cuando el valor viene de una valuación manual vieja (stale)', () => {
+    expect(currentUnitPrice(live, own, { value: 500, source: 'stale' })).toBe(100)
+  })
+
+  it('sin valuación, sin tenencia, o activo que no maneja cantidad → null', () => {
+    expect(currentUnitPrice(live, own, { value: null })).toBe(null)
+    expect(currentUnitPrice(live, [], { value: 1000 })).toBe(null)
+    expect(currentUnitPrice({ id: 'a1', valuation_mode: 'manual' }, own, { value: 1000 })).toBe(null)
+  })
+})
+
 describe('classifyOperations', () => {
   it('(a) retiro parcial que ya excede el aportado (realized_gain≠0) pero deja cantidad abierta → Retiro', () => {
     const contributions = [
@@ -207,6 +233,57 @@ describe('classifyOperations', () => {
     const labels = classifyOperations(contributions)
     expect(labels.c3).toBe('Retiro')
     expect(labels.c4).toBe('Liquidación')
+  })
+
+  it('(e) retiro con fecha ANTERIOR a los aportes, con la posición abierta → Retiro', () => {
+    // Cargado después pero fechado antes: ordena primero y deja el acumulado
+    // en negativo. No cerró ninguna posición — la posición sigue abierta.
+    const contributions = [
+      { id: 'c1', date: '2024-03-01', direction: 'in', amount_usd: 1000, quantity: 1 },
+      {
+        id: 'c2',
+        date: '2024-01-01',
+        direction: 'out',
+        amount_usd: 300,
+        quantity: 0.3,
+        realized_gain: 300,
+      },
+    ]
+    expect(classifyOperations(contributions).c2).toBe('Retiro')
+  })
+
+  it('(f) el retiro retroactivo no le roba la etiqueta al que sí cierra la posición', () => {
+    const contributions = [
+      { id: 'c1', date: '2024-03-01', direction: 'in', amount_usd: 1000, quantity: 1 },
+      {
+        id: 'c2',
+        date: '2024-01-01',
+        direction: 'out',
+        amount_usd: 300,
+        quantity: 0.3,
+        realized_gain: 300,
+      },
+      // deja la tenencia en 0 (−0,3 + 1 − 0,7): esta sí cierra
+      {
+        id: 'c3',
+        date: '2024-05-01',
+        direction: 'out',
+        amount_usd: 900,
+        quantity: 0.7,
+        realized_gain: 200,
+      },
+    ]
+    const labels = classifyOperations(contributions)
+    expect(labels.c2).toBe('Retiro')
+    expect(labels.c3).toBe('Liquidación')
+  })
+
+  it('(g) sin cantidades (fold por aportado), un retiro retroactivo tampoco es Liquidación', () => {
+    const contributions = [
+      { id: 'c1', date: '2024-03-01', direction: 'in', amount_usd: 1000 },
+      { id: 'c2', date: '2024-01-01', direction: 'out', amount_usd: 400, realized_gain: 400 },
+    ]
+    expect(classifyOperations(contributions).c2).toBe('Retiro')
   })
 
   it('(d) una pata de salida de transferencia que vacía la posición sigue siendo Transferencia enviada', () => {

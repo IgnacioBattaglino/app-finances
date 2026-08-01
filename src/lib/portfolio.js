@@ -136,6 +136,20 @@ export function computePortfolioGain(assets, valuations) {
   return { contributed, value, gain: value - contributed }
 }
 
+// Precio unitario del valor de HOY: valor total ÷ tenencia. Es la métrica
+// comparable con averagePurchasePrice (las dos miden "cuánto vale una
+// unidad") y la única lectura correcta del valor de un activo de precio en
+// vivo sin mezclarla con cuánto tenés. Solo aplica a activos que manejan
+// cantidad (modo 'live'); null si no hay tenencia o no hay valor. Vale
+// también cuando el valor viene de una valuación manual vieja ('stale'): es
+// el precio implícito de ese último valor conocido.
+export function currentUnitPrice(asset, contributions, valuation) {
+  if (asset?.valuation_mode !== 'live') return null
+  if (!valuation || valuation.value === null) return null
+  const quantity = heldQuantity(asset, contributions)
+  return quantity > 0 ? valuation.value / quantity : null
+}
+
 // Precio promedio ponderado de compra: Σ(amount_usd) ÷ Σ(quantity) sobre las
 // operaciones de ENTRADA con cantidad > 0 (aportes y patas de entrada de
 // transferencias comparten esa forma). Retiros y patas de salida no son
@@ -157,12 +171,18 @@ export function averagePurchasePrice(contributions) {
 // cronológico (nunca la página visible: la posición real depende de todo lo
 // anterior). Para activos que manejan cantidad (cualquier fila con
 // quantity > 0) la posición relevante es la cantidad remanente; si no, es el
-// aportado remanente (mismo fold que computeContributed). "Liquidación" es
-// un retiro sin transfer_id que deja esa posición exactamente en 0
-// (redondeado, para no arrastrar ruido de punto flotante); cualquier otro
-// retiro sin transfer_id es "Retiro" — sin importar si realized_gain es 0 o
-// no: con el aportado ya en 0, cada venta futura de un activo ganador tiene
-// realized_gain≠0 para siempre, aunque no vacíe la posición.
+// aportado remanente (mismo fold que computeContributed).
+//
+// "Liquidación" es un retiro sin transfer_id que CIERRA la posición: la deja
+// en 0 (o menos) viniendo de una posición abierta (> 0). Se mira la
+// transición, no el saldo suelto — un saldo ≤ 0 puntual no significa que se
+// haya cerrado nada. El caso que lo obliga: un retiro cargado con fecha
+// anterior a los aportes ordena primero y deja el acumulado en negativo,
+// aunque la posición siga abierta; ahí no se cerró nada y es "Retiro".
+// Cualquier otro retiro sin transfer_id también es "Retiro" — sin importar
+// si realized_gain es 0 o no: con el aportado ya en 0, cada venta futura de
+// un activo ganador tiene realized_gain≠0 para siempre, aunque no vacíe la
+// posición.
 //
 // Invariante asumido (activos de precio en vivo): TODA entrada que suma
 // posición trae quantity > 0. Si se mezclan filas con y sin quantity en un
@@ -193,14 +213,16 @@ export function classifyOperations(contributions) {
       runningContributed += amount
       continue
     }
+    const before = usesQuantity ? runningQuantity : runningContributed
     runningQuantity -= qty
     runningContributed -= amount - Number(c.realized_gain ?? 0)
     if (c.transfer_id) {
       labels[c.id] = 'Transferencia enviada'
       continue
     }
-    const remaining = usesQuantity ? runningQuantity : runningContributed
-    labels[c.id] = round(remaining, 8) <= 0 ? 'Liquidación' : 'Retiro'
+    const after = usesQuantity ? runningQuantity : runningContributed
+    const closesPosition = round(before, 8) > 0 && round(after, 8) <= 0
+    labels[c.id] = closesPosition ? 'Liquidación' : 'Retiro'
   }
   return labels
 }

@@ -1,4 +1,4 @@
-import { formatUSD } from '../../lib/format.js'
+import { formatUSD, formatQuantity, toDecimalInput } from '../../lib/format.js'
 import { round } from '../../lib/money.js'
 
 // Deriva el monto USD a partir de la cantidad y el precio unitario; null si
@@ -35,7 +35,7 @@ function QuantityAmountField({
       return
     }
     const derived = deriveAmountFromQuantity(raw, unitPrice)
-    onChange({ quantity: raw, amountUsd: derived != null ? String(derived) : '' })
+    onChange({ quantity: raw, amountUsd: derived != null ? toDecimalInput(derived) : '' })
   }
 
   function handleAmount(raw) {
@@ -44,7 +44,7 @@ function QuantityAmountField({
       return
     }
     const derived = deriveQuantityFromAmount(raw, unitPrice)
-    onChange({ amountUsd: raw, quantity: derived != null ? String(derived) : '' })
+    onChange({ amountUsd: raw, quantity: derived != null ? toDecimalInput(derived) : '' })
   }
 
   const quantityValue = Number(String(value.quantity).replace(',', '.'))
@@ -81,7 +81,8 @@ function QuantityAmountField({
         </label>
         {showMath && (
           <p className="mt-1 text-right text-xs text-ink-soft">
-            {quantityValue} un. × <span className="font-money">{formatUSD(unitPrice)}</span>{' '}
+            {formatQuantity(quantityValue)} un. ×{' '}
+            <span className="font-money">{formatUSD(unitPrice)}</span>{' '}
             = <span className="font-money">{formatUSD(amountValue)}</span>
           </p>
         )}
