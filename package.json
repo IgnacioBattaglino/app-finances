@@ -13,7 +13,6 @@
     "verify:rls": "node --env-file=.env --env-file=.env.test.local scripts/verify-rls.mjs"
   },
   "dependencies": {
-    "@playwright/test": "^1.61.1",
     "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/vite": "^4.3.2",
     "react": "^19.2.7",

@@ -20,6 +20,7 @@ import EditIcon from '../components/EditIcon.jsx'
 import MetricCard from '../components/assetDetail/MetricCard.jsx'
 import AssetHistory from '../components/assetDetail/AssetHistory.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
+import FormError from '../components/form/FormError.jsx'
 import ContributionFormModal from '../components/ContributionFormModal.jsx'
 import TransferFormModal from '../components/contribution/TransferFormModal.jsx'
 import LiquidatePositionModal from '../components/contribution/LiquidatePositionModal.jsx'
@@ -93,7 +94,7 @@ function AssetDetail() {
       setValuations(valuationsData)
     } catch (e) {
       if (isCancelled()) return
-      setError('No se pudo cargar el activo. ' + e.message)
+      setError({ message: 'No se pudo cargar el activo.', detail: e.message })
     } finally {
       if (!isCancelled()) setLoading(false)
     }
@@ -255,7 +256,7 @@ function AssetDetail() {
         <p className="px-4 text-sm text-ink-soft">Cargando…</p>
       ) : error ? (
         <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
-          <p className="text-sm text-clay">{error}</p>
+          <FormError message={error?.message} detail={error?.detail} />
           <button type="button" onClick={() => load()} className="text-sm font-semibold text-clay underline">
             Reintentar
           </button>

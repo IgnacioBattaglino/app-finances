@@ -4,6 +4,7 @@ import AssetGroup from '../components/AssetGroup.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
 import Gain from '../components/Gain.jsx'
+import FormError from '../components/form/FormError.jsx'
 import { getAssets } from '../lib/assets.js'
 import { getAssetTypes } from '../lib/assetTypes.js'
 import { getContributions } from '../lib/contributions.js'
@@ -41,7 +42,7 @@ function Portfolio() {
       setContributions(contributionsData)
       setLatestValuations(valuationsData)
     } catch (e) {
-      setError('No se pudo cargar el portafolio. ' + e.message)
+      setError({ message: 'No se pudo cargar el portafolio.', detail: e.message })
     } finally {
       setLoading(false)
     }
@@ -71,7 +72,6 @@ function Portfolio() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assets])
 
   // Valuación calculada por activo
@@ -126,7 +126,7 @@ function Portfolio() {
         <p className="px-4 text-sm text-ink-soft">Cargando…</p>
       ) : error ? (
         <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
-          <p className="text-sm text-clay">{error}</p>
+          <FormError message={error?.message} detail={error?.detail} />
           <button
             type="button"
             onClick={load}

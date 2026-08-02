@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import EditIcon from '../components/EditIcon.jsx'
+import FormError from '../components/form/FormError.jsx'
 import {
   getTransactions,
   getCurrentMonthTransactions,
@@ -44,7 +45,7 @@ function Movements() {
     try {
       setMonthItems(await getTransactions({ month, year }))
     } catch (e) {
-      setError('No se pudieron cargar los movimientos. ' + e.message)
+      setError({ message: 'No se pudieron cargar los movimientos.', detail: e.message })
     } finally {
       setLoading(false)
     }
@@ -258,7 +259,7 @@ function Movements() {
 
           {error && (
             <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
-              <p className="text-sm text-clay">{error}</p>
+              <FormError message={error?.message} detail={error?.detail} />
               <button
                 type="button"
                 onClick={load}

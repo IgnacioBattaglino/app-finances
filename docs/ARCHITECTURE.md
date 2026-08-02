@@ -83,6 +83,9 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | quantity | numeric(20,8) | opcional; unidades compradas (ej: 0.001 BTC) |
 | mep_rate | numeric(10,2) NOT NULL | dólar MEP del día del aporte (congelado) |
 | affects_liquid | boolean NOT NULL default true | true = inversión con plata del bolsillo, resta del líquido; false = tenencia preexistente / carga inicial, no resta (sí suma al portafolio) |
+| direction | text NOT NULL default 'in' | 'in' (aporte) o 'out' (retiro) (CHECK) (migración 0016). La misma fila de contributions sirve para ambos; amount_usd siempre se guarda positivo, direction decide el signo en los cálculos |
+| realized_gain | numeric(14,2) | (migración 0016) ganancia (positivo) o pérdida (negativo) que un retiro cristaliza por encima del capital aportado; se calcula y congela en el momento del retiro, no se recalcula si después se editan aportes anteriores. Null en entradas ('in') |
+| transfer_id | uuid | (migración 0016) vincula el retiro con el aporte que lo reinvierte en otro activo (transferencia, ver create_transfer). No es FK: dos filas comparten el mismo uuid, generado en el cliente. Sin unicidad — agrupa, no referencia |
 | via_mep | boolean | **columna presente, lógica pendiente** (migración 0017): marca de que la operación se hizo vía dólar MEP. Hoy ningún código la lee ni la escribe |
 | empties_asset | boolean | **columna presente, lógica pendiente** (migración 0017): marca explícita de liquidación (vaciado del activo). Hoy el formulario captura ese dato y lo descarta; cuando se persista, reemplazará la inferencia por posición de classifyOperations (ver portfolio.js). Hoy ningún código la lee ni la escribe |
 | created_at | timestamptz default now() | |
