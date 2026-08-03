@@ -19,8 +19,27 @@ export async function getLastReconciliation() {
 // + ingresos − gastos − aportes (USD × su MEP congelado) + retiros que
 // acreditan (ídem, espejo del aporte) − pagos de deuda (ídem aportes).
 // Los ajustes de reconciliación son transactions normales (categoría "Ajuste de
-// saldo"), así que ya están incluidos. La última reconciliación se trae solo
-// para mostrar ("Reconciliado el X") y para etiquetar el próximo ajuste.
+// saldo"), así que ya están incluidos. Pura y testeable: recibe las
+// colecciones ya consultadas, no hace I/O.
+export function computeLiquidFromCollections({ transactions, contributions, debtPayments }) {
+  let current = 0
+  for (const t of transactions) {
+    current += t.kind === 'income' ? Number(t.amount_ars) : -Number(t.amount_ars)
+  }
+  for (const c of contributions) {
+    if (!c.affects_liquid) continue // cargas iniciales / tenencias previas y transferencias no tocan el líquido
+    const delta = Number(c.amount_usd) * Number(c.mep_rate)
+    current += c.direction === 'out' ? delta : -delta
+  }
+  for (const p of debtPayments) {
+    // Pagos sin MEP congelado (anteriores a la migración 0010) quedan fuera
+    if (p.mep_rate) current -= Number(p.amount_usd) * Number(p.mep_rate)
+  }
+  return current
+}
+
+// La última reconciliación se trae solo para mostrar ("Reconciliado el X") y
+// para etiquetar el próximo ajuste.
 export async function computeCurrentLiquid() {
   const [last, transactions, contributions, debtPayments] = await Promise.all([
     getLastReconciliation(),
@@ -33,7 +52,7 @@ export async function computeCurrentLiquid() {
       }),
     supabase
       .from('contributions')
-      .select('amount_usd, mep_rate, direction')
+      .select('amount_usd, mep_rate, direction, affects_liquid')
       .eq('affects_liquid', true) // cargas iniciales / tenencias previas y transferencias no tocan el líquido
       .then(({ data, error }) => {
         if (error) throw error
@@ -48,20 +67,18 @@ export async function computeCurrentLiquid() {
       }),
   ])
 
-  let current = 0
-  for (const t of transactions) {
-    current += t.kind === 'income' ? Number(t.amount_ars) : -Number(t.amount_ars)
-  }
-  for (const c of contributions) {
-    const delta = Number(c.amount_usd) * Number(c.mep_rate)
-    current += c.direction === 'out' ? delta : -delta
-  }
-  for (const p of debtPayments) {
-    // Pagos sin MEP congelado (anteriores a la migración 0010) quedan fuera
-    if (p.mep_rate) current -= Number(p.amount_usd) * Number(p.mep_rate)
-  }
+  const current = round(computeLiquidFromCollections({ transactions, contributions, debtPayments }))
 
   return { current, isFirst: !last, last }
+}
+
+// Ajuste que corresponde para que el líquido pase de `current` a
+// `declaredAmount`: null si la diferencia es despreciable (< 1 centavo), no
+// hace falta insertar nada. Pura y testeable.
+export function decideAdjustment(current, declaredAmount) {
+  const difference = round(declaredAmount - current)
+  if (Math.abs(difference) < 0.01) return null
+  return { kind: difference > 0 ? 'income' : 'expense', amount: Math.abs(difference) }
 }
 
 // Declara el líquido real. Si difiere del actual calculado, registra la
@@ -70,10 +87,11 @@ export async function computeCurrentLiquid() {
 export async function reconcile({ date, declaredAmount }) {
   const { current, isFirst } = await computeCurrentLiquid()
   const difference = round(declaredAmount - current)
+  const decision = decideAdjustment(current, declaredAmount)
 
   let adjustment = null
-  if (Math.abs(difference) >= 0.01) {
-    const kind = difference > 0 ? 'income' : 'expense'
+  if (decision) {
+    const { kind, amount } = decision
     // La categoría del sistema se busca por su flag, no por el nombre visible:
     // un rename (por fuera de la UI, que lo bloquea) no rompe la reconciliación.
     const { data: category, error: catError } = await supabase
@@ -98,7 +116,7 @@ export async function reconcile({ date, declaredAmount }) {
         kind,
         category_id: category.id,
         description: isFirst ? 'Saldo inicial' : 'Reconciliación de líquido',
-        amount_ars: Math.abs(difference),
+        amount_ars: amount,
       })
       .select()
       .single()
