@@ -2,6 +2,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 import CategoriesSection from '../components/CategoriesSection.jsx'
 import AssetTypesSection from '../components/AssetTypesSection.jsx'
+import { APP_VERSION } from '../version.js'
 
 function Settings() {
   const { user, signOut } = useAuth()
@@ -30,6 +31,9 @@ function Settings() {
             </button>
           </div>
         </section>
+
+        {/* Marca de versión para confirmar a ojo si un deploy se aplicó */}
+        <p className="px-4 text-xs text-ink-soft">versión {APP_VERSION}</p>
       </div>
     </div>
   )

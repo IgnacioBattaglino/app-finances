@@ -119,6 +119,26 @@ export function needsManualValuation(asset) {
   return mode === 'manual' || (mode === 'live' && !asset.coingecko_id)
 }
 
+// Activos que entran en los totales generales del portafolio: los de bolsas
+// con include_in_total distinto de false. Cada bolsa sigue mostrando su propio
+// valor y rendimiento igual (ver AssetGroup) — este filtro es solo del total.
+// Una bolsa ausente o sin el flag cuenta: solo un false explícito excluye.
+export function totalableAssets(assets) {
+  return assets.filter((a) => a.asset_type?.include_in_total !== false)
+}
+
+// Valor total del portafolio en USD. Un activo sin valuación (value null) no
+// suma ni resta: es un dato que falta, no un cero.
+export function computePortfolioValue(assets, valuations) {
+  return totalableAssets(assets).reduce((sum, a) => sum + (valuations[a.id]?.value ?? 0), 0)
+}
+
+// Aportado total a los activos que entran en el total. A diferencia de la
+// ganancia, acá SÍ cuentan los activos sin valuación: la plata se puso igual.
+export function computePortfolioContributed(assets, valuations) {
+  return totalableAssets(assets).reduce((sum, a) => sum + (valuations[a.id]?.contributed ?? 0), 0)
+}
+
 // Ganancia total de un conjunto de activos, solo sobre los que buscan
 // rendimiento (yields !== false) y tienen valor. Los que no rinden (ej:
 // efectivo) o no tienen valuación quedan afuera de este cálculo, pero

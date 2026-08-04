@@ -1,102 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
 import AssetGroup from '../components/AssetGroup.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
 import Gain from '../components/Gain.jsx'
 import FormError from '../components/form/FormError.jsx'
-import { getAssets } from '../lib/assets.js'
-import { getAssetTypes } from '../lib/assetTypes.js'
-import { getContributions } from '../lib/contributions.js'
-import { getLatestValuations } from '../lib/valuations.js'
-import { getCryptoPrices } from '../lib/prices.js'
-import { valueAsset, computePortfolioGain, needsManualValuation } from '../lib/portfolio.js'
+import { usePortfolio } from '../hooks/usePortfolio.js'
+import { needsManualValuation } from '../lib/portfolio.js'
 import { formatUSD } from '../lib/format.js'
 
 function Portfolio() {
-  const [assets, setAssets] = useState([])
-  const [assetTypes, setAssetTypes] = useState([])
-  const [contributions, setContributions] = useState([])
-  const [latestValuations, setLatestValuations] = useState({})
-  const [prices, setPrices] = useState({})
-  const [pricesAt, setPricesAt] = useState(null)
-  const [pricesFailed, setPricesFailed] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  // La carga y el cálculo viven en usePortfolio: Inicio necesita el mismo
+  // total invertido y no puede duplicarlos.
+  const {
+    assets,
+    assetTypes,
+    contributions,
+    latestValuations,
+    valuations,
+    totalValue,
+    totalContributed,
+    valuedContributed,
+    totalGain,
+    pricesFailed,
+    loading,
+    error,
+    reload: load,
+    reloadAssetTypes: refreshAssetTypes,
+  } = usePortfolio()
 
   const [assetModal, setAssetModal] = useState({ open: false, editing: null })
   const [valuationModal, setValuationModal] = useState({ open: false, assets: [] })
 
-  async function load() {
-    setLoading(true)
-    setError(null)
-    try {
-      const [assetsData, assetTypesData, contributionsData, valuationsData] = await Promise.all([
-        getAssets(),
-        getAssetTypes(),
-        getContributions(),
-        getLatestValuations(),
-      ])
-      setAssets(assetsData)
-      setAssetTypes(assetTypesData)
-      setContributions(contributionsData)
-      setLatestValuations(valuationsData)
-    } catch (e) {
-      setError({ message: 'No se pudo cargar el portafolio.', detail: e.message })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function refreshAssetTypes() {
-    setAssetTypes(await getAssetTypes())
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
-
-  // El precio en vivo no bloquea el primer render (CoinGecko es la parte
-  // más lenta de la carga): se pide aparte una vez que sabemos qué activos
-  // tienen coingecko_id, y actualiza prices/pricesAt cuando llega.
-  useEffect(() => {
-    const ids = assets.filter((a) => a.coingecko_id).map((a) => a.coingecko_id)
-    if (ids.length === 0) return
-    let cancelled = false
-    getCryptoPrices(ids).then((result) => {
-      if (cancelled) return
-      setPricesFailed(result === null)
-      setPrices(result ?? {})
-      setPricesAt(new Date())
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [assets])
-
-  // Valuación calculada por activo
-  const valuations = {}
-  for (const asset of assets) {
-    const v = valueAsset(asset, contributions, latestValuations[asset.id], prices)
-    valuations[asset.id] = v.source === 'live' ? { ...v, at: pricesAt } : v
-  }
-
-  // El total y el rendimiento generales excluyen bolsas con
-  // include_in_total=false; cada grupo sigue mostrando su propio valor y
-  // rendimiento igual (ver AssetGroup).
-  const totalableAssets = assets.filter((a) => a.asset_type?.include_in_total !== false)
-  const totalContributed = totalableAssets.reduce(
-    (sum, a) => sum + valuations[a.id].contributed,
-    0,
-  )
-  const totalValue = totalableAssets.reduce((sum, a) => sum + (valuations[a.id].value ?? 0), 0)
-  // La ganancia solo compara contra lo aportado a activos CON valor y que
-  // buscan rendimiento: un activo sin valuación no es una pérdida, es un dato
-  // que falta, y uno que no rinde (ej: efectivo) no debe aguar el %.
-  const { contributed: valuedContributed, gain: totalGain } = computePortfolioGain(
-    totalableAssets,
-    valuations,
-  )
   const unvalued = assets.filter((a) => valuations[a.id].source === 'none')
   const manualAssets = assets.filter(needsManualValuation)
 

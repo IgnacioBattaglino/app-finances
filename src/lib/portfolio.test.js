@@ -7,6 +7,9 @@ import {
   currentUnitPrice,
   classifyOperations,
   mergeAssetHistory,
+  totalableAssets,
+  computePortfolioValue,
+  computePortfolioContributed,
 } from './portfolio.js'
 
 describe('decomposeWithdrawal', () => {
@@ -395,5 +398,61 @@ describe('guard de retiro contra la tenencia (integración con QuantityAmountFie
     const unitPrice = 65000
     const derivedQuantity = Math.round((10 / unitPrice) * 1e8) / 1e8
     expect(derivedQuantity).toBeLessThan(held)
+  })
+})
+
+// Estos tres salieron de Portfolio.jsx cuando Inicio necesitó el MISMO total
+// invertido. El invariante que cuidan es que las dos pantallas muestren el
+// mismo número: si alguien cambia el criterio acá, cambia en las dos.
+describe('totales del portafolio (compartidos entre Inicio y Portafolio)', () => {
+  const bolsaQueSuma = { include_in_total: true }
+  const bolsaQueNoSuma = { include_in_total: false }
+
+  it('totalableAssets: solo un include_in_total false explícito excluye', () => {
+    const assets = [
+      { id: 'a', asset_type: bolsaQueSuma },
+      { id: 'b', asset_type: bolsaQueNoSuma },
+      { id: 'c', asset_type: {} }, // flag ausente
+      { id: 'd' }, // sin bolsa resuelta
+    ]
+    expect(totalableAssets(assets).map((a) => a.id)).toEqual(['a', 'c', 'd'])
+  })
+
+  it('computePortfolioValue: suma los valores y descarta las bolsas excluidas', () => {
+    const assets = [
+      { id: 'a', asset_type: bolsaQueSuma },
+      { id: 'b', asset_type: bolsaQueNoSuma },
+    ]
+    const valuations = {
+      a: { value: 100, contributed: 80 },
+      b: { value: 500, contributed: 400 },
+    }
+    expect(computePortfolioValue(assets, valuations)).toBe(100)
+  })
+
+  it('computePortfolioValue: un activo sin valuación (value null) no suma ni resta', () => {
+    const assets = [
+      { id: 'a', asset_type: bolsaQueSuma },
+      { id: 'b', asset_type: bolsaQueSuma },
+    ]
+    const valuations = {
+      a: { value: 100, contributed: 80 },
+      b: { value: null, contributed: 400 },
+    }
+    expect(computePortfolioValue(assets, valuations)).toBe(100)
+  })
+
+  it('computePortfolioContributed: cuenta lo aportado aunque el activo no tenga valuación', () => {
+    const assets = [
+      { id: 'a', asset_type: bolsaQueSuma },
+      { id: 'b', asset_type: bolsaQueSuma },
+      { id: 'c', asset_type: bolsaQueNoSuma },
+    ]
+    const valuations = {
+      a: { value: 100, contributed: 80 },
+      b: { value: null, contributed: 400 }, // sin valuación, pero la plata se puso
+      c: { value: 500, contributed: 300 }, // bolsa excluida
+    }
+    expect(computePortfolioContributed(assets, valuations)).toBe(480)
   })
 })
