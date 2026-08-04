@@ -37,15 +37,16 @@
 --      que lo escribe el cron a las 09:00 ART. El punto de hoy es el cierre
 --      conocido, no el tick del segundo en que se abre la pantalla.
 --
---   3. include_in_total AFECTA A total_value, NO A contributed. Los activos de
---      bolsas con asset_types.include_in_total = false quedan fuera del valor
---      (mismo criterio que Portfolio.jsx, donde totalableAssets alimenta el
---      total), pero sus aportes SIGUEN sumando a contributed. Es una decisión
---      explícita, no un olvido: contributed acá es "toda la plata que puse",
---      sin recortes. Ojo que la pantalla no hace esta distinción — aplica el
---      mismo filtro a las dos magnitudes.
+--   3. include_in_total AFECTA A LAS DOS COLUMNAS. Los activos de bolsas con
+--      asset_types.include_in_total = false quedan fuera de total_value Y de
+--      contributed: si una bolsa no cuenta, no cuenta ni su valor ni la plata
+--      que se le puso. Es el mismo criterio de Portfolio.jsx, donde el
+--      totalableAssets filtrado alimenta tanto el total como el aportado.
 --      Un activo cuya bolsa no resuelve (asset_type nulo) se INCLUYE: replica
 --      el `?.include_in_total !== false` del JS, donde ausente = incluido.
+--      Esta es la única de las tres diferencias que NO separa la serie de la
+--      pantalla — está acá porque es un criterio que hay que conocer para
+--      leer los números, no porque divergan.
 
 create or replace function public.get_portfolio_series(
   p_from date,
@@ -211,11 +212,11 @@ as $$
 
   -- Un renglón por día siempre: el left join preserva los días aunque el
   -- usuario no tenga ningún activo, y el coalesce evita devolver null.
-  -- total_value descarta los activos de bolsas excluidas; contributed los
-  -- suma igual (ver nota 3 de la cabecera).
+  -- Las dos columnas descartan los activos de bolsas excluidas (ver nota 3
+  -- de la cabecera).
   select days.d as date,
          round(coalesce(sum(case when valued.counts_in_total then valued.value else 0 end), 0), 2) as total_value,
-         round(coalesce(sum(valued.contributed), 0), 2) as contributed
+         round(coalesce(sum(case when valued.counts_in_total then valued.contributed else 0 end), 0), 2) as contributed
   from days
   left join valued on valued.day = days.d
   group by days.d
