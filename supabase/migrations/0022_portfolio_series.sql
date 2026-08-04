@@ -65,10 +65,11 @@ as $$
   -- Activos del usuario. RLS ("own rows") ya filtra por auth.uid(); acá NO se
   -- filtra is_archived a propósito (ver nota 1 de la cabecera).
   --
-  -- counts_in_total: si el activo suma al VALOR del portafolio. El left join +
-  -- "is distinct from false" replica el `a.asset_type?.include_in_total !==
-  -- false` de Portfolio.jsx: false excluye, true incluye, y bolsa ausente o
-  -- flag nulo también incluyen. No afecta a contributed (ver nota 3).
+  -- counts_in_total: si el activo entra en el resultado, tanto en total_value
+  -- como en contributed (ver nota 3 de la cabecera). El left join + "is
+  -- distinct from false" replica el `a.asset_type?.include_in_total !== false`
+  -- de Portfolio.jsx: false excluye, true incluye, y bolsa ausente o flag nulo
+  -- también incluyen.
   my_assets as (
     select a.id,
            a.valuation_mode,
