@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
 import RingsMark from '../components/RingsMark.jsx'
 import FormError from '../components/form/FormError.jsx'
 
 function Login() {
   const { user, loading, signIn } = useAuth()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -19,8 +20,13 @@ function Login() {
     )
   }
 
+  // Vuelve a donde el usuario quiso ir antes de que lo mandáramos a loguearse
+  // (lo guarda ProtectedRoute). Inicio es solo el caso de quien entró directo
+  // a /login. Se reconstruye la ruta completa para no perder query ni hash.
   if (user) {
-    return <Navigate to="/" replace />
+    const from = location.state?.from
+    const to = from ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}` : '/'
+    return <Navigate to={to} replace />
   }
 
   async function handleSubmit(event) {

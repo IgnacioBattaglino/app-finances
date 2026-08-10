@@ -83,7 +83,10 @@ export function valueAsset(asset, contributions, latestValuation, cryptoPrices) 
     const quantity = heldQuantity(asset, contributions)
     const price = resolveLivePrice(asset, cryptoPrices)
     if (price !== null) {
-      return { contributed, value: quantity * price, source: 'live' }
+      // unitPrice viaja en la valuación a propósito: es el precio de mercado
+      // que ya resolvimos acá, y así llega a cualquier consumidor sin tener
+      // que pasarle `prices` por props (ver currentUnitPrice).
+      return { contributed, value: quantity * price, source: 'live', unitPrice: price }
     }
     if (latestValuation) {
       return {
@@ -165,7 +168,15 @@ export function computePortfolioGain(assets, valuations) {
 // el precio implícito de ese último valor conocido.
 export function currentUnitPrice(asset, contributions, valuation) {
   if (asset?.valuation_mode !== 'live') return null
-  if (!valuation || valuation.value === null) return null
+  if (!valuation) return null
+  // El precio de mercado existe aunque no tengas ni una unidad: si valueAsset
+  // lo resolvió, ES ese número, no una división. Dividir valor ÷ cantidad era
+  // el defecto — con tenencia 0 daba 0/0 y la pantalla mostraba "—" para un
+  // precio que la API acababa de darnos.
+  if (typeof valuation.unitPrice === 'number') return valuation.unitPrice
+  // Sin precio en vivo (valuación 'stale'), lo único reconstruible es el
+  // precio implícito del último valor conocido, y eso sí necesita tenencia.
+  if (valuation.value === null) return null
   const quantity = heldQuantity(asset, contributions)
   return quantity > 0 ? valuation.value / quantity : null
 }

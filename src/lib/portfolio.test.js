@@ -5,6 +5,7 @@ import {
   heldQuantity,
   averagePurchasePrice,
   currentUnitPrice,
+  valueAsset,
   classifyOperations,
   mergeAssetHistory,
   totalableAssets,
@@ -158,6 +159,47 @@ describe('currentUnitPrice', () => {
     expect(currentUnitPrice(live, own, { value: null })).toBe(null)
     expect(currentUnitPrice(live, [], { value: 1000 })).toBe(null)
     expect(currentUnitPrice({ id: 'a1', valuation_mode: 'manual' }, own, { value: 1000 })).toBe(null)
+  })
+
+  it('con precio de mercado resuelto lo usa tal cual, sin dividir por la tenencia', () => {
+    // Un aporte de 5 un. a 200 y el precio de hoy en 250: el precio es 250,
+    // no 1250/5. Que coincidan sería casualidad del ejemplo, así que el valor
+    // se pone deliberadamente desalineado con value.
+    expect(currentUnitPrice(live, own, { value: 9999, unitPrice: 250 })).toBe(250)
+  })
+
+  it('muestra el precio de mercado aunque no tengas NI UNA unidad', () => {
+    // El caso que motivó el cambio: activo en vivo recién creado, sin aportes.
+    // El precio del instrumento existe igual; antes acá salía null → "—".
+    expect(currentUnitPrice(live, [], { value: 0, unitPrice: 63917.65 })).toBe(63917.65)
+  })
+
+  it('un precio de mercado de 0 sigue siendo un precio, no un dato faltante', () => {
+    expect(currentUnitPrice(live, [], { value: 0, unitPrice: 0 })).toBe(0)
+  })
+})
+
+describe('valueAsset — precio unitario en la valuación', () => {
+  const live = { id: 'a1', valuation_mode: 'live', coingecko_id: 'bitcoin' }
+
+  it('con precio en vivo lo adjunta como unitPrice, para que no haya que dividir después', () => {
+    const own = [{ asset_id: 'a1', direction: 'in', amount_usd: 100, quantity: 2 }]
+    const v = valueAsset(live, own, null, { bitcoin: { usd: 500 } })
+    expect(v.unitPrice).toBe(500)
+    expect(v.value).toBe(1000)
+  })
+
+  it('sin tenencia, el valor es 0 pero el precio sigue estando', () => {
+    const v = valueAsset(live, [], null, { bitcoin: { usd: 500 } })
+    expect(v.value).toBe(0)
+    expect(v.unitPrice).toBe(500)
+  })
+
+  it('cayendo a una valuación vieja no inventa unitPrice: no hay precio de mercado', () => {
+    const own = [{ asset_id: 'a1', direction: 'in', amount_usd: 100, quantity: 2 }]
+    const v = valueAsset(live, own, { value_usd: 300, date: '2026-01-01' }, {})
+    expect(v.source).toBe('stale')
+    expect(v.unitPrice).toBeUndefined()
   })
 })
 

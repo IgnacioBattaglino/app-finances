@@ -3,6 +3,20 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
 import { DebtCard } from './Debts.jsx'
 
+// ATENCIÓN — alcance real de este archivo: estos tests fijan el CONTRATO de
+// DebtCard, y NO reproducen el defecto que los motivó. El bug estaba en la
+// composición de la página (la sección "Saldadas" elegía una fila resumida en
+// vez de esta tarjeta), no en DebtCard, que ya renderizaba bien: el test de
+// abajo pasaba igual ANTES del arreglo. O sea que una vuelta atrás a la fila
+// resumida no la detecta nadie acá.
+//
+// Para cubrir el defecto de verdad hay que renderizar la pantalla Debts entera
+// con su rama de saldadas, lo que pide jsdom + testing-library (hoy los tests
+// de componente usan `renderToStaticMarkup`, que no ejecuta useEffect y por lo
+// tanto nunca llega a cargar deudas). Decisión tomada: no agregar esa
+// infraestructura por un bug ya corregido. Queda anotado para que nadie lea
+// este archivo como una red de seguridad que no es.
+
 const render = (props) => renderToStaticMarkup(createElement(DebtCard, { ...props }))
 
 const debt = (original, payments = []) => ({

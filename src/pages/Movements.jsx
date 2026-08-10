@@ -84,10 +84,24 @@ function Movements() {
     setEditing(null)
   }
 
-  function refreshAfterSave() {
+  // `saved` es la fila guardada; en un borrado llega el id, que no tiene fecha
+  // y por lo tanto cae al refresco normal, que es lo correcto: borrar no debe
+  // mover al usuario de mes.
+  function refreshAfterSave(saved) {
     closeModal()
-    load()
     loadMonthStats()
+
+    // Si el movimiento quedó en otro mes que el navegado (típico: cargarlo con
+    // fecha de hoy mientras mirás un mes pasado), saltamos a su mes. La fila en
+    // la lista es la única confirmación de que se guardó: quedarse donde estaba
+    // hace pensar que la operación no tuvo efecto.
+    const [y, m] = saved?.date?.split('-').map(Number) ?? []
+    if (y && m && (y !== year || m !== month)) {
+      setMonth(m)
+      setYear(y) // el efecto de [month, year] dispara load()
+      return
+    }
+    load()
   }
 
   // La lista de abajo respeta los filtros de tipo/categoría; los totales del
