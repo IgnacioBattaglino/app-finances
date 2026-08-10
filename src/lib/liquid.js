@@ -32,6 +32,10 @@ export function computeLiquidFromCollections({ transactions, contributions, debt
     current += c.direction === 'out' ? delta : -delta
   }
   for (const p of debtPayments) {
+    // Pagado con dólares que ya tenías: baja la deuda pero nunca pasó por el
+    // líquido en pesos (espejo de affects_liquid en aportes, migración 0023).
+    // Solo un false explícito excluye: una fila sin el campo es un pago normal.
+    if (p.affects_liquid === false) continue
     // Pagos sin MEP congelado (anteriores a la migración 0010) quedan fuera
     if (p.mep_rate) current -= Number(p.amount_usd) * Number(p.mep_rate)
   }
@@ -60,7 +64,7 @@ export async function computeCurrentLiquid() {
       }),
     supabase
       .from('debt_payments')
-      .select('amount_usd, mep_rate')
+      .select('amount_usd, mep_rate, affects_liquid')
       .then(({ data, error }) => {
         if (error) throw error
         return data

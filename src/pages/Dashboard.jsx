@@ -7,6 +7,7 @@ import FormError from '../components/form/FormError.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
 import { computeCurrentLiquid } from '../lib/liquid.js'
 import { getCategories } from '../lib/categories.js'
+import { getDebts, summarizeDebts } from '../lib/debts.js'
 import { formatARS, formatUSD } from '../lib/format.js'
 
 function Chevron() {
@@ -34,7 +35,7 @@ function Chevron() {
 // En error la tarjeta deja de ser un botón y pasa a ser un div con su propio
 // "Reintentar": un botón adentro de otro botón no es HTML válido, y tocar la
 // tarjeta abriría algo que todavía no tiene datos.
-function SummaryCard({ label, amount, hint, loading, error, onRetry, onClick }) {
+function SummaryCard({ label, amount, hint, note, loading, error, onRetry, onClick, className = '' }) {
   const heading = (
     <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
       {label}
@@ -43,7 +44,7 @@ function SummaryCard({ label, amount, hint, loading, error, onRetry, onClick }) 
 
   if (error) {
     return (
-      <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-4">
+      <div className={`space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-4 ${className}`}>
         {heading}
         <FormError message={error.message} detail={error.detail} />
         <button
@@ -61,13 +62,14 @@ function SummaryCard({ label, amount, hint, loading, error, onRetry, onClick }) 
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-4 text-left transition active:bg-mist/60"
+      className={`flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-4 text-left transition active:bg-mist/60 ${className}`}
     >
       <span className="min-w-0">
         {heading}
         <span className="font-money mt-1 block text-2xl tracking-tight">
           {loading ? <span className="text-ink-soft">Calculando…</span> : amount}
         </span>
+        {note && <span className="mt-1 block text-xs text-ink-soft">{note}</span>}
         {hint && <span className="mt-1.5 block text-xs text-pine underline">{hint}</span>}
       </span>
       <Chevron />
@@ -91,6 +93,10 @@ function Dashboard() {
   const [liquidLoading, setLiquidLoading] = useState(true)
   const [liquidError, setLiquidError] = useState(null)
 
+  const [debts, setDebts] = useState([])
+  const [debtsLoading, setDebtsLoading] = useState(true)
+  const [debtsError, setDebtsError] = useState(null)
+
   const [expenseModalOpen, setExpenseModalOpen] = useState(false)
   const [liquidModalOpen, setLiquidModalOpen] = useState(false)
   const [categories, setCategories] = useState(null) // null = todavía no se pidieron
@@ -107,9 +113,22 @@ function Dashboard() {
     }
   }, [])
 
+  const loadDebts = useCallback(async () => {
+    setDebtsLoading(true)
+    setDebtsError(null)
+    try {
+      setDebts(await getDebts())
+    } catch (e) {
+      setDebtsError({ message: 'No se pudieron cargar las deudas.', detail: e.message })
+    } finally {
+      setDebtsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     loadLiquid()
-  }, [loadLiquid])
+    loadDebts()
+  }, [loadLiquid, loadDebts])
 
   function openExpenseModal() {
     if (categories === null) {
@@ -151,6 +170,24 @@ function Dashboard() {
           onRetry={reloadPortfolio}
           onClick={() => navigate('/portafolio')}
         />
+
+        {/* El tercer mundo. Ocupa el ancho completo debajo de los otros dos:
+            se lee como una magnitud aparte, no como un tercio de un total que
+            no existe (ver FUNCTIONAL.md). Solo aparece si hay deudas cargadas
+            — sin ninguna, un "US$ 0" permanente es ruido; la sección sigue
+            estando en la barra de navegación. */}
+        {(debtsError || debts.length > 0) && (
+          <SummaryCard
+            label="Deudas"
+            amount={formatUSD(summarizeDebts(debts).totalBalance)}
+            note="te queda por pagar"
+            loading={debtsLoading}
+            error={debtsError}
+            onRetry={loadDebts}
+            onClick={() => navigate('/deudas')}
+            className="sm:col-span-2"
+          />
+        )}
       </div>
 
       {/* La acción más frecuente: cargar un gasto en segundos. Vive solo acá,

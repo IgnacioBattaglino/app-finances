@@ -47,6 +47,22 @@ describe('computeLiquidFromCollections', () => {
     ).toBe(-200000)
   })
 
+  it('debt_payment con affects_liquid false → baja la deuda pero no toca el líquido', () => {
+    // Pagado con dólares que ya tenías: nunca pasó por los pesos.
+    const debtPayments = [{ amount_usd: 200, mep_rate: 1000, affects_liquid: false }]
+    expect(
+      computeLiquidFromCollections({ transactions: [], contributions: [], debtPayments }),
+    ).toBe(0)
+  })
+
+  it('debt_payment sin el campo affects_liquid (fila anterior a la 0023) → cuenta como pago normal', () => {
+    // Solo un false explícito excluye; el default de la columna es true.
+    const debtPayments = [{ amount_usd: 200, mep_rate: 1000 }]
+    expect(
+      computeLiquidFromCollections({ transactions: [], contributions: [], debtPayments }),
+    ).toBe(-200000)
+  })
+
   it('debt_payment con mep_rate null → se ignora, no rompe ni devuelve NaN', () => {
     const debtPayments = [{ amount_usd: 200, mep_rate: null }]
     const result = computeLiquidFromCollections({

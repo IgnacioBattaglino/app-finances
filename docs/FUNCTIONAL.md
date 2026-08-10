@@ -29,18 +29,19 @@ Los aportes marcados "de afuera" (inversiones anteriores a la app, efectivo que 
 
 **Reconciliación**: función de corrección. El usuario declara cuánto líquido tiene realmente; el sistema calcula la diferencia contra lo esperado y registra un movimiento de ajuste (ingreso o gasto según el signo) que realinea el saldo con la realidad. Los ajustes cuentan como gastos/ingresos normales en las estadísticas — no se excluyen de ningún cálculo — y quedan identificados y agrupados bajo su categoría propia "Ajuste de saldo", una categoría del sistema: protegida, el usuario no puede renombrarla ni archivarla. Cubre rendimientos de billeteras (ej: Mercado Pago) y movimientos que no se cargaron.
 
-El cálculo y la reconciliación siguen intactos (`lib/liquid.js`); dejaron de mostrarse en Movimientos y por ahora no se ven en ninguna pantalla, a la espera del Dashboard (ver Secciones).
+El cálculo y la reconciliación viven en `lib/liquid.js`. Se muestran en Inicio, en la tarjeta "Disponible": tocarla abre la reconciliación (ver sección 1). Salieron de Movimientos, donde ya no aparecen.
 
 ## Secciones
 
-### 1. Inicio / Dashboard 🔜
+### 1. Inicio / Dashboard 🟡
 
 La home. Muestra los tres mundos, separados y en este orden:
 
-- Líquido disponible (destacado, lo primero que se ve).
-- Invertido, con su rendimiento.
-- Deudas (saldo restante).
-- NO muestra un patrimonio total (ver Principios).
+- ✅ Disponible (el líquido en ARS). Tocarlo abre la reconciliación; si nunca se declaró un saldo, la tarjeta invita a hacerlo ("declarar mi saldo").
+- ✅ Invertido (USD). Tocarlo lleva a Portafolio. Sale del mismo `usePortfolio` que esa pantalla, así que el número es idéntico en las dos.
+- ✅ Deudas (saldo restante en USD): tarjeta a ancho completo debajo de las otras dos, para que se lea como una magnitud aparte y no como el tercio de un total que no existe. Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0" fijo es ruido, y la sección sigue estando en la barra de navegación.
+- NO muestra un patrimonio total (ver Principios): las tres tarjetas nunca se suman.
+- 🔜 Rendimiento del invertido en la propia tarjeta (hoy solo el valor).
 
 Más adelante, además: gráficos (gastos del mes por categoría, evolución del líquido, aportado vs. valor del portafolio, distribución por tipo de activo) y avance hacia el objetivo FIRE.
 
@@ -56,7 +57,7 @@ Su función principal es CAPTURAR gastos e ingresos rápido y mostrar en qué se
 - ✅ Estadísticas del mes calendario en curso (día 1 hasta hoy, sin selector de período): total de gastos, total de ingresos, y desglose de gastos por categoría (ordenado de mayor a menor). Los ajustes de reconciliación ("Ajuste de saldo") cuentan igual que cualquier categoría, sin excluirse. Se recalculan también al crear, editar o borrar un movimiento.
 - ✅ Historial (sección secundaria): alta, edición y borrado (fecha, categoría, descripción, monto ARS); navegador de mes, filtros por tipo y categoría, totales del período navegado.
 - ✅ Gestión de categorías de gasto y de ingreso (crear, renombrar, archivar) — la pantalla vive en Ajustes.
-- 🔜 El balance líquido y su reconciliación se movieron de acá al Dashboard (ver sección 1); hoy no se muestran en ninguna pantalla.
+- ✅ El balance líquido y su reconciliación se movieron de acá a Inicio (ver sección 1).
 - 🔜 Vistas históricas: por año, desde el inicio.
 
 ### 3. Portafolio 🟡
@@ -87,12 +88,17 @@ El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD 
 - Proyección: meses restantes y edad estimada al llegar, con interés compuesto (retorno esperado configurable) sobre el ritmo de aporte actual. El ritmo usa el promedio de los últimos 6 meses (ventana configurable en Ajustes), no el histórico completo.
 - Simulador: aporte mensual necesario para llegar a una edad elegida (ej: 30, 35).
 
-### 5. Deudas 🔜
+### 5. Deudas 🟡
 
-- Lista de deudas: acreedor, monto original (USD), saldo restante (= original − pagos, calculado).
-- Registrar pagos con fecha; el saldo baja automáticamente. Historial de pagos por deuda.
-- Los pagos de deuda NO cuentan como gasto ni como ahorro: se muestran por separado. Sí restan del líquido, al tipo de cambio del día del pago.
-- Más adelante: estimado de cuándo se termina de pagar al ritmo actual.
+- ✅ Resumen arriba: cuánto debés en total (saldo restante, el número protagonista), con barra de avance y "pagaste X de Y" como referencia en chico.
+- ✅ Lista de deudas activas: cada una es una tarjeta con acreedor, saldo restante, barra de avance y "pagaste X de Y · %". La barra usa pine (el verde de la app) y no clay: pagar una deuda es progreso, no un error — clay queda para lo destructivo, como en el resto de la app.
+- ✅ Alta y edición de una deuda: a quién le debés, cuánto pediste (USD) y cuándo empezó. Se edita tocando el nombre, señalado con el ícono de lápiz (mismo patrón que los activos).
+- ✅ Registrar pagos con fecha; el saldo baja solo. Historial de pagos por deuda, desplegable desde la tarjeta ("Ver N pagos"); tocar un pago lo edita o lo borra.
+- ✅ Cada pago congela su tipo de cambio y responde "¿De dónde sale?" — mismo par de opciones que Aportar: "De mi líquido" (resta del líquido, a ese tipo de cambio) o "De afuera" (dólares que ya tenías: baja la deuda pero no toca el líquido). Los pagos NO cuentan como gasto ni como ahorro.
+- ✅ Pagar más de lo que resta no se bloquea (el saldo real lo sabe el usuario, no la app), pero se avisa: la deuda queda saldada, sin saldo a favor.
+- ✅ Deuda saldada (saldo 0): estado calculado, no una columna ni una acción manual. Baja sola a una sección "Saldadas" colapsada, con su historial intacto; si se edita o borra un pago, vuelve sola a la lista de activas. En esa sección se muestra con la MISMA tarjeta que una activa (no una fila resumida) justamente para que sus pagos sigan siendo alcanzables: con una fila muerta, una deuda saldada por error quedaba sin arreglo posible y además no se podía eliminar nunca, porque el borrado exige borrar antes sus pagos.
+- ✅ Eliminar una deuda con pagos no se permite: la app dice cuántos pagos tiene y pide borrarlos primero (nada se borra si tiene historia).
+- 🔜 Estimado de cuándo se termina de pagar al ritmo actual.
 
 ### 6. Ajustes 🟡
 
@@ -108,6 +114,7 @@ El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD 
 
 - ✅ Líquido (ARS) = acumulado de todos los eventos (ver Dinero líquido). General, no mensual.
 - ✅ Ganancia por activo = valor actual − total aportado; % = ganancia / total aportado. Un activo sin valuación no cuenta como pérdida: queda fuera del cálculo hasta valuarse. Los activos marcados como "no rinden" (yields = false) también quedan fuera del rendimiento total del portafolio, aunque siguen sumando a su valor.
+- ✅ Saldo de una deuda = monto original − todo lo pagado, con piso en 0. Total adeudado = suma de los saldos de las deudas activas; las saldadas no suman. Avance de pago = pagado / original, tope en 1.
 - 🔜 Tasa de ahorro = (ingresos del mes − gastos del mes) / ingresos del mes.
 - 🔜 % invertido = aportes a inversión del mes / ingresos del mes. Los aportes en USD se convierten a ARS al tipo de cambio de la fecha de cada aporte (no al actual), para no distorsionar meses pasados por la devaluación.
 - Los pagos de deuda quedan fuera de estos indicadores (se reportan aparte).

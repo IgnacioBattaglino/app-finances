@@ -122,9 +122,13 @@ Los activos con coingecko_id no requieren valuación manual: su valor = SUM(quan
 | date | date NOT NULL | |
 | amount_usd | numeric(14,2) NOT NULL | CHECK > 0 |
 | mep_rate | numeric(10,2) | nullable; tipo de cambio congelado del día del pago. Los pagos sin mep_rate quedan fuera del cálculo del líquido |
+| affects_liquid | boolean NOT NULL default true | (migración 0023) espejo de contributions.affects_liquid: true = pagaste con plata del día a día, resta del líquido a su mep_rate; false = pagaste con dólares que ya tenías, baja la deuda pero no toca el líquido. La pregunta que lo completa en la app es "¿De dónde sale?", igual que en Aportar |
 | created_at | timestamptz default now() | |
+| | | índice (debt_id) (migración 0023): la pantalla de Deudas trae los pagos por deuda |
 
-Saldo de una deuda = original_amount_usd − SUM(payments). Calculado, nunca almacenado.
+Saldo de una deuda = original_amount_usd − SUM(payments), con piso en 0 (pagar de más salda la deuda, no genera saldo a favor). Calculado, nunca almacenado — igual que el estado "saldada", que es `saldo <= 0` y no una columna: editar o borrar un pago devuelve la deuda a la lista de activas sola.
+
+Borrar una deuda con pagos no está permitido: la FK de debt_payments NO lleva ON DELETE CASCADE a propósito (nada se borra si tiene historia). `deleteDebt` (`lib/debts.js`) cuenta los pagos antes y corta con un mensaje en castellano, en vez de dejar que la base tire un error de constraint.
 
 ### liquid_reconciliations
 Historial de reconciliaciones del dinero líquido: el usuario declara su líquido real (efectivo + cuentas, en ARS); la app calcula la diferencia contra lo esperado y la registra como una transaction de ajuste (categoría "Ajuste de saldo") enlazada acá.
@@ -186,7 +190,7 @@ RLS de ambas: SELECT para authenticated, **ninguna policy de escritura** — el 
 
 - Objetivo FIRE (USD) = desired_monthly_income_usd × 12 / safe_withdrawal_rate.
 - Valor del portafolio = SUM(valor actual de cada activo activo). Valor actual: última valuación (activos manuales), SUM(quantity) × precio vivo (cripto con coingecko_id), o lo aportado (efectivo). No existe un "patrimonio total" que sume líquido + portafolio: son magnitudes separadas (ver FUNCTIONAL.md).
-- Dinero líquido (ARS) = SUM(ingresos) − SUM(gastos) − SUM(aportes con affects_liquid × su mep_rate) − SUM(pagos de deuda con mep_rate × su mep_rate). Acumulado general, no mensual; los ajustes de reconciliación son transactions comunes, así que ya están incluidos en la suma.
+- Dinero líquido (ARS) = SUM(ingresos) − SUM(gastos) − SUM(aportes con affects_liquid × su mep_rate) − SUM(pagos de deuda con affects_liquid y mep_rate × su mep_rate). Acumulado general, no mensual; los ajustes de reconciliación son transactions comunes, así que ya están incluidos en la suma.
 - Ganancia por activo = valor actual − SUM(contributions del activo). % = ganancia / aportado.
 - Tasa de ahorro (mes) = (ingresos − gastos) / ingresos [todo ARS, de transactions].
 - % invertido (mes) = SUM(amount_usd × mep_rate de cada aporte del mes) / ingresos ARS del mes.
