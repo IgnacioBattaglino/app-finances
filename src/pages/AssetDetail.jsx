@@ -13,7 +13,7 @@ import {
   classifyOperations,
   mergeAssetHistory,
 } from '../lib/portfolio.js'
-import { formatUSD, formatQuantity } from '../lib/format.js'
+import { formatUSD, formatQuantity, formatDay, formatDayYear } from '../lib/format.js'
 import SourceTag from '../components/SourceTag.jsx'
 import Gain from '../components/Gain.jsx'
 import EditIcon from '../components/EditIcon.jsx'
@@ -275,12 +275,25 @@ function AssetDetail() {
                 equivale a {formatQuantity(heldQty)} {asset.name}
               </p>
             )}
-            <Gain
-              value={gain}
-              base={valuation?.contributed ?? 0}
-              neutral={neutral}
-              className="mt-1 block text-lg"
-            />
+            {/* Con operaciones posteriores a la última valuación, el
+                rendimiento compara un valor viejo contra un aportado de hoy:
+                el número no es impreciso, es falso. No se muestra —ni tachado
+                ni con asterisco— y en su lugar va el aviso con la salida
+                ("Actualizar valuación", más abajo en esta misma pantalla). */}
+            {valuation?.outdated ? (
+              <p className="mt-1 text-sm text-clay">
+                Rendimiento no disponible: cargaste operaciones después de la última valuación
+                {valuation.date ? ` (${formatDayYear(valuation.date)})` : ''}. Actualizala para
+                volver a verlo.
+              </p>
+            ) : (
+              <Gain
+                value={gain}
+                base={valuation?.contributed ?? 0}
+                neutral={neutral}
+                className="mt-1 block text-lg"
+              />
+            )}
           </div>
 
           <div
@@ -298,7 +311,16 @@ function AssetDetail() {
             )}
             {!onlyContributed && (
               <MetricCard
-                label={isLive ? 'Precio actual' : 'Valuación actual'}
+                // El valor de una valuación manual es viejo pero verdadero A SU
+                // FECHA, así que se sigue mostrando — con la fecha al lado, que
+                // es lo que lo vuelve interpretable. "actual" a secas mentía.
+                label={
+                  isLive
+                    ? 'Precio actual'
+                    : valuation?.date
+                      ? `Valuación · ${formatDay(valuation.date)}`
+                      : 'Valuación actual'
+                }
                 value={currentMetricValue}
                 active={expandedMetric === 'current'}
                 onToggle={() => setExpandedMetric((e) => (e === 'current' ? null : 'current'))}

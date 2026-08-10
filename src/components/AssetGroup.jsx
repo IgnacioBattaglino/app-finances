@@ -59,7 +59,18 @@ function AssetRow({ asset, valuation, contributions }) {
       </div>
       <p className="mt-1 truncate text-xs text-ink-soft">{secondLine(asset, valuation, own)}</p>
       <div className="mt-1">
-        <Gain value={gain} base={valuation.contributed} neutral={neutral} className="text-xs" />
+        {/* Con la valuación vieja el porcentaje no es impreciso, es falso
+            (compara un valor de junio contra un aportado de agosto): no se
+            muestra, ni tachado ni con asterisco. La fila entera ya linkea al
+            detalle, que es donde vive "Actualizar valuación" — por eso acá va
+            solo el aviso y no un botón (sería un botón adentro de un link). */}
+        {valuation.outdated ? (
+          <span className="text-xs text-clay">
+            Valuación desactualizada — hay operaciones posteriores
+          </span>
+        ) : (
+          <Gain value={gain} base={valuation.contributed} neutral={neutral} className="text-xs" />
+        )}
       </div>
     </Link>
   )
@@ -95,7 +106,13 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
           <span className="text-ink-soft">
             aportado <span className="font-money">{formatUSD(contributed)}</span>
           </span>
-          <Gain value={gain} base={valuedContributed} className="text-xs" />
+          {/* Mismo guard que el resumen general de Portafolio: sin ningún
+              activo comparable (todos sin valuar o desactualizados) el
+              agregado da 0 y un "+US$ 0" se leería como "no ganaste nada",
+              que es distinto de "no hay con qué calcularlo". */}
+          {valuedContributed > 0 && (
+            <Gain value={gain} base={valuedContributed} className="text-xs" />
+          )}
         </div>
         {outOfTotal && (
           <p className="mt-1 text-xs text-ink-soft">

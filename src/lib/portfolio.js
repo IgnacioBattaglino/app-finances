@@ -109,9 +109,25 @@ export function valueAsset(asset, contributions, latestValuation, cryptoPrices) 
       value: Number(latestValuation.value_usd),
       source: 'manual',
       date: latestValuation.date,
+      outdated: hasOperationsAfter(own, latestValuation.date),
     }
   }
   return { contributed, value: null, source: 'none' }
+}
+
+// ¿Hay operaciones posteriores a la última valuación? Cualquier fila cuenta
+// —aporte, retiro o pata de transferencia—: todas mueven el aportado, que es
+// justamente la base contra la que se compara el valor.
+//
+// Por qué importa: en un activo de valuación manual el valor es un TOTAL
+// cargado a mano en una fecha. Si después entra o sale plata, ese total queda
+// viejo y compararlo contra el aportado de hoy no da un rendimiento viejo: da
+// uno INCORRECTO. Ej. real: un activo valuado en 262,5 en junio que en agosto
+// recibe una transferencia de 319,49 pasa a mostrar −53,9%, una pérdida que
+// nunca ocurrió. Las fechas son 'YYYY-MM-DD', así que comparan bien como texto.
+export function hasOperationsAfter(contributions, valuationDate) {
+  if (!valuationDate) return false
+  return contributions.some((c) => c.date > valuationDate)
 }
 
 // Un activo necesita carga manual de valor cuando su modo es 'manual', o
@@ -153,6 +169,12 @@ export function computePortfolioGain(assets, valuations) {
     if (asset.yields === false) continue
     const v = valuations[asset.id]
     if (v.value === null) continue
+    // Una valuación desactualizada queda afuera por el mismo motivo que una
+    // ausente: su rendimiento no es un dato viejo, es un dato falso, y sumarlo
+    // acá lo escondería dentro del total del grupo y del portafolio en vez de
+    // mostrarlo. El VALOR sí sigue contando (ver computePortfolioValue): es
+    // viejo pero verdadero a su fecha.
+    if (v.outdated) continue
     contributed += v.contributed
     value += v.value
   }

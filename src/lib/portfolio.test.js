@@ -6,6 +6,8 @@ import {
   averagePurchasePrice,
   currentUnitPrice,
   valueAsset,
+  hasOperationsAfter,
+  computePortfolioGain,
   classifyOperations,
   mergeAssetHistory,
   totalableAssets,
@@ -176,6 +178,84 @@ describe('currentUnitPrice', () => {
 
   it('un precio de mercado de 0 sigue siendo un precio, no un dato faltante', () => {
     expect(currentUnitPrice(live, [], { value: 0, unitPrice: 0 })).toBe(0)
+  })
+})
+
+describe('hasOperationsAfter', () => {
+  it('sin fecha de valuación → false (no hay contra qué comparar)', () => {
+    expect(hasOperationsAfter([{ date: '2026-08-01' }], null)).toBe(false)
+  })
+
+  it('operaciones anteriores o del mismo día no desactualizan', () => {
+    const ops = [{ date: '2026-05-01' }, { date: '2026-06-30' }]
+    expect(hasOperationsAfter(ops, '2026-06-30')).toBe(false)
+  })
+
+  it('una sola operación posterior alcanza', () => {
+    const ops = [{ date: '2026-05-01' }, { date: '2026-07-18' }]
+    expect(hasOperationsAfter(ops, '2026-06-30')).toBe(true)
+  })
+
+  it('un retiro posterior también desactualiza: mueve el aportado igual que un aporte', () => {
+    expect(hasOperationsAfter([{ date: '2026-07-18', direction: 'out' }], '2026-06-30')).toBe(true)
+  })
+
+  it('sin operaciones → false', () => {
+    expect(hasOperationsAfter([], '2026-06-30')).toBe(false)
+  })
+})
+
+describe('valueAsset — valuación manual desactualizada', () => {
+  const manual = { id: 'a1', valuation_mode: 'manual' }
+  const valuation = { value_usd: 262.5, date: '2026-06-30' }
+
+  it('sin operaciones posteriores, la valuación vale', () => {
+    const own = [{ asset_id: 'a1', direction: 'in', amount_usd: 250, date: '2026-06-18' }]
+    expect(valueAsset(manual, own, valuation, {}).outdated).toBe(false)
+  })
+
+  it('con una operación posterior queda marcada como desactualizada', () => {
+    // El caso real: valuada en junio, recibe una transferencia en agosto.
+    const own = [
+      { asset_id: 'a1', direction: 'in', amount_usd: 250, date: '2026-06-18' },
+      { asset_id: 'a1', direction: 'in', amount_usd: 319.49, date: '2026-08-10' },
+    ]
+    const v = valueAsset(manual, own, valuation, {})
+    expect(v.outdated).toBe(true)
+    // El valor se sigue reportando: es viejo pero verdadero a su fecha.
+    expect(v.value).toBe(262.5)
+    expect(v.date).toBe('2026-06-30')
+  })
+
+  it('solo mira las operaciones del propio activo', () => {
+    const own = [
+      { asset_id: 'a1', direction: 'in', amount_usd: 250, date: '2026-06-18' },
+      { asset_id: 'OTRO', direction: 'in', amount_usd: 999, date: '2026-08-10' },
+    ]
+    expect(valueAsset(manual, own, valuation, {}).outdated).toBe(false)
+  })
+})
+
+describe('computePortfolioGain — activos con valuación desactualizada', () => {
+  const assets = [
+    { id: 'ok', yields: true },
+    { id: 'viejo', yields: true },
+  ]
+
+  it('excluye del agregado al activo desactualizado, para no esconder el número falso en el total', () => {
+    const valuations = {
+      ok: { contributed: 100, value: 120 },
+      viejo: { contributed: 569.46, value: 262.5, outdated: true },
+    }
+    const { contributed, value, gain } = computePortfolioGain(assets, valuations)
+    expect(contributed).toBe(100)
+    expect(value).toBe(120)
+    expect(gain).toBe(20) // sin los −306,96 de mentira
+  })
+
+  it('si no queda ningún activo comparable, el aportado valuado da 0 y la UI no dibuja porcentaje', () => {
+    const valuations = { ok: { contributed: 0, value: 0, outdated: true }, viejo: { contributed: 569.46, value: 262.5, outdated: true } }
+    expect(computePortfolioGain(assets, valuations).contributed).toBe(0)
   })
 })
 

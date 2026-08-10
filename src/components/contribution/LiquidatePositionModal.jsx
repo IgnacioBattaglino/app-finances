@@ -39,7 +39,15 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
     if (!open || !asset) return
     // Prellenado en el idioma numérico de la app (coma decimal), igual que
     // cualquier otro valor que escribe la app dentro de un input.
-    setAmount(valuation?.value != null ? toDecimalInput(valuation.value) : '')
+    //
+    // Con la valuación desactualizada NO se precarga nada: un número viejo ya
+    // escrito en el campo se confirma sin mirarlo, y ahí se guarda una venta
+    // por un monto inventado — que además cristaliza una ganancia realizada
+    // falsa, y esa no se recalcula nunca más. Campo vacío obliga a poner el
+    // precio real de venta, que es el único que manda acá.
+    setAmount(
+      valuation?.value != null && !valuation.outdated ? toDecimalInput(valuation.value) : '',
+    )
     setQuantity(
       asset.valuation_mode === 'live' ? toDecimalInput(heldQuantity(asset, contributions)) : '',
     )
@@ -128,21 +136,28 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
               <p className="mt-1 text-xs text-ink-soft">
                 {valuation?.source === 'none'
                   ? 'Sin valuación conocida — indicá el monto.'
-                  : valuation?.source === 'stale'
-                    ? 'Último valor conocido — ajustalo si vendiste por otro monto.'
-                    : `Se registra un retiro por este monto (valor actual: ${formatUSD(valuation?.value ?? 0)}).`}
+                  : valuation?.outdated
+                    ? 'La última valuación quedó vieja (hay operaciones posteriores), así que no la precargamos: poné por cuánto vendiste.'
+                    : valuation?.source === 'stale'
+                      ? 'Último valor conocido — ajustalo si vendiste por otro monto.'
+                      : `Se registra un retiro por este monto (valor actual: ${formatUSD(valuation?.value ?? 0)}).`}
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Ganancia realizada</span>
-              <span
-                className={`font-money text-[15px] ${realizedGain < 0 ? 'text-clay' : 'text-pine'}`}
-              >
-                {realizedGain >= 0 ? '+' : '−'}
-                {formatUSD(Math.abs(realizedGain))}
-              </span>
-            </div>
+            {/* Sin monto todavía no hay nada que cristalizar: un "+US$ 0" fijo
+                se lee como "no vas a ganar nada", que es una afirmación, no un
+                campo vacío. */}
+            {amountValue > 0 && (
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="text-[15px]">Ganancia realizada</span>
+                <span
+                  className={`font-money text-[15px] ${realizedGain < 0 ? 'text-clay' : 'text-pine'}`}
+                >
+                  {realizedGain >= 0 ? '+' : '−'}
+                  {formatUSD(Math.abs(realizedGain))}
+                </span>
+              </div>
+            )}
 
             {asset.valuation_mode === 'live' && (
               <label className="flex items-center justify-between gap-3 px-4 py-3">
@@ -158,8 +173,14 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
               </label>
             )}
 
+            {/* Mismo caso que en Transferir: el monto SIEMPRE sale del campo de
+                arriba y acá la tasa es solo un dato de registro. Con `|| null`
+                y el campo en 0, ExchangeRateField cae a su rail completo y
+                dibuja un SEGUNDO "Monto". Antes no se veía nunca porque el
+                monto venía precargado con la valuación; al dejar de precargarlo
+                cuando está desactualizada, el campo fantasma quedó a la vista. */}
             <ExchangeRateField
-              fixedAmountUsd={amountValue || null}
+              fixedAmountUsd={amountValue}
               pesosQuestion="¿Cuántos pesos moviste?"
               onChange={({ rate }) => setMepRate(rate)}
             />
