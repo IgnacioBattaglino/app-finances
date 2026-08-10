@@ -201,7 +201,10 @@ function ContributionFormModal({
 
   return (
     <FormSheet
-      title={copy.title(asset.name)}
+      // Editando, "Aportar a X" describe mal lo que se está haciendo (no se
+      // está aportando de nuevo) y además contradice al botón "Eliminar
+      // aporte" de abajo. Mismo patrón que el resto de la app: "Nuevo/Editar".
+      title={editing ? `Editar ${copy.entity}` : copy.title(asset.name)}
       onClose={onClose}
       action={
         <button

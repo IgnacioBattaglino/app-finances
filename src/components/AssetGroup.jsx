@@ -45,7 +45,10 @@ function AssetRow({ asset, valuation, contributions }) {
           <span className="truncate text-[15px]">
             {asset.name}
             {asset.ticker && (
-              <span className="font-money ml-1.5 text-xs text-ink-soft">{asset.ticker}</span>
+              // El espacio va en el texto, no solo en el margen: sin él el
+              // nombre accesible del link se lee "AL30AL30" (el ml-1.5 separa
+              // en pantalla, no en el árbol de accesibilidad).
+              <span className="font-money ml-1.5 text-xs text-ink-soft">{` ${asset.ticker}`}</span>
             )}
           </span>
           <SourceTag valuation={valuation} />

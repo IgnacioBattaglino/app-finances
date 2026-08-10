@@ -154,9 +154,13 @@ function AssetTypeRow({ assetType, onRename, onToggleTotal, onArchive, onDelete 
       <div className="mt-2 text-xs">
         {action === 'blocked' && (
           <p className="text-ink-soft">
-            Tiene {counts.active} activo{counts.active === 1 ? '' : 's'} activo
-            {counts.active === 1 ? '' : 's'}. Moveló{counts.active === 1 ? '' : 's'} a otro grupo o
-            archivalo{counts.active === 1 ? '' : 's'} para poder gestionar este grupo.
+            {/* "activo activo" (el sustantivo y el adjetivo juntos) se leía
+                como un error de tipeo; "sin archivar" dice lo mismo y además
+                nombra la salida. Y el imperativo voseo es "movelo", sin tilde
+                — "moveló" no existe. */}
+            Tiene {counts.active} activo{counts.active === 1 ? '' : 's'} sin archivar. Movelo
+            {counts.active === 1 ? '' : 's'} a otro grupo o archivalo
+            {counts.active === 1 ? '' : 's'} para poder gestionar este grupo.
           </p>
         )}
         {action === 'archive' &&

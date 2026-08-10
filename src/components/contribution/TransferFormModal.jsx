@@ -303,8 +303,15 @@ function TransferFormModal({
               </label>
             )}
 
+            {/* El monto de una transferencia SIEMPRE sale del campo de arriba,
+                nunca de este campo: acá la tasa es solo un dato de registro.
+                Por eso se pasa finalAmountUsd tal cual (0 incluido) y no
+                `|| null` — con null, ExchangeRateField cae al rail completo y
+                dibuja un SEGUNDO campo "Monto", pegado al de arriba y con el
+                mismo nombre, cuyo valor además se descarta (este onChange solo
+                lee `rate`). */}
             <ExchangeRateField
-              fixedAmountUsd={finalAmountUsd || null}
+              fixedAmountUsd={finalAmountUsd}
               pesosQuestion="¿Cuántos pesos moviste?"
               onChange={({ rate }) => setMepRate(rate)}
             />
