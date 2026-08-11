@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
 import AssetGroup from '../components/AssetGroup.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
@@ -7,6 +7,7 @@ import Gain from '../components/Gain.jsx'
 import FormError from '../components/form/FormError.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
 import { needsManualValuation } from '../lib/portfolio.js'
+import { getArchivedAssets, restoreAsset } from '../lib/assets.js'
 import { formatUSD } from '../lib/format.js'
 
 function Portfolio() {
@@ -32,8 +33,41 @@ function Portfolio() {
   const [assetModal, setAssetModal] = useState({ open: false, editing: null })
   const [valuationModal, setValuationModal] = useState({ open: false, assets: [] })
 
+  const [archivedAssets, setArchivedAssets] = useState([])
+  const [archivedError, setArchivedError] = useState(null)
+  const [showArchived, setShowArchived] = useState(false)
+
+  async function loadArchived() {
+    setArchivedError(null)
+    try {
+      setArchivedAssets(await getArchivedAssets())
+    } catch (e) {
+      setArchivedError({ message: 'No se pudieron cargar los activos archivados.', detail: e.message })
+    }
+  }
+
+  useEffect(() => {
+    loadArchived()
+  }, [])
+
+  async function handleRestore(id) {
+    setArchivedError(null)
+    try {
+      await restoreAsset(id)
+      setArchivedAssets((prev) => prev.filter((a) => a.id !== id))
+      load()
+    } catch (e) {
+      setArchivedError({ message: 'No se pudo restaurar el activo.', detail: e.message })
+    }
+  }
+
   const unvalued = assets.filter((a) => valuations[a.id].source === 'none')
-  const manualAssets = assets.filter(needsManualValuation)
+  // El botón/modal "Actualizar valuaciones" tiene que cubrir TODO lo que
+  // menciona el aviso de acá abajo: además de los activos estructuralmente
+  // manuales, cualquier activo sin valor hoy (ej. uno de precio en vivo con
+  // la API caída y sin valuación previa) — si no, el aviso señala un activo
+  // que el modal no ofrece.
+  const manualAssets = assets.filter((a) => needsManualValuation(a) || valuations[a.id].source === 'none')
 
   const groups = assetTypes
     .map((assetType) => {
@@ -85,19 +119,23 @@ function Portfolio() {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Resumen */}
+          {/* Resumen: mismo nombre que la tarjeta de Inicio, "Dinero
+              invertido" — es el mismo número (usePortfolio). */}
           <div className="rounded-2xl border border-line bg-card px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-              Valor del portafolio
+              Dinero invertido
             </p>
             <p className="font-money mt-1 text-3xl tracking-tight">
               {formatUSD(totalValue)}
             </p>
             {valuedContributed > 0 && (
-              <Gain value={totalGain} base={valuedContributed} className="mt-1 block text-lg" />
+              <p className="mt-1">
+                <span className="mr-1.5 text-[11px] text-ink-soft">Rendimiento</span>
+                <Gain value={totalGain} base={valuedContributed} className="text-lg" />
+              </p>
             )}
             <p className="mt-2 text-xs text-ink-soft">
-              aportado <span className="font-money">{formatUSD(totalContributed)}</span>
+              Aportado <span className="font-money">{formatUSD(totalContributed)}</span>
             </p>
           </div>
 
@@ -150,6 +188,56 @@ function Portfolio() {
         </div>
       )}
 
+      {/* Archivados: mismo patrón visual que "Archivadas (N)" de Ajustes.
+          Se muestra siempre que haya alguno, independiente del estado de los
+          activos activos (incluido el portafolio vacío). */}
+      {archivedError && (
+        <div className="mt-4 space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
+          <FormError message={archivedError.message} detail={archivedError.detail} />
+          <button
+            type="button"
+            onClick={loadArchived}
+            className="text-sm font-semibold text-clay underline"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+      {archivedAssets.length > 0 && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => setShowArchived((prev) => !prev)}
+            className="px-4 text-sm text-ink-soft"
+          >
+            {showArchived ? '▾' : '▸'} Archivados ({archivedAssets.length})
+          </button>
+          {showArchived && (
+            <div className="mt-1.5 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+              {archivedAssets.map((asset) => (
+                <div key={asset.id} className="flex items-center justify-between px-4 py-3">
+                  <span className="text-[15px] text-ink-soft">
+                    {asset.name}
+                    {asset.asset_type?.name && (
+                      <span className="ml-2 text-[10px] uppercase tracking-wide">
+                        {asset.asset_type.name}
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRestore(asset.id)}
+                    className="text-sm text-pine"
+                  >
+                    Restaurar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <AssetFormModal
         open={assetModal.open}
         initial={assetModal.editing}
@@ -158,7 +246,10 @@ function Portfolio() {
         onAssetTypesChanged={refreshAssetTypes}
         onClose={closeModals}
         onSaved={refresh}
-        onArchived={refresh}
+        onArchived={() => {
+          refresh()
+          loadArchived()
+        }}
       />
       <ValuationModal
         open={valuationModal.open}

@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import LiquidModal from '../components/LiquidModal.jsx'
+import FormSheet from '../components/FormSheet.jsx'
 import FormError from '../components/form/FormError.jsx'
+import InfoButton from '../components/InfoButton.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
 import { computeCurrentLiquid } from '../lib/liquid.js'
 import { getCategories } from '../lib/categories.js'
@@ -27,18 +29,30 @@ function Chevron() {
   )
 }
 
-// Las dos tarjetas comparten componente a propósito: "Disponible" e
-// "Invertido" tienen que verse con exactamente el mismo peso — son plata de
-// naturaleza distinta y ninguna manda sobre la otra. Por eso tampoco se suman
-// en ningún lado: no existe un "patrimonio total" (ver FUNCTIONAL.md).
+// Las dos tarjetas comparten componente a propósito: "Dinero disponible" y
+// "Dinero invertido" tienen que verse con exactamente el mismo peso — son
+// plata de naturaleza distinta y ninguna manda sobre la otra. Por eso
+// tampoco se suman en ningún lado: no existe un "patrimonio total" (ver
+// FUNCTIONAL.md).
 //
 // En error la tarjeta deja de ser un botón y pasa a ser un div con su propio
 // "Reintentar": un botón adentro de otro botón no es HTML válido, y tocar la
 // tarjeta abriría algo que todavía no tiene datos.
-function SummaryCard({ label, amount, hint, note, loading, error, onRetry, onClick, className = '' }) {
+//
+// Con `info`, el nombre y el botón (i) viven en una fila propia, fuera del
+// botón que abre la tarjeta (el modal / la navegación): dos botones
+// anidados tampoco es HTML válido.
+function SummaryCard({ label, amount, hint, note, info, loading, error, onRetry, onClick, className = '' }) {
+  const [infoOpen, setInfoOpen] = useState(false)
+
   const heading = (
-    <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-      {label}
+    <span className="flex items-center gap-1.5">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+        {label}
+      </span>
+      {info && (
+        <InfoButton label={label} active={infoOpen} onToggle={() => setInfoOpen((v) => !v)} />
+      )}
     </span>
   )
 
@@ -59,21 +73,28 @@ function SummaryCard({ label, amount, hint, note, loading, error, onRetry, onCli
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-4 text-left transition active:bg-mist/60 ${className}`}
-    >
-      <span className="min-w-0">
-        {heading}
-        <span className="font-money mt-1 block text-2xl tracking-tight">
-          {loading ? <span className="text-ink-soft">Calculando…</span> : amount}
+    <div className={`rounded-2xl border border-line bg-card px-4 py-4 ${className}`}>
+      {heading}
+      <button
+        type="button"
+        onClick={onClick}
+        className="mt-1 flex w-full items-center justify-between gap-3 text-left transition active:opacity-70"
+      >
+        <span className="min-w-0">
+          <span className="font-money block text-2xl tracking-tight">
+            {loading ? <span className="text-ink-soft">Calculando…</span> : amount}
+          </span>
+          {note && <span className="mt-1 block text-xs text-ink-soft">{note}</span>}
+          {hint && <span className="mt-1.5 block text-xs text-pine underline">{hint}</span>}
         </span>
-        {note && <span className="mt-1 block text-xs text-ink-soft">{note}</span>}
-        {hint && <span className="mt-1.5 block text-xs text-pine underline">{hint}</span>}
-      </span>
-      <Chevron />
-    </button>
+        <Chevron />
+      </button>
+      {infoOpen && info && (
+        <p className="mt-2 rounded-xl bg-mist/50 px-3 py-2 text-left text-xs text-ink-soft">
+          {info}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -100,6 +121,7 @@ function Dashboard() {
   const [expenseModalOpen, setExpenseModalOpen] = useState(false)
   const [liquidModalOpen, setLiquidModalOpen] = useState(false)
   const [categories, setCategories] = useState(null) // null = todavía no se pidieron
+  const [categoriesError, setCategoriesError] = useState(null)
 
   const loadLiquid = useCallback(async () => {
     setLiquidLoading(true)
@@ -130,12 +152,17 @@ function Dashboard() {
     loadDebts()
   }, [loadLiquid, loadDebts])
 
+  function loadCategories() {
+    setCategoriesError(null)
+    getCategories()
+      .then(setCategories)
+      .catch((e) =>
+        setCategoriesError({ message: 'No se pudieron cargar las categorías.', detail: e.message }),
+      )
+  }
+
   function openExpenseModal() {
-    if (categories === null) {
-      getCategories()
-        .then(setCategories)
-        .catch(() => setCategories([]))
-    }
+    if (categories === null && !categoriesError) loadCategories()
     setExpenseModalOpen(true)
   }
 
@@ -154,17 +181,19 @@ function Dashboard() {
           ahí para arriba, lado a lado. En los dos casos, mismo tamaño. */}
       <div className="grid gap-3 sm:grid-cols-2">
         <SummaryCard
-          label="Disponible"
+          label="Dinero disponible"
           amount={liquid ? formatARS(liquid.current) : null}
           hint={liquid?.isFirst ? 'declarar mi saldo' : null}
+          info="La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones."
           loading={liquidLoading}
           error={liquidError}
           onRetry={loadLiquid}
           onClick={() => setLiquidModalOpen(true)}
         />
         <SummaryCard
-          label="Invertido"
+          label="Dinero invertido"
           amount={formatUSD(totalValue)}
+          info="Lo que valen hoy tus inversiones, según el último precio o la última valuación que cargaste."
           loading={portfolioLoading}
           error={portfolioError}
           onRetry={reloadPortfolio}
@@ -191,22 +220,47 @@ function Dashboard() {
       </div>
 
       {/* La acción más frecuente: cargar un gasto en segundos. Vive solo acá,
-          nunca en el layout compartido. */}
+          nunca en el layout compartido. Mismo "+" sin texto que el FAB de
+          Movimientos — mismo formulario, arranca en Gasto en los dos. */}
       <button
         type="button"
         onClick={openExpenseModal}
-        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 rounded-full bg-pine px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg transition active:bg-pine-deep md:right-8 md:bottom-8"
+        aria-label="Nuevo gasto"
+        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-pine text-3xl font-light text-white shadow-lg transition active:bg-pine-deep md:right-8 md:bottom-8"
       >
-        + Gasto
+        +
       </button>
 
-      <TransactionFormModal
-        open={expenseModalOpen}
-        defaultKind="expense"
-        categories={categories ?? []}
-        onClose={() => setExpenseModalOpen(false)}
-        onSaved={afterLiquidChanged}
-      />
+      {/* Sin categorías todavía (cargando o falló) no se abre el formulario
+          con la lista vacía: se muestra el error con Reintentar, o "Cargando…"
+          mientras se resuelve — el mismo modal se convierte en el real en
+          cuanto categories deja de ser null. */}
+      {expenseModalOpen && categories === null ? (
+        <FormSheet title="Nuevo gasto" onClose={() => setExpenseModalOpen(false)}>
+          {categoriesError ? (
+            <div className="space-y-2">
+              <FormError message={categoriesError.message} detail={categoriesError.detail} />
+              <button
+                type="button"
+                onClick={loadCategories}
+                className="text-sm font-semibold text-clay underline"
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-soft">Cargando…</p>
+          )}
+        </FormSheet>
+      ) : (
+        <TransactionFormModal
+          open={expenseModalOpen}
+          defaultKind="expense"
+          categories={categories ?? []}
+          onClose={() => setExpenseModalOpen(false)}
+          onSaved={afterLiquidChanged}
+        />
+      )}
       <LiquidModal
         open={liquidModalOpen}
         onClose={() => setLiquidModalOpen(false)}

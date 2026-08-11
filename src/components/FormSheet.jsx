@@ -28,7 +28,12 @@ import { useState, useEffect } from 'react'
 // El botón de acción (submit) se pasa como `action` y vive en el header, con
 // `form="<id>"` apuntando al <form> del cuerpo — por eso puede estar fuera del
 // <form> y seguir enviándolo.
-function FormSheet({ title, action, onClose, children, startExpanded = false }) {
+//
+// `subtitle` (opcional): una segunda línea chica bajo el título, para cuando
+// el título es un nombre genérico de la operación (ej. "Actualizar
+// valuación") y hace falta aclarar sobre qué activo puntual es — sin
+// reemplazar al título, que nombra la acción.
+function FormSheet({ title, subtitle, action, onClose, children, startExpanded = false }) {
   const [expanded, setExpanded] = useState(startExpanded)
 
   useEffect(() => {
@@ -74,7 +79,10 @@ function FormSheet({ title, action, onClose, children, startExpanded = false }) 
           <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">
             Cancelar
           </button>
-          <h2 className="truncate text-base font-semibold">{title}</h2>
+          <div className="min-w-0 text-center">
+            <h2 className="truncate text-base font-semibold">{title}</h2>
+            {subtitle && <p className="truncate text-xs text-ink-soft">{subtitle}</p>}
+          </div>
           {action ?? <span aria-hidden className="min-w-[64px]" />}
         </header>
         <div

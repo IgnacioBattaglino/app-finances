@@ -23,7 +23,7 @@ function LiquidModal({ open, onClose, onSaved }) {
         setIsFirst(result.isFirst)
       })
       .catch((e) =>
-        setError({ message: 'No se pudo calcular el líquido actual.', detail: e.message }),
+        setError({ message: 'No se pudo calcular el disponible.', detail: e.message }),
       )
   }, [open])
 
@@ -50,7 +50,7 @@ function LiquidModal({ open, onClose, onSaved }) {
 
   return (
     <FormSheet
-      title="Actualizar líquido"
+      title="Dinero disponible"
       onClose={onClose}
       action={
         <button
@@ -66,7 +66,7 @@ function LiquidModal({ open, onClose, onSaved }) {
       <form id="liquid-form" onSubmit={handleSubmit} className="space-y-3">
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Líquido actual</span>
+              <span className="text-[15px]">Dinero disponible</span>
               <span className="font-money text-[15px] text-ink-soft">
                 {current === null ? 'Calculando…' : formatARS(current)}
               </span>

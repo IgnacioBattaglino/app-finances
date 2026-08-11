@@ -13,13 +13,13 @@ import ExchangeRateField from './contribution/ExchangeRateField.jsx'
 const ORIGIN_OPTIONS = [
   {
     value: 'liquid',
-    label: 'De mi líquido',
-    help: 'Pagaste con tu plata del día a día. Baja tu líquido.',
+    label: 'De mi disponible',
+    help: 'Pagaste con tu plata del día a día. Baja tu dinero disponible.',
   },
   {
     value: 'outside',
     label: 'De afuera',
-    help: 'Dólares que ya tenías. Baja la deuda, no toca tu líquido.',
+    help: 'Dólares que ya tenías. Baja la deuda, no toca tu dinero disponible.',
   },
 ]
 

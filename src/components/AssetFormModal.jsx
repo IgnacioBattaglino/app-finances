@@ -307,8 +307,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                   </div>
                 </div>
                 <p className="text-xs text-ink-soft">
-                  Por ahora, restaurarlo solo se puede hacer desde la base de datos; la
-                  restauración desde la app queda pendiente.
+                  Podés restaurarlo después desde «Archivados», al final de Portafolio.
                 </p>
               </div>
             ) : (

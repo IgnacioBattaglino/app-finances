@@ -29,7 +29,7 @@ vi.mock('./supabase.js', () => ({
   },
 }))
 
-import { splitPage, getContributions } from './contributions.js'
+import { splitPage, getContributions, getTransferPair, deleteTransfer } from './contributions.js'
 
 describe('splitPage', () => {
   it('con exactamente pageSize filas, no hay más', () => {
@@ -88,5 +88,40 @@ describe('getContributions (paginación)', () => {
   it('propaga el error de la consulta', async () => {
     h.state.result = { data: null, error: new Error('boom') }
     await expect(getContributions({ assetId: 'a1' })).rejects.toThrow('boom')
+  })
+})
+
+describe('getTransferPair', () => {
+  beforeEach(() => {
+    h.state.calls = []
+    h.state.result = { data: [], error: null }
+  })
+
+  it('filtra por transfer_id', async () => {
+    await getTransferPair('t1')
+    expect(h.state.calls).toContainEqual(['eq', ['transfer_id', 't1']])
+  })
+
+  it('propaga el error de la consulta', async () => {
+    h.state.result = { data: null, error: new Error('boom') }
+    await expect(getTransferPair('t1')).rejects.toThrow('boom')
+  })
+})
+
+describe('deleteTransfer', () => {
+  beforeEach(() => {
+    h.state.calls = []
+    h.state.result = { data: null, error: null }
+  })
+
+  it('borra por transfer_id, en una sola sentencia (las dos patas juntas)', async () => {
+    await deleteTransfer('t1')
+    expect(h.state.calls).toContainEqual(['delete', []])
+    expect(h.state.calls).toContainEqual(['eq', ['transfer_id', 't1']])
+  })
+
+  it('propaga el error de la consulta', async () => {
+    h.state.result = { data: null, error: new Error('boom') }
+    await expect(deleteTransfer('t1')).rejects.toThrow('boom')
   })
 })

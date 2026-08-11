@@ -12,11 +12,11 @@ import MissingHint from '../form/MissingHint.jsx'
 import ExchangeRateField from './ExchangeRateField.jsx'
 
 const DESTINATION_OPTIONS = [
-  { value: 'liquid', label: 'A mi líquido', help: 'Entra a tu efectivo disponible y sube tu líquido.' },
+  { value: 'liquid', label: 'A mi disponible', help: 'Entra a tu dinero disponible y lo sube.' },
   {
     value: 'outside',
     label: 'Afuera',
-    help: 'Plata que no estaba en la app (un sueldo, un regalo). No toca tu líquido.',
+    help: 'Plata que no estaba en la app (un sueldo, un regalo). No toca tu dinero disponible.',
   },
 ]
 

@@ -45,7 +45,11 @@ function TransactionFormModal({
 
   if (!open) return null
 
-  const kindCategories = categories.filter((cat) => cat.kind === kind)
+  // La categoría del sistema ("Ajuste de saldo") no se ofrece acá: solo la usa
+  // la reconciliación del líquido. Un movimiento que ya la tenga asignada
+  // (por una reconciliación) se sigue mostrando normal en el historial —
+  // esto solo afecta qué se puede ELEGIR de nuevo.
+  const kindCategories = categories.filter((cat) => cat.kind === kind && !cat.is_system)
   const amountValue = Number(amount.replace(',', '.'))
   const missing = []
   if (!(amountValue > 0)) missing.push('monto')

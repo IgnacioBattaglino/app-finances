@@ -3,11 +3,7 @@ import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import EditIcon from '../components/EditIcon.jsx'
 import FormError from '../components/form/FormError.jsx'
-import {
-  getTransactions,
-  getCurrentMonthTransactions,
-  groupExpensesByCategory,
-} from '../lib/transactions.js'
+import { getTransactions, groupExpensesByCategory } from '../lib/transactions.js'
 import { getCategories } from '../lib/categories.js'
 import { formatARS, formatMonthYear, formatDay } from '../lib/format.js'
 
@@ -15,8 +11,8 @@ const now = new Date()
 
 function Movements() {
   // Movimientos del mes navegado, sin filtrar por tipo/categoría: de acá
-  // salen tanto los totales del período (que deben describir el mes
-  // completo) como la lista filtrada de abajo (filtrada en cliente).
+  // salen tanto los totales y el desglose (que describen el mes completo)
+  // como la lista filtrada de abajo (filtrada en cliente).
   const [monthItems, setMonthItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -27,17 +23,6 @@ function Movements() {
   const [categories, setCategories] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  // Estadísticas del mes calendario en curso: null = cargando, undefined = error.
-  // Independientes del mes que esté navegando la lista de abajo.
-  const [monthTransactions, setMonthTransactions] = useState(null)
-
-  async function loadMonthStats() {
-    try {
-      setMonthTransactions(await getCurrentMonthTransactions())
-    } catch {
-      setMonthTransactions(undefined)
-    }
-  }
 
   async function load() {
     setLoading(true)
@@ -55,10 +40,6 @@ function Movements() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, year])
-
-  useEffect(() => {
-    loadMonthStats()
-  }, [])
 
   useEffect(() => {
     getCategories().then(setCategories).catch(() => {})
@@ -79,6 +60,18 @@ function Movements() {
     setYear(y)
   }
 
+  // Cambiar de tipo puede dejar elegida una categoría que ya no aplica (una
+  // de gasto con el filtro en "Ingresos"): se limpia, mismo criterio que usa
+  // el formulario de carga al cambiar Gasto/Ingreso. Con "Todos" cualquier
+  // categoría sigue siendo válida.
+  function changeKind(value) {
+    setKind(value)
+    if (categoryId && value !== 'all') {
+      const cat = categories.find((c) => c.id === categoryId)
+      if (cat && cat.kind !== value) setCategoryId('')
+    }
+  }
+
   function closeModal() {
     setModalOpen(false)
     setEditing(null)
@@ -89,7 +82,6 @@ function Movements() {
   // mover al usuario de mes.
   function refreshAfterSave(saved) {
     closeModal()
-    loadMonthStats()
 
     // Si el movimiento quedó en otro mes que el navegado (típico: cargarlo con
     // fecha de hoy mientras mirás un mes pasado), saltamos a su mes. La fila en
@@ -104,8 +96,8 @@ function Movements() {
     load()
   }
 
-  // La lista de abajo respeta los filtros de tipo/categoría; los totales del
-  // período (más abajo) se calculan sobre monthItems, sin filtrar: describen
+  // La lista de abajo respeta los filtros de tipo/categoría; los totales y el
+  // desglose (más arriba) se calculan sobre monthItems, sin filtrar: describen
   // el mes navegado completo, no lo que quedó visible en la lista.
   const items = monthItems
     .filter((t) => kind === 'all' || t.kind === kind)
@@ -118,79 +110,14 @@ function Movements() {
     .filter((t) => t.kind === 'income')
     .reduce((sum, t) => sum + Number(t.amount_ars), 0)
   const hasExtraFilters = kind !== 'all' || categoryId !== ''
-
-  const monthExpenses = monthTransactions
-    ? monthTransactions
-        .filter((t) => t.kind === 'expense')
-        .reduce((sum, t) => sum + Number(t.amount_ars), 0)
-    : 0
-  const monthIncomes = monthTransactions
-    ? monthTransactions
-        .filter((t) => t.kind === 'income')
-        .reduce((sum, t) => sum + Number(t.amount_ars), 0)
-    : 0
-  const categoryBreakdown = monthTransactions
-    ? groupExpensesByCategory(monthTransactions)
-    : []
+  const categoryBreakdown = groupExpensesByCategory(monthItems)
 
   return (
     <div>
       <PageHeader title="Movimientos" />
 
       <div className="space-y-8">
-        {/* Estadísticas del mes en curso: siempre el mes actual, sin selector */}
         <section className="space-y-3">
-          <h2 className="px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-            Este mes
-          </h2>
-          <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-2xl border border-line bg-card text-center">
-            <div className="px-3 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                Gastos
-              </p>
-              <p className="font-money mt-1 text-xl tracking-tight text-clay">
-                {monthTransactions === null
-                  ? '…'
-                  : monthTransactions === undefined
-                    ? '—'
-                    : formatARS(monthExpenses)}
-              </p>
-            </div>
-            <div className="px-3 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                Ingresos
-              </p>
-              <p className="font-money mt-1 text-xl tracking-tight text-pine">
-                {monthTransactions === null
-                  ? '…'
-                  : monthTransactions === undefined
-                    ? '—'
-                    : formatARS(monthIncomes)}
-              </p>
-            </div>
-          </div>
-
-          {categoryBreakdown.length > 0 && (
-            <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
-              {categoryBreakdown.map((cat) => (
-                <div
-                  key={cat.name}
-                  className="flex items-center justify-between px-4 py-2.5 text-sm"
-                >
-                  <span className="text-ink-soft">{cat.name}</span>
-                  <span className="font-money">{formatARS(cat.total)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Historial: sección secundaria, con toda la funcionalidad de antes */}
-        <section className="space-y-4">
-          <h2 className="px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-            Historial
-          </h2>
-
           {/* Navegador de mes */}
           <div className="flex items-center justify-between">
             <button
@@ -223,7 +150,7 @@ function Movements() {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setKind(value)}
+                  onClick={() => changeKind(value)}
                   className={`flex-1 rounded-[10px] py-1.5 transition ${
                     kind === value ? 'bg-card shadow-sm' : 'text-ink-soft'
                   }`}
@@ -249,28 +176,6 @@ function Movements() {
             </select>
           </div>
 
-          {/* Totales del período */}
-          <div className="grid grid-cols-3 divide-x divide-line overflow-hidden rounded-2xl border border-line bg-card text-center">
-            <div className="px-2 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                Gastos
-              </p>
-              <p className="font-money mt-0.5 text-sm text-clay">{formatARS(expenses)}</p>
-            </div>
-            <div className="px-2 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                Ingresos
-              </p>
-              <p className="font-money mt-0.5 text-sm text-pine">{formatARS(incomes)}</p>
-            </div>
-            <div className="px-2 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                Balance
-              </p>
-              <p className="font-money mt-0.5 text-sm">{formatARS(incomes - expenses)}</p>
-            </div>
-          </div>
-
           {error && (
             <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
               <FormError message={error?.message} detail={error?.detail} />
@@ -284,6 +189,63 @@ function Movements() {
             </div>
           )}
 
+          {!error && !loading && (
+            <>
+              {/* Gastos/Ingresos/Balance del mes navegado — el encabezado dice
+                  de qué mes son, para que no se confunda con otro período. */}
+              <h2 className="px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                {formatMonthYear(month, year)}
+              </h2>
+              <div className="grid grid-cols-3 divide-x divide-line overflow-hidden rounded-2xl border border-line bg-card text-center">
+                <div className="px-2 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                    Gastos
+                  </p>
+                  <p className="font-money mt-1 text-xl tracking-tight text-clay">
+                    {formatARS(expenses)}
+                  </p>
+                </div>
+                <div className="px-2 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                    Ingresos
+                  </p>
+                  <p className="font-money mt-1 text-xl tracking-tight text-pine">
+                    {formatARS(incomes)}
+                  </p>
+                </div>
+                <div className="px-2 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+                    Balance
+                  </p>
+                  <p className="font-money mt-1 text-xl tracking-tight">
+                    {formatARS(incomes - expenses)}
+                  </p>
+                </div>
+              </div>
+
+              {categoryBreakdown.length > 0 && (
+                <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+                  {categoryBreakdown.map((cat) => (
+                    <div
+                      key={cat.name}
+                      className="flex items-center justify-between px-4 py-2.5 text-sm"
+                    >
+                      <span className="text-ink-soft">{cat.name}</span>
+                      <span className="font-money">{formatARS(cat.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* Historial: sección secundaria */}
+        <section className="space-y-4">
+          <h2 className="px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+            Historial
+          </h2>
+
           {loading ? (
             <p className="px-4 text-sm text-ink-soft">Cargando…</p>
           ) : items.length === 0 && !error ? (
@@ -291,40 +253,42 @@ function Movements() {
               {hasExtraFilters ? 'Sin movimientos con estos filtros.' : 'Sin movimientos este mes.'}
             </p>
           ) : (
-            <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
-              {items.map((tx) => (
-                <button
-                  key={tx.id}
-                  type="button"
-                  onClick={() => {
-                    setEditing(tx)
-                    setModalOpen(true)
-                  }}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-mist/50"
-                >
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-1 truncate text-[15px]">
-                      <span className="truncate">
-                        {tx.category?.name ?? 'Sin categoría'}
-                        {tx.description && (
-                          <span className="text-ink-soft"> · {tx.description}</span>
-                        )}
-                      </span>
-                      <EditIcon />
-                    </p>
-                    <p className="mt-0.5 text-xs text-ink-soft">{formatDay(tx.date)}</p>
-                  </div>
-                  <span
-                    className={`font-money shrink-0 text-[15px] ${
-                      tx.kind === 'expense' ? 'text-clay' : 'text-pine'
-                    }`}
+            !error && (
+              <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+                {items.map((tx) => (
+                  <button
+                    key={tx.id}
+                    type="button"
+                    onClick={() => {
+                      setEditing(tx)
+                      setModalOpen(true)
+                    }}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-mist/50"
                   >
-                    {tx.kind === 'expense' ? '−' : '+'}
-                    {formatARS(tx.amount_ars)}
-                  </span>
-                </button>
-              ))}
-            </div>
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1 truncate text-[15px]">
+                        <span className="truncate">
+                          {tx.category?.name ?? 'Sin categoría'}
+                          {tx.description && (
+                            <span className="text-ink-soft"> · {tx.description}</span>
+                          )}
+                        </span>
+                        <EditIcon />
+                      </p>
+                      <p className="mt-0.5 text-xs text-ink-soft">{formatDay(tx.date)}</p>
+                    </div>
+                    <span
+                      className={`font-money shrink-0 text-[15px] ${
+                        tx.kind === 'expense' ? 'text-clay' : 'text-pine'
+                      }`}
+                    >
+                      {tx.kind === 'expense' ? '−' : '+'}
+                      {formatARS(tx.amount_ars)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )
           )}
         </section>
       </div>

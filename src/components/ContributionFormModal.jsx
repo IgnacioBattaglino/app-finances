@@ -5,9 +5,11 @@ import {
   deleteContribution,
   createWithdrawal,
   updateWithdrawal,
+  getTransferPair,
+  deleteTransfer,
 } from '../lib/contributions.js'
 import { withdrawalExceedsValue, withdrawalGuardBlocks, heldQuantity } from '../lib/portfolio.js'
-import { todayISO, formatUSD, formatQuantity, toDecimalInput } from '../lib/format.js'
+import { todayISO, formatUSD, formatARS, formatQuantity, formatDayYear, toDecimalInput } from '../lib/format.js'
 import { round } from '../lib/money.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
@@ -17,7 +19,7 @@ import MissingHint from './form/MissingHint.jsx'
 import QuantityAmountField from './contribution/QuantityAmountField.jsx'
 import ExchangeRateField from './contribution/ExchangeRateField.jsx'
 
-const OUTSIDE_HELP = 'Plata que no estaba en la app (un sueldo, un regalo). No toca tu líquido.'
+const OUTSIDE_HELP = 'Plata que no estaba en la app (un sueldo, un regalo). No toca tu dinero disponible.'
 
 // Copy espejo: aporte y retiro son la misma forma, solo cambia cómo se lee.
 const COPY = {
@@ -30,7 +32,7 @@ const COPY = {
     pesosQuestion: '¿Cuántos pesos moviste?',
     originLabel: '¿De dónde sale?',
     originOptions: [
-      { value: 'liquid', label: 'De mi líquido', help: 'Sale de tu efectivo disponible y baja tu líquido.' },
+      { value: 'liquid', label: 'De mi disponible', help: 'Sale de tu dinero disponible y lo baja.' },
       { value: 'outside', label: 'De afuera', help: OUTSIDE_HELP },
     ],
   },
@@ -43,7 +45,7 @@ const COPY = {
     pesosQuestion: '¿Cuántos pesos moviste?',
     originLabel: '¿A dónde va?',
     originOptions: [
-      { value: 'liquid', label: 'A mi líquido', help: 'Entra a tu efectivo disponible y sube tu líquido.' },
+      { value: 'liquid', label: 'A mi disponible', help: 'Entra a tu dinero disponible y lo sube.' },
       { value: 'outside', label: 'Afuera', help: OUTSIDE_HELP },
     ],
   },
@@ -70,8 +72,13 @@ function ContributionFormModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Nombre del otro activo de la transferencia (para el mensaje de borrado);
+  // null mientras carga o si no se pudo resolver.
+  const [transferSibling, setTransferSibling] = useState(null)
+  const [confirmDeleteTransfer, setConfirmDeleteTransfer] = useState(false)
 
   const editing = Boolean(initial?.id)
+  const isTransferPart = Boolean(initial?.transfer_id)
   const copy = COPY[operation]
 
   useEffect(() => {
@@ -85,9 +92,122 @@ function ContributionFormModal({
     setError(null)
     setConfirmDelete(false)
     setBusy(false)
+    setTransferSibling(null)
+    setConfirmDeleteTransfer(false)
+  }, [open, initial, asset])
+
+  // Una pata de transferencia no se edita (ver más abajo): solo necesitamos
+  // el nombre del otro activo, para el mensaje de la confirmación de borrado.
+  useEffect(() => {
+    if (!open || !initial?.transfer_id || !asset) return
+    let cancelled = false
+    getTransferPair(initial.transfer_id).then((rows) => {
+      if (cancelled) return
+      const sibling = rows.find((r) => r.asset_id !== asset.id)
+      if (sibling?.asset?.name) setTransferSibling(sibling.asset.name)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [open, initial, asset])
 
   if (!open || !asset) return null
+
+  async function handleDeleteTransfer() {
+    setBusy(true)
+    setError(null)
+    try {
+      await deleteTransfer(initial.transfer_id)
+      onDeleted?.(initial.id)
+    } catch (e) {
+      setError({ message: 'No se pudo eliminar la transferencia.', detail: e.message })
+      setBusy(false)
+    }
+  }
+
+  // Una pata de transferencia se muestra en modo lectura: editarla por
+  // separado descuadraría la otra mitad (el monto y la tasa son los mismos
+  // para las dos). Para corregirla hay que borrar la transferencia entera
+  // (las dos patas, atómico) y volver a cargarla.
+  if (isTransferPart) {
+    return (
+      <FormSheet
+        title={operation === 'withdrawal' ? 'Transferencia enviada' : 'Transferencia recibida'}
+        onClose={onClose}
+      >
+        <div className="space-y-3">
+          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-[15px] text-ink-soft">Monto</span>
+              <span className="font-money text-[15px]">{formatUSD(Number(initial.amount_usd))}</span>
+            </div>
+            {Number(initial.quantity) > 0 && (
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="text-[15px] text-ink-soft">Cantidad</span>
+                <span className="font-money text-[15px]">{formatQuantity(Number(initial.quantity))}</span>
+              </div>
+            )}
+            {initial.mep_rate != null && (
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
+                <span className="font-money text-[15px]">{formatARS(Number(initial.mep_rate))}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-[15px] text-ink-soft">Fecha</span>
+              <span className="text-[15px]">{formatDayYear(initial.date)}</span>
+            </div>
+          </div>
+
+          <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">
+            {transferSibling
+              ? `Parte de una transferencia con «${transferSibling}». `
+              : 'Parte de una transferencia. '}
+            No se puede editar: para corregirla, borrala y volvé a cargarla.
+          </p>
+
+          <FormError message={error?.message} detail={error?.detail} />
+
+          {confirmDeleteTransfer ? (
+            <div className="flex items-center justify-between rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
+              <span className="text-clay">
+                ¿Eliminar esta transferencia? Se borran las dos partes
+                {transferSibling ? `: esta operación y la de «${transferSibling}»` : ''}. Es
+                permanente.
+              </span>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteTransfer(false)}
+                  disabled={busy}
+                  className="text-ink-soft"
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteTransfer}
+                  disabled={busy}
+                  className="font-semibold text-clay disabled:opacity-50"
+                >
+                  Sí, eliminar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteTransfer(true)}
+              disabled={busy}
+              className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] font-medium text-clay transition active:bg-mist/60"
+            >
+              Eliminar transferencia
+            </button>
+          )}
+        </div>
+      </FormSheet>
+    )
+  }
 
   const isLive = asset.valuation_mode === 'live'
   const unitPrice =
@@ -148,7 +268,8 @@ function ContributionFormModal({
     setError(null)
     const roundedAmount = round(finalAmountUsd)
     const roundedRate = round(mepRate)
-    const transferId = initial?.transfer_id ?? null
+    // transferId siempre null acá: una pata de transferencia (initial.transfer_id
+    // truthy) nunca llega a este formulario — ver el branch de solo lectura arriba.
     try {
       let saved
       if (operation === 'withdrawal') {
@@ -161,7 +282,7 @@ function ContributionFormModal({
           affectsLiquid,
           contributions,
           emptiesAsset: false,
-          transferId,
+          transferId: null,
         }
         saved = editing
           ? await updateWithdrawal({ id: initial.id, ...fields })
@@ -174,7 +295,7 @@ function ContributionFormModal({
           quantity: finalQuantity > 0 ? finalQuantity : null,
           mepRate: roundedRate,
           affectsLiquid,
-          transferId,
+          transferId: null,
         }
         saved = editing
           ? await updateContribution(initial.id, fields)
@@ -218,12 +339,6 @@ function ContributionFormModal({
       }
     >
       <form id="contribution-form" onSubmit={handleSubmit} className="space-y-3">
-          {initial?.transfer_id && (
-            <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">
-              Parte de una transferencia — la otra pata no se modifica sola.
-            </p>
-          )}
-
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
             {editing && (
               <>

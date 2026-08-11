@@ -119,7 +119,7 @@ export async function reconcile({ date, declaredAmount }) {
         date,
         kind,
         category_id: category.id,
-        description: isFirst ? 'Saldo inicial' : 'Reconciliación de líquido',
+        description: isFirst ? 'Saldo inicial' : 'Reconciliación de disponible',
         amount_ars: amount,
       })
       .select()

@@ -46,11 +46,15 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
     }
   }
 
-  const title = assets.length === 1 ? `Valuar ${assets[0].name}` : 'Actualizar valuaciones'
+  // Título único, venga de Portafolio (varios activos) o del detalle (uno
+  // solo): con un solo activo, su nombre va como subtítulo, no reemplazando
+  // al título.
+  const subtitle = assets.length === 1 ? assets[0].name : null
 
   return (
     <FormSheet
-      title={title}
+      title="Actualizar valuación"
+      subtitle={subtitle}
       onClose={onClose}
       action={
         <button

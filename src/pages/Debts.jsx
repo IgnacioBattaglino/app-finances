@@ -202,7 +202,7 @@ function Debts() {
               lo pagado son referencia, en chico. */}
           <div className="rounded-2xl border border-line bg-card px-4 py-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-              Debés
+              Deudas
             </p>
             <p className="font-money mt-1 text-3xl tracking-tight">{formatUSD(totalBalance)}</p>
             <PayoffBar progress={overallProgress} className="mt-4" />

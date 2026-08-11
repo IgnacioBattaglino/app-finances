@@ -198,3 +198,24 @@ export async function deleteContribution(id) {
   const { error } = await supabase.from('contributions').delete().eq('id', id)
   if (error) throw error
 }
+
+// Las dos patas de una transferencia (para mostrar con qué activo está
+// vinculada la que se está mirando) — trae el nombre del activo de cada una.
+export async function getTransferPair(transferId) {
+  const { data, error } = await supabase
+    .from('contributions')
+    .select('*, asset:assets(id, name)')
+    .eq('transfer_id', transferId)
+  if (error) throw error
+  return data
+}
+
+// Borra las dos patas de una transferencia juntas. Un solo DELETE por
+// transfer_id es una sola sentencia SQL — atómica de por sí, sin necesitar
+// una función de Postgres (a diferencia de create_transfer, que sí la
+// necesita porque inserta dos filas *nuevas* relacionadas). RLS ("own via
+// asset") sigue aplicando fila por fila.
+export async function deleteTransfer(transferId) {
+  const { error } = await supabase.from('contributions').delete().eq('transfer_id', transferId)
+  if (error) throw error
+}

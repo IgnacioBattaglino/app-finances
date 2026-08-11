@@ -1,3 +1,5 @@
+import InfoButton from '../InfoButton.jsx'
+
 // Tamaño de fuente del valor según su largo: en la grilla de 3 columnas en
 // pantallas angostas (a 390px cada card deja ~90px de ancho útil) un valor de
 // 6+ dígitos con decimales no entra a 15px. Bajamos la fuente por largo hasta
@@ -32,17 +34,7 @@ function MetricCard({ label, value, active, onToggle }) {
     <div className="rounded-2xl border border-line bg-card px-3 py-3">
       <div className="flex items-center justify-between gap-1">
         <span className="text-[11px] text-ink-soft">{label}</span>
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={`Qué significa "${label}"`}
-          aria-expanded={active}
-          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none ${
-            active ? 'border-pine text-pine' : 'border-line text-ink-soft'
-          }`}
-        >
-          i
-        </button>
+        <InfoButton label={label} active={active} onToggle={onToggle} />
       </div>
       <p
         className={`font-money mt-1 font-semibold leading-tight tabular-nums ${valueSizeClass(value)}`}
