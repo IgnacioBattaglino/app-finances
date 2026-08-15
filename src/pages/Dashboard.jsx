@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
@@ -11,6 +11,19 @@ import { computeCurrentLiquid } from '../lib/liquid.js'
 import { getCategories } from '../lib/categories.js'
 import { getDebts, summarizeDebts } from '../lib/debts.js'
 import { formatARS, formatUSD } from '../lib/format.js'
+
+// Recharts pesa bastante: se carga solo cuando hace falta (hay al menos un
+// aporte para graficar), no en el bundle principal. Mientras llega, el
+// placeholder reserva la misma altura para que la pantalla no salte.
+const PortfolioEvolutionChart = lazy(() => import('../components/PortfolioEvolutionChart.jsx'))
+
+function ChartPlaceholder() {
+  return (
+    <div className="flex h-[380px] items-center justify-center rounded-2xl border border-line bg-card px-4 py-4 text-sm text-ink-soft">
+      Calculando…
+    </div>
+  )
+}
 
 function Chevron() {
   return (
@@ -105,10 +118,20 @@ function Dashboard() {
   // include_in_total): el número tiene que ser el mismo en las dos pantallas.
   const {
     totalValue,
+    assets,
+    valuations,
+    contributions,
     loading: portfolioLoading,
     error: portfolioError,
     reload: reloadPortfolio,
   } = usePortfolio()
+
+  // Misma regla que Portfolio.jsx/AssetGroup.jsx (valuation.outdated, ver
+  // hasOperationsAfter en portfolio.js): con al menos una valuación vieja
+  // dando vueltas, el % del gráfico no es confiable.
+  const outdatedAssetNames = assets
+    .filter((a) => valuations[a.id]?.outdated)
+    .map((a) => a.name)
 
   const [liquid, setLiquid] = useState(null)
   const [liquidLoading, setLiquidLoading] = useState(true)
@@ -217,6 +240,29 @@ function Dashboard() {
             className="sm:col-span-2"
           />
         )}
+      </div>
+
+      {/* Curva de evolución del portafolio. Sin ninguna operación todavía no
+          hay nada que graficar — ni carga el chunk de recharts, ni muestra el
+          %. El error de usePortfolio ya se ve arriba en "Dinero invertido"
+          con su propio Reintentar; reintentar ahí también arregla esto, así
+          que acá no se repite. */}
+      <div className="mt-3">
+        {!portfolioError &&
+          (portfolioLoading ? (
+            <ChartPlaceholder />
+          ) : contributions.length === 0 ? (
+            <div className="rounded-2xl border border-line bg-card px-4 py-6 text-center">
+              <p className="text-sm text-ink-soft">
+                Todavía no cargaste ningún aporte. Cuando registres el primero, acá vas a ver cómo
+                evoluciona tu portafolio.
+              </p>
+            </div>
+          ) : (
+            <Suspense fallback={<ChartPlaceholder />}>
+              <PortfolioEvolutionChart contributions={contributions} outdatedAssetNames={outdatedAssetNames} />
+            </Suspense>
+          ))}
       </div>
 
       {/* La acción más frecuente: cargar un gasto en segundos. Vive solo acá,
