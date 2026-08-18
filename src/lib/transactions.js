@@ -32,6 +32,24 @@ export async function getTransactions({ month, year } = {}) {
   return data
 }
 
+// Gastos "reales" en un rango de fechas: excluye las categorías de sistema
+// (el ajuste de reconciliación no es un gasto que el usuario decidió hacer).
+// A diferencia de getTransactions/groupExpensesByCategory —que Movimientos
+// usa completos, ajustes incluidos—, esto lo usa el bloque de Gastos de
+// Inicio, que sí necesita excluirlos.
+export async function getExpenses({ from, to } = {}) {
+  let query = supabase
+    .from('transactions')
+    .select('date, amount_ars, category:categories(name, is_system)')
+    .eq('kind', 'expense')
+  if (from) query = query.gte('date', from)
+  if (to) query = query.lte('date', to)
+
+  const { data, error } = await query.order('date', { ascending: true })
+  if (error) throw error
+  return data.filter((t) => !t.category?.is_system)
+}
+
 // Desglose de gastos por categoría, ordenado de mayor a menor. Los ajustes de
 // reconciliación cuentan igual que cualquier categoría (no se excluyen).
 export function groupExpensesByCategory(transactions) {

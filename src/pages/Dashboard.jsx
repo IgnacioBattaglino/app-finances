@@ -13,13 +13,20 @@ import { getDebts, summarizeDebts } from '../lib/debts.js'
 import { formatARS, formatUSD } from '../lib/format.js'
 
 // Recharts pesa bastante: se carga solo cuando hace falta (hay al menos un
-// aporte para graficar), no en el bundle principal. Mientras llega, el
-// placeholder reserva la misma altura para que la pantalla no salte.
-const PortfolioEvolutionChart = lazy(() => import('../components/PortfolioEvolutionChart.jsx'))
+// aporte o un gasto para graficar), no en el bundle principal. Las dos
+// llamadas a lazy() apuntan al mismo barrel (dashboardCharts.js) para que
+// las dos terminen en un único chunk diferido, no uno cada una. Mientras
+// llega, el placeholder reserva la misma altura para que la pantalla no
+// salte.
+const loadCharts = () => import('../components/dashboardCharts.js')
+const PortfolioEvolutionChart = lazy(() => loadCharts().then((m) => ({ default: m.PortfolioEvolutionChart })))
+const ExpensesBlock = lazy(() => loadCharts().then((m) => ({ default: m.ExpensesBlock })))
 
-function ChartPlaceholder() {
+function ChartPlaceholder({ className = 'h-[380px]' }) {
   return (
-    <div className="flex h-[380px] items-center justify-center rounded-2xl border border-line bg-card px-4 py-4 text-sm text-ink-soft">
+    <div
+      className={`flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-4 text-sm text-ink-soft ${className}`}
+    >
       Calculando…
     </div>
   )
@@ -263,6 +270,14 @@ function Dashboard() {
               <PortfolioEvolutionChart contributions={contributions} outdatedAssetNames={outdatedAssetNames} />
             </Suspense>
           ))}
+      </div>
+
+      {/* Gastos: último bloque de Inicio. Se maneja solo (transactions no
+          depende de usePortfolio), con su propio loading/error/Reintentar. */}
+      <div className="mt-3">
+        <Suspense fallback={<ChartPlaceholder className="h-[140px]" />}>
+          <ExpensesBlock />
+        </Suspense>
       </div>
 
       {/* La acción más frecuente: cargar un gasto en segundos. Vive solo acá,

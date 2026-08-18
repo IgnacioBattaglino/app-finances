@@ -14,7 +14,7 @@ import BinaryChoice from './form/BinaryChoice.jsx'
 import FormError from './form/FormError.jsx'
 import InfoButton from './InfoButton.jsx'
 import { getPortfolioSeries, earliestOperationDate, rangeFrom, trimLeadingZeros } from '../lib/portfolioSeries.js'
-import { formatUSD, formatPercent, formatDay, formatDayYear, todayISO } from '../lib/format.js'
+import { formatUSD, formatPercent, formatCompactNumber, formatDay, formatDayYear, todayISO } from '../lib/format.js'
 
 const PINE = '#1e6b4c'
 const CLAY = '#b5472e'
@@ -26,13 +26,6 @@ const RANGE_OPTIONS = [
   { value: '1y', label: '1 año' },
   { value: 'todo', label: 'Todo' },
 ]
-
-// Solo el eje: sin símbolo de moneda (ya está implícito por el título y el
-// tooltip) para que el ancho quede chico en mobile sin cortar el texto.
-const compactNumber = new Intl.NumberFormat('es-AR', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-})
 
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -172,7 +165,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
                 minTickGap={40}
               />
               <YAxis
-                tickFormatter={(v) => compactNumber.format(v)}
+                tickFormatter={formatCompactNumber}
                 tick={{ fontSize: 11, fill: INK_SOFT }}
                 axisLine={false}
                 tickLine={false}

@@ -46,6 +46,14 @@ export function formatPercent(value, decimals = 1) {
   return `${value.toFixed(decimals).replace('.', ',')}%`
 }
 
+const compactNumber = new Intl.NumberFormat('es-AR', { notation: 'compact', maximumFractionDigits: 1 })
+
+// Números cortos para ejes de gráfico (1,4 K en vez de 1.400): sin símbolo de
+// moneda, que se asume implícito por el título/tooltip del gráfico que lo usa.
+export function formatCompactNumber(value) {
+  return compactNumber.format(value)
+}
+
 const monthLong = new Intl.DateTimeFormat('es-AR', { month: 'long' })
 
 export function formatMonthYear(month, year) {
