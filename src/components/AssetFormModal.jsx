@@ -4,6 +4,7 @@ import FormSheet from './FormSheet.jsx'
 import CreateAssetTypeForm from './CreateAssetTypeForm.jsx'
 import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
+import Switch from './form/Switch.jsx'
 
 const VALUATION_MODES = [
   ['contributed', 'Vale lo que pusiste', 'Vale exactamente lo que aportaste. Para efectivo y reservas que no cambian de valor.'],
@@ -256,21 +257,11 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[15px]">Cuenta en el rendimiento</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={yieldsFlag}
-                  onClick={() => setYieldsFlag((prev) => !prev)}
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-                    yieldsFlag ? 'bg-accent' : 'bg-mist'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
-                      yieldsFlag ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
-                    }`}
-                  />
-                </button>
+                <Switch
+                  checked={yieldsFlag}
+                  onChange={setYieldsFlag}
+                  label="Cuenta en el rendimiento"
+                />
               </div>
               <p className="mt-1 text-xs text-ink-soft">
                 Apagalo si no querés que este activo modifique el % de rendimiento de tu

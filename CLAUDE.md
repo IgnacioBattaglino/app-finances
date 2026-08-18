@@ -25,7 +25,7 @@ PWA de finanzas personales con enfoque FIRE (Financial Independence, Retire Earl
 
 ## Convenciones de formularios
 - Cada campo se nombra con la pregunta que responde, en el idioma del usuario — nunca desde la implementación. Nada de nombres que asuman conocimiento del sistema ("Va por MEP") ni que nombren flags internos ("Ya lo tenía"). Las ayudas se escriben para alguien que usa la app por primera vez.
-- Segmentado (`BinaryChoice`, en `src/components/form/`) para elegir entre modos, cuando la operación cambia de naturaleza (ej. Gasto/Ingreso). Switch para un ajuste sí/no que no transforma la operación.
+- Segmentado (`BinaryChoice`, en `src/components/form/`) para elegir entre modos, cuando la operación cambia de naturaleza (ej. Gasto/Ingreso). Switch (`Switch`, mismo directorio) para un ajuste sí/no que no transforma la operación.
 - Eliminar (permanente): botón rojo + confirmación que dice explícitamente "es permanente". Archivar (reversible): botón neutro + confirmación suave, sin esa palabra.
 - Botón primario de los modales: siempre "Guardar", salvo un verbo explícito que describa mejor la acción (ej. "Liquidar" en la liquidación de una posición — no es un guardado genérico, es vender).
 - Errores: siempre con `FormError` (`src/components/form/`) — mensaje en español + detalle técnico opcional, nunca `e.message` concatenado al mensaje.

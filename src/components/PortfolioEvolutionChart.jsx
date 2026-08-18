@@ -10,16 +10,17 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
+import { useTheme } from '../hooks/useTheme.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import FormError from './form/FormError.jsx'
 import InfoButton from './InfoButton.jsx'
 import { getPortfolioSeries, earliestOperationDate, rangeFrom, trimLeadingZeros } from '../lib/portfolioSeries.js'
 import { formatUSD, formatPercent, formatCompactNumber, formatDay, formatDayYear, todayISO } from '../lib/format.js'
 
-// Recharts pinta en SVG, así que necesita valores y no clases de Tailwind.
-// ACCENT es el color de marca (la serie "Dinero invertido"); GAIN/CLAY son el
-// par fijo de ganancia/pérdida que tiñe el área. Ver index.css.
-const ACCENT = '#1e6b4c'
+// Recharts pinta en SVG, así que necesita valores y no clases de Tailwind: el
+// color de marca (la serie "Dinero invertido") sale de useTheme, que es el
+// que sabe cuál eligió el usuario. GAIN/CLAY son el par fijo de
+// ganancia/pérdida que tiñe el área, y no siguen al acento. Ver index.css.
 const GAIN = '#1e6b4c'
 const CLAY = '#b5472e'
 const INK_SOFT = '#66716a'
@@ -32,6 +33,7 @@ const RANGE_OPTIONS = [
 ]
 
 function ChartTooltip({ active, payload, label }) {
+  const { accent } = useTheme()
   if (!active || !payload?.length) return null
   const value = payload.find((p) => p.dataKey === 'total_value')?.value
   const contributed = payload.find((p) => p.dataKey === 'contributed')?.value
@@ -39,7 +41,7 @@ function ChartTooltip({ active, payload, label }) {
     <div className="rounded-xl border border-line bg-card px-3 py-2 text-xs shadow-md">
       <p className="mb-1 font-semibold text-ink">{formatDayYear(label)}</p>
       <p className="flex items-center gap-1.5">
-        <span className="inline-block h-0.5 w-3" style={{ backgroundColor: ACCENT }} />
+        <span className="inline-block h-0.5 w-3" style={{ backgroundColor: accent.color }} />
         <span className="text-ink-soft">Dinero invertido</span>
         <span className="font-money font-semibold text-ink">{formatUSD(value)}</span>
       </p>
@@ -53,10 +55,14 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 function Legend() {
+  const { accent } = useTheme()
   return (
     <div className="flex items-center gap-4 text-xs text-ink-soft">
       <span className="flex items-center gap-1.5">
-        <span className="inline-block h-0.5 w-4 rounded-full" style={{ backgroundColor: ACCENT }} />
+        <span
+          className="inline-block h-0.5 w-4 rounded-full"
+          style={{ backgroundColor: accent.color }}
+        />
         Dinero invertido
       </span>
       <span className="flex items-center gap-1.5">
@@ -84,6 +90,7 @@ function Legend() {
 // El gráfico se sigue dibujando igual — ahí no cambia nada.
 function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
   const navigate = useNavigate()
+  const { accent } = useTheme()
   const [range, setRange] = useState('todo')
   const [series, setSeries] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -206,7 +213,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
                 dot={false}
                 isAnimationActive={false}
               />
-              <Line dataKey="total_value" stroke={ACCENT} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+              <Line dataKey="total_value" stroke={accent.color} strokeWidth={2.5} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

@@ -10,6 +10,14 @@ export async function getAssetTypes() {
   return data
 }
 
+// Un solo grupo, para su pantalla de detalle (archivado o no: el detalle es
+// el mismo, cambia la acción que ofrece).
+export async function getAssetType(id) {
+  const { data, error } = await supabase.from('asset_types').select('*').eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
 export async function getArchivedAssetTypes() {
   const { data, error } = await supabase
     .from('asset_types')
@@ -104,6 +112,21 @@ export async function setIncludeInTotal(id, includeInTotal) {
   const { data, error } = await supabase
     .from('asset_types')
     .update({ include_in_total: includeInTotal })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// El default de rendimiento que hereda un activo nuevo creado en este grupo.
+// Se elegía al crear el grupo y no había forma de cambiarlo después: no es el
+// flag operativo (ese es assets.yields, por activo), así que cambiarlo no
+// recalcula nada de lo ya cargado.
+export async function setEarnsYield(id, earnsYield) {
+  const { data, error } = await supabase
+    .from('asset_types')
+    .update({ earns_yield: earnsYield })
     .eq('id', id)
     .select()
     .single()

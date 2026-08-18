@@ -10,6 +10,15 @@ export async function getCategories() {
   return data
 }
 
+// Una sola categoría, para su pantalla de detalle. Trae también las
+// archivadas: el detalle es el mismo para las dos, cambia la acción que
+// ofrece (archivar o restaurar).
+export async function getCategory(id) {
+  const { data, error } = await supabase.from('categories').select('*').eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
 export async function getArchivedCategories() {
   const { data, error } = await supabase
     .from('categories')

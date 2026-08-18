@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createAssetType } from '../lib/assetTypes.js'
 import FormError from './form/FormError.jsx'
+import Switch from './form/Switch.jsx'
 
 // Alta de bolsa: nombre + rendimiento default. Compartido entre el mini-form
 // de AssetFormModal ("+ Nueva bolsa") y el alta en Ajustes — mismos campos,
@@ -40,22 +41,13 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
         className="w-full rounded-lg bg-mist px-3 py-1.5 text-[15px] outline-none placeholder:text-ink-soft/60"
       />
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[15px]">Los activos nuevos cuentan en el rendimiento</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={earnsYield}
-          onClick={() => setEarnsYield((prev) => !prev)}
-          className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-            earnsYield ? 'bg-accent' : 'bg-mist'
-          }`}
-        >
-          <span
-            className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-all ${
-              earnsYield ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
-            }`}
-          />
-        </button>
+        <span className="text-[15px]">Los activos nuevos buscan rendimiento</span>
+        <Switch
+          checked={earnsYield}
+          onChange={setEarnsYield}
+          disabled={busy}
+          label="Los activos nuevos buscan rendimiento"
+        />
       </div>
       <div className="flex items-center justify-end gap-4 text-sm">
         {onCancel && (
