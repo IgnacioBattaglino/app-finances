@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createTransfer } from '../../lib/contributions.js'
-import { withdrawalExceedsValue, withdrawalGuardBlocks } from '../../lib/portfolio.js'
+import { withdrawalExceedsValue } from '../../lib/portfolio.js'
 import { getCryptoPrices } from '../../lib/prices.js'
 import { todayISO, formatUSD, toDecimalInput } from '../../lib/format.js'
 import { round } from '../../lib/money.js'
@@ -176,28 +176,23 @@ function TransferFormModal({
   const fromQuantityValue = Number(fromQuantity.replace(',', '.'))
   const toQuantityValue = Number(toQuantity.replace(',', '.'))
 
+  // Aviso, nunca bloquea (misma política que Retirar): el valor puede estar
+  // desactualizado o el precio pudo cambiar.
   const exceedsValue =
     originValuation &&
     finalAmountUsd > 0 &&
     withdrawalExceedsValue(finalAmountUsd, originValuation)
-  const guardBlocks = originValuation && withdrawalGuardBlocks(originValuation)
 
   const missing = []
   if (!destAssetId) missing.push('activo destino')
   if (!(finalAmountUsd > 0)) missing.push('monto')
   if (fromAsset.valuation_mode === 'live' && !(fromQuantityValue > 0)) missing.push('cantidad en origen')
   if (destAsset?.valuation_mode === 'live' && !(toQuantityValue > 0)) missing.push('cantidad en destino')
-  if (!(mepRate > 0)) missing.push('tipo de cambio')
   if (!date) missing.push('fecha')
-  if (exceedsValue && guardBlocks) missing.push('un monto menor al valor actual')
   const valid = missing.length === 0
 
-  const guardMessage = exceedsValue
-    ? guardBlocks
-      ? `Esta transferencia supera el valor actual del activo (${formatUSD(originValuation.value)}).`
-      : `Esta transferencia supera el último valor conocido del activo (${
-          originValuation.source === 'stale' ? 'precio caído' : 'sin valuación'
-        }) — no podemos confirmarlo con precisión, pero podés continuar.`
+  const valueWarning = exceedsValue
+    ? `Esta transferencia supera el valor actual del activo (${formatUSD(originValuation.value)}). Podés continuar: el precio pudo cambiar o el valor puede estar desactualizado.`
     : null
 
   async function handleSubmit(event) {
@@ -213,7 +208,10 @@ function TransferFormModal({
         amountUsd: round(finalAmountUsd, 2),
         fromQuantity: fromQuantityValue > 0 ? fromQuantityValue : null,
         toQuantity: toQuantityValue > 0 ? toQuantityValue : null,
-        mepRate: round(mepRate, 2),
+        // Nunca redondear un mepRate null con round() (da 0, no null): una
+        // transferencia jamás afecta el líquido, así que la tasa es un dato
+        // opcional que puede faltar sin problema (ver ExchangeRateField).
+        mepRate,
         contributions,
         emptiesAsset: false,
       })
@@ -310,16 +308,22 @@ function TransferFormModal({
                 dibuja un SEGUNDO campo "Monto", pegado al de arriba y con el
                 mismo nombre, cuyo valor además se descarta (este onChange solo
                 lee `rate`). */}
+            {/* Una transferencia nunca toca el disponible: el tipo de cambio
+                es siempre un dato de registro opcional, nunca obligatorio. */}
             <ExchangeRateField
               fixedAmountUsd={finalAmountUsd}
               pesosQuestion="¿Cuántos pesos moviste?"
+              required={false}
               onChange={({ rate }) => setMepRate(rate)}
             />
 
             <CollapsedDateField value={date} onChange={setDate} />
           </div>
 
-          <FormError message={error?.message ?? guardMessage} detail={error?.detail} />
+          {valueWarning && (
+            <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">{valueWarning}</p>
+          )}
+          <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />
       </form>
     </FormSheet>

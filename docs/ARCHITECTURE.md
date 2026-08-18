@@ -81,7 +81,7 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | date | date NOT NULL | |
 | amount_usd | numeric(14,2) NOT NULL | CHECK > 0 |
 | quantity | numeric(20,8) | opcional; unidades compradas (ej: 0.001 BTC) |
-| mep_rate | numeric(10,2) NOT NULL | dólar MEP del día del aporte (congelado) |
+| mep_rate | numeric(10,2) | nullable (migración 0024; antes NOT NULL desde la 0001): dólar MEP del día del aporte, congelado. Solo es obligatorio a nivel app cuando affects_liquid = true — para "de afuera" es un dato de registro opcional, igual que debt_payments.mep_rate desde la 0010 |
 | affects_liquid | boolean NOT NULL default true | true = inversión con plata del bolsillo, resta del líquido; false = tenencia preexistente / carga inicial, no resta (sí suma al portafolio) |
 | direction | text NOT NULL default 'in' | 'in' (aporte) o 'out' (retiro) (CHECK) (migración 0016). La misma fila de contributions sirve para ambos; amount_usd siempre se guarda positivo, direction decide el signo en los cálculos |
 | realized_gain | numeric(14,2) | (migración 0016) ganancia (positivo) o pérdida (negativo) que un retiro cristaliza por encima del capital aportado; se calcula y congela en el momento del retiro, no se recalcula si después se editan aportes anteriores. Null en entradas ('in') |

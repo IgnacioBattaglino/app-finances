@@ -144,6 +144,7 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
             editing={editing && initial?.mep_rate != null}
             initialRate={initial?.mep_rate}
             fixedAmountUsd={editing ? amount : null}
+            required={affectsLiquid}
             amountLabel="¿Cuánto pagaste?"
             pesosLabel="Pesos"
             dolaresLabel="Dólares"

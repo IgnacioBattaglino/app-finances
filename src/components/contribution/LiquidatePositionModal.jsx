@@ -21,10 +21,10 @@ const DESTINATION_OPTIONS = [
 ]
 
 // Confirmación, no formulario de carga: calcula y muestra las consecuencias
-// antes de tocar nada. El guard de retiro (withdrawalExceedsValue) NO
-// aplica acá — el monto editable ES el precio real de venta y manda sobre
-// cualquier valuación calculada; solo quedan los avisos según el origen del
-// prellenado (stale/none), ninguno bloquea.
+// antes de tocar nada. Nada bloquea acá — el monto editable ES el precio
+// real de venta y manda sobre cualquier valuación calculada; si se aleja del
+// último valor conocido (para cualquier lado, no solo por encima) se avisa,
+// mismo criterio y tono que Retirar/Transferir/pago de deuda.
 function LiquidatePositionModal({ open, asset, valuation, contributions, onClose, onSaved }) {
   const [amount, setAmount] = useState('')
   const [quantity, setQuantity] = useState('')
@@ -69,11 +69,26 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
     amountValue > 0
       ? decomposeWithdrawal({ contributedBefore, amount: round(amountValue), emptiesAsset: true })
       : { realizedGain: 0 }
+  const affectsLiquid = destination === 'liquid'
+
+  // Aviso, nunca bloquea: acá el monto ES el precio real de venta, así que
+  // "distinto del último valor conocido" no es un error — es lo esperado
+  // cuando el precio cambió o la valuación quedó vieja. Compara contra
+  // cualquier lado (por encima o por debajo), a diferencia de Retirar/
+  // Transferir que solo avisan si el monto supera el valor.
+  const referenceValue = valuation?.value ?? null
+  const differsFromValue =
+    referenceValue != null && amountValue > 0 && round(amountValue) !== round(referenceValue)
+  const valueWarning = differsFromValue
+    ? `Estás liquidando ${amountValue > referenceValue ? 'por encima' : 'por debajo'} del último valor conocido (${formatUSD(referenceValue)}). Podés continuar: el precio pudo cambiar desde la última valuación.`
+    : null
 
   const missing = []
   if (!(amountValue > 0)) missing.push('monto')
   if (asset.valuation_mode === 'live' && !(quantityValue > 0)) missing.push('cantidad')
-  if (!(mepRate > 0)) missing.push('tipo de cambio')
+  // El tipo de cambio solo hace falta si la venta entra al disponible —
+  // mismo criterio que Aportar/Retirar.
+  if (affectsLiquid && !(mepRate > 0)) missing.push('tipo de cambio')
   if (!date) missing.push('fecha')
   const valid = missing.length === 0
 
@@ -88,8 +103,10 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
         date,
         amountUsd: round(amountValue),
         quantity: quantityValue > 0 ? quantityValue : null,
-        mepRate: round(mepRate),
-        affectsLiquid: destination === 'liquid',
+        // mepRate ya viene redondeado (o null) desde ExchangeRateField —
+        // round(null) da 0, no null (ver ContributionFormModal).
+        mepRate,
+        affectsLiquid,
         contributions,
         emptiesAsset: true,
       })
@@ -182,6 +199,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
             <ExchangeRateField
               fixedAmountUsd={amountValue}
               pesosQuestion="¿Cuántos pesos moviste?"
+              required={affectsLiquid}
               onChange={({ rate }) => setMepRate(rate)}
             />
 
@@ -210,6 +228,9 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
             <CollapsedDateField value={date} onChange={setDate} />
           </div>
 
+          {valueWarning && (
+            <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">{valueWarning}</p>
+          )}
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />
       </form>

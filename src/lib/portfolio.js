@@ -40,16 +40,14 @@ export function decomposeWithdrawal({ contributedBefore, amount, emptiesAsset })
   return { realizedGain: 0 }
 }
 
-// Guard de retiro: con valuación confiable (todo salvo 'stale'/'none')
-// bloquea exceder el valor actual. Con 'stale' (precio caído, cae a último
-// valor manual) o 'none' (sin valuación), la app no tiene con qué exigir
-// precisión — avisa pero no bloquea.
+// ¿El monto supera el último valor conocido del activo? Nunca bloquea por sí
+// solo (ver política única de guardas en ContributionFormModal/
+// TransferFormModal): el valor puede estar desactualizado o el precio pudo
+// cambiar, así que esto solo alimenta un aviso, nunca un bloqueo. Lo único
+// que sí bloquea es retirar más unidades de las que hay (heldQuantity) — eso
+// es lo único que dejaría una posición en negativo.
 export function withdrawalExceedsValue(amount, valuation) {
   return valuation.value !== null && amount > valuation.value
-}
-
-export function withdrawalGuardBlocks(valuation) {
-  return valuation.source !== 'stale' && valuation.source !== 'none'
 }
 
 // Tenencia acumulada (unidades) de un activo: aportes suman, retiros restan.

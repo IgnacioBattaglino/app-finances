@@ -8,7 +8,7 @@ import {
   getTransferPair,
   deleteTransfer,
 } from '../lib/contributions.js'
-import { withdrawalExceedsValue, withdrawalGuardBlocks, heldQuantity } from '../lib/portfolio.js'
+import { withdrawalExceedsValue, heldQuantity } from '../lib/portfolio.js'
 import { todayISO, formatUSD, formatARS, formatQuantity, formatDayYear, toDecimalInput } from '../lib/format.js'
 import { round } from '../lib/money.js'
 import FormSheet from './FormSheet.jsx'
@@ -224,42 +224,52 @@ function ContributionFormModal({
   const finalQuantity = Number(String(quantity).replace(',', '.'))
   const affectsLiquid = origin === 'liquid'
 
-  // Con el vínculo cantidad↔monto activo, el monto ya lo fijan esos dos
-  // campos: al campo de tipo de cambio solo le queda registrar la cotización.
-  // Se le pasa 0 (no null) mientras el monto está vacío, para que no caiga al
-  // rail completo — ese rail abría un SEGUNDO campo llamado "Monto" pegado al
-  // primero, y encima uno cuyo valor se descartaba.
-  const rateFieldAmountUsd = editing ? null : linkedMode ? finalAmountUsd || 0 : null
+  // Un registro viejo "de afuera" puede no tener tipo de cambio guardado (ver
+  // más abajo): tratarlo como no-editado en el campo de tasa hace que se
+  // comporte igual que un alta nueva, en vez de mostrar "$0 (guardado)".
+  const rateFieldEditing = editing && initial?.mep_rate != null
+
+  // Con el vínculo cantidad↔monto activo (alta nueva vinculada), o editando
+  // (con o sin tasa guardada), el monto ya lo fija otro campo: acá el de tipo
+  // de cambio solo registra la cotización. Se le pasa 0 (no null) mientras el
+  // monto está vacío, para que no caiga al rail completo — ese rail abría un
+  // SEGUNDO campo llamado "Monto" pegado al primero, y encima uno cuyo valor
+  // se descartaba.
+  const rateFieldAmountUsd = !editing && !linkedMode ? null : finalAmountUsd || 0
 
   const guardValuation = operation === 'withdrawal' ? valuation : null
+  // Aviso, nunca bloquea (ver política única de guardas: lo único imposible
+  // es retirar más unidades de las que hay): el valor puede estar
+  // desactualizado o el precio pudo cambiar, así que no hay forma de
+  // confirmarlo con certeza.
   const exceedsValue =
     guardValuation && finalAmountUsd > 0 && withdrawalExceedsValue(finalAmountUsd, guardValuation)
-  const guardBlocks = guardValuation && withdrawalGuardBlocks(guardValuation)
 
-  // Guard de tenencia: solo tiene sentido en un retiro nuevo (editar uno
-  // existente requeriría excluirlo a sí mismo de la tenencia, caso pendiente
-  // — ver FUNCTIONAL.md).
-  const heldQty = isLive && operation === 'withdrawal' && !editing ? heldQuantity(asset, contributions) : null
+  // Guard de tenencia: lo único que bloquea (dejaría la posición en
+  // negativo). Se aplica también al editar, excluyendo la propia fila de la
+  // tenencia — si no, se restaría a sí misma.
+  const ownForHeld = editing ? contributions.filter((c) => c.id !== initial.id) : contributions
+  const heldQty = isLive && operation === 'withdrawal' ? heldQuantity(asset, ownForHeld) : null
   const exceedsHoldings = heldQty != null && finalQuantity > 0 && finalQuantity > heldQty
 
   const missing = []
   if (!(finalAmountUsd > 0)) missing.push('monto')
   if (isLive && !(finalQuantity > 0)) missing.push('cantidad')
-  if (!(mepRate > 0)) missing.push('tipo de cambio')
+  // El tipo de cambio solo hace falta si la operación toca el disponible: es
+  // lo que traduce los dólares a los pesos que se suman o restan. "De
+  // afuera" no lo necesita para nada — se guarda si se consigue, pero no se
+  // le pide al usuario.
+  if (affectsLiquid && !(mepRate > 0)) missing.push('tipo de cambio')
   if (!date) missing.push('fecha')
   if (exceedsHoldings) missing.push('una cantidad que no supere lo que tenés')
-  if (exceedsValue && guardBlocks) missing.push('un monto menor al valor actual')
   const valid = missing.length === 0
 
-  const guardMessage = exceedsHoldings
+  const holdingsMessage = exceedsHoldings
     ? `Estás retirando ${formatQuantity(finalQuantity)} un., pero solo tenés ${formatQuantity(heldQty)} un. de ${asset.name}.`
-    : exceedsValue
-      ? guardBlocks
-        ? `Este retiro supera el valor actual del activo (${formatUSD(guardValuation.value)}).`
-        : `Este retiro supera el último valor conocido del activo (${
-            guardValuation.source === 'stale' ? 'precio caído' : 'sin valuación'
-          }) — no podemos confirmarlo con precisión, pero podés continuar.`
-      : null
+    : null
+  const valueWarning = exceedsValue
+    ? `Este retiro supera el valor actual del activo (${formatUSD(guardValuation.value)}). Podés continuar: el precio pudo cambiar o el valor puede estar desactualizado.`
+    : null
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -267,7 +277,9 @@ function ContributionFormModal({
     setBusy(true)
     setError(null)
     const roundedAmount = round(finalAmountUsd)
-    const roundedRate = round(mepRate)
+    // mepRate ya viene redondeado (o null) desde ExchangeRateField — no se
+    // vuelve a redondear acá: round(null) da 0, no null, y guardaría un tipo
+    // de cambio falso de "$0" en vez de "no se registró ninguno".
     // transferId siempre null acá: una pata de transferencia (initial.transfer_id
     // truthy) nunca llega a este formulario — ver el branch de solo lectura arriba.
     try {
@@ -278,7 +290,7 @@ function ContributionFormModal({
           date,
           amountUsd: roundedAmount,
           quantity: finalQuantity > 0 ? finalQuantity : null,
-          mepRate: roundedRate,
+          mepRate,
           affectsLiquid,
           contributions,
           emptiesAsset: false,
@@ -293,7 +305,7 @@ function ContributionFormModal({
           date,
           amountUsd: roundedAmount,
           quantity: finalQuantity > 0 ? finalQuantity : null,
-          mepRate: roundedRate,
+          mepRate,
           affectsLiquid,
           transferId: null,
         }
@@ -385,9 +397,10 @@ function ContributionFormModal({
             )}
 
             <ExchangeRateField
-              editing={editing}
+              editing={rateFieldEditing}
               initialRate={initial?.mep_rate}
               fixedAmountUsd={rateFieldAmountUsd}
+              required={affectsLiquid}
               pesosLabel={copy.pesos}
               dolaresLabel={copy.dolares}
               pesosQuestion={copy.pesosQuestion}
@@ -422,7 +435,10 @@ function ContributionFormModal({
             <CollapsedDateField value={date} onChange={setDate} />
           </div>
 
-          <FormError message={error?.message ?? guardMessage} detail={error?.detail} />
+          {valueWarning && (
+            <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">{valueWarning}</p>
+          )}
+          <FormError message={error?.message ?? holdingsMessage} detail={error?.detail} />
           <MissingHint missing={missing} />
 
           {editing &&

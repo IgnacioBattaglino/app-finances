@@ -139,7 +139,10 @@ export async function createTransfer({
     p_amount_usd: round(amountUsd),
     p_from_quantity: fromQuantity ?? null,
     p_to_quantity: toQuantity ?? null,
-    p_mep_rate: round(mepRate),
+    // Nunca redondear un mepRate null con round() (da 0, no null): una
+    // transferencia jamás afecta el líquido, la tasa es opcional y ya viene
+    // redondeada (o null) desde el formulario.
+    p_mep_rate: mepRate,
     p_realized_gain: realizedGain,
   })
   if (error) throw error

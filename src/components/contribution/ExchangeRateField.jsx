@@ -74,7 +74,14 @@ function FrozenRateField({ initialRate, onChange }) {
 // Monto USD ya fijado por otra vía (vínculo cantidad↔monto, venta de
 // Liquidar, monto de Transferir): la tasa es solo un dato de registro. Modo
 // manual pregunta pesos, no tasa — el usuario sabe lo que pagó, no su tasa.
-function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
+//
+// `required`: si la operación no toca el disponible (ej. "de afuera"), el
+// tipo de cambio es un dato de registro opcional — no se le pide al usuario
+// ni bloquea el guardado. Igual se intenta traer el MEP del día por detrás
+// (siempre, éxito o no); solo cambia qué pasa si falla: con `required` se
+// fuerza el modo manual (como antes); sin eso, se avisa y se sigue sin pedir
+// nada — el campo manual queda disponible para quien igual quiera cargarlo.
+function CompactRateField({ fixedAmountUsd, pesosQuestion, required, onChange }) {
   const [mode, setMode] = useState('auto')
   const [mepLive, setMepLive] = useState(null) // null=cargando, false=falló
   const [rate, setRate] = useState(null)
@@ -90,7 +97,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
         onChange({ rate: round(result.rate) })
       } else {
         setMepLive(false)
-        setMode('manual')
+        if (required) setMode('manual')
         onChange({ rate: null })
       }
     })
@@ -114,6 +121,25 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
   if (mode === 'auto') {
     if (mepLive === null) {
       return <p className="px-4 py-3 text-xs text-ink-soft">Buscando cotización…</p>
+    }
+    if (mepLive === false) {
+      return (
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
+            <button
+              type="button"
+              onClick={() => setMode('manual')}
+              className="text-[13px] text-ink-soft underline decoration-dotted"
+            >
+              No se pudo obtener · cargar a mano
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-ink-soft">
+            {required ? MEP_HELP : `${MEP_HELP} No hace falta para esta operación.`}
+          </p>
+        </div>
+      )
     }
     return (
       <div className="px-4 py-3">
@@ -144,7 +170,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
           onChange={(e) => setPesos(e.target.value)}
           inputMode="decimal"
           placeholder="0"
-          required
+          required={required}
           className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
         />
       </label>
@@ -175,7 +201,12 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, onChange }) {
 // Monto USD todavía no determinado (Aportar/Retirar de un activo sin precio
 // vivo): rail completo de siempre — Monto (ARS/USD + MEP automático) o el
 // par Pesos/Dólares manual — de ahí salen monto Y tasa juntos.
-function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, onChange }) {
+//
+// El monto (arriba, y "Dólares" en el modo manual) es siempre obligatorio
+// —es lo que se está registrando—; lo único que `required` afloja es la
+// parte que solo sirve para derivar la tasa ("Pesos" del modo manual, y si
+// falla el MEP automático, que ya no fuerza pasar a manual).
+function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onChange }) {
   const [mode, setMode] = useState('auto')
   const [mepLive, setMepLive] = useState(null)
   const [rate, setRate] = useState(null)
@@ -193,12 +224,13 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, onChange }) {
         setRate(result.rate)
       } else {
         setMepLive(false)
-        setMode('manual')
+        if (required) setMode('manual')
       }
     })
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const amountValue = Number(amount.replace(',', '.'))
@@ -264,6 +296,24 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, onChange }) {
         <div className="px-4 py-3">
           {mepLive === null ? (
             <p className="text-xs text-ink-soft">Buscando cotización…</p>
+          ) : mepLive === false ? (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
+                <button
+                  type="button"
+                  onClick={() => setMode('manual')}
+                  className="text-[13px] text-ink-soft underline decoration-dotted"
+                >
+                  No se pudo obtener · cargar a mano
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-ink-soft">
+                {required
+                  ? MEP_HELP
+                  : `${MEP_HELP} No hace falta para esta operación (si es en pesos, elegí USD arriba).`}
+              </p>
+            </>
           ) : (
             <>
               <div className="flex items-center justify-between gap-3">
@@ -293,7 +343,7 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, onChange }) {
           onChange={(e) => setPesos(e.target.value)}
           inputMode="decimal"
           placeholder="0"
-          required
+          required={required}
           className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
         />
       </label>
@@ -332,6 +382,7 @@ function ExchangeRateField({
   editing = false,
   initialRate = null,
   fixedAmountUsd = null,
+  required = true,
   amountLabel = 'Monto',
   pesosLabel = 'Pesos',
   dolaresLabel = 'Dólares',
@@ -346,6 +397,7 @@ function ExchangeRateField({
       <CompactRateField
         fixedAmountUsd={fixedAmountUsd}
         pesosQuestion={pesosQuestion}
+        required={required}
         onChange={onChange}
       />
     )
@@ -355,6 +407,7 @@ function ExchangeRateField({
       amountLabel={amountLabel}
       pesosLabel={pesosLabel}
       dolaresLabel={dolaresLabel}
+      required={required}
       onChange={onChange}
     />
   )

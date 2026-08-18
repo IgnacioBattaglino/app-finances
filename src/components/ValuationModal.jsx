@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { upsertValuation } from '../lib/valuations.js'
+import { upsertValuation, getValuations } from '../lib/valuations.js'
 import { todayISO, formatUSD, formatDay } from '../lib/format.js'
 import FormSheet from './FormSheet.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
@@ -12,6 +12,11 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
   const [values, setValues] = useState({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // Fechas con valuación ya cargada, por activo — para avisar (nunca
+  // bloquear) que guardar la va a pisar. Se trae el historial completo de
+  // cada activo al abrir, no solo la última: la fecha elegida puede ser
+  // cualquiera, no solo la más reciente.
+  const [existingDates, setExistingDates] = useState({})
 
   useEffect(() => {
     if (!open) return
@@ -19,6 +24,22 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
     setValues({})
     setError(null)
     setBusy(false)
+    let cancelled = false
+    Promise.all(assets.map((a) => getValuations({ assetId: a.id }).then((rows) => [a.id, rows])))
+      .then((pairs) => {
+        if (cancelled) return
+        const byAsset = {}
+        for (const [assetId, rows] of pairs) byAsset[assetId] = new Set(rows.map((r) => r.date))
+        setExistingDates(byAsset)
+      })
+      .catch(() => {
+        // Best-effort: si falla, simplemente no se muestra el aviso de
+        // pisado — nunca bloqueaba nada, así que no hay nada que reintentar.
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   if (!open) return null
@@ -77,6 +98,11 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
             <CollapsedDateField value={date} onChange={setDate} />
             {assets.map((asset) => {
               const last = latestValuations[asset.id]
+              // Aviso, nunca bloquea: guardar para una fecha que ya tiene
+              // valuación la pisa (upsertValuation hace on-conflict). Compara
+              // contra el historial completo del activo, no solo la última
+              // valuación — la fecha elegida puede ser cualquiera.
+              const willReplace = existingDates[asset.id]?.has(date) ?? false
               return (
                 <label
                   key={asset.id}
@@ -89,6 +115,11 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
                         ? `Último: ${formatUSD(last.value_usd)} (${formatDay(last.date)})`
                         : 'Nunca lo valuaste'}
                     </span>
+                    {willReplace && (
+                      <span className="block text-xs text-clay">
+                        Ya tenés una valuación en esta fecha — la vas a reemplazar.
+                      </span>
+                    )}
                   </span>
                   <div className="flex items-center gap-1">
                     <span className="text-[15px] text-ink-soft">US$</span>
