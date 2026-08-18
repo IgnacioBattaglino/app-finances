@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   getAssetType,
+  getAssetTypes,
   renameAssetType,
   setIncludeInTotal,
   setEarnsYield,
+  moveAssetType,
   countAssetsForType,
   archiveAssetType,
   restoreAssetType,
@@ -19,6 +21,23 @@ import {
 } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 
+function Arrow({ direction }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      {direction === 'up' ? <path d="M12 19V5m0 0-6 6m6-6 6 6" /> : <path d="M12 5v14m0 0 6-6m-6 6-6-6" />}
+    </svg>
+  )
+}
+
 function assetsLabel({ active, archived }) {
   if (active === 0 && archived === 0) return 'Ninguno todavía'
   const parts = []
@@ -32,6 +51,9 @@ function AssetTypeDetail() {
   const navigate = useNavigate()
   const [assetType, setAssetType] = useState(null)
   const [counts, setCounts] = useState(null)
+  // La lista activa completa: hace falta para saber en qué posición está este
+  // grupo y si se puede subir o bajar.
+  const [siblings, setSiblings] = useState([])
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -41,11 +63,16 @@ function AssetTypeDetail() {
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([getAssetType(assetTypeId), countAssetsForType(assetTypeId)])
-      .then(([data, assetCounts]) => {
+    Promise.all([
+      getAssetType(assetTypeId),
+      countAssetsForType(assetTypeId),
+      getAssetTypes(),
+    ])
+      .then(([data, assetCounts, all]) => {
         if (!active) return
         setAssetType(data)
         setCounts(assetCounts)
+        setSiblings(all)
         setName(data.name)
       })
       .catch((e) => {
@@ -91,6 +118,14 @@ function AssetTypeDetail() {
     if (updated) setAssetType(updated)
   }
 
+  async function handleMove(direction) {
+    const reordered = await run(
+      () => moveAssetType(assetType.id, direction),
+      'No se pudo cambiar el orden.',
+    )
+    if (reordered) setSiblings(reordered)
+  }
+
   async function handleToggleYield(next) {
     const updated = await run(
       () => setEarnsYield(assetType.id, next),
@@ -133,6 +168,9 @@ function AssetTypeDetail() {
   const action = counts.active > 0 ? 'blocked' : counts.archived > 0 ? 'archive' : 'delete'
   const dirty = name.trim() !== assetType.name
 
+  const position = siblings.findIndex((at) => at.id === assetType.id)
+  const canMove = !assetType.is_archived && position !== -1 && siblings.length > 1
+
   return (
     <SettingsPage
       title={assetType.name}
@@ -163,6 +201,39 @@ function AssetTypeDetail() {
           )}
         </SettingsGroup>
       </form>
+
+      {canMove && (
+        <SettingsGroup footer="Es el orden con el que los grupos aparecen en Portafolio.">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-[15px]">
+              Orden en Portafolio
+              <span className="ml-2 text-[13px] text-ink-soft">
+                {position + 1} de {siblings.length}
+              </span>
+            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handleMove('up')}
+                disabled={busy || position === 0}
+                aria-label="Subir un lugar"
+                className="rounded-lg p-1.5 text-accent transition active:bg-mist disabled:opacity-25"
+              >
+                <Arrow direction="up" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMove('down')}
+                disabled={busy || position === siblings.length - 1}
+                aria-label="Bajar un lugar"
+                className="rounded-lg p-1.5 text-accent transition active:bg-mist disabled:opacity-25"
+              >
+                <Arrow direction="down" />
+              </button>
+            </div>
+          </div>
+        </SettingsGroup>
+      )}
 
       <SettingsGroup footer="Si lo apagás, el grupo se sigue viendo en Portafolio pero no suma al valor total ni al rendimiento general.">
         <SettingsSwitchRow

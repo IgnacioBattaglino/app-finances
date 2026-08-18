@@ -23,6 +23,7 @@ function SettingsHome() {
         <SettingsGroup title="Tus datos">
           <SettingsLinkRow to="/ajustes/categorias" label="Categorías" />
           <SettingsLinkRow to="/ajustes/grupos" label="Grupos de activos" />
+          <SettingsLinkRow to="/ajustes/exportar" label="Exportar mis datos" />
         </SettingsGroup>
 
         <SettingsGroup title="Cuenta">

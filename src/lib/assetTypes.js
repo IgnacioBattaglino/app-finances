@@ -55,6 +55,39 @@ export async function createAssetType({ name, earnsYield }) {
   return data
 }
 
+// Mueve un grupo un lugar arriba o abajo en el orden con el que Portafolio
+// los muestra (display_order). Devuelve la lista activa ya reordenada.
+//
+// En vez de intercambiar los dos display_order, renumera la lista entera de 0
+// a n−1 y escribe solo las filas que cambiaron. Es una escritura más en el
+// peor caso, pero arregla de paso los órdenes repetidos o con huecos que la
+// base permite y que dejarían el intercambio sin efecto visible.
+export async function moveAssetType(id, direction) {
+  const active = await getAssetTypes()
+  const index = active.findIndex((at) => at.id === id)
+  if (index === -1) throw new Error('El grupo no está entre los activos.')
+
+  const target = direction === 'up' ? index - 1 : index + 1
+  if (target < 0 || target >= active.length) return active
+
+  const reordered = [...active]
+  ;[reordered[index], reordered[target]] = [reordered[target], reordered[index]]
+
+  const changed = reordered
+    .map((at, i) => ({ row: at, display_order: i }))
+    .filter(({ row, display_order }) => row.display_order !== display_order)
+
+  for (const { row, display_order } of changed) {
+    const { error } = await supabase
+      .from('asset_types')
+      .update({ display_order })
+      .eq('id', row.id)
+    if (error) throw error
+  }
+
+  return reordered.map((at, i) => ({ ...at, display_order: i }))
+}
+
 export async function renameAssetType(id, name) {
   const { data, error } = await supabase
     .from('asset_types')

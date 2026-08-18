@@ -14,6 +14,7 @@ import Categories from './pages/settings/Categories.jsx'
 import CategoryDetail from './pages/settings/CategoryDetail.jsx'
 import AssetTypes from './pages/settings/AssetTypes.jsx'
 import AssetTypeDetail from './pages/settings/AssetTypeDetail.jsx'
+import ExportData from './pages/settings/ExportData.jsx'
 import Account from './pages/settings/Account.jsx'
 
 function App() {
@@ -36,6 +37,7 @@ function App() {
           <Route path="/ajustes/categorias/:categoryId" element={<CategoryDetail />} />
           <Route path="/ajustes/grupos" element={<AssetTypes />} />
           <Route path="/ajustes/grupos/:assetTypeId" element={<AssetTypeDetail />} />
+          <Route path="/ajustes/exportar" element={<ExportData />} />
           <Route path="/ajustes/cuenta" element={<Account />} />
         </Route>
       </Route>
