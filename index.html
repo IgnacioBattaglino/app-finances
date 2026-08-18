@@ -5,6 +5,32 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Finanzas</title>
+    <meta
+      name="description"
+      content="Finanzas personales con enfoque FIRE: el dinero disponible, el portafolio en dólares y las deudas, siempre por separado."
+    />
+
+    <!-- Instalación en la pantalla de inicio. Sin service worker a propósito:
+         la app consulta Supabase en cada pantalla, así que no funcionaría
+         offline igual; esto es solo para que se instale con su ícono. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- theme-color pinta la barra de estado en standalone. Va el FONDO de la
+         app (paper), no el acento: el acento es configurable y vive en
+         localStorage, pero además el tope de todas las pantallas es paper —
+         una barra de estado del color del acento quedaría como una franja
+         suelta arriba de una página clara. Por eso es fijo. -->
+    <meta name="theme-color" content="#f3f5f1" />
+
+    <!-- iOS: pantalla completa sin la barra de Safari. `default` deja el texto
+         de la barra de estado en oscuro, que es lo que corresponde sobre un
+         fondo claro. `mobile-web-app-capable` es el estándar y el `apple-`
+         el que iOS todavía necesita. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Finanzas" />
   </head>
   <body>
     <div id="root"></div>

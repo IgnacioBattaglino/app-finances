@@ -13,6 +13,7 @@ Multiusuario con registro semi-cerrado: las cuentas las crea el administrador (n
 ## Principios de diseño
 
 - Mobile-first: el uso principal es desde iPhone. Estética minimalista estilo iOS, prolija, profesional.
+- Instalable en la pantalla de inicio (manifest + íconos + metas de iOS), a pantalla completa y en vertical. SIN service worker y sin modo offline a propósito: la app consulta Supabase en cada pantalla, así que offline no funcionaría igual; lo instalable es para tenerla con su ícono y sin la barra de Safari.
 - Idioma de la interfaz: español (Argentina). Código en inglés.
 - Se registran EVENTOS (movimientos, aportes, pagos, reconciliaciones); los totales siempre se calculan, nunca se cargan a mano.
 - **Tres mundos separados**: la app maneja tres magnitudes que se muestran SIEMPRE por separado — el dinero líquido (pesos, operativo, día a día), lo invertido (USD, con rendimiento) y la deuda (saldo restante). NO existe un "patrimonio total" que sume líquido + invertido: pesos inflacionarios y dólares no son comparables ni sumables de forma útil.

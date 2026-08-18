@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Ícono de app: la misma marca de anillos del favicon y de RingsMark
+       (la bola de nieve del interés compuesto), sobre el fondo papel de la
+       app. Los trazos van más gruesos y más opacos que en el favicon porque
+       a 60 px en una pantalla de inicio los originales desaparecen.
+       El fondo es opaco a propósito: iOS no soporta transparencia en el
+       ícono y la compone sobre negro.
+       De acá salen los PNG de public/ (ver README de íconos en el commit). -->
+  <rect width="32" height="32" fill="#f3f5f1"/>
+  <g fill="none" stroke="#1e6b4c">
+    <circle cx="16" cy="16" r="3.5" stroke-width="3"/>
+    <circle cx="16" cy="16" r="8.5" stroke-width="2.4" opacity="0.75"/>
+    <circle cx="16" cy="16" r="14.5" stroke-width="1.9" opacity="0.5"/>
+  </g>
+</svg>
