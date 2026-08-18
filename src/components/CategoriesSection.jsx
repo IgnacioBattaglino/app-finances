@@ -94,7 +94,7 @@ function CategoryRow({ category, onRename, onArchive }) {
               type="button"
               onClick={handleSave}
               disabled={busy}
-              className="font-semibold text-pine disabled:opacity-50"
+              className="font-semibold text-accent disabled:opacity-50"
             >
               Guardar
             </button>
@@ -319,7 +319,7 @@ function CategoriesSection() {
               <button
                 type="submit"
                 disabled={creating || !newName.trim()}
-                className="shrink-0 rounded-xl bg-pine px-4 py-2 text-sm font-semibold text-white transition active:bg-pine-deep disabled:opacity-40"
+                className="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition active:bg-accent-deep disabled:opacity-40"
               >
                 Agregar
               </button>
@@ -351,7 +351,7 @@ function CategoriesSection() {
                       <button
                         type="button"
                         onClick={() => handleRestore(cat.id)}
-                        className="text-sm text-pine"
+                        className="text-sm text-accent"
                       >
                         Restaurar
                       </button>

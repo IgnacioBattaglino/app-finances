@@ -47,7 +47,7 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
           aria-checked={earnsYield}
           onClick={() => setEarnsYield((prev) => !prev)}
           className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-            earnsYield ? 'bg-pine' : 'bg-mist'
+            earnsYield ? 'bg-accent' : 'bg-mist'
           }`}
         >
           <span
@@ -67,7 +67,7 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
           type="button"
           onClick={handleCreate}
           disabled={busy || !name.trim()}
-          className="font-semibold text-pine disabled:opacity-50"
+          className="font-semibold text-accent disabled:opacity-50"
         >
           {busy ? 'Creando…' : 'Crear grupo'}
         </button>

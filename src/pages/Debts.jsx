@@ -14,14 +14,14 @@ import {
 import { formatUSD, formatDayYear, formatPercent } from '../lib/format.js'
 
 // Barra de avance del pago. Es la única señal visual propia de esta pantalla:
-// la parte pine es lo ya pagado. Verde y no clay a propósito — pagar una deuda
+// la parte accent es lo ya pagado. Verde y no clay a propósito — pagar una deuda
 // es progreso, no un error; clay queda para lo destructivo (borrar) como en el
 // resto de la app.
 function PayoffBar({ progress, className = '' }) {
   return (
     <div className={`h-1 overflow-hidden rounded-full bg-mist ${className}`}>
       <div
-        className="h-full rounded-full bg-pine transition-[width] duration-500"
+        className="h-full rounded-full bg-accent transition-[width] duration-500"
         style={{ width: `${Math.round(progress * 100)}%` }}
       />
     </div>
@@ -96,7 +96,7 @@ export function DebtCard({ debt, expanded, onToggle, onEdit, onPay, onEditPaymen
         <button
           type="button"
           onClick={() => onPay(debt)}
-          className="flex-1 py-2.5 text-sm font-medium text-pine transition active:bg-mist/60"
+          className="flex-1 py-2.5 text-sm font-medium text-accent transition active:bg-mist/60"
         >
           Registrar pago
         </button>
@@ -191,7 +191,7 @@ function Debts() {
           <button
             type="button"
             onClick={() => setDebtModal({ open: true, editing: null })}
-            className="mt-4 rounded-xl bg-pine px-4 py-2.5 text-sm font-semibold text-white transition active:bg-pine-deep"
+            className="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition active:bg-accent-deep"
           >
             Nueva deuda
           </button>

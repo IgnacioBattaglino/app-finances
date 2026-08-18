@@ -110,7 +110,7 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
           type="submit"
           form="debt-payment-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-pine disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent disabled:opacity-40"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>

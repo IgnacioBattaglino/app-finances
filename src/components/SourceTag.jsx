@@ -10,8 +10,8 @@ function SourceTag({ valuation }) {
       hour12: false,
     })
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-pine">
-        <span className="h-1.5 w-1.5 rounded-full bg-pine" /> en vivo{time && ` ${time}`}
+      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-accent">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent" /> en vivo{time && ` ${time}`}
       </span>
     )
   }

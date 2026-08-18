@@ -15,7 +15,7 @@ function Login() {
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-paper">
-        <RingsMark className="h-8 w-8 animate-pulse text-pine" />
+        <RingsMark className="h-8 w-8 animate-pulse text-accent" />
       </div>
     )
   }
@@ -51,7 +51,7 @@ function Login() {
     <div className="flex min-h-dvh flex-col justify-center bg-paper px-6">
       <div className="animate-rise mx-auto w-full max-w-sm">
         <div className="mb-10 flex flex-col items-center">
-          <RingsMark className="mb-4 h-14 w-14 text-pine" />
+          <RingsMark className="mb-4 h-14 w-14 text-accent" />
           <h1 className="font-money text-2xl tracking-tight">finanzas</h1>
           <p className="mt-1.5 text-sm text-ink-soft">Ingresá para continuar</p>
         </div>
@@ -83,7 +83,7 @@ function Login() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-2xl bg-pine py-3.5 text-base font-semibold text-white transition active:bg-pine-deep disabled:opacity-50"
+            className="w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-white transition active:bg-accent-deep disabled:opacity-50"
           >
             {submitting ? 'Ingresando…' : 'Ingresar'}
           </button>

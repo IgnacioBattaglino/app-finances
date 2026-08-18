@@ -7,8 +7,19 @@
   --color-ink-soft: #66716a;
   --color-line: #e2e6e1;
   --color-mist: #eceeea;
-  --color-pine: #1e6b4c;
-  --color-pine-deep: #14503a;
+
+  /* ACENTO — el color de marca: botones, navegación, links, switches, FAB.
+     Es lo único cromático que el usuario elige (Ajustes › Apariencia), por
+     eso vive separado de los colores con significado de abajo. */
+  --color-accent: #1e6b4c;
+  --color-accent-deep: #14503a;
+
+  /* SIGNIFICADO FINANCIERO — fijo, nunca sigue al acento: verde = ganancia e
+     ingreso, clay = pérdida y gasto (clay es además el color de lo
+     destructivo). Con un acento violeta, una ganancia en violeta dejaría de
+     leerse como ganancia. Hoy `gain` coincide con el acento por default
+     (mismo verde); son el mismo hex por casualidad, no el mismo token. */
+  --color-gain: #1e6b4c;
   --color-clay: #b5472e;
 
   /* Los montos de dinero siempre en mono tabular (herencia de la planilla) */
@@ -27,7 +38,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-pine);
+    outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
 }

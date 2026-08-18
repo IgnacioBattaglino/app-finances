@@ -209,7 +209,7 @@ function Movements() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
                     Ingresos
                   </p>
-                  <p className="font-money mt-1 text-xl tracking-tight text-pine">
+                  <p className="font-money mt-1 text-xl tracking-tight text-gain">
                     {formatARS(incomes)}
                   </p>
                 </div>
@@ -279,7 +279,7 @@ function Movements() {
                     </div>
                     <span
                       className={`font-money shrink-0 text-[15px] ${
-                        tx.kind === 'expense' ? 'text-clay' : 'text-pine'
+                        tx.kind === 'expense' ? 'text-clay' : 'text-gain'
                       }`}
                     >
                       {tx.kind === 'expense' ? '−' : '+'}
@@ -298,7 +298,7 @@ function Movements() {
         type="button"
         onClick={() => setModalOpen(true)}
         aria-label="Nuevo movimiento"
-        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-pine text-3xl font-light text-white shadow-lg transition active:bg-pine-deep md:right-8 md:bottom-8"
+        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-3xl font-light text-white shadow-lg transition active:bg-accent-deep md:right-8 md:bottom-8"
       >
         +
       </button>

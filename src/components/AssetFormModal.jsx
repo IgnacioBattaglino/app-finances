@@ -147,7 +147,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
           type="submit"
           form="asset-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-pine disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent disabled:opacity-40"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -262,7 +262,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                   aria-checked={yieldsFlag}
                   onClick={() => setYieldsFlag((prev) => !prev)}
                   className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-                    yieldsFlag ? 'bg-pine' : 'bg-mist'
+                    yieldsFlag ? 'bg-accent' : 'bg-mist'
                   }`}
                 >
                   <span
@@ -300,7 +300,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                       type="button"
                       onClick={handleArchive}
                       disabled={busy}
-                      className="font-semibold text-pine disabled:opacity-50"
+                      className="font-semibold text-accent disabled:opacity-50"
                     >
                       Sí, archivar
                     </button>

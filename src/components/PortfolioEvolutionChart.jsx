@@ -16,7 +16,11 @@ import InfoButton from './InfoButton.jsx'
 import { getPortfolioSeries, earliestOperationDate, rangeFrom, trimLeadingZeros } from '../lib/portfolioSeries.js'
 import { formatUSD, formatPercent, formatCompactNumber, formatDay, formatDayYear, todayISO } from '../lib/format.js'
 
-const PINE = '#1e6b4c'
+// Recharts pinta en SVG, así que necesita valores y no clases de Tailwind.
+// ACCENT es el color de marca (la serie "Dinero invertido"); GAIN/CLAY son el
+// par fijo de ganancia/pérdida que tiñe el área. Ver index.css.
+const ACCENT = '#1e6b4c'
+const GAIN = '#1e6b4c'
 const CLAY = '#b5472e'
 const INK_SOFT = '#66716a'
 const LINE = '#e2e6e1'
@@ -35,7 +39,7 @@ function ChartTooltip({ active, payload, label }) {
     <div className="rounded-xl border border-line bg-card px-3 py-2 text-xs shadow-md">
       <p className="mb-1 font-semibold text-ink">{formatDayYear(label)}</p>
       <p className="flex items-center gap-1.5">
-        <span className="inline-block h-0.5 w-3" style={{ backgroundColor: PINE }} />
+        <span className="inline-block h-0.5 w-3" style={{ backgroundColor: ACCENT }} />
         <span className="text-ink-soft">Dinero invertido</span>
         <span className="font-money font-semibold text-ink">{formatUSD(value)}</span>
       </p>
@@ -52,7 +56,7 @@ function Legend() {
   return (
     <div className="flex items-center gap-4 text-xs text-ink-soft">
       <span className="flex items-center gap-1.5">
-        <span className="inline-block h-0.5 w-4 rounded-full" style={{ backgroundColor: PINE }} />
+        <span className="inline-block h-0.5 w-4 rounded-full" style={{ backgroundColor: ACCENT }} />
         Dinero invertido
       </span>
       <span className="flex items-center gap-1.5">
@@ -114,8 +118,8 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
   const pct = last && last.contributed > 0 ? (gain / last.contributed) * 100 : null
   const hasOutdated = outdatedAssetNames.length > 0
   const gainPositive = gain !== null ? gain >= 0 : true
-  const gainColor = gainPositive ? 'text-pine' : 'text-clay'
-  const areaColor = gainPositive ? PINE : CLAY
+  const gainColor = gainPositive ? 'text-gain' : 'text-clay'
+  const areaColor = gainPositive ? GAIN : CLAY
 
   if (error) {
     return (
@@ -202,7 +206,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
                 dot={false}
                 isAnimationActive={false}
               />
-              <Line dataKey="total_value" stroke={PINE} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+              <Line dataKey="total_value" stroke={ACCENT} strokeWidth={2.5} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

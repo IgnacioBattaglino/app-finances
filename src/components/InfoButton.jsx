@@ -8,7 +8,7 @@ function InfoButton({ label, active, onToggle, className = '' }) {
       aria-label={`Qué significa "${label}"`}
       aria-expanded={active}
       className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none ${
-        active ? 'border-pine text-pine' : 'border-line text-ink-soft'
+        active ? 'border-accent text-accent' : 'border-line text-ink-soft'
       } ${className}`}
     >
       i

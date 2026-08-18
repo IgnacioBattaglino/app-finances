@@ -77,7 +77,7 @@ function Layout() {
       {/* Rail lateral (desktop) */}
       <nav className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line px-4 py-8 md:flex">
         <div className="mb-9 flex items-center gap-2.5 px-3">
-          <RingsMark className="h-7 w-7 text-pine" />
+          <RingsMark className="h-7 w-7 text-accent" />
           <span className="font-money text-lg tracking-tight">finanzas</span>
         </div>
         <div className="flex flex-col gap-1">
@@ -89,7 +89,7 @@ function Layout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] transition ${
                   isActive
-                    ? 'bg-mist font-semibold text-pine'
+                    ? 'bg-mist font-semibold text-accent'
                     : 'text-ink-soft hover:bg-mist/60 hover:text-ink'
                 }`
               }
@@ -118,7 +118,7 @@ function Layout() {
                 end={to === '/'}
                 className={({ isActive }) =>
                   `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition ${
-                    isActive ? 'text-pine' : 'text-ink-soft'
+                    isActive ? 'text-accent' : 'text-ink-soft'
                   }`
                 }
               >

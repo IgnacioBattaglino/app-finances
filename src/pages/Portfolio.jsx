@@ -112,7 +112,7 @@ function Portfolio() {
           <button
             type="button"
             onClick={() => setAssetModal({ open: true, editing: null })}
-            className="mt-4 rounded-xl bg-pine px-4 py-2 text-sm font-semibold text-white transition active:bg-pine-deep"
+            className="mt-4 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition active:bg-accent-deep"
           >
             Nuevo activo
           </button>
@@ -227,7 +227,7 @@ function Portfolio() {
                   <button
                     type="button"
                     onClick={() => handleRestore(asset.id)}
-                    className="text-sm text-pine"
+                    className="text-sm text-accent"
                   >
                     Restaurar
                   </button>

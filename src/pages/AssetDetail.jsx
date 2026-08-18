@@ -235,7 +235,7 @@ function AssetDetail() {
             onClick={() =>
               setContributionModal({ open: true, operation: 'contribution', editing: null })
             }
-            className="rounded-xl bg-pine px-4 py-2 text-sm font-semibold text-white transition active:bg-pine-deep disabled:opacity-40"
+            className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition active:bg-accent-deep disabled:opacity-40"
           >
             Aportar
           </button>
@@ -364,7 +364,7 @@ function AssetDetail() {
               <button
                 type="button"
                 onClick={() => setTransferModal(true)}
-                className="font-medium text-pine"
+                className="font-medium text-accent"
               >
                 Transferir
               </button>
@@ -375,7 +375,7 @@ function AssetDetail() {
                 <button
                   type="button"
                   onClick={() => setLiquidateModal(true)}
-                  className="font-medium text-pine"
+                  className="font-medium text-accent"
                 >
                   Liquidar
                 </button>
@@ -389,7 +389,7 @@ function AssetDetail() {
                 <button
                   type="button"
                   onClick={() => setValuationModal(true)}
-                  className="font-medium text-pine"
+                  className="font-medium text-accent"
                 >
                   Actualizar valuación
                 </button>
@@ -407,7 +407,7 @@ function AssetDetail() {
           onClick={() =>
             setContributionModal({ open: true, operation: 'contribution', editing: null })
           }
-          className="flex-1 rounded-xl bg-pine py-2.5 text-sm font-semibold text-white transition active:bg-pine-deep disabled:opacity-40"
+          className="flex-1 rounded-xl bg-accent py-2.5 text-sm font-semibold text-white transition active:bg-accent-deep disabled:opacity-40"
         >
           Aportar
         </button>

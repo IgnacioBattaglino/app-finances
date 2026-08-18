@@ -57,7 +57,7 @@ function LiquidModal({ open, onClose, onSaved }) {
           type="submit"
           form="liquid-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-pine disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent disabled:opacity-40"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -92,7 +92,7 @@ function LiquidModal({ open, onClose, onSaved }) {
             <p
               className={`rounded-2xl px-4 py-3 text-sm ${
                 difference > 0
-                  ? 'border border-pine/20 bg-pine/5 text-pine'
+                  ? 'border border-accent/20 bg-accent/5 text-accent'
                   : 'border border-clay/20 bg-clay/5 text-clay'
               }`}
             >

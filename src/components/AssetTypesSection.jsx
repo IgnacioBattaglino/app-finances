@@ -93,7 +93,7 @@ function AssetTypeRow({ assetType, onRename, onToggleTotal, onArchive, onDelete 
               type="button"
               onClick={handleSave}
               disabled={busy}
-              className="font-semibold text-pine disabled:opacity-50"
+              className="font-semibold text-accent disabled:opacity-50"
             >
               Guardar
             </button>
@@ -137,7 +137,7 @@ function AssetTypeRow({ assetType, onRename, onToggleTotal, onArchive, onDelete 
           aria-checked={assetType.include_in_total !== false}
           onClick={() => onToggleTotal(assetType.id, assetType.include_in_total === false)}
           className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-            assetType.include_in_total !== false ? 'bg-pine' : 'bg-mist'
+            assetType.include_in_total !== false ? 'bg-accent' : 'bg-mist'
           }`}
         >
           <span
@@ -180,7 +180,7 @@ function AssetTypeRow({ assetType, onRename, onToggleTotal, onArchive, onDelete 
                   type="button"
                   onClick={handleArchive}
                   disabled={busy}
-                  className="font-semibold text-pine disabled:opacity-50"
+                  className="font-semibold text-accent disabled:opacity-50"
                 >
                   Sí, archivar
                 </button>
@@ -381,7 +381,7 @@ function AssetTypesSection() {
                       <button
                         type="button"
                         onClick={() => handleRestore(at.id)}
-                        className="text-sm text-pine"
+                        className="text-sm text-accent"
                       >
                         Restaurar
                       </button>

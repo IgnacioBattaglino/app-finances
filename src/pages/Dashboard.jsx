@@ -105,7 +105,7 @@ function SummaryCard({ label, amount, hint, note, info, loading, error, onRetry,
             {loading ? <span className="text-ink-soft">Calculando…</span> : amount}
           </span>
           {note && <span className="mt-1 block text-xs text-ink-soft">{note}</span>}
-          {hint && <span className="mt-1.5 block text-xs text-pine underline">{hint}</span>}
+          {hint && <span className="mt-1.5 block text-xs text-accent underline">{hint}</span>}
         </span>
         <Chevron />
       </button>
@@ -287,7 +287,7 @@ function Dashboard() {
         type="button"
         onClick={openExpenseModal}
         aria-label="Nuevo gasto"
-        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-pine text-3xl font-light text-white shadow-lg transition active:bg-pine-deep md:right-8 md:bottom-8"
+        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-3xl font-light text-white shadow-lg transition active:bg-accent-deep md:right-8 md:bottom-8"
       >
         +
       </button>

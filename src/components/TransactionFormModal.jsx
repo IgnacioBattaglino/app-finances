@@ -103,7 +103,7 @@ function TransactionFormModal({
           type="submit"
           form="transaction-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-pine disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent disabled:opacity-40"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>

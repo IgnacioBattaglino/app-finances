@@ -1,7 +1,9 @@
 import { formatUSD, formatPercent } from '../lib/format.js'
 
-// Rendimiento (monto + %) con el lenguaje visual compartido: pine para
-// ganancia, clay para pérdida. Siempre en negrita — es el dato protagonista
+// Rendimiento (monto + %) con el lenguaje visual compartido: gain para
+// ganancia, clay para pérdida. Los dos son fijos y NO siguen al color de la
+// app (accent): una ganancia tiene que leerse como ganancia con cualquier
+// acento elegido. Siempre en negrita — es el dato protagonista
 // de Portafolio en todos sus niveles (total, grupo, activo); el tamaño lo
 // decide cada lugar donde se usa vía className. `neutral` fuerza gris
 // (activo que no busca rendimiento, o de valuation_mode 'contributed') sin
@@ -18,7 +20,7 @@ function Gain({ value, base, className = '', neutral = false }) {
   if (!showPct && value === 0) return null
   const pct = showPct ? (value / base) * 100 : 0
   const positive = value >= 0
-  const color = neutral ? 'text-ink-soft' : positive ? 'text-pine' : 'text-clay'
+  const color = neutral ? 'text-ink-soft' : positive ? 'text-gain' : 'text-clay'
   return (
     <span className={`font-money font-semibold ${color} ${className}`}>
       {positive ? '+' : '−'}

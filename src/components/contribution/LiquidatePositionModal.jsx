@@ -127,7 +127,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
           type="submit"
           form="liquidate-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-pine disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent disabled:opacity-40"
         >
           {busy ? 'Liquidando…' : 'Liquidar'}
         </button>
@@ -168,7 +168,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
               <div className="flex items-center justify-between gap-3 px-4 py-3">
                 <span className="text-[15px]">Ganancia realizada</span>
                 <span
-                  className={`font-money text-[15px] ${realizedGain < 0 ? 'text-clay' : 'text-pine'}`}
+                  className={`font-money text-[15px] ${realizedGain < 0 ? 'text-clay' : 'text-gain'}`}
                 >
                   {realizedGain >= 0 ? '+' : '−'}
                   {formatUSD(Math.abs(realizedGain))}
