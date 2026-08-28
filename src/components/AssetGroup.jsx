@@ -38,38 +38,38 @@ function AssetRow({ asset, valuation, contributions }) {
   return (
     <Link
       to={`/portafolio/${asset.id}`}
-      className="block px-4 py-3 text-left transition active:bg-mist/40"
+      className="block px-4 py-3.5 text-left transition active:bg-mist md:hover:bg-mist"
     >
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-[15px]">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="truncate text-[17px] font-medium">
             {asset.name}
             {asset.ticker && (
               // El espacio va en el texto, no solo en el margen: sin él el
               // nombre accesible del link se lee "AL30AL30" (el ml-1.5 separa
               // en pantalla, no en el árbol de accesibilidad).
-              <span className="font-money ml-1.5 text-xs text-ink-soft">{` ${asset.ticker}`}</span>
+              <span className="font-money ml-1.5 text-[13px] font-normal text-ink-faint">{` ${asset.ticker}`}</span>
             )}
           </span>
-          <SourceTag valuation={valuation} />
         </span>
-        <span className="font-money shrink-0 text-[15px]">
+        <span className="font-money shrink-0 text-[17px] font-medium">
           {valuation.value !== null ? formatUSD(valuation.value) : '—'}
         </span>
       </div>
-      <p className="mt-1 truncate text-xs text-ink-soft">{secondLine(asset, valuation, own)}</p>
-      <div className="mt-1">
+      <p className="mt-0.5 truncate text-[13px] text-ink-soft">{secondLine(asset, valuation, own)}</p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <SourceTag valuation={valuation} />
         {/* Con la valuación vieja el porcentaje no es impreciso, es falso
             (compara un valor de junio contra un aportado de agosto): no se
             muestra, ni tachado ni con asterisco. La fila entera ya linkea al
             detalle, que es donde vive "Actualizar valuación" — por eso acá va
             solo el aviso y no un botón (sería un botón adentro de un link). */}
         {valuation.outdated ? (
-          <span className="text-xs text-clay">
+          <span className="text-[13px] text-clay">
             Valuación desactualizada — hay operaciones posteriores
           </span>
         ) : (
-          <Gain value={gain} base={valuation.contributed} neutral={neutral} className="text-xs" />
+          <Gain value={gain} base={valuation.contributed} neutral={neutral} className="text-[13px]" />
         )}
       </div>
     </Link>
@@ -93,18 +93,20 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
   const archivedGroup = assetType.is_archived === true
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-card">
-      <div className="px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
+    <div className="list">
+      {/* Encabezado del grupo: se apoya sobre un relleno apenas distinto para
+          separarlo de sus activos sin necesidad de un borde. */}
+      <div className="bg-mist/45 px-4 py-3">
+        <div className="flex items-baseline justify-between gap-3">
           <span className="flex items-center gap-1.5 text-[15px] font-semibold">
             {assetType.name}
             {outOfTotal && (
-              <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-ink-soft">
+              <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-medium tracking-wide text-ink-soft uppercase">
                 fuera del total
               </span>
             )}
             {archivedGroup && (
-              <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-ink-soft">
+              <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-medium tracking-wide text-ink-soft uppercase">
                 grupo archivado
               </span>
             )}
@@ -113,7 +115,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
             {allUnvalued ? <span className="text-clay">sin valuación</span> : formatUSD(value)}
           </span>
         </div>
-        <div className="mt-1 flex items-center justify-between text-xs">
+        <div className="mt-1 flex items-center justify-between gap-3 text-[13px]">
           <span className="text-ink-soft">
             aportado <span className="font-money">{formatUSD(contributed)}</span>
           </span>
@@ -122,24 +124,24 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
               agregado da 0 y un "+US$ 0" se leería como "no ganaste nada",
               que es distinto de "no hay con qué calcularlo". */}
           {valuedContributed > 0 && (
-            <Gain value={gain} base={valuedContributed} className="text-xs" />
+            <Gain value={gain} base={valuedContributed} className="text-[13px]" />
           )}
         </div>
         {archivedGroup && (
-          <p className="mt-1 text-xs text-ink-soft">
+          <p className="mt-1.5 text-[13px] text-ink-soft">
             Este grupo está archivado pero todavía tiene activos sin archivar, así que se
             muestra: su valor sigue contando en el total. Movelos a otro grupo, o restaurá el
             grupo desde Ajustes.
           </p>
         )}
         {outOfTotal && (
-          <p className="mt-1 text-xs text-ink-soft">
+          <p className="mt-1.5 text-[13px] text-ink-soft">
             Este grupo se ve, pero no suma al valor total.
           </p>
         )}
       </div>
 
-      <div className="divide-y divide-line border-t border-line">
+      <div className="rows">
         {assets.map((asset) => (
           <AssetRow
             key={asset.id}

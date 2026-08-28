@@ -9,7 +9,7 @@ function ProtectedRoute() {
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-paper">
-        <RingsMark className="h-8 w-8 animate-pulse text-accent" />
+        <RingsMark className="h-8 w-8 animate-pulse text-accent-ink" />
         <span className="sr-only">Cargando</span>
       </div>
     )

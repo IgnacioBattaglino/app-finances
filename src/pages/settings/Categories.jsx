@@ -45,7 +45,7 @@ function NewCategoryRow({ kind, onCreated }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full px-4 py-3 text-left text-[15px] font-medium text-accent transition active:bg-mist/60"
+        className="w-full px-4 py-3 text-left text-[17px] font-medium text-accent-ink transition active:bg-mist"
       >
         Nueva categoría
       </button>
@@ -61,17 +61,17 @@ function NewCategoryRow({ kind, onCreated }) {
         placeholder={kind === 'expense' ? 'ej: Comida, Transporte' : 'ej: Sueldo, Freelance'}
         autoFocus
         disabled={busy}
-        className="w-full rounded-lg bg-mist px-3 py-1.5 text-base outline-none placeholder:text-ink-soft/60"
+        className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none placeholder:text-ink-faint"
       />
       <FormError message={error?.message} detail={error?.detail} />
-      <div className="flex items-center justify-end gap-4 text-sm">
+      <div className="flex items-center justify-end gap-4 text-[15px]">
         <button type="button" onClick={close} disabled={busy} className="text-ink-soft">
           Cancelar
         </button>
         <button
           type="submit"
           disabled={busy || !name.trim()}
-          className="font-semibold text-accent disabled:opacity-50"
+          className="font-semibold text-accent-ink disabled:opacity-50"
         >
           Guardar
         </button>
@@ -121,12 +121,12 @@ function Categories() {
       description="Con qué etiquetás tus gastos e ingresos al cargarlos."
     >
       {error && (
-        <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
+        <div className="notice space-y-2">
           <FormError message={error.message} detail={error.detail} />
           <button
             type="button"
             onClick={load}
-            className="text-sm font-semibold text-clay underline"
+            className="text-[15px] font-semibold text-clay underline"
           >
             Reintentar
           </button>
@@ -134,7 +134,7 @@ function Categories() {
       )}
 
       {loading ? (
-        <p className="px-4 text-sm text-ink-soft">Cargando…</p>
+        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
       ) : (
         <>
           <SettingsGroup title="Gastos">

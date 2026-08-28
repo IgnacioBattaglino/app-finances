@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useTheme } from '../hooks/useTheme.jsx'
+import { readChartColors } from '../lib/chartColors.js'
 import FormError from './form/FormError.jsx'
+import Money from './Money.jsx'
 import { getExpenses } from '../lib/transactions.js'
 import {
   lastMonths,
@@ -17,16 +20,15 @@ import {
 } from '../lib/expensesSummary.js'
 import { formatARS, formatUSD, formatPercent, formatCompactNumber, todayISO } from '../lib/format.js'
 
-const CLAY = '#b5472e'
-const INK_SOFT = '#66716a'
-const LINE = '#e2e6e1'
+// Los colores del gráfico salen de las variables CSS del tema, igual que en
+// la curva del portafolio (ver lib/chartColors.js).
 
 function BarTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
   const point = payload[0].payload
   return (
-    <div className="rounded-xl border border-line bg-card px-3 py-2 text-xs shadow-md">
-      <p className="mb-1 font-semibold text-ink">
+    <div className="surface px-3 py-2.5 text-[13px] shadow-[var(--shadow-raised)]">
+      <p className="mb-1 font-semibold">
         {fullMonthName(point)[0].toUpperCase() + fullMonthName(point).slice(1)} {point.year}
       </p>
       <span className="font-money font-semibold text-clay">{formatUSD(point.total)}</span>
@@ -45,6 +47,12 @@ function BarTooltip({ active, payload }) {
 // app entera. Es un token y no los gastos ya cargados a propósito: quien
 // guarda no tiene por qué saber qué consulta hace este bloque.
 function ExpensesBlock({ reloadToken = 0 }) {
+  const { accent, isDark } = useTheme()
+  // accent e isDark no se usan adentro a propósito: son la SEÑAL de que las
+  // variables CSS cambiaron, y readChartColors las lee del DOM. Sin ellas en
+  // las deps el gráfico se quedaría con los colores del tema anterior.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const colors = useMemo(() => readChartColors(), [accent, isDark])
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -106,7 +114,7 @@ function ExpensesBlock({ reloadToken = 0 }) {
 
   if (loading) {
     return (
-      <div className="flex h-[140px] items-center justify-center rounded-2xl border border-line bg-card px-4 py-4 text-sm text-ink-soft">
+      <div className="surface flex h-[140px] items-center justify-center text-[15px] text-ink-soft">
         Calculando…
       </div>
     )
@@ -114,9 +122,9 @@ function ExpensesBlock({ reloadToken = 0 }) {
 
   if (error) {
     return (
-      <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-4">
+      <div className="notice space-y-2">
         <FormError message={error.message} detail={error.detail} />
-        <button type="button" onClick={load} className="text-sm font-semibold text-clay underline">
+        <button type="button" onClick={load} className="text-[15px] font-semibold text-clay underline">
           Reintentar
         </button>
       </div>
@@ -125,8 +133,8 @@ function ExpensesBlock({ reloadToken = 0 }) {
 
   if (expenses.length === 0) {
     return (
-      <div className="rounded-2xl border border-line bg-card px-4 py-6 text-center">
-        <p className="text-sm text-ink-soft">
+      <div className="surface px-5 py-8 text-center">
+        <p className="text-[15px] text-ink-soft">
           Todavía no cargaste ningún gasto. Cuando registres el primero, acá vas a ver en qué se te va
           la plata.
         </p>
@@ -144,13 +152,13 @@ function ExpensesBlock({ reloadToken = 0 }) {
   const maxCategoryTotal = breakdown[0]?.total ?? 0
 
   return (
-    <div className="rounded-2xl border border-line bg-card px-4 py-4">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-        Gastos del mes
-      </span>
-      <p className="font-money mt-1 text-3xl tracking-tight text-clay">{formatARS(currentTotal)}</p>
+    <div className="surface px-5 py-4">
+      <span className="eyebrow">Gastos del mes</span>
+      <p className="mt-2 text-[32px] leading-none font-semibold text-clay">
+        <Money value={currentTotal} currency="ars" />
+      </p>
       {pct !== null && (
-        <p className="mt-1 text-xs text-ink-soft">
+        <p className="mt-2 text-[13px] text-ink-soft">
           {formatPercent(Math.abs(pct), 0)} {pct >= 0 ? 'más' : 'menos'} que en{' '}
           {fullMonthName(previousMonth)} a esta altura
         </p>
@@ -158,18 +166,20 @@ function ExpensesBlock({ reloadToken = 0 }) {
 
       {/* Desglose por categoría */}
       {breakdown.length === 0 ? (
-        <p className="mt-3 border-t border-line pt-3 text-sm text-ink-soft">Sin gastos este mes.</p>
+        <p className="mt-4 border-t border-line pt-3.5 text-[15px] text-ink-soft">
+          Sin gastos este mes.
+        </p>
       ) : (
-        <div className="mt-3 space-y-2 border-t border-line pt-3">
+        <div className="mt-4 space-y-2.5 border-t border-line pt-3.5">
           {breakdown.map((cat) => (
             <div key={cat.name}>
-              <div className="flex items-baseline justify-between gap-2 text-xs">
+              <div className="flex items-baseline justify-between gap-2 text-[13px]">
                 <span className="truncate text-ink-soft">{cat.name}</span>
-                <span className="font-money shrink-0 text-ink">{formatARS(cat.total)}</span>
+                <span className="font-money shrink-0 font-medium">{formatARS(cat.total)}</span>
               </div>
-              <div className="mt-1 h-1.5 rounded-full bg-clay/15">
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-clay/15">
                 <div
-                  className="h-1.5 rounded-full bg-clay"
+                  className="h-full rounded-full bg-clay"
                   style={{ width: `${(cat.total / maxCategoryTotal) * 100}%` }}
                 />
               </div>
@@ -181,43 +191,47 @@ function ExpensesBlock({ reloadToken = 0 }) {
       {/* Serie de 12 meses en dólares. Falla sola: el total del mes y el
           desglose de arriba ya se vieron y se quedan donde están. */}
       {usdError && (
-        <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
-          <span className="text-xs text-ink-soft">
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5">
+          <span className="text-[13px] text-ink-soft">
             No se pudo convertir tus gastos a dólares.
           </span>
           <button
             type="button"
             onClick={loadUsd}
-            className="shrink-0 text-xs font-semibold text-accent underline"
+            className="shrink-0 text-[13px] font-semibold text-accent-ink underline"
           >
             Reintentar
           </button>
         </div>
       )}
       {usdSeries && (
-        <div className="mt-3 border-t border-line pt-3">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-            Últimos 12 meses (USD)
-          </span>
+        <div className="mt-4 border-t border-line pt-3.5">
+          <span className="eyebrow">Últimos 12 meses (USD)</span>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={usdSeries} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke={LINE} strokeWidth={1} />
+              <CartesianGrid vertical={false} stroke={colors.line} strokeWidth={1} />
               <XAxis
                 dataKey={(m) => monthLabel(m)}
-                tick={{ fontSize: 10, fill: INK_SOFT }}
+                tick={{ fontSize: 10, fill: colors.inkFaint }}
                 axisLine={false}
                 tickLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
                 tickFormatter={formatCompactNumber}
-                tick={{ fontSize: 11, fill: INK_SOFT }}
+                tick={{ fontSize: 11, fill: colors.inkFaint }}
                 axisLine={false}
                 tickLine={false}
                 width={36}
               />
-              <Tooltip content={<BarTooltip />} cursor={{ fill: CLAY, fillOpacity: 0.06 }} />
-              <Bar dataKey="total" fill={CLAY} radius={[3, 3, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+              <Tooltip content={<BarTooltip />} cursor={{ fill: colors.clay, fillOpacity: 0.06 }} />
+              <Bar
+                dataKey="total"
+                fill={colors.clay}
+                radius={[4, 4, 0, 0]}
+                maxBarSize={22}
+                isAnimationActive={false}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

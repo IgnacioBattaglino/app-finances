@@ -127,17 +127,17 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
           type="submit"
           form="liquidate-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
         >
           {busy ? 'Liquidando…' : 'Liquidar'}
         </button>
       }
     >
       <form id="liquidate-form" onSubmit={handleSubmit} className="space-y-3">
-          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+          <div className="list">
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[15px]">Monto</span>
+                <span className="text-[17px]">Monto</span>
                 <div className="flex items-center gap-1">
                   <span className="text-[15px] text-ink-soft">US$</span>
                   <input
@@ -146,11 +146,11 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
                     inputMode="decimal"
                     placeholder="0"
                     required
-                    className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                    className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                   />
                 </div>
               </div>
-              <p className="mt-1 text-xs text-ink-soft">
+              <p className="mt-1 text-[13px] text-ink-soft">
                 {valuation?.source === 'none'
                   ? 'Sin valuación conocida — indicá el monto.'
                   : valuation?.outdated
@@ -166,7 +166,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
                 campo vacío. */}
             {amountValue > 0 && (
               <div className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[15px]">Ganancia realizada</span>
+                <span className="text-[17px]">Ganancia realizada</span>
                 <span
                   className={`font-money text-[15px] ${realizedGain < 0 ? 'text-clay' : 'text-gain'}`}
                 >
@@ -178,14 +178,14 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
 
             {asset.valuation_mode === 'live' && (
               <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[15px]">Cantidad</span>
+                <span className="text-[17px]">Cantidad</span>
                 <input
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   inputMode="decimal"
                   placeholder="0"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                 />
               </label>
             )}
@@ -210,13 +210,13 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
                 value={destination}
                 onChange={setDestination}
               />
-              <p className="mt-1.5 text-xs text-ink-soft">
+              <p className="mt-1.5 text-[13px] text-ink-soft">
                 {DESTINATION_OPTIONS.find((o) => o.value === destination)?.help}
               </p>
             </div>
 
             <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Archivar el activo</span>
+              <span className="text-[17px]">Archivar el activo</span>
               <input
                 type="checkbox"
                 checked={archiveAfter}
@@ -229,7 +229,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
           </div>
 
           {valueWarning && (
-            <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">{valueWarning}</p>
+            <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">{valueWarning}</p>
           )}
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />

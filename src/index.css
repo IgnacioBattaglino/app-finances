@@ -1,52 +1,365 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   SISTEMA VISUAL
+   ---------------------------------------------------------------------------
+   La app se ve y se toca como una app de iOS: fondo agrupado, tarjetas sin
+   marco, separadores internos sangrados, tipografía del sistema (que en
+   iPhone y Mac ES San Francisco) y controles grandes en el celular.
+
+   Los colores viven todos acá como variables. El modo oscuro no reescribe
+   ninguna clase: redefine estas mismas variables, así que cualquier
+   componente que use los tokens (bg-card, text-ink-soft, border-line…) ya
+   funciona en los dos modos sin tocarlo.
+   --------------------------------------------------------------------------- */
+
 @theme {
-  --color-paper: #f3f5f1;
+  /* SUPERFICIES — el fondo es gris frío y las tarjetas blancas. La jerarquía
+     la da el contraste entre los dos, no un borde: un marco de 1px alrededor
+     de cada tarjeta es justamente lo que delata que una web no es nativa. */
+  --color-paper: #f1f2f6;
   --color-card: #ffffff;
-  --color-ink: #1b231d;
-  --color-ink-soft: #66716a;
-  --color-line: #e2e6e1;
-  --color-mist: #eceeea;
+
+  /* TEXTO — tres niveles, como los labels de UIKit: principal, secundario
+     (descripciones, unidades) y terciario (etiquetas de sección, metadatos
+     que casi nunca se leen). */
+  --color-ink: #14161b;
+  --color-ink-soft: #6b7180;
+  --color-ink-faint: #99a0ad;
+
+  /* SEPARADORES Y RELLENOS — `line` es la línea de 1px entre filas; `mist` el
+     relleno de los controles apoyados sobre una tarjeta (segmentado, chips), y
+     `lift` la pieza que se apoya ENCIMA de `mist` (la pastilla del segmentado).
+
+     `lift` no puede ser `card`: en claro las dos son blancas y funciona de
+     casualidad, pero en oscuro `card` es más oscuro que `mist` y la pastilla
+     elegida quedaría hundida en vez de levantada, que es justo al revés de lo
+     que tiene que comunicar. */
+  --color-line: #e3e5ec;
+  --color-mist: #e9ebf1;
+  --color-lift: #ffffff;
+
+  /* El velo detrás de un modal. Siempre oscuro, en los dos modos: oscurecer lo
+     de atrás es lo que empuja el panel adelante. Con `ink` (que en oscuro es
+     casi blanco) el velo se volvía un vidrio esmerilado blanco. */
+  --color-scrim: rgb(10 12 16 / 0.4);
 
   /* ACENTO — el color de marca: botones, navegación, links, switches, FAB.
      Es lo único cromático que el usuario elige (Ajustes › Apariencia), por
-     eso vive separado de los colores con significado de abajo. */
-  --color-accent: #1e6b4c;
-  --color-accent-deep: #14503a;
+     eso vive separado de los colores con significado de abajo. Los pisa
+     lib/theme.js en :root según el color elegido y el modo claro/oscuro.
+
+     Son dos y no uno porque un color no puede hacer los dos trabajos:
+     `accent` rellena botones (siempre con texto blanco encima, así que es
+     oscuro) y `accent-ink` es el acento como TEXTO sobre el fondo de la app.
+     En claro son el mismo; en oscuro `accent-ink` se aclara, porque un verde
+     oscuro sobre un fondo casi negro no se lee. Ver lib/theme.js. */
+  --color-accent: #0a7a55;
+  --color-accent-deep: #075f42;
+  --color-accent-ink: #0a7a55;
 
   /* SIGNIFICADO FINANCIERO — fijo, nunca sigue al acento: verde = ganancia e
      ingreso, clay = pérdida y gasto (clay es además el color de lo
      destructivo). Con un acento violeta, una ganancia en violeta dejaría de
-     leerse como ganancia. Hoy `gain` coincide con el acento por default
-     (mismo verde); son el mismo hex por casualidad, no el mismo token. */
-  --color-gain: #1e6b4c;
-  --color-clay: #b5472e;
+     leerse como ganancia. */
+  --color-gain: #0e7a4e;
+  --color-clay: #c3372b;
 
-  /* Los montos de dinero siempre en mono tabular (herencia de la planilla) */
-  --font-money: ui-monospace, "SF Mono", "Menlo", "Cascadia Mono", monospace;
+  /* TIPOGRAFÍA — la del sistema. En iPhone y en Mac `-apple-system` resuelve
+     a San Francisco, que es exactamente la que queremos; en Windows y Android
+     cae a la nativa de cada uno. Ninguna webfont: la app se abre sin red
+     esperando una tipografía. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI Variable Text", "Segoe UI", Roboto, system-ui, sans-serif;
+
+  /* Los montos NO van en monoespaciada: van en la misma tipografía del
+     sistema con cifras tabulares (font-variant-numeric, ver .font-money). Es
+     lo que hacen Wallet, Bolsa y Salud — una monoespaciada le da a cada
+     número un aire de planilla que es justo lo contrario de lo que queremos.
+     Se mantiene el nombre del token para no tocar las decenas de lugares que
+     ya escriben `font-money`. */
+  --font-money: var(--font-sans);
+
+  /* Radios: uno para superficies, uno para controles. Dos y no cinco — la
+     coherencia del redondeo es la mitad de la sensación de "una sola app". */
+  --radius-surface: 18px;
+  --radius-control: 14px;
+
+  /* La sombra de las tarjetas es casi invisible a propósito: apenas despega
+     la tarjeta del fondo. En oscuro se cambia por un aro de 1px, porque una
+     sombra negra sobre un fondo negro no separa nada. */
+  --shadow-surface: 0 1px 2px rgb(16 18 24 / 0.05), 0 1px 3px rgb(16 18 24 / 0.04);
+  --shadow-raised: 0 8px 24px rgb(16 18 24 / 0.12), 0 2px 6px rgb(16 18 24 / 0.06);
+}
+
+/* MODO OSCURO
+   Dos reglas y no una: `[data-theme="dark"]` es la elección explícita del
+   usuario (Ajustes › Apariencia) y tiene que ganar siempre; el @media cubre
+   "Automático", que es el default y por eso se aplica a todo lo que no pidió
+   explícitamente el modo claro. */
+:root[data-theme='dark'] {
+  --color-paper: #0b0c10;
+  --color-card: #16181e;
+  --color-ink: #f3f4f8;
+  --color-ink-soft: #9aa0ae;
+  --color-ink-faint: #6c7280;
+  --color-line: #262a33;
+  --color-mist: #1e212a;
+  --color-lift: #363c4a;
+  --color-scrim: rgb(0 0 0 / 0.6);
+  --color-gain: #35c783;
+  --color-clay: #ff6b5e;
+  --shadow-surface: 0 0 0 1px #23262f;
+  --shadow-raised: 0 0 0 1px #2c303a, 0 12px 32px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-paper: #0b0c10;
+    --color-card: #16181e;
+    --color-ink: #f3f4f8;
+    --color-ink-soft: #9aa0ae;
+    --color-ink-faint: #6c7280;
+    --color-line: #262a33;
+    --color-mist: #1e212a;
+    --color-lift: #363c4a;
+    --color-scrim: rgb(0 0 0 / 0.6);
+    --color-gain: #35c783;
+    --color-clay: #ff6b5e;
+    --shadow-surface: 0 0 0 1px #23262f;
+    --shadow-raised: 0 0 0 1px #2c303a, 0 12px 32px rgb(0 0 0 / 0.5);
+    color-scheme: dark;
+  }
 }
 
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Ningún gesto de la app necesita doble tap para zoom, y ese gesto es el
+       que mete los 300ms de retardo en cada toque. */
+    touch-action: manipulation;
   }
 
   body {
     background-color: var(--color-paper);
     color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* 17px es el cuerpo de iOS. Es más grande de lo que se estila en la web
+       y es correcto: esto se lee con el teléfono en la mano. */
+    font-size: 17px;
+    line-height: 1.45;
+    letter-spacing: -0.011em;
+  }
+
+  /* Cifras tabulares: sin esto, cada dígito tiene su ancho y una columna de
+     montos queda temblando. Con esto, todos los números de la app se alinean
+     y un total que cambia no mueve el texto de al lado. */
+  .font-money {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.018em;
   }
 
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
+
+  /* El resaltado azul del tap en iOS delata la web adentro de la app. Los
+     estados de presionado los ponemos nosotros (active:bg-…). */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
+@layer components {
+  /* ---- ANCHOS DE PÁGINA -------------------------------------------------
+     Las dos formas de la app. En el celular todo es una columna angosta; en
+     desktop `page` abre a una grilla ancha de verdad (Inicio, Portafolio,
+     Movimientos) y `page-narrow` se queda angosta a propósito: una lista de
+     ajustes o un formulario de 1120px de ancho es ilegible. */
+  .page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 34rem;
+  }
+
+  .page-narrow {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 34rem;
+  }
+
+  @media (min-width: 48rem) {
+    .page {
+      max-width: 70rem;
+    }
+
+    .page-narrow {
+      max-width: 42rem;
+    }
+  }
+
+  /* ---- SUPERFICIES ------------------------------------------------------ */
+  .surface {
+    background-color: var(--color-card);
+    border-radius: var(--radius-surface);
+    box-shadow: var(--shadow-surface);
+  }
+
+  /* Lista agrupada: la tarjeta y, entre fila y fila, un separador que arranca
+     sangrado desde el texto y no desde el borde de la tarjeta — el detalle
+     que hace que una lista se lea como iOS y no como una tabla. Va como
+     background-image y no como border para que el fondo de hover/presionado
+     de cada fila (que es background-color) no lo tape. */
+  .list {
+    background-color: var(--color-card);
+    border-radius: var(--radius-surface);
+    box-shadow: var(--shadow-surface);
+    overflow: hidden;
+  }
+
+  /* `rows` es el mismo separador sin la tarjeta, para cuando las filas van
+     dentro de una lista que ya tiene su propio encabezado (los grupos del
+     portafolio). */
+  .list > * + *,
+  .rows > * + * {
+    background-image: linear-gradient(
+      to right,
+      transparent 0 1rem,
+      var(--color-line) 1rem 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 1px;
+    background-position: top left;
+  }
+
+  /* Aviso teñido (precio caído, valuación vieja, confirmación de borrado):
+     relleno suave del color del significado, sin marco. */
+  .notice {
+    border-radius: var(--radius-surface);
+    background-color: color-mix(in oklab, var(--color-clay) 9%, transparent);
+    color: var(--color-clay);
+    padding: 0.875rem 1rem;
+  }
+
+  /* ---- CONTROLES --------------------------------------------------------
+     Acá vive la diferencia de tamaño entre celular y desktop, en un solo
+     lugar: en el celular todo botón es una superficie de 52px que se toca con
+     el pulgar sin apuntar; en desktop baja a 36px, que es lo que espera el
+     mouse. Ninguna pantalla repite estas medidas. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 3.25rem;
+    padding-inline: 1.25rem;
+    border-radius: var(--radius-control);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    transition:
+      background-color 0.15s ease,
+      opacity 0.15s ease,
+      transform 0.1s ease;
+    user-select: none;
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+  }
+
+  .btn:not(:disabled):active {
+    transform: scale(0.975);
+  }
+
+  @media (min-width: 48rem) {
+    .btn {
+      height: 2.25rem;
+      padding-inline: 0.875rem;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+  }
+
+  .btn-primary {
+    background-color: var(--color-accent);
+    color: #fff;
+  }
+
+  .btn-primary:not(:disabled):active {
+    background-color: var(--color-accent-deep);
+  }
+
+  .btn-secondary {
+    background-color: var(--color-card);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-surface);
+  }
+
+  .btn-secondary:not(:disabled):active {
+    background-color: var(--color-mist);
+  }
+
+  .btn-quiet {
+    background-color: var(--color-mist);
+    color: var(--color-ink);
+  }
+
+  .btn-danger {
+    background-color: color-mix(in oklab, var(--color-clay) 12%, transparent);
+    color: var(--color-clay);
+  }
+
+  @media (hover: hover) {
+    .btn-primary:not(:disabled):hover {
+      background-color: var(--color-accent-deep);
+    }
+
+    .btn-secondary:not(:disabled):hover,
+    .btn-quiet:not(:disabled):hover {
+      background-color: var(--color-mist);
+    }
+  }
+
+  /* ---- TIPOGRAFÍA -------------------------------------------------------
+     El título grande de iOS: 34px en el celular, donde es lo primero que se
+     lee al entrar a una pantalla; 30px en desktop, donde compite con la
+     navegación lateral y no necesita gritar. */
+  .title-page {
+    font-size: 34px;
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.024em;
+  }
+
+  @media (min-width: 48rem) {
+    .title-page {
+      font-size: 30px;
+    }
+  }
+
+  /* Encabezado de sección de una lista agrupada. */
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-ink-soft);
+  }
+}
+
+/* ---- MOVIMIENTO ----------------------------------------------------------
+   Poco y con intención. `rise` es la entrada de una pantalla; `sheet` es la
+   curva de iOS para un panel que sube desde abajo (arranca rápido y frena
+   largo); en desktop ese mismo panel no sube: aparece en el centro. */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -54,12 +367,57 @@
   }
 }
 
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .animate-rise {
-  animation: rise 0.45s ease-out both;
+  animation: rise 0.4s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.animate-fade {
+  animation: fade-in 0.25s ease-out both;
+}
+
+.animate-sheet {
+  animation: sheet-up 0.38s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@media (min-width: 48rem) {
+  .animate-sheet {
+    animation: pop-in 0.2s ease-out both;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-rise {
+  .animate-rise,
+  .animate-sheet,
+  .animate-fade {
     animation: none;
   }
 }

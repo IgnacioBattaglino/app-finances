@@ -233,21 +233,21 @@ function TransferFormModal({
           type="submit"
           form="transfer-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
       }
     >
       <form id="transfer-form" onSubmit={handleSubmit} className="space-y-3">
-          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+          <div className="list">
             <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Destino</span>
+              <span className="text-[17px]">Destino</span>
               <select
                 value={destAssetId}
                 onChange={(e) => setDestAssetId(e.target.value)}
                 required
-                className="max-w-[60%] bg-transparent text-right text-[15px] outline-none"
+                className="max-w-[60%] bg-transparent text-right text-[17px] outline-none"
               >
                 <option value="">Elegir…</option>
                 {assets
@@ -262,20 +262,20 @@ function TransferFormModal({
 
             {fromAsset.valuation_mode === 'live' && (
               <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[15px]">Cantidad que sale</span>
+                <span className="text-[17px]">Cantidad que sale</span>
                 <input
                   value={fromQuantity}
                   onChange={(e) => handleFromQuantity(e.target.value)}
                   inputMode="decimal"
                   placeholder="ej: 0,001"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                 />
               </label>
             )}
 
             <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Monto</span>
+              <span className="text-[17px]">Monto</span>
               <div className="flex items-center gap-1">
                 <span className="text-[15px] text-ink-soft">US$</span>
                 <input
@@ -284,21 +284,21 @@ function TransferFormModal({
                   inputMode="decimal"
                   placeholder="0"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                 />
               </div>
             </label>
 
             {destAsset?.valuation_mode === 'live' && (
               <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[15px]">Cantidad que entra</span>
+                <span className="text-[17px]">Cantidad que entra</span>
                 <input
                   value={toQuantity}
                   onChange={(e) => handleToQuantity(e.target.value)}
                   inputMode="decimal"
                   placeholder="ej: 0,001"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                 />
               </label>
             )}
@@ -323,7 +323,7 @@ function TransferFormModal({
           </div>
 
           {valueWarning && (
-            <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">{valueWarning}</p>
+            <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">{valueWarning}</p>
           )}
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />

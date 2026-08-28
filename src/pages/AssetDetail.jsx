@@ -16,6 +16,7 @@ import {
 import { formatUSD, formatQuantity, formatDay, formatDayYear } from '../lib/format.js'
 import SourceTag from '../components/SourceTag.jsx'
 import Gain from '../components/Gain.jsx'
+import Money from '../components/Money.jsx'
 import EditIcon from '../components/EditIcon.jsx'
 import MetricCard from '../components/assetDetail/MetricCard.jsx'
 import AssetHistory from '../components/assetDetail/AssetHistory.jsx'
@@ -203,79 +204,88 @@ function AssetDetail() {
   const history = mergeAssetHistory({ contributions, valuations, hasMore })
 
   return (
-    <div className="pb-8">
-      <div className="mb-6 flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate('/portafolio')}
-            aria-label="Volver a Portafolio"
-            className="shrink-0 pr-1 text-xl text-ink-soft"
-          >
-            ←
+    <div className="page pb-8">
+      {/* Volver es su propia fila, arriba de todo: el mismo lugar donde iOS
+          pone la pantalla anterior, y así el nombre del activo arranca
+          alineado con el resto del contenido en vez de correrse por una
+          flecha. */}
+      <button
+        type="button"
+        onClick={() => navigate('/portafolio')}
+        className="-ml-1 mb-3 inline-flex items-center gap-0.5 text-[17px] text-accent-ink"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path d="m15 5-7 7 7 7" />
+        </svg>
+        Portafolio
+      </button>
+
+      <div className="mb-5 flex items-start justify-between gap-4 md:mb-7">
+        <p className="flex min-w-0 items-center gap-2">
+          <span className="title-page truncate">{asset?.name}</span>
+          {asset?.ticker && (
+            <span className="font-money text-[15px] text-ink-faint">{asset.ticker}</span>
+          )}
+          <button type="button" onClick={() => setAssetFormModal(true)} aria-label="Editar activo">
+            <EditIcon className="h-4 w-4 shrink-0 text-ink-soft" />
           </button>
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5">
-              <span className="truncate text-xl font-bold tracking-tight">{asset?.name}</span>
-              {asset?.ticker && (
-                <span className="font-money text-sm text-ink-soft">{asset.ticker}</span>
-              )}
-              <button
-                type="button"
-                onClick={() => setAssetFormModal(true)}
-                aria-label="Editar activo"
-              >
-                <EditIcon className="h-4 w-4 shrink-0 text-ink-soft" />
-              </button>
-            </p>
-            {valuation && <SourceTag valuation={valuation} />}
-          </div>
-        </div>
-        <div className="hidden shrink-0 gap-2 md:flex">
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() =>
-              setContributionModal({ open: true, operation: 'contribution', editing: null })
-            }
-            className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition active:bg-accent-deep disabled:opacity-40"
-          >
-            Aportar
-          </button>
+        </p>
+        <div className="hidden shrink-0 gap-2 pt-1 md:flex">
           <button
             type="button"
             disabled={loading}
             onClick={() =>
               setContributionModal({ open: true, operation: 'withdrawal', editing: null })
             }
-            className="rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium transition active:bg-mist/60 disabled:opacity-40"
+            className="btn btn-secondary"
           >
             Retirar
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              setContributionModal({ open: true, operation: 'contribution', editing: null })
+            }
+            className="btn btn-primary"
+          >
+            Aportar
           </button>
         </div>
       </div>
 
       {loading ? (
-        <p className="px-4 text-sm text-ink-soft">Cargando…</p>
+        <p className="text-[15px] text-ink-soft">Cargando…</p>
       ) : error ? (
-        <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
+        <div className="notice space-y-2">
           <FormError message={error?.message} detail={error?.detail} />
-          <button type="button" onClick={() => load()} className="text-sm font-semibold text-clay underline">
+          <button type="button" onClick={() => load()} className="text-[15px] font-semibold text-clay underline">
             Reintentar
           </button>
         </div>
       ) : (
-        <>
-          <div className="rounded-2xl border border-line bg-card px-4 py-4">
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
+          <div className="space-y-3">
+          <div className="surface px-5 py-5">
             {/* Sin valuación no hay valor que mostrar: un "US$ 0" se lee como
                 que el activo no vale nada, cuando en realidad falta el dato
-                (el SourceTag de arriba lo dice: "Sin valuar"). */}
-            <p className="font-money text-3xl tracking-tight">
-              {valuation?.value != null ? formatUSD(valuation.value) : '—'}
+                (el SourceTag de abajo lo dice: "Sin valuar"). */}
+            <p className="text-[40px] leading-none font-semibold">
+              {valuation?.value != null ? <Money value={valuation.value} /> : '—'}
             </p>
+            <div className="mt-2.5">{valuation && <SourceTag valuation={valuation} />}</div>
             {asset.valuation_mode === 'live' && (
-              <p className="mt-1 text-xs text-ink-soft">
-                equivale a {formatQuantity(heldQty)} {asset.name}
+              <p className="mt-1.5 text-[13px] text-ink-soft">
+                Equivale a {formatQuantity(heldQty)} {asset.name}
               </p>
             )}
             {/* Con operaciones posteriores a la última valuación, el
@@ -284,7 +294,7 @@ function AssetDetail() {
                 ni con asterisco— y en su lugar va el aviso con la salida
                 ("Actualizar valuación", más abajo en esta misma pantalla). */}
             {valuation?.outdated ? (
-              <p className="mt-1 text-sm text-clay">
+              <p className="mt-2 text-[15px] text-clay">
                 Rendimiento no disponible: cargaste operaciones después de la última valuación
                 {valuation.date ? ` (${formatDayYear(valuation.date)})` : ''}. Actualizala para
                 volver a verlo.
@@ -294,13 +304,13 @@ function AssetDetail() {
                 value={gain}
                 base={valuation?.contributed ?? 0}
                 neutral={neutral}
-                className="mt-1 block text-lg"
+                className="mt-2.5 block text-[19px]"
               />
             )}
           </div>
 
           <div
-            className={`mt-4 grid gap-2 ${
+            className={`grid gap-2 ${
               isLive ? 'grid-cols-3' : onlyContributed ? 'grid-cols-1' : 'grid-cols-2'
             }`}
           >
@@ -337,15 +347,59 @@ function AssetDetail() {
             />
           </div>
           {expandedMetric && (
-            <p className="mt-2 rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">
+            <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] leading-relaxed text-ink-soft">
               {METRIC_EXPLANATIONS[expandedMetric === 'current' && isLive ? 'currentUnit' : expandedMetric]}
             </p>
           )}
 
-          {/* Hueco para el gráfico de evolución (llega con snapshots) */}
-          <div />
+          {/* Acciones menos frecuentes que aportar/retirar: viven al final de
+              la columna del activo, cada una con lo que hace escrito abajo. */}
+          <div className="list">
+            <div className="px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setTransferModal(true)}
+                className="text-[17px] font-medium text-accent-ink"
+              >
+                Transferir
+              </button>
+              <p className="mt-0.5 text-[13px] text-ink-soft">
+                Mover valor de este activo a otro tuyo.
+              </p>
+            </div>
+            {canLiquidate && (
+              <div className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setLiquidateModal(true)}
+                  className="text-[17px] font-medium text-accent-ink"
+                >
+                  Liquidar
+                </button>
+                <p className="mt-0.5 text-[13px] text-ink-soft">
+                  Vender todo y cerrar la posición. Para vender una parte, usá Retirar.
+                </p>
+              </div>
+            )}
+            {asset.valuation_mode === 'manual' && (
+              <div className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setValuationModal(true)}
+                  className="text-[17px] font-medium text-accent-ink"
+                >
+                  Actualizar valuación
+                </button>
+                <p className="mt-0.5 text-[13px] text-ink-soft">
+                  Cargar cuánto vale hoy este activo.
+                </p>
+              </div>
+            )}
+          </div>
+          </div>
 
-          <h2 className="mb-2 mt-6 text-sm font-semibold">Historial</h2>
+          <div>
+          <h2 className="eyebrow mb-2 px-1">Historial</h2>
           <AssetHistory
             events={history}
             labels={labels}
@@ -361,68 +415,33 @@ function AssetDetail() {
               })
             }
           />
-
-          <div className="mt-6 space-y-3 text-sm">
-            <div>
-              <button
-                type="button"
-                onClick={() => setTransferModal(true)}
-                className="font-medium text-accent"
-              >
-                Transferir
-              </button>
-              <p className="mt-0.5 text-xs text-ink-soft">Mover valor de este activo a otro tuyo.</p>
-            </div>
-            {canLiquidate && (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setLiquidateModal(true)}
-                  className="font-medium text-accent"
-                >
-                  Liquidar
-                </button>
-                <p className="mt-0.5 text-xs text-ink-soft">
-                  Vender todo y cerrar la posición. Para vender una parte, usá Retirar.
-                </p>
-              </div>
-            )}
-            {asset.valuation_mode === 'manual' && (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setValuationModal(true)}
-                  className="font-medium text-accent"
-                >
-                  Actualizar valuación
-                </button>
-              </div>
-            )}
           </div>
-        </>
+        </div>
       )}
 
       {/* Barra de acciones mobile — reemplaza a la tab bar en esta ruta (Layout) */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-line bg-paper/95 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur md:hidden">
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() =>
-            setContributionModal({ open: true, operation: 'contribution', editing: null })
-          }
-          className="flex-1 rounded-xl bg-accent py-2.5 text-sm font-semibold text-white transition active:bg-accent-deep disabled:opacity-40"
-        >
-          Aportar
-        </button>
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex gap-2.5 border-t border-line bg-card/85 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-xl md:hidden">
+        {/* Retirar a la izquierda y Aportar a la derecha, igual que en
+            desktop: la acción que confirma va siempre del lado del pulgar. */}
         <button
           type="button"
           disabled={loading}
           onClick={() =>
             setContributionModal({ open: true, operation: 'withdrawal', editing: null })
           }
-          className="flex-1 rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60 disabled:opacity-40"
+          className="btn btn-quiet h-13 flex-1 rounded-[14px] text-[17px]"
         >
           Retirar
+        </button>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() =>
+            setContributionModal({ open: true, operation: 'contribution', editing: null })
+          }
+          className="btn btn-primary h-13 flex-1 rounded-[14px] text-[17px]"
+        >
+          Aportar
         </button>
       </nav>
 

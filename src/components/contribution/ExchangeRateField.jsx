@@ -4,7 +4,7 @@ import { formatARS, formatUSD, toDecimalInput } from '../../lib/format.js'
 import { round } from '../../lib/money.js'
 
 const segmentClass = (active) =>
-  `rounded-md px-2 py-1 transition ${active ? 'bg-card shadow-sm' : 'text-ink-soft'}`
+  `rounded-md px-2 py-1 transition ${active ? 'bg-lift shadow-[0_1px_3px_rgb(16_18_24/0.12)]' : 'text-ink-soft'}`
 
 // "Usar otro tipo de cambio" es una acción frecuente y real (comprar a un
 // dólar distinto del MEP del día), pero vivía escondida en un texto gris con
@@ -12,7 +12,7 @@ const segmentClass = (active) =>
 // había que adivinar que era un botón. Pasa a leerse como acción — color de
 // acento, borde y peso — sin robarle protagonismo al campo del monto.
 const actionClass =
-  'shrink-0 rounded-lg border border-accent/30 px-2.5 py-1 text-[13px] font-medium text-accent transition active:bg-accent/10'
+  'shrink-0 rounded-lg border border-accent/30 px-2.5 py-1 text-[13px] font-medium text-accent-ink transition active:bg-accent/10'
 
 // Congelado: editando un registro existente. El monto ya está fijo — cambiar
 // la tasa es corregir un solo número, no re-derivar nada.
@@ -43,7 +43,7 @@ function FrozenRateField({ initialRate, onChange }) {
             </button>
           </span>
         </div>
-        <p className="mt-1 text-xs text-ink-soft">
+        <p className="mt-1 text-[13px] text-ink-soft">
           El que quedó guardado con esta operación.
         </p>
       </div>
@@ -53,16 +53,16 @@ function FrozenRateField({ initialRate, onChange }) {
   return (
     <div className="px-4 py-3">
       <label className="flex items-center justify-between gap-3">
-        <span className="text-[15px]">Tipo de cambio</span>
+        <span className="text-[17px]">Tipo de cambio</span>
         <input
           value={rate}
           onChange={(e) => handleChange(e.target.value)}
           inputMode="decimal"
           required
-          className="font-money w-28 bg-transparent text-right text-[15px] outline-none"
+          className="font-money w-28 bg-transparent text-right text-[17px] outline-none"
         />
       </label>
-      <p className="mt-1 text-xs text-ink-soft">
+      <p className="mt-1 text-[13px] text-ink-soft">
         A cuántos pesos por dólar se registró esta operación.
       </p>
       <button
@@ -72,7 +72,7 @@ function FrozenRateField({ initialRate, onChange }) {
           setRate(toDecimalInput(Number(initialRate)))
           onChange({ rate: round(Number(initialRate)) })
         }}
-        className="mt-1 text-xs text-ink-soft underline decoration-dotted"
+        className="mt-1 text-[13px] text-ink-soft underline decoration-dotted"
       >
         volver a lo guardado
       </button>
@@ -129,7 +129,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, required, onChange })
 
   if (mode === 'auto') {
     if (mepLive === null) {
-      return <p className="px-4 py-3 text-xs text-ink-soft">Buscando cotización…</p>
+      return <p className="px-4 py-3 text-[13px] text-ink-soft">Buscando cotización…</p>
     }
     if (mepLive === false) {
       return (
@@ -140,7 +140,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, required, onChange })
               Cargar a mano
             </button>
           </div>
-          <p className="mt-1 text-xs text-ink-soft">
+          <p className="mt-1 text-[13px] text-ink-soft">
             No se pudo traer la cotización de hoy.
             {required ? ' Cargala a mano para poder guardar.' : ' No hace falta para esta operación.'}
           </p>
@@ -158,7 +158,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, required, onChange })
             Usar otro
           </button>
         </div>
-        <p className="mt-1 text-xs text-ink-soft">
+        <p className="mt-1 text-[13px] text-ink-soft">
           Se registra con el MEP de hoy. Si compraste a otro precio, tocá «Usar otro».
         </p>
       </div>
@@ -171,20 +171,20 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, required, onChange })
   return (
     <div className="px-4 py-3">
       <label className="flex items-center justify-between gap-3">
-        <span className="text-[15px]">{pesosQuestion}</span>
+        <span className="text-[17px]">{pesosQuestion}</span>
         <input
           value={pesos}
           onChange={(e) => setPesos(e.target.value)}
           inputMode="decimal"
           placeholder="0"
           required={required}
-          className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+          className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
         />
       </label>
-      <p className="mt-1 text-xs text-ink-soft">
+      <p className="mt-1 text-[13px] text-ink-soft">
         Solo lo usamos para calcular el tipo de cambio. El movimiento se guarda en dólares.
       </p>
-      <p className="mt-1 text-xs text-ink-soft">
+      <p className="mt-1 text-[13px] text-ink-soft">
         {mepLive === false && 'No se pudo traer el MEP del día. '}
         Tipo de cambio:{' '}
         {derivedRate ? <span className="font-money">{formatARS(derivedRate)}</span> : '—'}
@@ -196,7 +196,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, required, onChange })
             setMode('auto')
             onChange({ rate: rate ? round(rate) : null })
           }}
-          className="mt-1 text-xs text-ink-soft underline decoration-dotted"
+          className="mt-1 text-[13px] text-ink-soft underline decoration-dotted"
         >
           volver a MEP del día
         </button>
@@ -264,9 +264,9 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
       <>
         <div className="space-y-2 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[15px]">{amountLabel}</span>
+            <span className="text-[17px]">{amountLabel}</span>
             <div className="flex items-center gap-2">
-              <div className="flex rounded-lg bg-mist p-0.5 text-xs font-medium">
+              <div className="flex rounded-lg bg-mist p-0.5 text-[13px] font-medium">
                 <button
                   type="button"
                   onClick={() => setCurrency('ars')}
@@ -288,12 +288,12 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
                 inputMode="decimal"
                 placeholder="0"
                 required
-                className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
               />
             </div>
           </div>
           {currency === 'ars' && amountValue > 0 && rate > 0 && (
-            <p className="text-right text-xs text-ink-soft">
+            <p className="text-right text-[13px] text-ink-soft">
               {formatARS(amountValue)} ≈{' '}
               <span className="font-money">{formatUSD(amountValue / rate)}</span> al MEP{' '}
               {formatARS(rate)}
@@ -302,7 +302,7 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
         </div>
         <div className="px-4 py-3">
           {mepLive === null ? (
-            <p className="text-xs text-ink-soft">Buscando cotización…</p>
+            <p className="text-[13px] text-ink-soft">Buscando cotización…</p>
           ) : mepLive === false ? (
             <>
               <div className="flex items-center justify-between gap-3">
@@ -311,7 +311,7 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
                   Cargar a mano
                 </button>
               </div>
-              <p className="mt-1 text-xs text-ink-soft">
+              <p className="mt-1 text-[13px] text-ink-soft">
                 No se pudo traer la cotización de hoy.
                 {required
                   ? ' Cargala a mano para poder guardar.'
@@ -329,7 +329,7 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
                   Usar otro
                 </button>
               </div>
-              <p className="mt-1 text-xs text-ink-soft">
+              <p className="mt-1 text-[13px] text-ink-soft">
                 Se registra con el MEP de hoy. Si compraste a otro precio, tocá «Usar otro».
               </p>
             </>
@@ -342,33 +342,33 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
   return (
     <>
       <label className="flex items-center justify-between gap-3 px-4 py-3">
-        <span className="text-[15px]">{pesosLabel}</span>
+        <span className="text-[17px]">{pesosLabel}</span>
         <input
           value={pesos}
           onChange={(e) => setPesos(e.target.value)}
           inputMode="decimal"
           placeholder="0"
           required={required}
-          className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+          className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
         />
       </label>
       <div className="px-4 py-3">
         <label className="flex items-center justify-between gap-3">
-          <span className="text-[15px]">{dolaresLabel}</span>
+          <span className="text-[17px]">{dolaresLabel}</span>
           <input
             value={dolares}
             onChange={(e) => setDolares(e.target.value)}
             inputMode="decimal"
             placeholder="0"
             required
-            className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+            className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
           />
         </label>
-        <p className="mt-1 text-xs text-ink-soft">
+        <p className="mt-1 text-[13px] text-ink-soft">
           Tipo de cambio:{' '}
           {derivedRate ? <span className="font-money">{formatARS(derivedRate)}</span> : '—'}
         </p>
-        <p className="mt-1 text-xs text-ink-soft">
+        <p className="mt-1 text-[13px] text-ink-soft">
           Sale de dividir los pesos por los dólares: es el precio al que compraste, sea el que
           sea.
         </p>
@@ -376,7 +376,7 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
           <button
             type="button"
             onClick={() => setMode('auto')}
-            className="mt-1 text-xs text-ink-soft underline decoration-dotted"
+            className="mt-1 text-[13px] text-ink-soft underline decoration-dotted"
           >
             volver a MEP del día
           </button>

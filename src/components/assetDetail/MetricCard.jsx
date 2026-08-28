@@ -31,13 +31,13 @@ function wrappable(value) {
 // debajo de toda la grilla (ver AssetDetail).
 function MetricCard({ label, value, active, onToggle }) {
   return (
-    <div className="rounded-2xl border border-line bg-card px-3 py-3">
-      <div className="flex items-center justify-between gap-1">
-        <span className="text-[11px] text-ink-soft">{label}</span>
+    <div className="surface px-3.5 py-3">
+      <div className="flex items-start justify-between gap-1.5">
+        <span className="text-[11px] leading-tight text-ink-soft">{label}</span>
         <InfoButton label={label} active={active} onToggle={onToggle} />
       </div>
       <p
-        className={`font-money mt-1 font-semibold leading-tight tabular-nums ${valueSizeClass(value)}`}
+        className={`font-money mt-1.5 leading-tight font-semibold ${valueSizeClass(value)}`}
       >
         {wrappable(value)}
       </p>

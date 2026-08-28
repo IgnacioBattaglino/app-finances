@@ -1,6 +1,7 @@
 import { useTheme } from '../../hooks/useTheme.jsx'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
+import BinaryChoice from '../../components/form/BinaryChoice.jsx'
 
 function Check() {
   return (
@@ -19,22 +20,32 @@ function Check() {
   )
 }
 
-// El color de la app. No hay vista previa aparte: elegir aplica en el acto y
-// la pantalla entera (el link de volver, el tilde, la barra de navegación) ya
-// es la previa.
+// Cómo se ve la app. No hay vista previa aparte: elegir aplica en el acto y la
+// pantalla entera (el fondo, el link de volver, el tilde, la barra de
+// navegación) ya es la previa.
 function Appearance() {
-  const { accent, accents, chooseAccent } = useTheme()
+  const { accent, accents, chooseAccent, theme, themes, chooseTheme } = useTheme()
 
   return (
-    <SettingsPage
-      title="Apariencia"
-      description="El color con el que la app pinta botones, links y la navegación."
-    >
+    <SettingsPage title="Apariencia" description="Cómo se ve la app en este dispositivo.">
+      <SettingsGroup
+        title="Tema"
+        footer="Con «Automático» la app sigue al teléfono: se pone oscura cuando el sistema se pone oscuro."
+      >
+        <div className="p-4">
+          <BinaryChoice
+            options={themes.map((option) => ({ value: option.id, label: option.name }))}
+            value={theme.id}
+            onChange={chooseTheme}
+          />
+        </div>
+      </SettingsGroup>
+
       <SettingsGroup
         title="Color de la app"
         footer="Se guarda en este dispositivo. Los verdes y rojos de ganancias, ingresos y gastos no cambian: ahí el color es el significado."
       >
-        <div className="grid grid-cols-3 gap-3 p-4">
+        <div className="grid grid-cols-3 gap-4 p-4">
           {accents.map((option) => {
             const selected = option.id === accent.id
             return (
@@ -43,18 +54,18 @@ function Appearance() {
                 type="button"
                 onClick={() => chooseAccent(option.id)}
                 aria-pressed={selected}
-                className="flex flex-col items-center gap-1.5"
+                className="flex flex-col items-center gap-2"
               >
                 <span
-                  className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
-                    selected ? 'ring-2 ring-ink/25 ring-offset-2 ring-offset-card' : ''
+                  className={`flex h-13 w-13 items-center justify-center rounded-full transition ${
+                    selected ? 'ring-2 ring-ink/25 ring-offset-3 ring-offset-card' : ''
                   }`}
-                  style={{ backgroundColor: option.color }}
+                  style={{ backgroundColor: option.fill }}
                 >
                   {selected && <Check />}
                 </span>
                 <span
-                  className={`text-xs ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}
+                  className={`text-[13px] ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}
                 >
                   {option.name}
                 </span>

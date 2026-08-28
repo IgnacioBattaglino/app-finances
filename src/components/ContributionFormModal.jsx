@@ -136,7 +136,7 @@ function ContributionFormModal({
         onClose={onClose}
       >
         <div className="space-y-3">
-          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+          <div className="list">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="text-[15px] text-ink-soft">Monto</span>
               <span className="font-money text-[15px]">{formatUSD(Number(initial.amount_usd))}</span>
@@ -155,11 +155,11 @@ function ContributionFormModal({
             )}
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="text-[15px] text-ink-soft">Fecha</span>
-              <span className="text-[15px]">{formatDayYear(initial.date)}</span>
+              <span className="text-[17px]">{formatDayYear(initial.date)}</span>
             </div>
           </div>
 
-          <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">
+          <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
             {transferSibling
               ? `Parte de una transferencia con «${transferSibling}». `
               : 'Parte de una transferencia. '}
@@ -169,7 +169,7 @@ function ContributionFormModal({
           <FormError message={error?.message} detail={error?.detail} />
 
           {confirmDeleteTransfer ? (
-            <div className="flex items-center justify-between rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between notice text-[15px]">
               <span className="text-clay">
                 ¿Eliminar esta transferencia? Se borran las dos partes
                 {transferSibling ? `: esta operación y la de «${transferSibling}»` : ''}. Es
@@ -199,7 +199,7 @@ function ContributionFormModal({
               type="button"
               onClick={() => setConfirmDeleteTransfer(true)}
               disabled={busy}
-              className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] font-medium text-clay transition active:bg-mist/60"
+              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
             >
               Eliminar transferencia
             </button>
@@ -344,31 +344,31 @@ function ContributionFormModal({
           type="submit"
           form="contribution-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
       }
     >
       <form id="contribution-form" onSubmit={handleSubmit} className="space-y-3">
-          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+          <div className="list">
             {editing && (
               <>
                 {isLive && (
                   <label className="flex items-center justify-between gap-3 px-4 py-3">
-                    <span className="text-[15px]">{copy.quantity}</span>
+                    <span className="text-[17px]">{copy.quantity}</span>
                     <input
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
                       inputMode="decimal"
                       placeholder="ej: 0,001"
                       required
-                      className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                      className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                     />
                   </label>
                 )}
                 <label className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span className="text-[15px]">Monto</span>
+                  <span className="text-[17px]">Monto</span>
                   <div className="flex items-center gap-1">
                     <span className="text-[15px] text-ink-soft">US$</span>
                     <input
@@ -377,7 +377,7 @@ function ContributionFormModal({
                       inputMode="decimal"
                       placeholder="0"
                       required
-                      className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                      className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                     />
                   </div>
                 </label>
@@ -412,14 +412,14 @@ function ContributionFormModal({
 
             {!editing && !linkedMode && isLive && (
               <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[15px]">{copy.quantity}</span>
+                <span className="text-[17px]">{copy.quantity}</span>
                 <input
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   inputMode="decimal"
                   placeholder="ej: 0,001"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                 />
               </label>
             )}
@@ -427,7 +427,7 @@ function ContributionFormModal({
             <div className="px-4 py-3">
               <p className="mb-2 text-[15px]">{copy.originLabel}</p>
               <BinaryChoice options={copy.originOptions} value={origin} onChange={setOrigin} />
-              <p className="mt-1.5 text-xs text-ink-soft">
+              <p className="mt-1.5 text-[13px] text-ink-soft">
                 {copy.originOptions.find((o) => o.value === origin)?.help}
               </p>
             </div>
@@ -436,14 +436,14 @@ function ContributionFormModal({
           </div>
 
           {valueWarning && (
-            <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">{valueWarning}</p>
+            <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">{valueWarning}</p>
           )}
           <FormError message={error?.message ?? holdingsMessage} detail={error?.detail} />
           <MissingHint missing={missing} />
 
           {editing &&
             (confirmDelete ? (
-              <div className="flex items-center justify-between rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
+              <div className="flex items-center justify-between notice text-[15px]">
                 <span className="text-clay">¿Eliminar este {copy.entity}? Es permanente.</span>
                 <div className="flex items-center gap-4">
                   <button
@@ -469,7 +469,7 @@ function ContributionFormModal({
                 type="button"
                 onClick={() => setConfirmDelete(true)}
                 disabled={busy}
-                className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] font-medium text-clay transition active:bg-mist/60"
+                className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
               >
                 Eliminar {copy.entity}
               </button>

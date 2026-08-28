@@ -31,15 +31,15 @@ function InstrumentRow({ instrument, onPick }) {
     <button
       type="button"
       onClick={() => onPick(instrument)}
-      className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition active:bg-mist/60"
+      className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition active:bg-mist"
     >
       <span className="min-w-0">
         <span className="block truncate text-[15px]">{instrument.name}</span>
-        <span className="block text-xs text-ink-soft">
+        <span className="block text-[13px] text-ink-soft">
           {instrument.symbol} · {instrumentKindLabel(instrument.kind)}
         </span>
       </span>
-      <span className="shrink-0 text-xs text-accent">Elegir</span>
+      <span className="shrink-0 text-[13px] text-accent-ink">Elegir</span>
     </button>
   )
 }
@@ -103,7 +103,7 @@ function InstrumentPicker({ value, onChange }) {
     return (
       <div className="space-y-2 px-4 py-3">
         <FormError message={loadError.message} detail={loadError.detail} />
-        <button type="button" onClick={load} className="text-sm font-semibold text-clay underline">
+        <button type="button" onClick={load} className="text-[15px] font-semibold text-clay underline">
           Reintentar
         </button>
       </div>
@@ -115,7 +115,7 @@ function InstrumentPicker({ value, onChange }) {
     return (
       <div className="px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[15px]">¿Qué activo de mercado es?</span>
+          <span className="text-[17px]">¿Qué activo de mercado es?</span>
           <button
             type="button"
             onClick={startSearching}
@@ -124,12 +124,12 @@ function InstrumentPicker({ value, onChange }) {
             cambiar
           </button>
         </div>
-        <div className="mt-2 rounded-xl bg-mist/50 px-3 py-2">
+        <div className="mt-2 rounded-[12px] bg-mist px-3 py-2">
           <p className="text-[15px]">{value.name}</p>
-          <p className="text-xs text-ink-soft">
+          <p className="text-[13px] text-ink-soft">
             {value.symbol} · {instrumentKindLabel(value.kind)}
           </p>
-          <p className="mt-1 text-xs text-ink-soft">
+          <p className="mt-1 text-[13px] text-ink-soft">
             {latest
               ? `Último precio conocido: ${priceLabel(latest)}`
               : 'Todavía sin precio guardado para este activo.'}
@@ -145,14 +145,14 @@ function InstrumentPicker({ value, onChange }) {
   return (
     <div className="px-4 py-3">
       <label className="flex items-center justify-between gap-3">
-        <span className="text-[15px]">¿Qué activo de mercado es?</span>
+        <span className="text-[17px]">¿Qué activo de mercado es?</span>
         <input
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={catalog ? 'Buscá por nombre o símbolo' : 'Cargando…'}
           disabled={!catalog}
-          className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+          className="min-w-0 flex-1 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
         />
       </label>
 
@@ -160,14 +160,14 @@ function InstrumentPicker({ value, onChange }) {
         <button
           type="button"
           onClick={() => setSearching(false)}
-          className="mt-1 text-xs text-ink-soft underline decoration-dotted"
+          className="mt-1 text-[13px] text-ink-soft underline decoration-dotted"
         >
           volver a «{value.name}»
         </button>
       )}
 
       {results.length > 0 && (
-        <div className="mt-2 divide-y divide-line overflow-hidden rounded-xl border border-line">
+        <div className="list mt-2">
           {results.map((instrument) => (
             <InstrumentRow key={instrument.id} instrument={instrument} onPick={pick} />
           ))}
@@ -175,13 +175,13 @@ function InstrumentPicker({ value, onChange }) {
       )}
 
       {noResults ? (
-        <p className="mt-2 rounded-xl bg-mist/50 px-3 py-2 text-xs text-ink-soft">
+        <p className="mt-2 rounded-[12px] bg-mist px-3 py-2 text-[13px] text-ink-soft">
           No encontramos «{query.trim()}» entre los activos con precio automático. Elegí
           «Valuación manual» arriba y cargale vos el valor cada tanto: funciona igual, solo que
           el número lo ponés vos.
         </p>
       ) : (
-        <p className="mt-1 text-xs text-ink-soft">
+        <p className="mt-1 text-[13px] text-ink-soft">
           Buscá la cripto, el CEDEAR, la acción o el bono. Con eso su precio se actualiza solo y
           el historial queda bien calculado. Si no está en la lista, usá «Valuación manual».
         </p>

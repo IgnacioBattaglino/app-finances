@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
+import Money from '../components/Money.jsx'
 import EditIcon from '../components/EditIcon.jsx'
 import DebtFormModal from '../components/DebtFormModal.jsx'
 import DebtPaymentModal from '../components/DebtPaymentModal.jsx'
@@ -19,7 +20,7 @@ import { formatUSD, formatDayYear, formatPercent } from '../lib/format.js'
 // resto de la app.
 function PayoffBar({ progress, className = '' }) {
   return (
-    <div className={`h-1 overflow-hidden rounded-full bg-mist ${className}`}>
+    <div className={`h-1.5 overflow-hidden rounded-full bg-mist ${className}`}>
       <div
         className="h-full rounded-full bg-accent transition-[width] duration-500"
         style={{ width: `${Math.round(progress * 100)}%` }}
@@ -33,25 +34,27 @@ function PaymentRow({ payment, onEdit }) {
     <button
       type="button"
       onClick={() => onEdit(payment)}
-      className="flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left transition active:bg-mist/60"
+      className="flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left transition active:bg-mist md:hover:bg-mist"
     >
       <span className="min-w-0">
-        <span className="text-[13px]">{formatDayYear(payment.date)}</span>
+        <span className="text-[15px]">{formatDayYear(payment.date)}</span>
         {/* El espacio es para el lector de pantalla: sin él el nombre accesible
             queda "10 de ago de 2026de afuera" (el ml-2 separa en pantalla, no
             en el árbol de accesibilidad). */}{' '}
         {payment.affects_liquid === false ? (
-          <span className="ml-2 text-[11px] text-ink-soft">de afuera</span>
+          <span className="ml-2 text-[13px] text-ink-soft">de afuera</span>
         ) : (
           // Un pago que debía salir del líquido pero no tiene tipo de cambio
           // congelado queda fuera de ese cálculo: se avisa acá, donde se puede
           // tocar para completarlo, en vez de dejar el líquido corto en silencio.
           !payment.mep_rate && (
-            <span className="ml-2 text-[11px] text-clay">sin tipo de cambio</span>
+            <span className="ml-2 text-[13px] text-clay">sin tipo de cambio</span>
           )
         )}
       </span>
-      <span className="font-money shrink-0 text-[13px]">{formatUSD(Number(payment.amount_usd))}</span>
+      <span className="font-money shrink-0 text-[15px] font-medium">
+        {formatUSD(Number(payment.amount_usd))}
+      </span>
     </button>
   )
 }
@@ -65,38 +68,38 @@ export function DebtCard({ debt, expanded, onToggle, onEdit, onPay, onEditPaymen
   const payments = [...(debt.payments ?? [])].sort((a, b) => (a.date < b.date ? 1 : -1))
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-card">
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => onEdit(debt)}
-            className="flex min-w-0 items-center gap-1.5 text-left"
-          >
-            <span className="truncate text-[15px] font-medium">{debt.creditor}</span>
-            <EditIcon />
-          </button>
-          <span className="font-money shrink-0 text-xl tracking-tight">{formatUSD(balance)}</span>
-        </div>
+    <div className="surface overflow-hidden">
+      <div className="px-5 pt-4 pb-4">
+        <button
+          type="button"
+          onClick={() => onEdit(debt)}
+          className="flex max-w-full min-w-0 items-center gap-1.5 text-left"
+        >
+          <span className="truncate text-[15px] font-medium">{debt.creditor}</span>
+          <EditIcon />
+        </button>
 
-        <p className="mt-0.5 text-right text-[11px] text-ink-soft">
-          {balance > 0 ? 'te queda por pagar' : 'saldada'}
+        <p className="mt-1.5 text-[28px] leading-none font-semibold">
+          <Money value={balance} />
+        </p>
+        <p className="mt-1.5 text-[13px] text-ink-soft">
+          {balance > 0 ? 'Te queda por pagar' : 'Saldada'}
         </p>
 
-        <PayoffBar progress={progress} className="mt-3" />
+        <PayoffBar progress={progress} className="mt-3.5" />
 
-        <p className="mt-2 text-xs text-ink-soft">
+        <p className="mt-2 text-[13px] text-ink-soft">
           Pagaste <span className="font-money">{formatUSD(paid)}</span> de{' '}
           <span className="font-money">{formatUSD(Number(debt.original_amount_usd))}</span> ·{' '}
           {formatPercent(progress * 100, 0)}
         </p>
       </div>
 
-      <div className="flex divide-x divide-line border-t border-line">
+      <div className="flex border-t border-line">
         <button
           type="button"
           onClick={() => onPay(debt)}
-          className="flex-1 py-2.5 text-sm font-medium text-accent transition active:bg-mist/60"
+          className="flex-1 py-3.5 text-[15px] font-semibold text-accent-ink transition active:bg-mist md:hover:bg-mist"
         >
           Registrar pago
         </button>
@@ -104,7 +107,7 @@ export function DebtCard({ debt, expanded, onToggle, onEdit, onPay, onEditPaymen
           type="button"
           onClick={() => onToggle(debt.id)}
           disabled={payments.length === 0}
-          className="flex-1 py-2.5 text-sm font-medium text-ink-soft transition active:bg-mist/60 disabled:opacity-40"
+          className="flex-1 border-l border-line py-3.5 text-[15px] font-medium text-ink-soft transition active:bg-mist disabled:opacity-40 md:hover:bg-mist"
         >
           {payments.length === 0
             ? 'Sin pagos'
@@ -115,7 +118,7 @@ export function DebtCard({ debt, expanded, onToggle, onEdit, onPay, onEditPaymen
       </div>
 
       {expanded && payments.length > 0 && (
-        <div className="divide-y divide-line border-t border-line bg-paper/40">
+        <div className="rows border-t border-line bg-paper/60">
           {payments.map((p) => (
             <PaymentRow key={p.id} payment={p} onEdit={(payment) => onEditPayment(debt, payment)} />
           ))}
@@ -165,33 +168,46 @@ function Debts() {
   const overallProgress = totalOriginal > 0 ? Math.min(1, paidAll / totalOriginal) : 0
 
   return (
-    <div>
-      <PageHeader title="Deudas" />
+    <div className="page">
+      <PageHeader
+        title="Deudas"
+        action={
+          debts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setDebtModal({ open: true, editing: null })}
+              className="btn btn-primary hidden md:inline-flex"
+            >
+              Nueva deuda
+            </button>
+          )
+        }
+      />
 
       {loading ? (
-        <p className="text-sm text-ink-soft">Cargando…</p>
+        <p className="text-[15px] text-ink-soft">Cargando…</p>
       ) : error ? (
         <div className="space-y-3">
           <FormError message={error.message} detail={error.detail} />
           <button
             type="button"
             onClick={load}
-            className="text-sm font-semibold text-clay underline"
+            className="text-[15px] font-semibold text-clay underline"
           >
             Reintentar
           </button>
         </div>
       ) : debts.length === 0 ? (
-        <div className="rounded-2xl border border-line bg-card px-4 py-8 text-center">
-          <p className="text-[15px] font-medium">Todavía no registraste ninguna deuda</p>
-          <p className="mx-auto mt-1 max-w-xs text-sm text-ink-soft">
+        <div className="surface px-6 py-10 text-center">
+          <p className="text-[17px] font-semibold">Todavía no registraste ninguna deuda</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-[15px] text-ink-soft">
             Anotá lo que debés en dólares y registrá cada pago. El saldo baja solo, y los pagos no
             cuentan como gasto.
           </p>
           <button
             type="button"
             onClick={() => setDebtModal({ open: true, editing: null })}
-            className="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition active:bg-accent-deep"
+            className="btn btn-primary mt-5"
           >
             Nueva deuda
           </button>
@@ -200,28 +216,30 @@ function Debts() {
         <div className="space-y-6">
           {/* Resumen: el saldo restante es el número que importa. El original y
               lo pagado son referencia, en chico. */}
-          <div className="rounded-2xl border border-line bg-card px-4 py-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-              Deudas
-            </p>
-            <p className="font-money mt-1 text-3xl tracking-tight">{formatUSD(totalBalance)}</p>
-            <PayoffBar progress={overallProgress} className="mt-4" />
-            <p className="mt-2 text-xs text-ink-soft">
-              pagaste <span className="font-money">{formatUSD(paidAll)}</span> de{' '}
-              <span className="font-money">{formatUSD(totalOriginal)}</span>
-            </p>
+          <div className="surface overflow-hidden">
+            <div className="px-5 pt-5 pb-4">
+              <span className="eyebrow">Te queda por pagar</span>
+              <p className="mt-2 text-[40px] leading-none font-semibold md:text-[44px]">
+                <Money value={totalBalance} />
+              </p>
+              <PayoffBar progress={overallProgress} className="mt-4" />
+              <p className="mt-2 text-[13px] text-ink-soft">
+                Pagaste <span className="font-money">{formatUSD(paidAll)}</span> de{' '}
+                <span className="font-money">{formatUSD(totalOriginal)}</span>
+              </p>
+            </div>
+            {/* En desktop esta acción vive en el encabezado de la pantalla */}
+            <button
+              type="button"
+              onClick={() => setDebtModal({ open: true, editing: null })}
+              className="w-full border-t border-line py-3.5 text-[15px] font-semibold text-accent-ink transition active:bg-mist md:hidden"
+            >
+              Nueva deuda
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setDebtModal({ open: true, editing: null })}
-            className="w-full rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60"
-          >
-            Nueva deuda
-          </button>
-
           {active.length > 0 && (
-            <div className="space-y-3">
+            <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
               {active.map((debt) => (
                 <DebtCard
                   key={debt.id}
@@ -237,7 +255,7 @@ function Debts() {
           )}
 
           {active.length === 0 && settled.length > 0 && (
-            <p className="rounded-2xl border border-line bg-card px-4 py-6 text-center text-sm text-ink-soft">
+            <p className="surface px-4 py-8 text-center text-[15px] text-ink-soft">
               No te queda nada por pagar.
             </p>
           )}
@@ -249,7 +267,7 @@ function Debts() {
               <button
                 type="button"
                 onClick={() => setShowSettled(!showSettled)}
-                className="px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft"
+                className="eyebrow px-1 transition hover:text-ink"
               >
                 Saldadas ({settled.length}) {showSettled ? '−' : '+'}
               </button>
@@ -259,7 +277,7 @@ function Debts() {
                   saldada por error quedaba sin arreglo posible y encima no se
                   podía eliminar (el borrado exige borrar sus pagos antes). */}
               {showSettled && (
-                <div className="space-y-3">
+                <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
                   {settled.map((debt) => (
                     <DebtCard
                       key={debt.id}

@@ -103,7 +103,7 @@ function TransactionFormModal({
           type="submit"
           form="transaction-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -119,9 +119,9 @@ function TransactionFormModal({
             onChange={changeKind}
           />
 
-          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+          <div className="list">
             <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Monto</span>
+              <span className="text-[17px]">Monto</span>
               <div className="flex items-center gap-1">
                 <span className="text-[15px] text-ink-soft">$</span>
                 <input
@@ -131,17 +131,17 @@ function TransactionFormModal({
                   placeholder="0"
                   required
                   autoFocus
-                  className="font-money w-32 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                  className="font-money w-32 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                 />
               </div>
             </label>
             <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Categoría</span>
+              <span className="text-[17px]">Categoría</span>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 required
-                className="max-w-[55%] bg-transparent text-right text-[15px] outline-none"
+                className="max-w-[55%] bg-transparent text-right text-[17px] outline-none"
               >
                 <option value="" disabled>
                   Elegir…
@@ -156,15 +156,15 @@ function TransactionFormModal({
             <CollapsedDateField value={date} onChange={setDate} />
             <div className="px-4 py-3">
               <label className="flex items-center justify-between gap-3">
-                <span className="text-[15px]">Descripción</span>
+                <span className="text-[17px]">Descripción</span>
                 <input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Opcional — ej: super, alquiler"
-                  className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                  className="min-w-0 flex-1 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                 />
               </label>
-              <p className="mt-1.5 text-xs text-ink-soft">
+              <p className="mt-1.5 text-[13px] text-ink-soft">
                 Se ve en la lista, al lado de la categoría.
               </p>
             </div>
@@ -175,7 +175,7 @@ function TransactionFormModal({
 
           {editing &&
             (confirmDelete ? (
-              <div className="flex items-center justify-between rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
+              <div className="flex items-center justify-between notice text-[15px]">
                 <span className="text-clay">¿Eliminar este movimiento? Es permanente.</span>
                 <div className="flex items-center gap-4">
                   <button
@@ -201,7 +201,7 @@ function TransactionFormModal({
                 type="button"
                 onClick={() => setConfirmDelete(true)}
                 disabled={busy}
-                className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] font-medium text-clay transition active:bg-mist/60"
+                className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
               >
                 Eliminar movimiento
               </button>

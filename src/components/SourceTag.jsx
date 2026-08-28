@@ -10,8 +10,9 @@ function SourceTag({ valuation }) {
       hour12: false,
     })
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-accent">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent" /> en vivo{time && ` ${time}`}
+      <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] text-accent-ink">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent-ink" />
+        En vivo{time && ` ${time}`}
       </span>
     )
   }
@@ -21,25 +22,27 @@ function SourceTag({ valuation }) {
   // aquello es un valor que cargaste vos, esto es mercado.
   if (valuation.source === 'close') {
     return (
-      <span className="shrink-0 text-xs text-ink-soft">
-        cierre{valuation.date ? ` ${formatDay(valuation.date)}` : ''}
+      <span className="shrink-0 text-[13px] text-ink-soft">
+        Cierre{valuation.date ? ` ${formatDay(valuation.date)}` : ''}
       </span>
     )
   }
   if (valuation.source === 'stale') {
     return (
-      <span className="shrink-0 text-xs text-clay">
-        precio caído · último valor {formatDay(valuation.date)}
+      <span className="shrink-0 text-[13px] text-clay">
+        Precio caído · último valor {formatDay(valuation.date)}
       </span>
     )
   }
   if (valuation.source === 'manual') {
-    return <span className="shrink-0 text-xs text-ink-soft">valuado {formatDay(valuation.date)}</span>
+    return (
+      <span className="shrink-0 text-[13px] text-ink-soft">Valuado {formatDay(valuation.date)}</span>
+    )
   }
   if (valuation.source === 'contributed') {
-    return <span className="shrink-0 text-xs text-ink-soft">vale lo que pusiste</span>
+    return <span className="shrink-0 text-[13px] text-ink-soft">Vale lo que pusiste</span>
   }
-  return <span className="shrink-0 text-xs text-clay">Sin valuar — no suma al total</span>
+  return <span className="shrink-0 text-[13px] text-clay">Sin valuar — no suma al total</span>
 }
 
 export default SourceTag

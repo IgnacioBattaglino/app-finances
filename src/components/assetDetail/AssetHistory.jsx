@@ -19,19 +19,19 @@ function ContributionRow({ contribution: c, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-mist/60"
+      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
     >
       <span className="min-w-0">
-        <span className="block text-[15px]">{label}</span>
-        <span className="block text-xs text-ink-soft">
+        <span className="block text-[17px]">{label}</span>
+        <span className="block text-[13px] text-ink-soft">
           {formatDay(c.date)}
           {unitPrice !== null && ` · ${formatQuantity(quantity)} a ${formatUSD(unitPrice)}/un.`}
         </span>
         {rate !== null && (
-          <span className="block text-xs text-ink-soft">a {formatARS(rate)} por dólar</span>
+          <span className="block text-[13px] text-ink-soft">a {formatARS(rate)} por dólar</span>
         )}
       </span>
-      <span className={`font-money shrink-0 text-[15px] ${isOut ? 'text-clay' : ''}`}>
+      <span className={`font-money shrink-0 text-[17px] font-medium ${isOut ? 'text-clay' : ''}`}>
         {isOut ? '−' : ''}
         {formatUSD(c.amount_usd)}
       </span>
@@ -46,10 +46,10 @@ function ValuationRow({ valuation }) {
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3 text-ink-soft">
       <span className="min-w-0">
-        <span className="block text-[15px]">Valuación</span>
-        <span className="block text-xs">{formatDay(valuation.date)}</span>
+        <span className="block text-[17px]">Valuación</span>
+        <span className="block text-[13px]">{formatDay(valuation.date)}</span>
       </span>
-      <span className="font-money shrink-0 text-[15px]">{formatUSD(valuation.value_usd)}</span>
+      <span className="font-money shrink-0 text-[17px]">{formatUSD(valuation.value_usd)}</span>
     </div>
   )
 }
@@ -66,12 +66,16 @@ function AssetHistory({
   onEditContribution,
 }) {
   if (events.length === 0) {
-    return <p className="px-1 text-sm text-ink-soft">Todavía no hay operaciones.</p>
+    return (
+      <p className="surface px-4 py-8 text-center text-[15px] text-ink-soft">
+        Todavía no hay operaciones.
+      </p>
+    )
   }
 
   return (
     <div className="space-y-3">
-      <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+      <div className="list">
         {events.map((event) =>
           event.type === 'contribution' ? (
             <ContributionRow
@@ -91,12 +95,12 @@ function AssetHistory({
             type="button"
             onClick={onLoadMore}
             disabled={loadingMore}
-            className="w-full rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60 disabled:opacity-50"
+            className="btn btn-secondary w-full"
           >
             {loadingMore ? 'Cargando…' : 'Ver más'}
           </button>
           {loadMoreError && (
-            <p className="text-center text-xs text-clay">
+            <p className="text-center text-[13px] text-clay">
               No se pudo cargar más. Reintentá.
             </p>
           )}

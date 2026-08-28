@@ -38,10 +38,10 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
         onChange={(e) => setName(e.target.value)}
         placeholder="¿Cómo se llama? ej: Cripto, Efectivo"
         disabled={busy}
-        className="w-full rounded-lg bg-mist px-3 py-1.5 text-[15px] outline-none placeholder:text-ink-soft/60"
+        className="w-full rounded-lg bg-mist px-3 py-1.5 text-[17px] outline-none placeholder:text-ink-faint"
       />
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[15px]">Los activos nuevos buscan rendimiento</span>
+        <span className="text-[17px]">Los activos nuevos buscan rendimiento</span>
         <Switch
           checked={earnsYield}
           onChange={setEarnsYield}
@@ -49,7 +49,7 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
           label="Los activos nuevos buscan rendimiento"
         />
       </div>
-      <div className="flex items-center justify-end gap-4 text-sm">
+      <div className="flex items-center justify-end gap-4 text-[15px]">
         {onCancel && (
           <button type="button" onClick={onCancel} disabled={busy} className="text-ink-soft">
             Cancelar
@@ -59,7 +59,7 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
           type="button"
           onClick={handleCreate}
           disabled={busy || !name.trim()}
-          className="font-semibold text-accent disabled:opacity-50"
+          className="font-semibold text-accent-ink disabled:opacity-50"
         >
           {busy ? 'Creando…' : 'Crear grupo'}
         </button>

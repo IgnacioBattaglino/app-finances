@@ -15,7 +15,7 @@ function Login() {
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-paper">
-        <RingsMark className="h-8 w-8 animate-pulse text-accent" />
+        <RingsMark className="h-8 w-8 animate-pulse text-accent-ink" />
       </div>
     )
   }
@@ -48,16 +48,16 @@ function Login() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col justify-center bg-paper px-6">
-      <div className="animate-rise mx-auto w-full max-w-sm">
-        <div className="mb-10 flex flex-col items-center">
-          <RingsMark className="mb-4 h-14 w-14 text-accent" />
-          <h1 className="font-money text-2xl tracking-tight">finanzas</h1>
-          <p className="mt-1.5 text-sm text-ink-soft">Ingresá para continuar</p>
+    <div className="flex min-h-dvh flex-col justify-center bg-paper px-6 py-10">
+      <div className="animate-rise mx-auto w-full max-w-[22rem]">
+        <div className="mb-9 flex flex-col items-center text-center">
+          <RingsMark className="mb-5 h-14 w-14 text-accent-ink" />
+          <h1 className="text-[28px] font-bold tracking-[-0.02em]">finanzas</h1>
+          <p className="mt-1 text-[15px] text-ink-soft">Ingresá para continuar</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+          <div className="list">
             <input
               type="email"
               value={email}
@@ -65,7 +65,7 @@ function Login() {
               placeholder="Email"
               autoComplete="email"
               required
-              className="w-full bg-transparent px-4 py-3.5 text-base outline-none placeholder:text-ink-soft/60"
+              className="w-full bg-transparent px-4 py-3.5 text-[17px] outline-none placeholder:text-ink-faint"
             />
             <input
               type="password"
@@ -74,16 +74,18 @@ function Login() {
               placeholder="Contraseña"
               autoComplete="current-password"
               required
-              className="w-full bg-transparent px-4 py-3.5 text-base outline-none placeholder:text-ink-soft/60"
+              className="w-full bg-transparent px-4 py-3.5 text-[17px] outline-none placeholder:text-ink-faint"
             />
           </div>
 
           <FormError message={error?.message} detail={error?.detail} />
 
+          {/* El botón de entrar se queda grande también en desktop: es la
+              única acción de la pantalla y no compite con nada. */}
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-white transition active:bg-accent-deep disabled:opacity-50"
+            className="btn btn-primary h-13 w-full rounded-[16px] text-[17px]"
           >
             {submitting ? 'Ingresando…' : 'Ingresar'}
           </button>

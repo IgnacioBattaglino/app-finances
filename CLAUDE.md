@@ -23,6 +23,21 @@ PWA de finanzas personales con enfoque FIRE (Financial Independence, Retire Earl
 - Commits en formato Conventional Commits (feat:, fix:, chore:, docs:).
 - Español para explicaciones; código y nombres de variables en inglés.
 
+## Sistema visual
+El lenguaje es el de una app de iOS: fondo agrupado gris frío, tarjetas SIN marco (la jerarquía la da el contraste con el fondo, más una sombra mínima), separadores internos sangrados desde el texto, y tipografía del sistema — que en iPhone y Mac resuelve a San Francisco. Ninguna webfont.
+
+- **Todo el color vive en `src/index.css`** como variables de `@theme`. El modo oscuro NO reescribe clases: redefine esas mismas variables en `[data-theme="dark"]` y en el `@media (prefers-color-scheme: dark)`. Un componente que usa los tokens (`bg-card`, `text-ink-soft`, `border-line`, `bg-mist`) ya funciona en los dos modos sin tocarlo. Nunca hardcodear un hex en un componente.
+- Tres niveles de texto: `ink` (principal), `ink-soft` (secundario) e `ink-faint` (terciario). Superficies: `paper` (fondo), `card` (tarjeta), `mist` (relleno de un control sobre una tarjeta) y `lift` (la pieza que se apoya ENCIMA de `mist`, ej. la pastilla del segmentado — no puede ser `card`, que en oscuro es más oscuro que `mist`). `scrim` es el velo del modal, oscuro en los dos modos.
+- El acento son DOS tokens porque un color no hace los dos trabajos: `accent` rellena botones (siempre con blanco encima, así que es oscuro y pasa AA) y `accent-ink` es el acento como TEXTO sobre el fondo de la app — en claro son el mismo, en oscuro `accent-ink` se aclara. Ver `src/lib/theme.js`.
+- **Los montos NO van en monoespaciada.** Van en la tipografía del sistema con cifras tabulares: la clase `font-money` conserva el nombre pero ahora resuelve a la sans + `font-variant-numeric: tabular-nums`. Una monoespaciada le daba a cada número un aire de planilla.
+- `Money` (`src/components/Money.jsx`) es el monto PROTAGONISTA de una tarjeta (28px para arriba): símbolo chico y apagado, entero grande, decimales al 0,58em. A 17px el símbolo quedaría en 8px, así que en las filas de una lista va el monto derecho, con `formatUSD`/`formatARS`.
+- Clases compartidas en `@layer components` de `index.css`, en vez de repetir la misma tira de utilidades: `surface` (tarjeta), `list` (tarjeta con separadores sangrados entre filas), `rows` (esos separadores sin la tarjeta), `notice` (aviso teñido, sin marco), `btn` + `btn-primary`/`btn-secondary`/`btn-quiet`/`btn-danger`, `title-page`, `eyebrow`, `page` y `page-narrow`.
+- **La diferencia entre celular y desktop vive en un solo lugar**: `.btn` mide 52px de alto con texto de 17px, y baja a 36px con 14px a partir de `md`. Ninguna pantalla repite esas medidas.
+- Escala tipográfica: 13 / 15 / 17 (cuerpo) y `title-page` para el título de pantalla. El cuerpo de la app es 17px, no 14: esto se lee con el teléfono en la mano.
+- Anchos: `page` abre a una grilla ancha en desktop (Inicio, Portafolio, Movimientos, Deudas, detalle de activo); `page-narrow` se queda angosta a propósito (Ajustes, login, Objetivo). Desktop no es la columna del celular estirada: Inicio pone el resumen en tres columnas y el gráfico al lado de los gastos, Movimientos parte en dos paneles, el detalle de activo pone el historial a la derecha.
+- La acción principal en el celular es el botón flotante "+"; en desktop es un botón normal en el encabezado (`action` de `PageHeader`) y el flotante se oculta. Un FAB no tiene sentido con un mouse.
+- Los gráficos (recharts) pintan en SVG y no entienden clases: leen los colores del DOM con `readChartColors()` (`src/lib/chartColors.js`), memorizado contra `accent` e `isDark`. Nunca copiar hex a un archivo de gráfico.
+
 ## Convenciones de formularios
 - Cada campo se nombra con la pregunta que responde, en el idioma del usuario — nunca desde la implementación. Nada de nombres que asuman conocimiento del sistema ("Va por MEP") ni que nombren flags internos ("Ya lo tenía"). Las ayudas se escriben para alguien que usa la app por primera vez.
 - Segmentado (`BinaryChoice`, en `src/components/form/`) para elegir entre modos, cuando la operación cambia de naturaleza (ej. Gasto/Ingreso). Switch (`Switch`, mismo directorio) para un ajuste sí/no que no transforma la operación.

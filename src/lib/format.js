@@ -87,3 +87,30 @@ export function todayISO() {
   const pad = (n) => String(n).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
+
+// Parte un monto YA formateado en sus tres piezas tipográficas: el signo, el
+// símbolo de la moneda y la cifra separada en entero y decimales. Lo usa el
+// componente Money para darle a cada monto de la app el mismo ritmo: símbolo
+// chico y apagado, entero grande, decimales chicos.
+//
+// Trabaja sobre la salida de Intl en vez de formatear por su cuenta para que
+// exista una sola fuente de verdad del formato (formatARS/formatUSD): si
+// mañana cambia el idioma o los decimales, esto sigue andando.
+export function splitMoney(formatted) {
+  const text = String(formatted)
+  const firstDigit = text.search(/\d/)
+  if (firstDigit === -1) return { sign: '', symbol: text, integer: '', decimals: '' }
+
+  // El símbolo trae el signo pegado adelante ("-US$ 430,2") y un espacio duro
+  // atrás, que no queremos renderizar: la separación la da el margen.
+  const head = text.slice(0, firstDigit)
+  const sign = /^[-−]/.test(head) ? '−' : ''
+  const symbol = head.replace(/^[-−]/, '').replace(/[\s ]+$/, '')
+
+  const number = text.slice(firstDigit)
+  const comma = number.lastIndexOf(',')
+  const integer = comma === -1 ? number : number.slice(0, comma)
+  const decimals = comma === -1 ? '' : number.slice(comma)
+
+  return { sign, symbol, integer, decimals }
+}

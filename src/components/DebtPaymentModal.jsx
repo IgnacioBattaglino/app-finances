@@ -110,17 +110,17 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
           type="submit"
           form="debt-payment-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
       }
     >
       <form id="debt-payment-form" onSubmit={handleSubmit} className="space-y-3">
-        <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+        <div className="list">
           {editing && (
             <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Monto</span>
+              <span className="text-[17px]">Monto</span>
               <div className="flex items-center gap-1">
                 <span className="text-[15px] text-ink-soft">US$</span>
                 <input
@@ -129,7 +129,7 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
                   inputMode="decimal"
                   placeholder="0"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
                 />
               </div>
             </label>
@@ -158,7 +158,7 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
           <div className="px-4 py-3">
             <p className="mb-2 text-[15px]">¿De dónde sale?</p>
             <BinaryChoice options={ORIGIN_OPTIONS} value={origin} onChange={setOrigin} />
-            <p className="mt-1.5 text-xs text-ink-soft">
+            <p className="mt-1.5 text-[13px] text-ink-soft">
               {ORIGIN_OPTIONS.find((o) => o.value === origin)?.help}
             </p>
           </div>
@@ -167,7 +167,7 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
         </div>
 
         {excess && (
-          <p className="rounded-2xl bg-mist/50 px-4 py-3 text-xs text-ink-soft">
+          <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
             Es más de lo que queda ({formatUSD(balanceBefore)}). La deuda queda saldada, sin saldo
             a favor.
           </p>
@@ -178,7 +178,7 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
 
         {editing &&
           (confirmDelete ? (
-            <div className="flex items-center justify-between rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between notice text-[15px]">
               <span className="text-clay">¿Eliminar este pago? Es permanente.</span>
               <div className="flex items-center gap-4">
                 <button
@@ -204,7 +204,7 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
               type="button"
               onClick={() => setConfirmDelete(true)}
               disabled={busy}
-              className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] font-medium text-clay transition active:bg-mist/60"
+              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
             >
               Eliminar pago
             </button>

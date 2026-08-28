@@ -23,7 +23,8 @@ import { useState, useEffect } from 'react'
 // compacto→full. El resto arranca compacto.
 //
 // En desktop es siempre una card centrada con alto acotado y scroll interno
-// (compacto/expandido no aplica: no hay teclado on-screen).
+// (compacto/expandido no aplica: no hay teclado on-screen), y aparece en el
+// lugar en vez de subir desde abajo — ver .animate-sheet en index.css.
 //
 // El botón de acción (submit) se pasa como `action` y vive en el header, con
 // `form="<id>"` apuntando al <form> del cuerpo — por eso puede estar fuera del
@@ -97,29 +98,46 @@ function FormSheet({ title, subtitle, action, onClose, children, startExpanded =
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 md:items-center"
+      className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-scrim md:items-center md:p-4"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
-        className={`animate-rise flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-paper md:h-auto md:max-h-[calc(100dvh-2rem)] md:rounded-2xl ${
+        className={`animate-sheet flex w-full max-w-lg flex-col overflow-hidden rounded-t-[22px] bg-paper md:h-auto md:max-h-[calc(100dvh-2rem)] md:rounded-[20px] md:shadow-[var(--shadow-raised)] ${
           expanded ? 'h-dvh' : 'max-h-[85dvh]'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3">
-          <button type="button" onClick={onClose} className="text-[15px] text-ink-soft">
+        {/* Barrita de agarre: en iOS es la señal de que el panel se arrastra
+            para cerrarlo. Solo en el celular y solo compacto — a pantalla
+            completa el panel ya no se arrastra, así que prometería un gesto
+            que no existe. */}
+        {!expanded && (
+          <div className="flex shrink-0 justify-center pt-2 pb-1 md:hidden" aria-hidden="true">
+            <span className="h-1 w-9 rounded-full bg-ink/15" />
+          </div>
+        )}
+        <header className="flex shrink-0 items-center justify-between gap-3 px-4 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-w-[68px] text-left text-[17px] text-ink-soft"
+          >
             Cancelar
           </button>
           <div className="min-w-0 text-center">
-            <h2 className="truncate text-base font-semibold">{title}</h2>
-            {subtitle && <p className="truncate text-xs text-ink-soft">{subtitle}</p>}
+            <h2 className="truncate text-[17px] font-semibold">{title}</h2>
+            {subtitle && <p className="truncate text-[13px] text-ink-soft">{subtitle}</p>}
           </div>
-          {action ?? <span aria-hidden className="min-w-[64px]" />}
+          {action ? (
+            <div className="flex min-w-[68px] justify-end">{action}</div>
+          ) : (
+            <span aria-hidden className="min-w-[68px]" />
+          )}
         </header>
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-1 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
           onFocus={handleFieldFocus}
         >
           {children}

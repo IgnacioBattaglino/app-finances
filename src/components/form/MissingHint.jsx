@@ -6,7 +6,7 @@ function MissingHint({ missing }) {
     missing.length === 1
       ? missing[0]
       : `${missing.slice(0, -1).join(', ')} y ${missing[missing.length - 1]}`
-  return <p className="px-1 text-xs text-ink-soft">Falta: {text}</p>
+  return <p className="px-1 text-[13px] text-ink-soft">Falta: {text}</p>
 }
 
 export default MissingHint

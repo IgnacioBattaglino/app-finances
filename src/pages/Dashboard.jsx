@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
+import Money from '../components/Money.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import LiquidModal from '../components/LiquidModal.jsx'
 import FormSheet from '../components/FormSheet.jsx'
@@ -10,7 +11,6 @@ import { usePortfolio } from '../hooks/usePortfolio.js'
 import { computeCurrentLiquid } from '../lib/liquid.js'
 import { getCategories } from '../lib/categories.js'
 import { getDebts, summarizeDebts } from '../lib/debts.js'
-import { formatARS, formatUSD } from '../lib/format.js'
 
 // Recharts pesa bastante: se carga solo cuando hace falta (hay al menos un
 // aporte o un gasto para graficar), no en el bundle principal. Las dos
@@ -24,9 +24,7 @@ const ExpensesBlock = lazy(() => loadCharts().then((m) => ({ default: m.Expenses
 
 function ChartPlaceholder({ className = 'h-[380px]' }) {
   return (
-    <div
-      className={`flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-4 text-sm text-ink-soft ${className}`}
-    >
+    <div className={`surface flex items-center justify-center text-[15px] text-ink-soft ${className}`}>
       Calculando…
     </div>
   )
@@ -38,22 +36,40 @@ function Chevron() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="2.2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="h-5 w-5 shrink-0 text-ink-soft"
+      className="h-4 w-4 shrink-0 text-ink-faint"
       aria-hidden="true"
     >
-      <path d="m9 6 6 6-6 6" />
+      <path d="m9 5 7 7-7 7" />
     </svg>
   )
 }
 
-// Las dos tarjetas comparten componente a propósito: "Dinero disponible" y
-// "Dinero invertido" tienen que verse con exactamente el mismo peso — son
-// plata de naturaleza distinta y ninguna manda sobre la otra. Por eso
-// tampoco se suman en ningún lado: no existe un "patrimonio total" (ver
-// FUNCTIONAL.md).
+function PlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      className="h-6 w-6"
+      aria-hidden="true"
+    >
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+
+// Las tres tarjetas comparten componente a propósito: "Dinero disponible",
+// "Dinero invertido" y "Deudas" tienen que verse con exactamente el mismo
+// peso — son plata de naturaleza distinta y ninguna manda sobre las otras.
+// Por eso tampoco se suman en ningún lado: no existe un "patrimonio total"
+// (ver FUNCTIONAL.md). La marquita de moneda al lado del nombre dice de qué
+// unidad es cada una, que es la razón concreta por la que sumarlas no
+// significaría nada.
 //
 // En error la tarjeta deja de ser un botón y pasa a ser un div con su propio
 // "Reintentar": un botón adentro de otro botón no es HTML válido, y tocar la
@@ -62,30 +78,37 @@ function Chevron() {
 // Con `info`, el nombre y el botón (i) viven en una fila propia, fuera del
 // botón que abre la tarjeta (el modal / la navegación): dos botones
 // anidados tampoco es HTML válido.
-function SummaryCard({ label, amount, hint, note, info, loading, error, onRetry, onClick, className = '' }) {
+function SummaryCard({
+  label,
+  currency,
+  amount,
+  hint,
+  note,
+  info,
+  loading,
+  error,
+  onRetry,
+  onClick,
+  className = '',
+}) {
   const [infoOpen, setInfoOpen] = useState(false)
 
   const heading = (
     <span className="flex items-center gap-1.5">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-        {label}
+      <span className="eyebrow">{label}</span>
+      <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">
+        {currency}
       </span>
-      {info && (
-        <InfoButton label={label} active={infoOpen} onToggle={() => setInfoOpen((v) => !v)} />
-      )}
+      {info && <InfoButton label={label} active={infoOpen} onToggle={() => setInfoOpen((v) => !v)} />}
     </span>
   )
 
   if (error) {
     return (
-      <div className={`space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-4 ${className}`}>
+      <div className={`notice space-y-2 ${className}`}>
         {heading}
         <FormError message={error.message} detail={error.detail} />
-        <button
-          type="button"
-          onClick={onRetry}
-          className="text-sm font-semibold text-clay underline"
-        >
+        <button type="button" onClick={onRetry} className="text-[15px] font-semibold text-clay underline">
           Reintentar
         </button>
       </div>
@@ -93,24 +116,28 @@ function SummaryCard({ label, amount, hint, note, info, loading, error, onRetry,
   }
 
   return (
-    <div className={`rounded-2xl border border-line bg-card px-4 py-4 ${className}`}>
+    <div className={`surface px-5 py-4 ${className}`}>
       {heading}
       <button
         type="button"
         onClick={onClick}
-        className="mt-1 flex w-full items-center justify-between gap-3 text-left transition active:opacity-70"
+        className="mt-2 flex w-full items-center justify-between gap-3 text-left transition active:opacity-60"
       >
         <span className="min-w-0">
-          <span className="font-money block text-2xl tracking-tight">
-            {loading ? <span className="text-ink-soft">Calculando…</span> : amount}
+          <span className="block text-[32px] leading-none font-semibold">
+            {loading ? (
+              <span className="text-[17px] font-normal text-ink-soft">Calculando…</span>
+            ) : (
+              amount
+            )}
           </span>
-          {note && <span className="mt-1 block text-xs text-ink-soft">{note}</span>}
-          {hint && <span className="mt-1.5 block text-xs text-accent underline">{hint}</span>}
+          {note && <span className="mt-2 block text-[13px] text-ink-soft">{note}</span>}
+          {hint && <span className="mt-2 block text-[13px] font-medium text-accent-ink">{hint}</span>}
         </span>
         <Chevron />
       </button>
       {infoOpen && info && (
-        <p className="mt-2 rounded-xl bg-mist/50 px-3 py-2 text-left text-xs text-ink-soft">
+        <p className="mt-3 rounded-[14px] bg-mist px-3.5 py-2.5 text-left text-[13px] leading-relaxed text-ink-soft">
           {info}
         </p>
       )}
@@ -211,17 +238,27 @@ function Dashboard() {
     setExpensesVersion((v) => v + 1)
   }
 
-  return (
-    <div>
-      <PageHeader title="Inicio" />
+  const hasDebts = debtsError || debts.length > 0
 
-      {/* Apiladas en pantallas angostas para que los montos largos respiren; de
-          ahí para arriba, lado a lado. En los dos casos, mismo tamaño. */}
-      <div className="grid gap-3 sm:grid-cols-2">
+  return (
+    <div className="page">
+      <PageHeader
+        title="Inicio"
+        action={
+          <button type="button" onClick={openExpenseModal} className="btn btn-primary hidden md:inline-flex">
+            Nuevo gasto
+          </button>
+        }
+      />
+
+      {/* Los tres mundos, uno al lado del otro y del mismo tamaño. Nunca se
+          suman ni se apilan en jerarquía: son magnitudes separadas. */}
+      <div className={`grid gap-3 ${hasDebts ? 'lg:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <SummaryCard
           label="Dinero disponible"
-          amount={liquid ? formatARS(liquid.current) : null}
-          hint={liquid?.isFirst ? 'declarar mi saldo' : null}
+          currency="ARS"
+          amount={liquid ? <Money value={liquid.current} currency="ars" /> : null}
+          hint={liquid?.isFirst ? 'Declarar mi saldo' : null}
           info="La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones."
           loading={liquidLoading}
           error={liquidError}
@@ -230,7 +267,8 @@ function Dashboard() {
         />
         <SummaryCard
           label="Dinero invertido"
-          amount={formatUSD(totalValue)}
+          currency="USD"
+          amount={<Money value={totalValue} />}
           info="Lo que valen hoy tus inversiones, según el último precio o la última valuación que cargaste."
           loading={portfolioLoading}
           error={portfolioError}
@@ -238,51 +276,51 @@ function Dashboard() {
           onClick={() => navigate('/portafolio')}
         />
 
-        {/* El tercer mundo. Ocupa el ancho completo debajo de los otros dos:
-            se lee como una magnitud aparte, no como un tercio de un total que
-            no existe (ver FUNCTIONAL.md). Solo aparece si hay deudas cargadas
-            — sin ninguna, un "US$ 0" permanente es ruido; la sección sigue
-            estando en la barra de navegación. */}
-        {(debtsError || debts.length > 0) && (
+        {/* El tercer mundo. Solo aparece si hay deudas cargadas — sin ninguna,
+            un "US$ 0" permanente es ruido; la sección sigue estando en la
+            barra de navegación. */}
+        {hasDebts && (
           <SummaryCard
             label="Deudas"
-            amount={formatUSD(summarizeDebts(debts).totalBalance)}
-            note="te queda por pagar"
+            currency="USD"
+            amount={<Money value={summarizeDebts(debts).totalBalance} />}
+            note="Te queda por pagar"
             loading={debtsLoading}
             error={debtsError}
             onRetry={loadDebts}
             onClick={() => navigate('/deudas')}
-            className="sm:col-span-2"
           />
         )}
       </div>
 
-      {/* Curva de evolución del portafolio. Sin ninguna operación todavía no
-          hay nada que graficar — ni carga el chunk de recharts, ni muestra el
-          %. El error de usePortfolio ya se ve arriba en "Dinero invertido"
-          con su propio Reintentar; reintentar ahí también arregla esto, así
-          que acá no se repite. */}
-      <div className="mt-3">
-        {!portfolioError &&
-          (portfolioLoading ? (
-            <ChartPlaceholder />
-          ) : contributions.length === 0 ? (
-            <div className="rounded-2xl border border-line bg-card px-4 py-6 text-center">
-              <p className="text-sm text-ink-soft">
-                Todavía no cargaste ningún aporte. Cuando registres el primero, acá vas a ver cómo
-                evoluciona tu portafolio.
-              </p>
-            </div>
-          ) : (
-            <Suspense fallback={<ChartPlaceholder />}>
-              <PortfolioEvolutionChart contributions={contributions} outdatedAssetNames={outdatedAssetNames} />
-            </Suspense>
-          ))}
-      </div>
+      {/* En desktop la curva y los gastos conviven a lo ancho; en el celular
+          van uno abajo del otro, que es el único orden posible. */}
+      <div className="mt-3 grid gap-3 xl:grid-cols-3 xl:items-start">
+        {/* Curva de evolución del portafolio. Sin ninguna operación todavía no
+            hay nada que graficar — ni carga el chunk de recharts, ni muestra
+            el %. El error de usePortfolio ya se ve arriba en "Dinero
+            invertido" con su propio Reintentar; reintentar ahí también
+            arregla esto, así que acá no se repite. */}
+        <div className="xl:col-span-2">
+          {!portfolioError &&
+            (portfolioLoading ? (
+              <ChartPlaceholder />
+            ) : contributions.length === 0 ? (
+              <div className="surface px-5 py-8 text-center">
+                <p className="text-[15px] text-ink-soft">
+                  Todavía no cargaste ningún aporte. Cuando registres el primero, acá vas a ver cómo
+                  evoluciona tu portafolio.
+                </p>
+              </div>
+            ) : (
+              <Suspense fallback={<ChartPlaceholder />}>
+                <PortfolioEvolutionChart contributions={contributions} outdatedAssetNames={outdatedAssetNames} />
+              </Suspense>
+            ))}
+        </div>
 
-      {/* Gastos: último bloque de Inicio. Se maneja solo (transactions no
-          depende de usePortfolio), con su propio loading/error/Reintentar. */}
-      <div className="mt-3">
+        {/* Gastos: se maneja solo (transactions no depende de usePortfolio),
+            con su propio loading/error/Reintentar. */}
         <Suspense fallback={<ChartPlaceholder className="h-[140px]" />}>
           <ExpensesBlock reloadToken={expensesVersion} />
         </Suspense>
@@ -290,14 +328,15 @@ function Dashboard() {
 
       {/* La acción más frecuente: cargar un gasto en segundos. Vive solo acá,
           nunca en el layout compartido. Mismo "+" sin texto que el FAB de
-          Movimientos — mismo formulario, arranca en Gasto en los dos. */}
+          Movimientos — mismo formulario, arranca en Gasto en los dos. En
+          desktop no hay FAB: la acción está en el encabezado. */}
       <button
         type="button"
         onClick={openExpenseModal}
         aria-label="Nuevo gasto"
-        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-3xl font-light text-white shadow-lg transition active:bg-accent-deep md:right-8 md:bottom-8"
+        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 flex h-15 w-15 items-center justify-center rounded-full bg-accent text-white shadow-[0_8px_24px_rgb(16_18_24/0.22)] transition active:scale-95 active:bg-accent-deep md:hidden"
       >
-        +
+        <PlusIcon />
       </button>
 
       {/* Sin categorías todavía (cargando o falló) no se abre el formulario
@@ -312,13 +351,13 @@ function Dashboard() {
               <button
                 type="button"
                 onClick={loadCategories}
-                className="text-sm font-semibold text-clay underline"
+                className="text-[15px] font-semibold text-clay underline"
               >
                 Reintentar
               </button>
             </div>
           ) : (
-            <p className="text-sm text-ink-soft">Cargando…</p>
+            <p className="text-[15px] text-ink-soft">Cargando…</p>
           )}
         </FormSheet>
       ) : (

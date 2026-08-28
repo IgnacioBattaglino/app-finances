@@ -10,11 +10,11 @@ function CollapsedDateField({ value, onChange, label = 'Fecha' }) {
   if (!expanded) {
     return (
       <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <span className="text-[15px] text-ink-soft">{label}</span>
+        <span className="text-[17px]">{label}</span>
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="text-[13px] text-ink-soft underline decoration-dotted"
+          className="text-[15px] text-ink-soft underline decoration-dotted underline-offset-4"
         >
           {value === todayISO() ? 'Hoy' : formatDayYear(value)} · cambiar
         </button>
@@ -24,7 +24,7 @@ function CollapsedDateField({ value, onChange, label = 'Fecha' }) {
 
   return (
     <label className="flex items-center justify-between gap-3 px-4 py-3">
-      <span className="text-[15px]">{label}</span>
+      <span className="text-[17px]">{label}</span>
       <input
         type="date"
         value={value}
@@ -34,7 +34,7 @@ function CollapsedDateField({ value, onChange, label = 'Fecha' }) {
         }}
         required
         autoFocus
-        className="bg-transparent text-right text-[15px] outline-none"
+        className="bg-transparent text-right text-[17px] outline-none"
       />
     </label>
   )

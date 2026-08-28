@@ -86,7 +86,7 @@ function CategoryDetail() {
   if (loading) {
     return (
       <SettingsPage title="Categoría" backTo="/ajustes/categorias" backLabel="Categorías">
-        <p className="px-4 text-sm text-ink-soft">Cargando…</p>
+        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
       </SettingsPage>
     )
   }
@@ -122,7 +122,7 @@ function CategoryDetail() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={busy}
-                  className="w-full rounded-lg bg-mist px-3 py-1.5 text-base outline-none"
+                  className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none"
                 />
               </div>
               {/* El tipo no se edita: cambiarlo mudaría de lado todos los
@@ -134,7 +134,7 @@ function CategoryDetail() {
                 <button
                   type="submit"
                   disabled={busy || !name.trim()}
-                  className="w-full px-4 py-3 text-left text-[15px] font-semibold text-accent transition active:bg-mist/60 disabled:opacity-40"
+                  className="w-full px-4 py-3 text-left text-[17px] font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
                 >
                   Guardar
                 </button>
@@ -151,7 +151,7 @@ function CategoryDetail() {
               {confirmArchive ? (
                 <div className="flex items-center justify-between gap-3 px-4 py-3 text-[15px]">
                   <span>¿Archivar «{category.name}»?</span>
-                  <div className="flex shrink-0 items-center gap-4 text-sm">
+                  <div className="flex shrink-0 items-center gap-4 text-[15px]">
                     <button
                       type="button"
                       onClick={() => setConfirmArchive(false)}
@@ -164,7 +164,7 @@ function CategoryDetail() {
                       type="button"
                       onClick={handleArchive}
                       disabled={busy}
-                      className="font-semibold text-accent disabled:opacity-50"
+                      className="font-semibold text-accent-ink disabled:opacity-50"
                     >
                       Sí, archivar
                     </button>

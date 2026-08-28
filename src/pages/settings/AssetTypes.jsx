@@ -16,7 +16,7 @@ function NewAssetTypeRow({ onCreated }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full px-4 py-3 text-left text-[15px] font-medium text-accent transition active:bg-mist/60"
+        className="w-full px-4 py-3 text-left text-[17px] font-medium text-accent-ink transition active:bg-mist"
       >
         Nuevo grupo
       </button>
@@ -72,12 +72,12 @@ function AssetTypes() {
       description="Cómo se agrupa tu portafolio: cada activo vive en un grupo."
     >
       {error && (
-        <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
+        <div className="notice space-y-2">
           <FormError message={error.message} detail={error.detail} />
           <button
             type="button"
             onClick={load}
-            className="text-sm font-semibold text-clay underline"
+            className="text-[15px] font-semibold text-clay underline"
           >
             Reintentar
           </button>
@@ -85,7 +85,7 @@ function AssetTypes() {
       )}
 
       {loading ? (
-        <p className="px-4 text-sm text-ink-soft">Cargando…</p>
+        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
       ) : (
         <>
           <SettingsGroup footer="El orden es el mismo que ves en Portafolio.">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
+import BinaryChoice from '../components/form/BinaryChoice.jsx'
 import EditIcon from '../components/EditIcon.jsx'
 import FormError from '../components/form/FormError.jsx'
 import { getTransactions, groupExpensesByCategory } from '../lib/transactions.js'
@@ -8,6 +9,39 @@ import { getCategories } from '../lib/categories.js'
 import { formatARS, formatMonthYear, formatDay } from '../lib/format.js'
 
 const now = new Date()
+
+function Arrow({ direction }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden="true"
+    >
+      <path d={direction === 'left' ? 'm14 5-7 7 7 7' : 'm10 5 7 7-7 7'} />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      className="h-6 w-6"
+      aria-hidden="true"
+    >
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
 
 function Movements() {
   // Movimientos del mes navegado, sin filtrar por tipo/categoría: de acá
@@ -113,59 +147,128 @@ function Movements() {
   const categoryBreakdown = groupExpensesByCategory(monthItems)
 
   return (
-    <div>
-      <PageHeader title="Movimientos" />
+    <div className="page">
+      <PageHeader
+        title="Movimientos"
+        action={
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="btn btn-primary hidden md:inline-flex"
+          >
+            Nuevo movimiento
+          </button>
+        }
+      />
 
-      <div className="space-y-8">
-        <section className="space-y-3">
+      {/* En desktop, el mes (navegador, totales y desglose) se queda quieto a
+          la izquierda mientras se recorre el historial a la derecha: son dos
+          lecturas distintas del mismo mes y conviene tenerlas a la vista al
+          mismo tiempo. En el celular no hay ancho para eso y van una debajo
+          de la otra, en ese orden. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-8">
+        <section className="space-y-3 lg:sticky lg:top-10 lg:self-start">
           {/* Navegador de mes */}
-          <div className="flex items-center justify-between">
+          <div className="surface flex items-center justify-between px-2 py-1.5">
             <button
               type="button"
               onClick={() => moveMonth(-1)}
               aria-label="Mes anterior"
-              className="rounded-xl px-3 py-1.5 text-lg text-ink-soft transition hover:bg-mist"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
             >
-              ‹
+              <Arrow direction="left" />
             </button>
-            <span className="text-[15px] font-semibold">{formatMonthYear(month, year)}</span>
+            <span className="text-[17px] font-semibold">{formatMonthYear(month, year)}</span>
             <button
               type="button"
               onClick={() => moveMonth(1)}
               aria-label="Mes siguiente"
-              className="rounded-xl px-3 py-1.5 text-lg text-ink-soft transition hover:bg-mist"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
             >
-              ›
+              <Arrow direction="right" />
             </button>
           </div>
 
-          {/* Filtros */}
-          <div className="flex gap-2">
-            <div className="flex flex-1 rounded-xl bg-mist p-0.5 text-sm font-medium">
-              {[
-                ['all', 'Todos'],
-                ['expense', 'Gastos'],
-                ['income', 'Ingresos'],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => changeKind(value)}
-                  className={`flex-1 rounded-[10px] py-1.5 transition ${
-                    kind === value ? 'bg-card shadow-sm' : 'text-ink-soft'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+          {error && (
+            <div className="notice space-y-2">
+              <FormError message={error?.message} detail={error?.detail} />
+              <button
+                type="button"
+                onClick={load}
+                className="text-[15px] font-semibold text-clay underline"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
+
+          {!error && !loading && (
+            <>
+              {/* Los tres números del mes. Gastos e ingresos llevan su color;
+                  el balance no, porque es una resta y su signo ya lo dice. */}
+              <div className="surface divide-y divide-line">
+                <div className="flex items-baseline justify-between px-4 py-3">
+                  <span className="text-[15px] text-ink-soft">Gastos</span>
+                  <span className="font-money text-[17px] font-semibold text-clay">
+                    {formatARS(expenses)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between px-4 py-3">
+                  <span className="text-[15px] text-ink-soft">Ingresos</span>
+                  <span className="font-money text-[17px] font-semibold text-gain">
+                    {formatARS(incomes)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between px-4 py-3">
+                  <span className="text-[15px] font-medium">Balance</span>
+                  <span className="font-money text-[17px] font-semibold">
+                    {formatARS(incomes - expenses)}
+                  </span>
+                </div>
+              </div>
+
+              {categoryBreakdown.length > 0 && (
+                <div>
+                  <h2 className="eyebrow mb-2 px-1">En qué se fue</h2>
+                  <div className="list">
+                    {categoryBreakdown.map((cat) => (
+                      <div
+                        key={cat.name}
+                        className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-[15px]"
+                      >
+                        <span className="truncate text-ink-soft">{cat.name}</span>
+                        <span className="font-money shrink-0">{formatARS(cat.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* Historial, con sus filtros */}
+        <section className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {/* Tres opciones cortas no necesitan media pantalla de ancho */}
+            <div className="flex-1 md:max-w-sm">
+              <BinaryChoice
+                options={[
+                  { value: 'all', label: 'Todos' },
+                  { value: 'expense', label: 'Gastos' },
+                  { value: 'income', label: 'Ingresos' },
+                ]}
+                value={kind}
+                onChange={changeKind}
+              />
             </div>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
               aria-label="Filtrar por categoría"
-              className="max-w-[40%] rounded-xl bg-mist px-3 py-1.5 text-sm outline-none"
+              className="rounded-[12px] bg-mist px-3.5 py-2.5 text-[15px] outline-none sm:max-w-[45%]"
             >
-              <option value="">Todas</option>
+              <option value="">Todas las categorías</option>
               {categories
                 .filter((cat) => kind === 'all' || cat.kind === kind)
                 .map((cat) => (
@@ -176,85 +279,15 @@ function Movements() {
             </select>
           </div>
 
-          {error && (
-            <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
-              <FormError message={error?.message} detail={error?.detail} />
-              <button
-                type="button"
-                onClick={load}
-                className="text-sm font-semibold text-clay underline"
-              >
-                Reintentar
-              </button>
-            </div>
-          )}
-
-          {!error && !loading && (
-            <>
-              {/* Gastos/Ingresos/Balance del mes navegado — el encabezado dice
-                  de qué mes son, para que no se confunda con otro período. */}
-              <h2 className="px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                {formatMonthYear(month, year)}
-              </h2>
-              <div className="grid grid-cols-3 divide-x divide-line overflow-hidden rounded-2xl border border-line bg-card text-center">
-                <div className="px-2 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                    Gastos
-                  </p>
-                  <p className="font-money mt-1 text-xl tracking-tight text-clay">
-                    {formatARS(expenses)}
-                  </p>
-                </div>
-                <div className="px-2 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                    Ingresos
-                  </p>
-                  <p className="font-money mt-1 text-xl tracking-tight text-gain">
-                    {formatARS(incomes)}
-                  </p>
-                </div>
-                <div className="px-2 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                    Balance
-                  </p>
-                  <p className="font-money mt-1 text-xl tracking-tight">
-                    {formatARS(incomes - expenses)}
-                  </p>
-                </div>
-              </div>
-
-              {categoryBreakdown.length > 0 && (
-                <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
-                  {categoryBreakdown.map((cat) => (
-                    <div
-                      key={cat.name}
-                      className="flex items-center justify-between px-4 py-2.5 text-sm"
-                    >
-                      <span className="text-ink-soft">{cat.name}</span>
-                      <span className="font-money">{formatARS(cat.total)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </section>
-
-        {/* Historial: sección secundaria */}
-        <section className="space-y-4">
-          <h2 className="px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-            Historial
-          </h2>
-
           {loading ? (
-            <p className="px-4 text-sm text-ink-soft">Cargando…</p>
+            <p className="px-1 text-[15px] text-ink-soft">Cargando…</p>
           ) : items.length === 0 && !error ? (
-            <p className="px-4 py-6 text-center text-sm text-ink-soft">
+            <p className="surface px-4 py-10 text-center text-[15px] text-ink-soft">
               {hasExtraFilters ? 'Sin movimientos con estos filtros.' : 'Sin movimientos este mes.'}
             </p>
           ) : (
             !error && (
-              <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+              <div className="list">
                 {items.map((tx) => (
                   <button
                     key={tx.id}
@@ -263,10 +296,10 @@ function Movements() {
                       setEditing(tx)
                       setModalOpen(true)
                     }}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-mist/50"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
                   >
                     <div className="min-w-0">
-                      <p className="flex items-center gap-1 truncate text-[15px]">
+                      <p className="flex items-center gap-1.5 truncate text-[17px]">
                         <span className="truncate">
                           {tx.category?.name ?? 'Sin categoría'}
                           {tx.description && (
@@ -275,10 +308,10 @@ function Movements() {
                         </span>
                         <EditIcon />
                       </p>
-                      <p className="mt-0.5 text-xs text-ink-soft">{formatDay(tx.date)}</p>
+                      <p className="mt-0.5 text-[13px] text-ink-soft">{formatDay(tx.date)}</p>
                     </div>
                     <span
-                      className={`font-money shrink-0 text-[15px] ${
+                      className={`font-money shrink-0 text-[17px] font-medium ${
                         tx.kind === 'expense' ? 'text-clay' : 'text-gain'
                       }`}
                     >
@@ -293,14 +326,14 @@ function Movements() {
         </section>
       </div>
 
-      {/* Alta */}
+      {/* Alta. En desktop la acción vive en el encabezado. */}
       <button
         type="button"
         onClick={() => setModalOpen(true)}
         aria-label="Nuevo movimiento"
-        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-3xl font-light text-white shadow-lg transition active:bg-accent-deep md:right-8 md:bottom-8"
+        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 flex h-15 w-15 items-center justify-center rounded-full bg-accent text-white shadow-[0_8px_24px_rgb(16_18_24/0.22)] transition active:scale-95 active:bg-accent-deep md:hidden"
       >
-        +
+        <PlusIcon />
       </button>
 
       <TransactionFormModal

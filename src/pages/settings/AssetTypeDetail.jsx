@@ -149,7 +149,7 @@ function AssetTypeDetail() {
   if (loading) {
     return (
       <SettingsPage title="Grupo" backTo="/ajustes/grupos" backLabel="Grupos de activos">
-        <p className="px-4 text-sm text-ink-soft">Cargando…</p>
+        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
       </SettingsPage>
     )
   }
@@ -186,7 +186,7 @@ function AssetTypeDetail() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={busy}
-              className="w-full rounded-lg bg-mist px-3 py-1.5 text-base outline-none"
+              className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none"
             />
           </div>
           <SettingsValueRow label="Activos" value={assetsLabel(counts)} />
@@ -194,7 +194,7 @@ function AssetTypeDetail() {
             <button
               type="submit"
               disabled={busy || !name.trim()}
-              className="w-full px-4 py-3 text-left text-[15px] font-semibold text-accent transition active:bg-mist/60 disabled:opacity-40"
+              className="w-full px-4 py-3 text-left text-[17px] font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
             >
               Guardar
             </button>
@@ -217,7 +217,7 @@ function AssetTypeDetail() {
                 onClick={() => handleMove('up')}
                 disabled={busy || position === 0}
                 aria-label="Subir un lugar"
-                className="rounded-lg p-1.5 text-accent transition active:bg-mist disabled:opacity-25"
+                className="rounded-lg p-1.5 text-accent-ink transition active:bg-mist disabled:opacity-25"
               >
                 <Arrow direction="up" />
               </button>
@@ -226,7 +226,7 @@ function AssetTypeDetail() {
                 onClick={() => handleMove('down')}
                 disabled={busy || position === siblings.length - 1}
                 aria-label="Bajar un lugar"
-                className="rounded-lg p-1.5 text-accent transition active:bg-mist disabled:opacity-25"
+                className="rounded-lg p-1.5 text-accent-ink transition active:bg-mist disabled:opacity-25"
               >
                 <Arrow direction="down" />
               </button>
@@ -274,7 +274,7 @@ function AssetTypeDetail() {
           {confirm === 'archive' ? (
             <div className="flex items-center justify-between gap-3 px-4 py-3 text-[15px]">
               <span>¿Archivar «{assetType.name}»?</span>
-              <div className="flex shrink-0 items-center gap-4 text-sm">
+              <div className="flex shrink-0 items-center gap-4 text-[15px]">
                 <button
                   type="button"
                   onClick={() => setConfirm(null)}
@@ -287,7 +287,7 @@ function AssetTypeDetail() {
                   type="button"
                   onClick={() => leaveAfter(() => archiveAssetType(assetType.id), 'No se pudo archivar el grupo.')}
                   disabled={busy}
-                  className="font-semibold text-accent disabled:opacity-50"
+                  className="font-semibold text-accent-ink disabled:opacity-50"
                 >
                   Sí, archivar
                 </button>
@@ -309,7 +309,7 @@ function AssetTypeDetail() {
               <p className="text-[15px] text-clay">
                 ¿Eliminar «{assetType.name}»? Es permanente.
               </p>
-              <div className="flex items-center justify-end gap-4 text-sm">
+              <div className="flex items-center justify-end gap-4 text-[15px]">
                 <button
                   type="button"
                   onClick={() => setConfirm(null)}

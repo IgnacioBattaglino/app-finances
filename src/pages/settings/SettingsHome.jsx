@@ -9,15 +9,19 @@ import { APP_VERSION } from '../../version.js'
 // entera de un vistazo.
 function SettingsHome() {
   const { user } = useAuth()
-  const { accent } = useTheme()
+  const { accent, theme } = useTheme()
 
   return (
-    <div>
+    <div className="page-narrow">
       <PageHeader title="Ajustes" />
 
-      <div className="space-y-6">
+      <div className="space-y-7">
         <SettingsGroup title="La app">
-          <SettingsLinkRow to="/ajustes/apariencia" label="Apariencia" value={accent.name} />
+          <SettingsLinkRow
+            to="/ajustes/apariencia"
+            label="Apariencia"
+            value={`${theme.name} · ${accent.name}`}
+          />
         </SettingsGroup>
 
         <SettingsGroup title="Tus datos">
@@ -31,7 +35,7 @@ function SettingsHome() {
         </SettingsGroup>
 
         {/* Marca de versión para confirmar a ojo si un deploy se aplicó */}
-        <p className="px-4 text-xs text-ink-soft">versión {APP_VERSION}</p>
+        <p className="px-1 text-[13px] text-ink-faint">versión {APP_VERSION}</p>
       </div>
     </div>
   )

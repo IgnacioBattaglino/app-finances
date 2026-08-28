@@ -7,16 +7,16 @@ import PageHeader from '../PageHeader.jsx'
 // de un grupo vuelve a SU lista, no a la raíz.
 function SettingsPage({ title, description, backTo = '/ajustes', backLabel = 'Ajustes', children }) {
   return (
-    <div>
+    <div className="page-narrow">
       <Link
         to={backTo}
-        className="mb-3 -ml-1 inline-flex items-center gap-0.5 text-[15px] text-accent"
+        className="mb-3 -ml-1 inline-flex items-center gap-0.5 text-[17px] text-accent-ink"
       >
         <svg
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
           className="h-4 w-4"
@@ -27,7 +27,7 @@ function SettingsPage({ title, description, backTo = '/ajustes', backLabel = 'Aj
         {backLabel}
       </Link>
       <PageHeader title={title} description={description} />
-      <div className="space-y-6">{children}</div>
+      <div className="space-y-7">{children}</div>
     </div>
   )
 }

@@ -30,7 +30,7 @@ function ExportRow({ title, description, count, onDownload, disabled }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[15px]">{title}</p>
-          <p className="mt-0.5 text-xs text-ink-soft">
+          <p className="mt-0.5 text-[13px] text-ink-soft">
             {count === null ? 'Contando…' : `${count} ${description}`}
           </p>
         </div>
@@ -38,13 +38,13 @@ function ExportRow({ title, description, count, onDownload, disabled }) {
           type="button"
           onClick={handleClick}
           disabled={disabled || count === null || count === 0 || state === 'working'}
-          className="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition active:bg-accent-deep disabled:opacity-40"
+          className="shrink-0 rounded-xl bg-accent px-4 py-2 text-[15px] font-semibold text-white transition active:bg-accent-deep disabled:opacity-40"
         >
           {state === 'working' ? 'Generando…' : 'Descargar'}
         </button>
       </div>
       {state === 'error' && (
-        <p className="mt-2 text-xs text-clay">No se pudo generar el archivo.</p>
+        <p className="mt-2 text-[13px] text-clay">No se pudo generar el archivo.</p>
       )}
     </div>
   )
@@ -79,12 +79,12 @@ function ExportData() {
       description="Un archivo por cada cosa, para abrir en una planilla."
     >
       {error && (
-        <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
+        <div className="notice space-y-2">
           <FormError message={error.message} detail={error.detail} />
           <button
             type="button"
             onClick={load}
-            className="text-sm font-semibold text-clay underline"
+            className="text-[15px] font-semibold text-clay underline"
           >
             Reintentar
           </button>

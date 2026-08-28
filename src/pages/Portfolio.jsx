@@ -4,6 +4,7 @@ import AssetGroup from '../components/AssetGroup.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
 import Gain from '../components/Gain.jsx'
+import Money from '../components/Money.jsx'
 import FormError from '../components/form/FormError.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
 import { needsManualValuation, groupAssetsByType } from '../lib/portfolio.js'
@@ -84,67 +85,127 @@ function Portfolio() {
     load()
   }
 
+  // Las mismas dos acciones en los dos lugares donde tienen sentido: en el
+  // encabezado cuando hay pantalla de sobra (desktop) y al pie de la tarjeta
+  // de resumen en el celular, donde ganar alto importa — así el portafolio
+  // sigue empezando arriba de la línea de flote.
+  const newAssetButton = (
+    <button
+      type="button"
+      onClick={() => setAssetModal({ open: true, editing: null })}
+      className="btn btn-secondary"
+    >
+      Nuevo activo
+    </button>
+  )
+  const valuationsButton = manualAssets.length > 0 && (
+    <button
+      type="button"
+      onClick={() => setValuationModal({ open: true, assets: manualAssets })}
+      className="btn btn-secondary"
+    >
+      Actualizar valuaciones
+    </button>
+  )
+
   return (
-    <div>
-      <PageHeader title="Portafolio" />
+    <div className="page">
+      <PageHeader
+        title="Portafolio"
+        action={
+          assets.length > 0 && (
+            <div className="hidden gap-2 md:flex">
+              {valuationsButton}
+              {newAssetButton}
+            </div>
+          )
+        }
+      />
 
       {loading ? (
-        <p className="px-4 text-sm text-ink-soft">Cargando…</p>
+        <p className="text-[15px] text-ink-soft">Cargando…</p>
       ) : error ? (
-        <div className="space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
+        <div className="notice space-y-2">
           <FormError message={error?.message} detail={error?.detail} />
-          <button
-            type="button"
-            onClick={load}
-            className="text-sm font-semibold text-clay underline"
-          >
+          <button type="button" onClick={load} className="text-[15px] font-semibold text-clay underline">
             Reintentar
           </button>
         </div>
       ) : assets.length === 0 ? (
-        <div className="rounded-2xl border border-line bg-card px-4 py-8 text-center">
-          <p className="text-sm text-ink-soft">
-            Todavía no tenés activos. Creá el primero para empezar a seguir tus inversiones.
+        <div className="surface px-6 py-10 text-center">
+          <p className="text-[17px] font-semibold">Todavía no tenés activos</p>
+          <p className="mx-auto mt-1.5 max-w-xs text-[15px] text-ink-soft">
+            Creá el primero para empezar a seguir tus inversiones.
           </p>
           <button
             type="button"
             onClick={() => setAssetModal({ open: true, editing: null })}
-            className="mt-4 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition active:bg-accent-deep"
+            className="btn btn-primary mt-5"
           >
             Nuevo activo
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Resumen: mismo nombre que la tarjeta de Inicio, "Dinero
               invertido" — es el mismo número (usePortfolio). */}
-          <div className="rounded-2xl border border-line bg-card px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-              Dinero invertido
-            </p>
-            <p className="font-money mt-1 text-3xl tracking-tight">
-              {formatUSD(totalValue)}
-            </p>
-            {valuedContributed > 0 && (
-              <p className="mt-1">
-                <span className="mr-1.5 text-[11px] text-ink-soft">Rendimiento</span>
-                <Gain value={totalGain} base={valuedContributed} className="text-lg" />
-              </p>
-            )}
-            <p className="mt-2 text-xs text-ink-soft">
-              Aportado <span className="font-money">{formatUSD(totalContributed)}</span>
-            </p>
+          <div className="surface overflow-hidden">
+            {/* En desktop el aportado y el rendimiento se corren a la derecha,
+                a la altura del total: hay ancho de sobra y así se leen los
+                tres números de una sola pasada horizontal. En el celular van
+                abajo, que es la única forma que entra. */}
+            <div className="px-5 pt-5 pb-4 md:flex md:items-end md:justify-between md:gap-8">
+              <div>
+                <span className="eyebrow">Dinero invertido</span>
+                <p className="mt-2 text-[40px] leading-none font-semibold md:text-[44px]">
+                  <Money value={totalValue} />
+                </p>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 text-[13px] md:mt-0 md:justify-end">
+                <span className="text-ink-soft">
+                  Aportado{' '}
+                  <span className="font-money font-medium text-ink">{formatUSD(totalContributed)}</span>
+                </span>
+                {valuedContributed > 0 && (
+                  <span className="text-ink-soft">
+                    Rendimiento <Gain value={totalGain} base={valuedContributed} className="text-[13px]" />
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Acciones al pie de la tarjeta, partidas por una línea — el
+                mismo patrón que la tarjeta de una deuda. Solo en el celular:
+                en desktop viven arriba, en el encabezado de la pantalla. */}
+            <div className="flex border-t border-line md:hidden">
+              <button
+                type="button"
+                onClick={() => setAssetModal({ open: true, editing: null })}
+                className="flex-1 py-3.5 text-[15px] font-semibold text-accent-ink transition active:bg-mist"
+              >
+                Nuevo activo
+              </button>
+              {manualAssets.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setValuationModal({ open: true, assets: manualAssets })}
+                  className="flex-1 border-l border-line py-3.5 text-[15px] font-semibold text-accent-ink transition active:bg-mist"
+                >
+                  Actualizar valuaciones
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Avisos */}
           {pricesFailed && (
-            <p className="rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-xs text-clay">
-              No se pudieron traer los precios del momento. Se muestra el último valor
-              disponible de cada activo.
+            <p className="notice text-[13px]">
+              No se pudieron traer los precios del momento. Se muestra el último valor disponible de
+              cada activo.
             </p>
           )}
           {unvalued.length > 0 && (
-            <p className="rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-xs text-clay">
+            <p className="notice text-[13px]">
               {unvalued.length === 1
                 ? `«${unvalued[0].name}» todavía no tiene valuación, así que no suma al total.`
                 : `${unvalued.length} activos todavía no tienen valuación, así que no suman al total.`}{' '}
@@ -152,36 +213,19 @@ function Portfolio() {
             </p>
           )}
 
-          {/* Acciones */}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setAssetModal({ open: true, editing: null })}
-              className="flex-1 rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60"
-            >
-              Nuevo activo
-            </button>
-            {manualAssets.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setValuationModal({ open: true, assets: manualAssets })}
-                className="flex-1 rounded-xl border border-line bg-card py-2.5 text-sm font-medium transition active:bg-mist/60"
-              >
-                Actualizar valuaciones
-              </button>
-            )}
+          {/* Grupos por bolsa. En desktop entran de a dos: son bloques
+              independientes, no una secuencia que haya que leer en orden. */}
+          <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+            {groups.map((group) => (
+              <AssetGroup
+                key={group.assetType.id}
+                assetType={group.assetType}
+                assets={group.assets}
+                valuations={valuations}
+                contributions={contributions}
+              />
+            ))}
           </div>
-
-          {/* Grupos por bolsa */}
-          {groups.map((group) => (
-            <AssetGroup
-              key={group.assetType.id}
-              assetType={group.assetType}
-              assets={group.assets}
-              valuations={valuations}
-              contributions={contributions}
-            />
-          ))}
         </div>
       )}
 
@@ -189,34 +233,34 @@ function Portfolio() {
           Se muestra siempre que haya alguno, independiente del estado de los
           activos activos (incluido el portafolio vacío). */}
       {archivedError && (
-        <div className="mt-4 space-y-2 rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3">
+        <div className="notice mt-4 space-y-2">
           <FormError message={archivedError.message} detail={archivedError.detail} />
           <button
             type="button"
             onClick={loadArchived}
-            className="text-sm font-semibold text-clay underline"
+            className="text-[15px] font-semibold text-clay underline"
           >
             Reintentar
           </button>
         </div>
       )}
       {archivedAssets.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-8">
           <button
             type="button"
             onClick={() => setShowArchived((prev) => !prev)}
-            className="px-4 text-sm text-ink-soft"
+            className="eyebrow px-1 transition hover:text-ink"
           >
-            {showArchived ? '▾' : '▸'} Archivados ({archivedAssets.length})
+            Archivados ({archivedAssets.length}) {showArchived ? '−' : '+'}
           </button>
           {showArchived && (
-            <div className="mt-1.5 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+            <div className="list mt-2">
               {archivedAssets.map((asset) => (
-                <div key={asset.id} className="flex items-center justify-between px-4 py-3">
+                <div key={asset.id} className="flex items-center justify-between gap-3 px-4 py-3">
                   <span className="text-[15px] text-ink-soft">
                     {asset.name}
                     {asset.asset_type?.name && (
-                      <span className="ml-2 text-[10px] uppercase tracking-wide">
+                      <span className="ml-2 text-[11px] text-ink-faint uppercase">
                         {asset.asset_type.name}
                       </span>
                     )}
@@ -224,7 +268,7 @@ function Portfolio() {
                   <button
                     type="button"
                     onClick={() => handleRestore(asset.id)}
-                    className="text-sm text-accent"
+                    className="text-[15px] font-medium text-accent-ink"
                   >
                     Restaurar
                   </button>

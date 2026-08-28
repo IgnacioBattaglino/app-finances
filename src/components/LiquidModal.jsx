@@ -57,7 +57,7 @@ function LiquidModal({ open, onClose, onSaved }) {
           type="submit"
           form="liquid-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent disabled:opacity-40"
+          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -70,7 +70,7 @@ function LiquidModal({ open, onClose, onSaved }) {
               realidad es un dato que la app ya calculó solo. Una oración,
               no una fila "etiqueta : valor", para que no se confunda con el
               único campo editable. */}
-          <p className="rounded-2xl border border-line bg-card px-4 py-3 text-sm text-ink-soft">
+          <p className="surface px-4 py-3 text-[15px] text-ink-soft">
             {current === null ? (
               'Calculando cuánto tenés según la app…'
             ) : (
@@ -81,8 +81,8 @@ function LiquidModal({ open, onClose, onSaved }) {
             )}
           </p>
 
-          <label className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-3">
-            <span className="text-[15px]">¿Cuánto tenés realmente?</span>
+          <label className="flex items-center justify-between gap-3 surface px-4 py-3">
+            <span className="text-[17px]">¿Cuánto tenés realmente?</span>
             <div className="flex items-center gap-1">
               <span className="text-[15px] text-ink-soft">$</span>
               <input
@@ -91,7 +91,7 @@ function LiquidModal({ open, onClose, onSaved }) {
                 inputMode="decimal"
                 placeholder="0"
                 required
-                className="font-money w-32 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+                className="font-money w-32 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
               />
             </div>
           </label>
@@ -99,10 +99,10 @@ function LiquidModal({ open, onClose, onSaved }) {
           {/* Previsualización del ajuste antes de confirmar */}
           {valid && hasDifference && (
             <p
-              className={`rounded-2xl px-4 py-3 text-sm ${
+              className={`rounded-2xl px-4 py-3 text-[15px] ${
                 difference > 0
-                  ? 'border border-accent/20 bg-accent/5 text-accent'
-                  : 'border border-clay/20 bg-clay/5 text-clay'
+                  ? 'border border-accent/20 bg-accent/5 text-accent-ink'
+                  : 'bg-clay/10 text-clay'
               }`}
             >
               Diferencia: {difference > 0 ? '+' : '−'}
@@ -112,7 +112,7 @@ function LiquidModal({ open, onClose, onSaved }) {
             </p>
           )}
           {valid && !hasDifference && (
-            <p className="rounded-2xl border border-line bg-card px-4 py-3 text-sm text-ink-soft">
+            <p className="surface px-4 py-3 text-[15px] text-ink-soft">
               Sin diferencia: no se genera ajuste.
             </p>
           )}

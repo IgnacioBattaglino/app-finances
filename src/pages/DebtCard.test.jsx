@@ -44,14 +44,17 @@ describe('DebtCard', () => {
     expect(html).not.toContain('Sin pagos')
   })
 
+  // Se compara en minúsculas: lo que fija el contrato es QUÉ dice la tarjeta,
+  // no cómo está capitalizado. La frase arranca en mayúscula cuando va sola en
+  // su línea, y eso es una decisión de diseño, no del comportamiento.
   it('con saldo 0 dice "saldada", no "te queda por pagar"', () => {
-    const html = render({ debt: debt(1000, [1000]) })
+    const html = render({ debt: debt(1000, [1000]) }).toLowerCase()
     expect(html).toContain('saldada')
     expect(html).not.toContain('te queda por pagar')
   })
 
   it('con saldo pendiente dice "te queda por pagar"', () => {
-    expect(render({ debt: debt(1000, [300]) })).toContain('te queda por pagar')
+    expect(render({ debt: debt(1000, [300]) }).toLowerCase()).toContain('te queda por pagar')
   })
 
   it('sin pagos deshabilita el acceso al historial en vez de ofrecer una lista vacía', () => {
