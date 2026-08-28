@@ -4,7 +4,7 @@ import { getAssets } from '../lib/assets.js'
 import { getAssetTypes } from '../lib/assetTypes.js'
 import { getContributions, splitPage } from '../lib/contributions.js'
 import { getValuations } from '../lib/valuations.js'
-import { getCryptoPrices } from '../lib/prices.js'
+import { resolveAssetPrices } from '../lib/portfolioPrices.js'
 import {
   valueAsset,
   heldQuantity,
@@ -109,19 +109,22 @@ function AssetDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetId])
 
-  // El precio en vivo no bloquea el primer render (CoinGecko es la parte
-  // más lenta de la carga): se pide aparte una vez que sabemos qué activo
-  // es y si tiene coingecko_id, y actualiza prices/pricesAt cuando llega —
-  // hasta entonces valueAsset cae a 'stale'/'none' y el SourceTag lo refleja.
+  // El precio no bloquea el primer render (las APIs externas son la parte más
+  // lenta de la carga): se pide aparte una vez que sabemos qué activo es y a
+  // qué instrumento está enganchado, y actualiza prices/pricesAt cuando llega
+  // — hasta entonces valueAsset cae a 'stale'/'none' y el SourceTag lo
+  // refleja. Se cotiza solo este activo, no el portafolio entero.
   useEffect(() => {
     const asset = assets.find((a) => a.id === assetId)
-    if (asset?.valuation_mode !== 'live' || !asset.coingecko_id) return
+    if (!asset) return
     let cancelled = false
-    getCryptoPrices([asset.coingecko_id]).then((result) => {
-      if (cancelled) return
-      setPrices(result ?? {})
-      setPricesAt(new Date())
-    })
+    resolveAssetPrices([asset])
+      .then(({ prices: resolved, at }) => {
+        if (cancelled) return
+        setPrices(resolved)
+        setPricesAt(at)
+      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }

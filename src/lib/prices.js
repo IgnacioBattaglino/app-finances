@@ -24,73 +24,76 @@ export async function getMepRate() {
   return { rate: data.venta, at: new Date() }
 }
 
-// Binance es la fuente primaria de precio en vivo (mismo proveedor que el
-// historial del servidor, ver ADR-006: sin escalón entre lo que muestra la
-// app y lo que guarda el cron). CoinGecko queda como fallback SOLO para
-// coingecko_id sin par de Binance conocido acá abajo — ningún activo
-// existente se queda sin precio por este cambio. Mantené este mapa en sync
-// con la semilla de la migración 0021 (source='binance' en instruments).
-const BINANCE_PAIR_BY_COINGECKO_ID = {
-  bitcoin: 'BTCUSDT',
-  ethereum: 'ETHUSDT',
-  solana: 'SOLUSDT',
-  cardano: 'ADAUSDT',
-  ripple: 'XRPUSDT',
-  dogecoin: 'DOGEUSDT',
-  binancecoin: 'BNBUSDT',
-  polkadot: 'DOTUSDT',
-  litecoin: 'LTCUSDT',
-  chainlink: 'LINKUSDT',
-  'avalanche-2': 'AVAXUSDT',
-  tron: 'TRXUSDT',
-  'polygon-ecosystem-token': 'POLUSDT',
+// Fuentes que cotizan EN VIVO desde el navegador. El resto de los
+// instrumentos del catálogo (hoy 'data912': acciones argentinas, CEDEARs y
+// bonos de BYMA) no tienen un endpoint público que sirva para esto, así que
+// su valor sale del último cierre que guardó el cron — ver resolvePrices en
+// portfolioPrices.js.
+const LIVE_SOURCES = new Set(['binance', 'coingecko'])
+
+export function hasLivePrice(instrument) {
+  return LIVE_SOURCES.has(instrument?.source)
 }
 
-// ids con par de Binance conocido -> { coingecko_id: { usd } }, o null si
-// falló la llamada entera.
-async function getBinancePrices(ids) {
-  const symbols = ids.map((id) => BINANCE_PAIR_BY_COINGECKO_ID[id])
+// Binance: el símbolo del instrumento YA es el par (ej. 'BTCUSDT'), tal como
+// lo sembró la migración 0021. Antes había un mapa fijo coingecko_id -> par
+// acá adentro que había que mantener en sync con esa semilla a mano; con el
+// instrumento como vínculo, el par viene del mismo lugar que el histórico.
+async function getBinancePrices(instruments) {
+  const symbols = instruments.map((i) => i.symbol)
   const url = `https://api.binance.com/api/v3/ticker/price?symbols=${encodeURIComponent(JSON.stringify(symbols))}`
   const data = await fetchJson(url)
   if (!Array.isArray(data)) return null
   const bySymbol = new Map(data.map((row) => [row.symbol, Number(row.price)]))
   const result = {}
-  for (const id of ids) {
-    const price = bySymbol.get(BINANCE_PAIR_BY_COINGECKO_ID[id])
-    if (typeof price === 'number') result[id] = { usd: price }
+  for (const instrument of instruments) {
+    const price = bySymbol.get(instrument.symbol)
+    if (typeof price === 'number' && !Number.isNaN(price)) result[instrument.id] = price
   }
   return result
 }
 
-// ids sin par de Binance -> { coingecko_id: { usd } }, o null si falló la
-// llamada entera. Mismo camino que usaba getCryptoPrices antes de Binance.
-async function getCoingeckoPrices(ids) {
+// CoinGecko: fallback para instrumentos cripto sin par de Binance (source
+// 'coingecko'; hoy ninguno sembrado). Su `symbol` es el id de CoinGecko.
+async function getCoingeckoPrices(instruments) {
+  const ids = instruments.map((i) => i.symbol)
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd`
-  return await fetchJson(url)
+  const data = await fetchJson(url)
+  if (!data) return null
+  const result = {}
+  for (const instrument of instruments) {
+    const price = data[instrument.symbol]?.usd
+    if (typeof price === 'number') result[instrument.id] = price
+  }
+  return result
 }
 
-// Precios cripto en USD. ids: array de coingecko_id (ej: ['bitcoin']).
-// Devuelve { bitcoin: { usd: 97000 }, ... } o null si falló TODO lo que se
-// intentó llamar (la UI lo muestra como "no se pudo"). Un fallo parcial (ej.
-// Binance responde pero CoinGecko no para el resto) no cuenta como null: los
-// ids que sí resolvieron devuelven precio igual.
-export async function getCryptoPrices(ids) {
-  if (!ids || ids.length === 0) return {}
+// Precio de mercado en vivo de los instrumentos pedidos, en la MONEDA del
+// instrumento -> { [instrumentId]: number }. Devuelve null solo si falló TODO
+// lo que se intentó llamar (la UI lo muestra como "no se pudo"); un fallo
+// parcial devuelve los que sí resolvieron.
+//
+// Recibe instrumentos, no ids sueltos: quién sabe cotizar qué es una
+// propiedad del instrumento (source), no algo que el llamador tenga que
+// adivinar.
+export async function getLivePrices(instruments) {
+  const live = (instruments ?? []).filter(hasLivePrice)
+  if (live.length === 0) return {}
 
-  const binanceIds = ids.filter((id) => BINANCE_PAIR_BY_COINGECKO_ID[id])
-  const fallbackIds = ids.filter((id) => !BINANCE_PAIR_BY_COINGECKO_ID[id])
+  const binance = live.filter((i) => i.source === 'binance')
+  const coingecko = live.filter((i) => i.source === 'coingecko')
 
-  const [binancePrices, fallbackPrices] = await Promise.all([
-    binanceIds.length > 0 ? getBinancePrices(binanceIds) : {},
-    fallbackIds.length > 0 ? getCoingeckoPrices(fallbackIds) : {},
+  const [binancePrices, coingeckoPrices] = await Promise.all([
+    binance.length > 0 ? getBinancePrices(binance) : {},
+    coingecko.length > 0 ? getCoingeckoPrices(coingecko) : {},
   ])
 
-  // "ok" = no hacía falta llamarlo (sin ids para ese proveedor), o lo
-  // llamamos y respondió (no null). Si NINGUNO de los dos está ok, fue una
+  // "ok" = no hacía falta llamarlo (sin instrumentos para ese proveedor), o
+  // lo llamamos y respondió (no null). Si NINGUNO de los dos está ok, fue una
   // falla total -- si alguno sí, es parcial y no se reporta como null.
-  const binanceOk = binanceIds.length === 0 || binancePrices !== null
-  const fallbackOk = fallbackIds.length === 0 || fallbackPrices !== null
-  if (!binanceOk && !fallbackOk) return null
+  const binanceOk = binance.length === 0 || binancePrices !== null
+  const coingeckoOk = coingecko.length === 0 || coingeckoPrices !== null
+  if (!binanceOk && !coingeckoOk) return null
 
-  return { ...(binancePrices ?? {}), ...(fallbackPrices ?? {}) }
+  return { ...(binancePrices ?? {}), ...(coingeckoPrices ?? {}) }
 }

@@ -1,11 +1,12 @@
 import { round } from './money.js'
 
-// Precio en vivo: hoy un solo proveedor (CoinGecko por coingecko_id). Sumar
-// un proveedor de tickers a futuro (fase 2 de precios automáticos) es
-// agregar una rama acá, no reescribir valueAsset.
-function resolveLivePrice(asset, cryptoPrices) {
-  const price = cryptoPrices?.[asset.coingecko_id]?.usd
-  return typeof price === 'number' ? price : null
+// Precio del activo, buscado por el instrumento al que está enganchado
+// (assets.instrument_id -> catálogo compartido). El mapa ya viene resuelto y
+// en dólares desde portfolioPrices.js, que decide si el número es del momento
+// o del último cierre; acá solo se lee.
+function resolveInstrumentPrice(asset, prices) {
+  const entry = prices?.[asset.instrument_id]
+  return typeof entry?.usd === 'number' ? entry : null
 }
 
 // Aportado neto de un activo: entradas suman completo; salidas restan solo
@@ -66,25 +67,37 @@ export function heldQuantity(asset, contributions) {
 
 // Cálculo puro del valor de un activo, según el valuation_mode del activo
 // (ver FUNCTIONAL.md):
-// - 'live' (hoy: cripto) con precio resoluble: cantidad acumulada × precio.
-//   Sin precio (API caída o sin identificador): cae a la última valuación
-//   manual (marcada 'stale'), o 'none' si no hay ninguna.
+// - 'live' con instrumento cotizable: cantidad acumulada × precio. El precio
+//   puede ser del momento ('live', cripto) o el último cierre del cron
+//   ('close', lo de BYMA y lo que no resolvió en vivo). Sin ninguno de los
+//   dos (sin instrumento, o todo caído): cae a la última valuación manual
+//   (marcada 'stale'), o 'none' si no hay ninguna.
 // - 'contributed' (hoy: efectivo): el valor es lo aportado, nunca pide
 //   valuación.
 // - 'manual' (resto): última valuación manual; sin valuación no suma al
 //   total.
-export function valueAsset(asset, contributions, latestValuation, cryptoPrices) {
+export function valueAsset(asset, contributions, latestValuation, prices) {
   const own = contributions.filter((c) => c.asset_id === asset.id)
   const contributed = computeContributed(own)
 
   if (asset.valuation_mode === 'live') {
     const quantity = heldQuantity(asset, contributions)
-    const price = resolveLivePrice(asset, cryptoPrices)
-    if (price !== null) {
+    const priced = resolveInstrumentPrice(asset, prices)
+    if (priced !== null) {
       // unitPrice viaja en la valuación a propósito: es el precio de mercado
       // que ya resolvimos acá, y así llega a cualquier consumidor sin tener
       // que pasarle `prices` por props (ver currentUnitPrice).
-      return { contributed, value: quantity * price, source: 'live', unitPrice: price }
+      // 'close' = el instrumento no cotiza en vivo desde el navegador (o la
+      // API falló) y el valor sale del último cierre del cron. Sigue siendo
+      // un precio de mercado real, por eso NO es 'stale': esa marca es para
+      // cuando se cae a una valuación cargada a mano.
+      return {
+        contributed,
+        value: quantity * priced.usd,
+        source: priced.live ? 'live' : 'close',
+        unitPrice: priced.usd,
+        date: priced.date ?? null,
+      }
     }
     if (latestValuation) {
       return {
@@ -129,11 +142,11 @@ export function hasOperationsAfter(contributions, valuationDate) {
 }
 
 // Un activo necesita carga manual de valor cuando su modo es 'manual', o
-// cuando es 'live' pero todavía no tiene identificador resoluble (hoy:
-// coingecko_id) y por lo tanto no puede traer precio en vivo.
+// cuando es 'live' pero no está enganchado a ningún instrumento del catálogo
+// y por lo tanto no hay de dónde sacarle un precio.
 export function needsManualValuation(asset) {
   const mode = asset.valuation_mode
-  return mode === 'manual' || (mode === 'live' && !asset.coingecko_id)
+  return mode === 'manual' || (mode === 'live' && !asset.instrument_id)
 }
 
 // Activos que entran en los totales generales del portafolio: los de bolsas

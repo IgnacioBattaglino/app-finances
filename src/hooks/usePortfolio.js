@@ -3,7 +3,7 @@ import { getAssets } from '../lib/assets.js'
 import { getAssetTypes } from '../lib/assetTypes.js'
 import { getContributions } from '../lib/contributions.js'
 import { getLatestValuations } from '../lib/valuations.js'
-import { getCryptoPrices } from '../lib/prices.js'
+import { resolveAssetPrices } from '../lib/portfolioPrices.js'
 import {
   valueAsset,
   computePortfolioValue,
@@ -58,19 +58,24 @@ export function usePortfolio() {
     load()
   }, [load])
 
-  // El precio en vivo no bloquea el primer render (la API externa es la parte
-  // más lenta de la carga): se pide aparte una vez que sabemos qué activos
-  // tienen coingecko_id, y actualiza prices/pricesAt cuando llega.
+  // El precio no bloquea el primer render (las APIs externas son la parte más
+  // lenta de la carga): se pide aparte una vez que sabemos qué activos están
+  // enganchados a un instrumento, y actualiza prices/pricesAt cuando llega.
   useEffect(() => {
-    const ids = assets.filter((a) => a.coingecko_id).map((a) => a.coingecko_id)
-    if (ids.length === 0) return
     let cancelled = false
-    getCryptoPrices(ids).then((result) => {
-      if (cancelled) return
-      setPricesFailed(result === null)
-      setPrices(result ?? {})
-      setPricesAt(new Date())
-    })
+    resolveAssetPrices(assets)
+      .then(({ prices: resolved, failed, at }) => {
+        if (cancelled) return
+        setPricesFailed(failed)
+        setPrices(resolved)
+        setPricesAt(at)
+      })
+      .catch(() => {
+        // Traer cierres pega contra la base y puede fallar como cualquier
+        // consulta. No es motivo para romper la pantalla: los activos caen a
+        // su valuación manual y el aviso de precios lo dice.
+        if (!cancelled) setPricesFailed(true)
+      })
     return () => {
       cancelled = true
     }
@@ -78,6 +83,7 @@ export function usePortfolio() {
 
   // Valuación calculada por activo. El `at` de los precios en vivo es para
   // mostrar "cotizado hace un rato" (ver SourceTag), no entra en el cálculo.
+  // Solo aplica al precio del momento: un cierre ya trae su propia fecha.
   const valuations = {}
   for (const asset of assets) {
     const v = valueAsset(asset, contributions, latestValuations[asset.id], prices)

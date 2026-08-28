@@ -5,11 +5,12 @@ import CreateAssetTypeForm from './CreateAssetTypeForm.jsx'
 import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
 import Switch from './form/Switch.jsx'
+import InstrumentPicker from './asset/InstrumentPicker.jsx'
 
 const VALUATION_MODES = [
   ['contributed', 'Vale lo que pusiste', 'Vale exactamente lo que aportaste. Para efectivo y reservas que no cambian de valor.'],
   ['manual', 'Valuación manual', 'Vos cargás cada tanto cuánto vale en total.'],
-  ['live', 'Valuación automática', 'El precio se busca solo. Hoy solo cripto; el resto se valúa a mano.'],
+  ['live', 'Valuación automática', 'Elegís el activo de mercado y su precio se actualiza solo.'],
 ]
 
 // Sugerencia al elegir bolsa: el modo más frecuente entre los activos que ya
@@ -37,7 +38,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   const [assetTypeId, setAssetTypeId] = useState('')
   const [valuationMode, setValuationMode] = useState('manual')
   const [ticker, setTicker] = useState('')
-  const [coingeckoId, setCoingeckoId] = useState('')
+  const [instrument, setInstrument] = useState(null)
   const [yieldsFlag, setYieldsFlag] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -61,8 +62,8 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
     setValuationMode(
       initial?.valuation_mode ?? predominantValuationMode(defaultAssetTypeId, assets) ?? 'manual',
     )
+    setInstrument(initial?.instrument ?? null)
     setTicker(initial?.ticker ?? '')
-    setCoingeckoId(initial?.coingecko_id ?? '')
     setYieldsFlag(initial ? initial.yields !== false : true)
     setError(null)
     setConfirmArchive(false)
@@ -94,6 +95,11 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   if (!name.trim()) missing.push('nombre')
   if (!assetTypeId) missing.push('grupo de activos')
   if (!valuationMode) missing.push('modo de valuación')
+  // Un activo de valuación automática sin instrumento no tiene de dónde sacar
+  // un precio: se valuaría en 0 en el historial y pediría carga manual en la
+  // pantalla. Antes se podía guardar así (el identificador era texto libre y
+  // opcional) y el activo nacía roto en silencio.
+  if (valuationMode === 'live' && !instrument) missing.push('qué activo de mercado es')
   const valid = missing.length === 0
 
   async function handleSubmit(event) {
@@ -106,7 +112,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
       assetTypeId,
       valuationMode,
       ticker,
-      coingeckoId: valuationMode === 'live' ? coingeckoId : '',
+      instrumentId: instrument?.id ?? null,
       yields: yieldsFlag,
     }
     try {
@@ -236,23 +242,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
               />
             </label>
             {valuationMode === 'live' && (
-              <div className="px-4 py-3">
-                <label className="flex items-center justify-between gap-3">
-                  <span className="text-[15px]">¿Qué cripto es?</span>
-                  <input
-                    value={coingeckoId}
-                    onChange={(e) => setCoingeckoId(e.target.value)}
-                    placeholder="ej: bitcoin, ethereum"
-                    className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
-                  />
-                </label>
-                <p className="mt-1 text-xs text-ink-soft">
-                  Escribí su nombre en inglés y en minúscula (bitcoin, ethereum, solana): con
-                  eso buscamos el precio solo, en Binance, y en CoinGecko si Binance no la
-                  cotiza. Por ahora solo cripto tiene precio automático; el resto se valúa a
-                  mano.
-                </p>
-              </div>
+              <InstrumentPicker value={instrument} onChange={setInstrument} />
             )}
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">

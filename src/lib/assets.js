@@ -1,20 +1,30 @@
 import { supabase } from './supabase.js'
 
-function toRow({ name, assetTypeId, valuationMode, ticker, coingeckoId, yields }) {
+// El vínculo con el catálogo de precios es instrument_id (migración 0018): lo
+// elige el buscador de instrumentos del formulario, nunca se escribe a mano.
+// `coingecko_id` quedó deprecada — se dejó de escribir acá y no se lee en
+// ningún lado; las filas viejas la conservan hasta que una migración la borre.
+// Solo los activos de valuación automática llevan instrumento: cambiar un
+// activo a otro modo lo desengancha, para que no quede un vínculo colgado que
+// el gráfico de evolución interpretaría como precio.
+function toRow({ name, assetTypeId, valuationMode, ticker, instrumentId, yields }) {
   return {
     name,
     asset_type_id: assetTypeId,
     valuation_mode: valuationMode,
     ticker: ticker?.trim() || null,
-    coingecko_id: coingeckoId?.trim() || null,
+    instrument_id: valuationMode === 'live' ? (instrumentId ?? null) : null,
     yields,
   }
 }
 
+const ASSET_SELECT =
+  '*, asset_type:asset_types(id, name, earns_yield, include_in_total, is_archived, display_order), instrument:instruments(id, source, symbol, name, kind, currency)'
+
 export async function getAssets() {
   const { data, error } = await supabase
     .from('assets')
-    .select('*, asset_type:asset_types(id, name, earns_yield, include_in_total)')
+    .select(ASSET_SELECT)
     .eq('is_archived', false)
     .order('name')
   if (error) throw error
@@ -24,7 +34,7 @@ export async function getAssets() {
 export async function getArchivedAssets() {
   const { data, error } = await supabase
     .from('assets')
-    .select('*, asset_type:asset_types(id, name, earns_yield, include_in_total)')
+    .select(ASSET_SELECT)
     .eq('is_archived', true)
     .order('name')
   if (error) throw error

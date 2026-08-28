@@ -211,8 +211,8 @@ function ContributionFormModal({
 
   const isLive = asset.valuation_mode === 'live'
   const unitPrice =
-    isLive && typeof prices?.[asset.coingecko_id]?.usd === 'number'
-      ? prices[asset.coingecko_id].usd
+    isLive && typeof prices?.[asset.instrument_id]?.usd === 'number'
+      ? prices[asset.instrument_id].usd
       : null
   const linkedMode = !editing && isLive && unitPrice != null
 

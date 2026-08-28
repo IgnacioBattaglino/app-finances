@@ -65,10 +65,10 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | name | text NOT NULL | ej: "Bitcoin", "Colchón USD" |
 | asset_type_id | uuid FK → asset_types | NOT NULL; reemplaza a `type` |
 | type | text | **deprecada** (migración 0014: se relajó NOT NULL y se sacó el CHECK); no la lee ni la escribe el código nuevo. Se elimina en una migración futura |
-| valuation_mode | text NOT NULL | 'contributed' (vale lo aportado, nunca pide valuación; hoy efectivo), 'manual' (valuación periódica; hoy CEDEAR/bono/fondo), o 'live' (precio por API con identificador por activo; hoy cripto) (CHECK). Migración 0015: antes vivía en asset_types; ahora es del activo — moverlo de bolsa no la afecta |
-| coingecko_id | text | identificador para precio en vivo (activos con valuation_mode='live'). Sigue siendo un id de CoinGecko sin cambios, pero desde que cripto se unificó en Binance (migración 0021, ver ADR-006) `getCryptoPrices` (`lib/prices.js`) lo resuelve primero contra Binance vía un mapa fijo coingecko_id→par, y cae a CoinGecko solo si no hay par conocido. **En transición** (migración 0018): lo reemplaza `instrument_id` → instruments; sigue siendo el que lee el frontend hoy, no se borra hasta verificar el código nuevo en prod |
-| instrument_id | uuid FK → instruments | nullable (migración 0018): referencia al catálogo compartido de precios. La 0018 lo completa desde coingecko_id; el frontend todavía no lo lee |
-| ticker | text | opcional; símbolo del activo (ej: AAPL, AL30, BTC). Hoy informativo; habilita valuación automática por ticker en el futuro |
+| valuation_mode | text NOT NULL | 'contributed' (vale lo aportado, nunca pide valuación; hoy efectivo), 'manual' (valuación periódica), o 'live' (precio automático del instrumento enganchado en `instrument_id`) (CHECK). Migración 0015: antes vivía en asset_types; ahora es del activo — moverlo de bolsa no la afecta |
+| coingecko_id | text | **deprecada** (migración 0025): la reemplazó `instrument_id`. El frontend ya no la lee ni la escribe — el formulario de activo elige el instrumento de un buscador sobre `instruments` y guarda su id. Las filas viejas la conservan porque la 0025 la usa para emparejar; se elimina en una migración futura |
+| instrument_id | uuid FK → instruments | nullable (migración 0018): referencia al catálogo compartido de precios, y **el único vínculo que se lee hoy** — tanto el precio de la pantalla (`lib/portfolioPrices.js`) como el gráfico de evolución (`get_portfolio_series`). Lo escribe el formulario de activo desde el buscador de instrumentos; solo los activos de `valuation_mode='live'` lo llevan (cambiar de modo lo pone en null, para no dejar un vínculo colgado). La 0018 lo completó desde coingecko_id y la 0025 terminó de emparejar lo que había quedado sin enganchar |
+| ticker | text | opcional; símbolo del activo (ej: AAPL, AL30, BTC). Informativo — se muestra al lado del nombre. La 0025 lo usó como una de las dos reglas de emparejamiento con `instruments`, pero el vínculo real es `instrument_id`, no este texto |
 | yields | boolean NOT NULL default true | false = reserva de valor (ej: efectivo/colchón); se excluye del cálculo de rendimiento del portafolio pero sigue sumando al valor total. Por activo, independiente del default de la bolsa |
 | is_archived | boolean NOT NULL default false | |
 | created_at | timestamptz default now() | |
@@ -184,12 +184,24 @@ Precio diario por instrumento. COMPARTIDA (sin user_id). La llena el cron; se le
 | fetched_at | timestamptz NOT NULL default now() | cuándo lo trajo el cron |
 | | | UNIQUE (instrument_id, date) — upsert idempotente; índice (instrument_id, date desc) |
 
-RLS de ambas: SELECT para authenticated, **ninguna policy de escritura** — el único escritor es la Edge Function con la service_role key (bypassa RLS). `assets.instrument_id` (nullable, FK → instruments, migración 0018) reemplaza a futuro al `coingecko_id` suelto; la 0018 migra los datos existentes pero NO borra `coingecko_id`. Lectura con carry-forward: función `get_instrument_series(asset_id, from, to)` (SECURITY INVOKER) — activos con instrumento leen instrument_prices, los de valuación manual caen a su última asset_valuation, cada día hereda el último precio conocido.
+### instrument_prices_usd (vista, migración 0026)
+Vista sobre instrument_prices + instruments que devuelve el precio **ya en dólares**. Es el ÚNICO lugar del sistema donde se divide por la cotización del dólar: antes convertía la app por su lado (`lib/portfolioPrices.js`, con el MEP en vivo) y `get_portfolio_series` no convertía nada, así que el mismo activo valía dos cosas distintas según dónde se lo mirara — medido con datos reales: tarjeta US$ 2.043,71 vs. gráfico US$ 72.690,27. Ver ADR-008.
+| Campo | Tipo | Notas |
+|---|---|---|
+| instrument_id | uuid | |
+| date | date | |
+| price_native | numeric | el precio tal como lo guardó el cron, en la moneda del instrumento |
+| native_currency | text | 'USD' o 'ARS'; se expone para poder mostrar el precio en la moneda en que cotiza el papel (el formulario de activo lo usa como confirmación) |
+| price_usd | numeric | el precio en dólares. Para instrumentos en USD es idéntico a price_native; para los de ARS es price_native ÷ MEP **del día de ese precio** (carry-forward: la última cotización conocida en esa fecha o antes). NULL si no hay ninguna cotización del dólar hasta esa fecha — quien lee cae a la valuación manual en vez de inventar un número |
+
+`security_invoker` se aplica condicionalmente (existe desde Postgres 15); en 14 la vista queda con permisos del dueño, lo que no expone nada porque solo lee catálogo compartido y solo tiene `grant select` a authenticated. La leen: `lib/instruments.js` (`getLatestInstrumentPrices`), `get_portfolio_series` y `get_instrument_series`.
+
+RLS de instruments e instrument_prices: SELECT para authenticated, **ninguna policy de escritura** — el único escritor es la Edge Function con la service_role key (bypassa RLS). `assets.instrument_id` (nullable, FK → instruments, migración 0018) reemplazó al `coingecko_id` suelto; la 0018 migró los datos existentes y la 0025 completó lo que la app había creado sin enganchar. `coingecko_id` no se borra todavía (ver ADR-007). Lectura con carry-forward: función `get_instrument_series(asset_id, from, to)` (SECURITY INVOKER) — activos con instrumento leen instrument_prices, los de valuación manual caen a su última asset_valuation, cada día hereda el último precio conocido.
 
 ## Fórmulas (referencia para implementación)
 
 - Objetivo FIRE (USD) = desired_monthly_income_usd × 12 / safe_withdrawal_rate.
-- Valor del portafolio = SUM(valor actual de cada activo activo). Valor actual: última valuación (activos manuales), SUM(quantity) × precio vivo (cripto con coingecko_id), o lo aportado (efectivo). No existe un "patrimonio total" que sume líquido + portafolio: son magnitudes separadas (ver FUNCTIONAL.md).
+- Valor del portafolio = SUM(valor actual de cada activo activo). Valor actual: última valuación (activos manuales), SUM(quantity) × precio del instrumento (activos de valuación automática), o lo aportado (efectivo). El precio del instrumento sale EN VIVO cuando la fuente cotiza desde el navegador (cripto, vía Binance/CoinGecko, que ya cotizan en USD) y del último cierre cuando no (BYMA). Los cierres se leen de la vista `instrument_prices_usd`, que ya los devuelve en dólares — la app no convierte nada (ver ADR-008). No existe un "patrimonio total" que sume líquido + portafolio: son magnitudes separadas (ver FUNCTIONAL.md).
 - Dinero líquido (ARS) = SUM(ingresos) − SUM(gastos) − SUM(aportes con affects_liquid × su mep_rate) − SUM(pagos de deuda con affects_liquid y mep_rate × su mep_rate). Acumulado general, no mensual; los ajustes de reconciliación son transactions comunes, así que ya están incluidos en la suma.
 - Ganancia por activo = valor actual − SUM(contributions del activo). % = ganancia / aportado.
 - Tasa de ahorro (mes) = (ingresos − gastos) / ingresos [todo ARS, de transactions].
@@ -215,3 +227,5 @@ RLS de ambas: SELECT para authenticated, **ninguna policy de escritura** — el 
 - ADR-004: migración temprana a multiusuario con aislamiento a nivel base de datos.
 - ADR-005: valuation_mode pasa de la bolsa (asset_types) al activo (assets).
 - ADR-006: historial de precios diarios como catálogo compartido (instruments/instrument_prices), alimentado por cron; MEP con dos orígenes (dolarapi diario, argentinadatos histórico).
+- ADR-007: el vínculo activo↔precio es instrument_id elegido de un buscador, no un identificador escrito a mano.
+- ADR-008: la conversión a dólares de los precios del catálogo vive en una sola vista (instrument_prices_usd), no en cada lector.

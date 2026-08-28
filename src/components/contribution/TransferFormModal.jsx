@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createTransfer } from '../../lib/contributions.js'
 import { withdrawalExceedsValue } from '../../lib/portfolio.js'
-import { getCryptoPrices } from '../../lib/prices.js'
+import { resolveAssetPrices } from '../../lib/portfolioPrices.js'
 import { todayISO, formatUSD, toDecimalInput } from '../../lib/format.js'
 import { round } from '../../lib/money.js'
 import FormSheet from '../FormSheet.jsx'
@@ -13,7 +13,7 @@ import ExchangeRateField from './ExchangeRateField.jsx'
 function unitPriceOf(asset, ...priceMaps) {
   if (asset?.valuation_mode !== 'live') return null
   for (const map of priceMaps) {
-    const price = map?.[asset.coingecko_id]?.usd
+    const price = map?.[asset.instrument_id]?.usd
     if (typeof price === 'number') return price
   }
   return null
@@ -59,7 +59,7 @@ function TransferFormModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   // Precios de activos que esta pantalla no cotiza (el detalle solo pide el
-  // del activo que se está mirando). Cachea por coingecko_id, no por
+  // del activo que se está mirando). Cachea por instrumento, no por
   // formulario: no se limpia al cerrar.
   const [destPrices, setDestPrices] = useState({})
   const requestedPriceIds = useRef(new Set())
@@ -93,13 +93,15 @@ function TransferFormModal({
   // vuelve a pedir (aunque haya fallado): el formulario sigue usable a mano.
   useEffect(() => {
     const asset = assets.find((a) => a.id === destAssetId) ?? null
-    const id = asset?.valuation_mode === 'live' ? asset.coingecko_id : null
+    const id = asset?.valuation_mode === 'live' ? asset.instrument_id : null
     if (!id || prices?.[id] || requestedPriceIds.current.has(id)) return
     requestedPriceIds.current.add(id)
     let cancelled = false
-    getCryptoPrices([id]).then((result) => {
-      if (!cancelled && result) setDestPrices((prev) => ({ ...prev, ...result }))
-    })
+    resolveAssetPrices([asset])
+      .then(({ prices: resolved }) => {
+        if (!cancelled) setDestPrices((prev) => ({ ...prev, ...resolved }))
+      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }

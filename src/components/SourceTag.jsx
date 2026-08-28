@@ -15,6 +15,17 @@ function SourceTag({ valuation }) {
       </span>
     )
   }
+  // Precio de mercado real, pero del cierre que guardó el cron y no del
+  // momento: lo de BYMA (que no cotiza en vivo desde el navegador) y lo que
+  // sí cotiza pero hoy no respondió. Se distingue de 'stale' a propósito —
+  // aquello es un valor que cargaste vos, esto es mercado.
+  if (valuation.source === 'close') {
+    return (
+      <span className="shrink-0 text-xs text-ink-soft">
+        cierre{valuation.date ? ` ${formatDay(valuation.date)}` : ''}
+      </span>
+    )
+  }
   if (valuation.source === 'stale') {
     return (
       <span className="shrink-0 text-xs text-clay">

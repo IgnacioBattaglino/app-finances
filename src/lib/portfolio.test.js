@@ -13,6 +13,7 @@ import {
   totalableAssets,
   computePortfolioValue,
   computePortfolioContributed,
+  needsManualValuation,
 } from './portfolio.js'
 
 describe('decomposeWithdrawal', () => {
@@ -260,19 +261,45 @@ describe('computePortfolioGain — activos con valuación desactualizada', () =>
 })
 
 describe('valueAsset — precio unitario en la valuación', () => {
-  const live = { id: 'a1', valuation_mode: 'live', coingecko_id: 'bitcoin' }
+  // El precio se busca por el instrumento enganchado, no por un identificador
+  // escrito a mano: ese era el vínculo que nadie completaba.
+  const live = { id: 'a1', valuation_mode: 'live', instrument_id: 'i-btc' }
+  const btc = { 'i-btc': { usd: 500, live: true, date: null } }
 
   it('con precio en vivo lo adjunta como unitPrice, para que no haya que dividir después', () => {
     const own = [{ asset_id: 'a1', direction: 'in', amount_usd: 100, quantity: 2 }]
-    const v = valueAsset(live, own, null, { bitcoin: { usd: 500 } })
+    const v = valueAsset(live, own, null, btc)
     expect(v.unitPrice).toBe(500)
     expect(v.value).toBe(1000)
+    expect(v.source).toBe('live')
   })
 
   it('sin tenencia, el valor es 0 pero el precio sigue estando', () => {
-    const v = valueAsset(live, [], null, { bitcoin: { usd: 500 } })
+    const v = valueAsset(live, [], null, btc)
     expect(v.value).toBe(0)
     expect(v.unitPrice).toBe(500)
+  })
+
+  it('un precio de cierre vale igual, pero se marca como cierre y trae su fecha', () => {
+    const own = [{ asset_id: 'a1', direction: 'in', amount_usd: 100, quantity: 2 }]
+    const v = valueAsset(live, own, null, {
+      'i-btc': { usd: 500, live: false, date: '2026-08-26' },
+    })
+    expect(v.value).toBe(1000)
+    expect(v.source).toBe('close')
+    expect(v.date).toBe('2026-08-26')
+  })
+
+  it('el precio de OTRO instrumento no se le aplica a este activo', () => {
+    const own = [{ asset_id: 'a1', direction: 'in', amount_usd: 100, quantity: 2 }]
+    const v = valueAsset(live, own, null, { 'i-eth': { usd: 500, live: true } })
+    expect(v.source).toBe('none')
+    expect(v.value).toBeNull()
+  })
+
+  it('un activo live sin instrumento pide valuación manual', () => {
+    expect(needsManualValuation({ valuation_mode: 'live', instrument_id: null })).toBe(true)
+    expect(needsManualValuation({ valuation_mode: 'live', instrument_id: 'i-btc' })).toBe(false)
   })
 
   it('cayendo a una valuación vieja no inventa unitPrice: no hay precio de mercado', () => {
@@ -578,3 +605,5 @@ describe('totales del portafolio (compartidos entre Inicio y Portafolio)', () =>
     expect(computePortfolioContributed(assets, valuations)).toBe(480)
   })
 })
+
+
