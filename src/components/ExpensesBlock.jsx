@@ -40,9 +40,16 @@ function BarTooltip({ active, payload }) {
 // operación del portafolio escribe ahí, así que no hace falta más filtro.
 function ExpensesBlock() {
   const [expenses, setExpenses] = useState([])
-  const [usdSeries, setUsdSeries] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  // La serie en dólares se carga aparte, con su propio estado y su propio
+  // error. Antes iba dentro del mismo try que los gastos: si fallaba la
+  // conversión a dólares (que necesita la serie de cotizaciones) se caía el
+  // bloque ENTERO y desaparecían el total del mes y el desglose por
+  // categoría, que ya estaban cargados y son lo que se mira todos los días.
+  // Un gráfico secundario no puede llevarse puesto el número principal.
+  const [usdSeries, setUsdSeries] = useState(null)
+  const [usdError, setUsdError] = useState(false)
 
   const today = todayISO()
   const months = useMemo(() => lastMonths(today, 12), [today])
@@ -52,9 +59,7 @@ function ExpensesBlock() {
     setError(null)
     try {
       const from = `${monthKey(months[0])}-01`
-      const data = await getExpenses({ from, to: today })
-      setExpenses(data)
-      setUsdSeries(countMonthsWithData(data, months) >= 2 ? await monthlyUsdTotals(data, months) : null)
+      setExpenses(await getExpenses({ from, to: today }))
     } catch (e) {
       setError({ message: 'No se pudieron cargar los gastos.', detail: e.message })
     } finally {
@@ -62,9 +67,33 @@ function ExpensesBlock() {
     }
   }, [months, today])
 
+  // Con menos de dos meses de datos no hay serie que dibujar (un solo punto no
+  // es una tendencia) y no se pide ninguna cotización.
+  const loadUsd = useCallback(async () => {
+    if (countMonthsWithData(expenses, months) < 2) {
+      setUsdSeries(null)
+      setUsdError(false)
+      return
+    }
+    setUsdError(false)
+    try {
+      setUsdSeries(await monthlyUsdTotals(expenses, months))
+    } catch {
+      // Sin detalle técnico a la vista: es un gráfico de apoyo, no una
+      // operación que el usuario haya pedido. El detalle no le sirve para
+      // decidir nada; el botón de reintentar, sí.
+      setUsdSeries(null)
+      setUsdError(true)
+    }
+  }, [expenses, months])
+
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    loadUsd()
+  }, [loadUsd])
 
   if (loading) {
     return (
@@ -140,7 +169,22 @@ function ExpensesBlock() {
         </div>
       )}
 
-      {/* Serie de 12 meses en dólares */}
+      {/* Serie de 12 meses en dólares. Falla sola: el total del mes y el
+          desglose de arriba ya se vieron y se quedan donde están. */}
+      {usdError && (
+        <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
+          <span className="text-xs text-ink-soft">
+            No se pudo convertir tus gastos a dólares.
+          </span>
+          <button
+            type="button"
+            onClick={loadUsd}
+            className="shrink-0 text-xs font-semibold text-accent underline"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
       {usdSeries && (
         <div className="mt-3 border-t border-line pt-3">
           <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">

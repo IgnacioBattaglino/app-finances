@@ -149,6 +149,51 @@ export function needsManualValuation(asset) {
   return mode === 'manual' || (mode === 'live' && !asset.instrument_id)
 }
 
+// Agrupa los activos para mostrarlos, SIEMPRE desde los activos mismos: cada
+// activo cae en el grupo que dice su propia fila. `assetTypes` (la lista de
+// grupos sin archivar) se usa solo para el ORDEN.
+//
+// Por qué así y no recorriendo los grupos: recorriendo la lista de grupos
+// activos, un activo cuyo grupo estaba archivado no caía en ninguno y
+// desaparecía de la pantalla — pero seguía sumando al total, que se calcula
+// sobre todos los activos. El total decía una cosa y la lista mostraba otra,
+// sin nada que explicara la diferencia. Un activo invisible que suma plata es
+// peor que un grupo archivado que reaparece: acá la lista y el total cuentan
+// lo mismo por construcción, no por acordarse de filtrar igual en los dos
+// lados.
+//
+// Los grupos archivados que todavía tienen activos activos van al final y se
+// marcan (ver AssetGroup): archivar un grupo con activos adentro no es un
+// estado normal, pero mientras exista tiene que verse.
+export function groupAssetsByType(assets, assetTypes) {
+  const order = new Map(assetTypes.map((at, i) => [at.id, i]))
+  const byId = new Map(assetTypes.map((at) => [at.id, at]))
+
+  const groups = new Map()
+  for (const asset of assets) {
+    const id = asset.asset_type_id
+    if (!groups.has(id)) {
+      // El grupo sale del listado si está ahí; si no (archivado), del que
+      // viene embebido en el activo. Sin ninguno de los dos igual se muestra:
+      // un grupo sin nombre es raro, un activo perdido es un número mal.
+      const assetType = byId.get(id) ??
+        asset.asset_type ?? { id, name: 'Sin grupo', include_in_total: true }
+      groups.set(id, { assetType, assets: [] })
+    }
+    groups.get(id).assets.push(asset)
+  }
+
+  // Los que no están en la lista activa no tienen posición: al final, en un
+  // orden estable (por nombre) para que no bailen entre renders.
+  const AT_END = Number.MAX_SAFE_INTEGER
+  return [...groups.values()].sort((a, b) => {
+    const oa = order.get(a.assetType.id) ?? AT_END
+    const ob = order.get(b.assetType.id) ?? AT_END
+    if (oa !== ob) return oa - ob
+    return String(a.assetType.name).localeCompare(String(b.assetType.name))
+  })
+}
+
 // Activos que entran en los totales generales del portafolio: los de bolsas
 // con include_in_total distinto de false. Cada bolsa sigue mostrando su propio
 // valor y rendimiento igual (ver AssetGroup) — este filtro es solo del total.

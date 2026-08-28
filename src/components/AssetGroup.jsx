@@ -85,6 +85,12 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
   const { contributed: valuedContributed, gain } = computePortfolioGain(assets, valuations)
   const allUnvalued = assets.every((a) => valuations[a.id].value === null)
   const outOfTotal = assetType.include_in_total === false
+  // Un grupo archivado no debería tener activos sin archivar (la app no deja
+  // archivarlo si los tiene), pero se puede llegar restaurando un activo cuyo
+  // grupo se archivó después. Mientras eso exista, se muestra: sus activos
+  // suman al total, así que esconderlos dejaba un total que no se podía
+  // explicar mirando la pantalla.
+  const archivedGroup = assetType.is_archived === true
 
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-card">
@@ -95,6 +101,11 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
             {outOfTotal && (
               <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-ink-soft">
                 fuera del total
+              </span>
+            )}
+            {archivedGroup && (
+              <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-ink-soft">
+                grupo archivado
               </span>
             )}
           </span>
@@ -114,6 +125,13 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
             <Gain value={gain} base={valuedContributed} className="text-xs" />
           )}
         </div>
+        {archivedGroup && (
+          <p className="mt-1 text-xs text-ink-soft">
+            Este grupo está archivado pero todavía tiene activos sin archivar, así que se
+            muestra: su valor sigue contando en el total. Movelos a otro grupo, o restaurá el
+            grupo desde Ajustes.
+          </p>
+        )}
         {outOfTotal && (
           <p className="mt-1 text-xs text-ink-soft">
             Este grupo se ve, pero no suma al valor total.

@@ -6,7 +6,7 @@ import ValuationModal from '../components/ValuationModal.jsx'
 import Gain from '../components/Gain.jsx'
 import FormError from '../components/form/FormError.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
-import { needsManualValuation } from '../lib/portfolio.js'
+import { needsManualValuation, groupAssetsByType } from '../lib/portfolio.js'
 import { getArchivedAssets, restoreAsset } from '../lib/assets.js'
 import { formatUSD } from '../lib/format.js'
 
@@ -69,13 +69,10 @@ function Portfolio() {
   // que el modal no ofrece.
   const manualAssets = assets.filter((a) => needsManualValuation(a) || valuations[a.id].source === 'none')
 
-  const groups = assetTypes
-    .map((assetType) => {
-      const groupAssets = assets.filter((a) => a.asset_type_id === assetType.id)
-      if (groupAssets.length === 0) return null
-      return { assetType, assets: groupAssets }
-    })
-    .filter(Boolean)
+  // Se agrupa desde los activos, no desde los grupos: así ningún activo puede
+  // quedar fuera de la lista mientras sigue sumando al total (ver
+  // groupAssetsByType).
+  const groups = groupAssetsByType(assets, assetTypes)
 
   function closeModals() {
     setAssetModal({ open: false, editing: null })
@@ -142,7 +139,7 @@ function Portfolio() {
           {/* Avisos */}
           {pricesFailed && (
             <p className="rounded-2xl border border-clay/20 bg-clay/5 px-4 py-3 text-xs text-clay">
-              No se pudieron traer los precios cripto. Se muestra el último valor
+              No se pudieron traer los precios del momento. Se muestra el último valor
               disponible de cada activo.
             </p>
           )}

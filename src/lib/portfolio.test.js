@@ -14,6 +14,7 @@ import {
   computePortfolioValue,
   computePortfolioContributed,
   needsManualValuation,
+  groupAssetsByType,
 } from './portfolio.js'
 
 describe('decomposeWithdrawal', () => {
@@ -607,3 +608,77 @@ describe('totales del portafolio (compartidos entre Inicio y Portafolio)', () =>
 })
 
 
+describe('groupAssetsByType — la lista y el total cuentan lo mismo', () => {
+  const cripto = { id: 'g1', name: 'Cripto', display_order: 0 }
+  const cedears = { id: 'g2', name: 'CEDEARs', display_order: 1 }
+  const viejo = { id: 'g3', name: 'Grupo viejo', is_archived: true }
+
+  it('respeta el orden de los grupos activos', () => {
+    const assets = [
+      { id: 'a', asset_type_id: 'g2', asset_type: cedears },
+      { id: 'b', asset_type_id: 'g1', asset_type: cripto },
+    ]
+    expect(groupAssetsByType(assets, [cripto, cedears]).map((g) => g.assetType.name)).toEqual([
+      'Cripto',
+      'CEDEARs',
+    ])
+  })
+
+  it('un grupo sin activos no aparece: no hay nada que mostrar', () => {
+    const assets = [{ id: 'a', asset_type_id: 'g1', asset_type: cripto }]
+    expect(groupAssetsByType(assets, [cripto, cedears])).toHaveLength(1)
+  })
+
+  it('EL BUG: un activo cuyo grupo está archivado sigue apareciendo', () => {
+    // Antes se recorría la lista de grupos ACTIVOS, así que este activo no
+    // caía en ninguno y desaparecía de la pantalla — pero seguía sumando al
+    // total, que se calcula sobre todos los activos.
+    const assets = [
+      { id: 'a', asset_type_id: 'g1', asset_type: cripto },
+      { id: 'huerfano', asset_type_id: 'g3', asset_type: viejo },
+    ]
+    const groups = groupAssetsByType(assets, [cripto])
+    const visibles = groups.flatMap((g) => g.assets.map((a) => a.id))
+    expect(visibles).toContain('huerfano')
+  })
+
+  it('el grupo archivado va al final, después de los activos', () => {
+    const assets = [
+      { id: 'huerfano', asset_type_id: 'g3', asset_type: viejo },
+      { id: 'a', asset_type_id: 'g1', asset_type: cripto },
+    ]
+    expect(groupAssetsByType(assets, [cripto]).map((g) => g.assetType.name)).toEqual([
+      'Cripto',
+      'Grupo viejo',
+    ])
+  })
+
+  it('INVARIANTE: ningún activo se pierde, pase lo que pase con su grupo', () => {
+    const assets = [
+      { id: 'a', asset_type_id: 'g1', asset_type: cripto },
+      { id: 'b', asset_type_id: 'g3', asset_type: viejo }, // grupo archivado
+      { id: 'c', asset_type_id: 'g9', asset_type: null }, // grupo que no resuelve
+      { id: 'd', asset_type_id: null, asset_type: null }, // sin grupo
+    ]
+    const agrupados = groupAssetsByType(assets, [cripto]).flatMap((g) => g.assets)
+    expect(agrupados).toHaveLength(assets.length)
+    expect(agrupados.map((a) => a.id).sort()).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('un activo sin grupo resoluble igual cae en algo con nombre', () => {
+    const groups = groupAssetsByType([{ id: 'c', asset_type_id: null, asset_type: null }], [])
+    expect(groups).toHaveLength(1)
+    expect(groups[0].assetType.name).toBe('Sin grupo')
+  })
+
+  it('sin grupos activos igual agrupa todo, en orden estable por nombre', () => {
+    const assets = [
+      { id: 'b', asset_type_id: 'g3', asset_type: viejo },
+      { id: 'a', asset_type_id: 'g1', asset_type: cripto },
+    ]
+    expect(groupAssetsByType(assets, []).map((g) => g.assetType.name)).toEqual([
+      'Cripto',
+      'Grupo viejo',
+    ])
+  })
+})

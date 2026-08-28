@@ -28,8 +28,26 @@ async function loadRates() {
 }
 
 function getRates() {
-  if (!ratesPromise) ratesPromise = loadRates()
+  if (!ratesPromise) {
+    // Se cachea la PROMESA para que varias conversiones en paralelo compartan
+    // una sola consulta. Pero si falla, lo que quedaba cacheado era el
+    // fracaso: cada reintento recibía la misma promesa ya rechazada y volvía
+    // a fallar al instante, para siempre, hasta recargar la app entera — el
+    // botón "Reintentar" del bloque de gastos no servía para nada. Por eso el
+    // error limpia la caché antes de propagarse: lo que se guarda es el
+    // resultado, no el intento.
+    ratesPromise = loadRates().catch((e) => {
+      ratesPromise = null
+      throw e
+    })
+  }
   return ratesPromise
+}
+
+// Solo para tests: la caché es un módulo de por vida y no hay otra forma de
+// devolverla a cero entre casos.
+export function resetRatesCache() {
+  ratesPromise = null
 }
 
 // Convierte un monto en moneda local a dólares, a la cotización vigente en
