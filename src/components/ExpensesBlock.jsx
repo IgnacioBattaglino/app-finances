@@ -38,7 +38,13 @@ function BarTooltip({ active, payload }) {
 // categoría y serie de 12 meses en USD. Todo sale de transactions, kind
 // 'expense', sin categorías de sistema (getExpenses ya las excluye) — ninguna
 // operación del portafolio escribe ahí, así que no hace falta más filtro.
-function ExpensesBlock() {
+// `reloadToken` cambia cada vez que se guarda un movimiento desde Inicio. Sin
+// eso, el bloque solo se cargaba al montarse: cargabas un gasto con el botón
+// "+" de esta misma pantalla, el "Dinero disponible" de arriba se actualizaba
+// y acá abajo seguía diciendo "$ 0 · Sin gastos este mes" hasta recargar la
+// app entera. Es un token y no los gastos ya cargados a propósito: quien
+// guarda no tiene por qué saber qué consulta hace este bloque.
+function ExpensesBlock({ reloadToken = 0 }) {
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -65,7 +71,10 @@ function ExpensesBlock() {
     } finally {
       setLoading(false)
     }
-  }, [months, today])
+    // reloadToken entra en las deps para que un movimiento nuevo vuelva a
+    // pedir los gastos; no se usa adentro.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [months, today, reloadToken])
 
   // Con menos de dos meses de datos no hay serie que dibujar (un solo punto no
   // es una tendencia) y no se pide ninguna cotización.

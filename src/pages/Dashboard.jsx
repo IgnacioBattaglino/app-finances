@@ -152,6 +152,10 @@ function Dashboard() {
   const [liquidModalOpen, setLiquidModalOpen] = useState(false)
   const [categories, setCategories] = useState(null) // null = todavía no se pidieron
   const [categoriesError, setCategoriesError] = useState(null)
+  // Se incrementa al guardar un movimiento, para que el bloque de gastos se
+  // entere. Antes solo se recargaba el disponible y el bloque de abajo —en la
+  // misma pantalla— seguía mostrando los números viejos.
+  const [expensesVersion, setExpensesVersion] = useState(0)
 
   const loadLiquid = useCallback(async () => {
     setLiquidLoading(true)
@@ -196,11 +200,15 @@ function Dashboard() {
     setExpenseModalOpen(true)
   }
 
-  // Un gasto nuevo mueve el disponible; una reconciliación, también.
+  // Un gasto nuevo mueve el disponible; una reconciliación, también. Y las dos
+  // cosas son movimientos, así que el bloque de gastos también se recalcula:
+  // una reconciliación inserta una transaction de ajuste, que cuenta como
+  // cualquier otra.
   function afterLiquidChanged() {
     setExpenseModalOpen(false)
     setLiquidModalOpen(false)
     loadLiquid()
+    setExpensesVersion((v) => v + 1)
   }
 
   return (
@@ -276,7 +284,7 @@ function Dashboard() {
           depende de usePortfolio), con su propio loading/error/Reintentar. */}
       <div className="mt-3">
         <Suspense fallback={<ChartPlaceholder className="h-[140px]" />}>
-          <ExpensesBlock />
+          <ExpensesBlock reloadToken={expensesVersion} />
         </Suspense>
       </div>
 
