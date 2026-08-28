@@ -6,7 +6,13 @@ import { round } from '../../lib/money.js'
 const segmentClass = (active) =>
   `rounded-md px-2 py-1 transition ${active ? 'bg-card shadow-sm' : 'text-ink-soft'}`
 
-const MEP_HELP = 'Dólar MEP (el que se usa para comprar dólares con pesos en el mercado).'
+// "Usar otro tipo de cambio" es una acción frecuente y real (comprar a un
+// dólar distinto del MEP del día), pero vivía escondida en un texto gris con
+// subrayado punteado, del lado derecho de una fila que parecía informativa:
+// había que adivinar que era un botón. Pasa a leerse como acción — color de
+// acento, borde y peso — sin robarle protagonismo al campo del monto.
+const actionClass =
+  'shrink-0 rounded-lg border border-accent/30 px-2.5 py-1 text-[13px] font-medium text-accent transition active:bg-accent/10'
 
 // Congelado: editando un registro existente. El monto ya está fijo — cambiar
 // la tasa es corregir un solo número, no re-derivar nada.
@@ -30,15 +36,16 @@ function FrozenRateField({ initialRate, onChange }) {
       <div className="px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            className="text-[13px] text-ink-soft underline decoration-dotted"
-          >
-            {formatARS(Number(initialRate))} (guardado) · cambiar
-          </button>
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="font-money text-[15px]">{formatARS(Number(initialRate))}</span>
+            <button type="button" onClick={() => setExpanded(true)} className={actionClass}>
+              Cambiar
+            </button>
+          </span>
         </div>
-        <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
+        <p className="mt-1 text-xs text-ink-soft">
+          El que quedó guardado con esta operación.
+        </p>
       </div>
     )
   }
@@ -55,7 +62,9 @@ function FrozenRateField({ initialRate, onChange }) {
           className="font-money w-28 bg-transparent text-right text-[15px] outline-none"
         />
       </label>
-      <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
+      <p className="mt-1 text-xs text-ink-soft">
+        A cuántos pesos por dólar se registró esta operación.
+      </p>
       <button
         type="button"
         onClick={() => {
@@ -127,16 +136,13 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, required, onChange })
         <div className="px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
-            <button
-              type="button"
-              onClick={() => setMode('manual')}
-              className="text-[13px] text-ink-soft underline decoration-dotted"
-            >
-              No se pudo obtener · cargar a mano
+            <button type="button" onClick={() => setMode('manual')} className={actionClass}>
+              Cargar a mano
             </button>
           </div>
           <p className="mt-1 text-xs text-ink-soft">
-            {required ? MEP_HELP : `${MEP_HELP} No hace falta para esta operación.`}
+            No se pudo traer la cotización de hoy.
+            {required ? ' Cargala a mano para poder guardar.' : ' No hace falta para esta operación.'}
           </p>
         </div>
       )
@@ -144,16 +150,17 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, required, onChange })
     return (
       <div className="px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
-          <button
-            type="button"
-            onClick={() => setMode('manual')}
-            className="text-[13px] text-ink-soft underline decoration-dotted"
-          >
-            Se registra con MEP del día ({formatARS(rate)}) · usar otro
+          <span className="min-w-0 text-[15px] text-ink-soft">
+            Tipo de cambio
+            <span className="font-money ml-1.5 text-[15px] text-ink">{formatARS(rate)}</span>
+          </span>
+          <button type="button" onClick={() => setMode('manual')} className={actionClass}>
+            Usar otro
           </button>
         </div>
-        <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
+        <p className="mt-1 text-xs text-ink-soft">
+          Se registra con el MEP de hoy. Si compraste a otro precio, tocá «Usar otro».
+        </p>
       </div>
     )
   }
@@ -300,33 +307,31 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
             <>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
-                <button
-                  type="button"
-                  onClick={() => setMode('manual')}
-                  className="text-[13px] text-ink-soft underline decoration-dotted"
-                >
-                  No se pudo obtener · cargar a mano
+                <button type="button" onClick={() => setMode('manual')} className={actionClass}>
+                  Cargar a mano
                 </button>
               </div>
               <p className="mt-1 text-xs text-ink-soft">
+                No se pudo traer la cotización de hoy.
                 {required
-                  ? MEP_HELP
-                  : `${MEP_HELP} No hace falta para esta operación (si es en pesos, elegí USD arriba).`}
+                  ? ' Cargala a mano para poder guardar.'
+                  : ' No hace falta para esta operación (si es en pesos, elegí USD arriba).'}
               </p>
             </>
           ) : (
             <>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
-                <button
-                  type="button"
-                  onClick={() => setMode('manual')}
-                  className="text-[13px] text-ink-soft underline decoration-dotted"
-                >
-                  MEP {formatARS(rate)} (hoy) · usar otro
+                <span className="min-w-0 text-[15px] text-ink-soft">
+                  Tipo de cambio
+                  <span className="font-money ml-1.5 text-[15px] text-ink">{formatARS(rate)}</span>
+                </span>
+                <button type="button" onClick={() => setMode('manual')} className={actionClass}>
+                  Usar otro
                 </button>
               </div>
-              <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
+              <p className="mt-1 text-xs text-ink-soft">
+                Se registra con el MEP de hoy. Si compraste a otro precio, tocá «Usar otro».
+              </p>
             </>
           )}
         </div>
@@ -363,7 +368,10 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
           Tipo de cambio:{' '}
           {derivedRate ? <span className="font-money">{formatARS(derivedRate)}</span> : '—'}
         </p>
-        <p className="mt-1 text-xs text-ink-soft">{MEP_HELP}</p>
+        <p className="mt-1 text-xs text-ink-soft">
+          Sale de dividir los pesos por los dólares: es el precio al que compraste, sea el que
+          sea.
+        </p>
         {mepLive !== false && (
           <button
             type="button"

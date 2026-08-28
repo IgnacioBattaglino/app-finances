@@ -56,7 +56,11 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   // grupos, borrando lo ya escrito y pisando el grupo recién creado.
   useEffect(() => {
     if (!open) return
-    const defaultAssetTypeId = initial?.asset_type_id ?? assetTypes[0]?.id ?? ''
+    // Editando, el grupo del activo. Creando, NINGUNO: preseleccionar el
+    // primero de la lista hace que quien no toca el campo termine con el
+    // activo en un grupo que nunca eligió (una acción argentina dentro de
+    // "Cripto", por ejemplo). Es una decisión que tiene que tomar el usuario.
+    const defaultAssetTypeId = initial?.asset_type_id ?? ''
     setName(initial?.name ?? '')
     setAssetTypeId(defaultAssetTypeId)
     setValuationMode(
@@ -182,6 +186,9 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                     onChange={(e) => handleAssetTypeChange(e.target.value)}
                     className="max-w-[60%] bg-transparent text-right text-[15px] outline-none"
                   >
+                    <option value="" disabled>
+                      Elegir…
+                    </option>
                     {assetTypes.map((at) => (
                       <option key={at.id} value={at.id}>
                         {at.name}

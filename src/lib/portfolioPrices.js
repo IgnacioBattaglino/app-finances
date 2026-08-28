@@ -57,18 +57,38 @@ export function buildPriceMap({ instruments, livePrices, closes }) {
   return prices
 }
 
+// ¿Se quedó sin precio del momento algún instrumento que SÍ cotiza en vivo?
+// Se mide instrumento por instrumento y no "fallaron todos los proveedores":
+// con esa cuenta, un proveedor al que no había nada que pedirle contaba como
+// que había funcionado, así que caerse Binance —el único que hacía falta— no
+// disparaba el aviso y la pantalla no decía nada.
+//
+// Un instrumento que nunca cotiza en vivo (BYMA) no entra: que se valúe por
+// cierre es su funcionamiento normal, no un problema que avisar.
+export function livePriceMissing(instruments, livePrices) {
+  return instruments
+    .filter(hasLivePrice)
+    .some((i) => typeof livePrices?.[i.id] !== 'number')
+}
+
 // Orquesta las llamadas y devuelve { prices, failed, at }.
 //
-// `failed` = se intentó traer precio en vivo y la API no respondió (la UI lo
-// avisa); no cuenta como falla que un instrumento se valúe por cierre porque
-// su fuente nunca cotiza en vivo.
+// `failed` = algún instrumento que SÍ cotiza en vivo se quedó sin ese precio.
+// Se mide instrumento por instrumento y no "fallaron todos los proveedores":
+// con esa cuenta, un proveedor al que no había nada que pedirle contaba como
+// que había funcionado, así que caerse Binance —el único que hacía falta— no
+// disparaba el aviso y la pantalla no decía nada. El valor mostrado sigue
+// siendo correcto (cae al cierre), pero el usuario tiene que enterarse de que
+// no está viendo el precio del momento.
+//
+// Un instrumento que nunca cotiza en vivo (BYMA) no cuenta como falla: que se
+// valúe por cierre es su funcionamiento normal, no un problema.
 export async function resolveAssetPrices(assets) {
   const instruments = instrumentsToPrice(assets)
   if (instruments.length === 0) return { prices: {}, failed: false, at: null }
 
   const liveCapable = instruments.filter(hasLivePrice)
   const livePrices = liveCapable.length > 0 ? await getLivePrices(liveCapable) : {}
-  const liveFailed = livePrices === null
 
   // Cierres: para todo lo que no resolvió en vivo, sin importar el motivo
   // (fuente sin precio en vivo, o API caída).
@@ -77,5 +97,7 @@ export async function resolveAssetPrices(assets) {
 
   const prices = buildPriceMap({ instruments, livePrices: livePrices ?? {}, closes })
 
-  return { prices, failed: liveFailed, at: new Date() }
+  const failed = livePriceMissing(instruments, livePrices ?? {})
+
+  return { prices, failed, at: new Date() }
 }

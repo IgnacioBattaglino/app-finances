@@ -1,12 +1,19 @@
-import { formatUSD, formatDay, formatQuantity } from '../../lib/format.js'
+import { formatUSD, formatARS, formatDay, formatQuantity } from '../../lib/format.js'
 
 // Operación (aporte/retiro/transferencia/liquidación): etiqueta ya resuelta
-// por classifyOperations, fecha, monto, y precio unitario implícito
-// (monto ÷ cantidad) solo si hay cantidad.
+// por classifyOperations, fecha, monto, precio unitario implícito
+// (monto ÷ cantidad) solo si hay cantidad, y a qué cotización se registró.
+//
+// La cotización se muestra acá y no solo dentro del formulario de edición
+// porque es un dato que se chequea de un vistazo: comprar a un dólar distinto
+// del MEP del día es normal, y antes la única forma de saber a cuánto había
+// quedado registrada una operación era abrirla una por una. Se omite en las
+// que no la tienen (una transferencia entre activos nunca toca pesos).
 function ContributionRow({ contribution: c, label, onClick }) {
   const isOut = c.direction === 'out'
   const quantity = Number(c.quantity ?? 0)
   const unitPrice = quantity > 0 ? Number(c.amount_usd) / quantity : null
+  const rate = c.mep_rate != null ? Number(c.mep_rate) : null
 
   return (
     <button
@@ -20,6 +27,9 @@ function ContributionRow({ contribution: c, label, onClick }) {
           {formatDay(c.date)}
           {unitPrice !== null && ` · ${formatQuantity(quantity)} a ${formatUSD(unitPrice)}/un.`}
         </span>
+        {rate !== null && (
+          <span className="block text-xs text-ink-soft">a {formatARS(rate)} por dólar</span>
+        )}
       </span>
       <span className={`font-money shrink-0 text-[15px] ${isOut ? 'text-clay' : ''}`}>
         {isOut ? '−' : ''}
