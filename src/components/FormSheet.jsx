@@ -44,6 +44,39 @@ function FormSheet({ title, subtitle, action, onClose, children, startExpanded =
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // Bloquea el scroll del documento mientras el sheet está abierto. Sin esto,
+  // en iOS (Safari y sobre todo la PWA instalada) enfocar un campo hace que
+  // WebKit desplace el DOCUMENTO para "revelar" el input —el mismo reflejo
+  // que usa en cualquier página con scroll—, y ese desplazamiento se lleva
+  // puesto a este panel aunque sea position: fixed: el panel entero sale de
+  // pantalla y queda el fondo vacío con el teclado abajo. No es el teclado
+  // tapando el campo, es el documento entero corriéndose.
+  //
+  // La solución no es medir ni compensar ese desplazamiento (ver la nota de
+  // arriba sobre por qué no se mide el teclado): es no darle al documento
+  // nada para desplazar. Con body fijo, sin scroll propio, WebKit no tiene
+  // otra ancla que el `.overflow-y-auto` de acá abajo, que es el que
+  // queremos que se mueva. `position: fixed` en vez de `overflow: hidden`
+  // porque en iOS `overflow: hidden` en body no impide el scroll por
+  // completo (rebote); fijar la posición sí. Se guarda el scroll actual y se
+  // restaura al cerrar, para no perder dónde estaba la pantalla de atrás.
+  useEffect(() => {
+    const { body } = document
+    const scrollY = window.scrollY
+    const prevPosition = body.style.position
+    const prevTop = body.style.top
+    const prevWidth = body.style.width
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.width = '100%'
+    return () => {
+      body.style.position = prevPosition
+      body.style.top = prevTop
+      body.style.width = prevWidth
+      window.scrollTo(0, scrollY)
+    }
+  }, [])
+
   // Al enfocar un campo: (1) expandir a pantalla completa para que haya lugar
   // por encima del teclado, y (2) anclar el campo ARRIBA del cuerpo. Lo del
   // scroll es OBLIGATORIO, no una mejora: en PWA standalone de iOS WebKit NO
