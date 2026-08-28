@@ -64,28 +64,37 @@ function LiquidModal({ open, onClose, onSaved }) {
       }
     >
       <form id="liquid-form" onSubmit={handleSubmit} className="space-y-3">
-          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Dinero disponible</span>
-              <span className="font-money text-[15px] text-ink-soft">
-                {current === null ? 'Calculando…' : formatARS(current)}
-              </span>
+          {/* Informativo, no un campo: antes vivía en una fila idéntica a la
+              del monto de abajo (misma tipografía, mismo alineado a la
+              derecha) y parecía un segundo campo a completar, cuando en
+              realidad es un dato que la app ya calculó solo. Una oración,
+              no una fila "etiqueta : valor", para que no se confunda con el
+              único campo editable. */}
+          <p className="rounded-2xl border border-line bg-card px-4 py-3 text-sm text-ink-soft">
+            {current === null ? (
+              'Calculando cuánto tenés según la app…'
+            ) : (
+              <>
+                Según la app tenés{' '}
+                <span className="font-money text-ink">{formatARS(current)}</span>.
+              </>
+            )}
+          </p>
+
+          <label className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-3">
+            <span className="text-[15px]">¿Cuánto tenés realmente?</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[15px] text-ink-soft">$</span>
+              <input
+                value={declared}
+                onChange={(e) => setDeclared(e.target.value)}
+                inputMode="decimal"
+                placeholder="0"
+                required
+                className="font-money w-32 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
+              />
             </div>
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px]">Tenés (real)</span>
-              <div className="flex items-center gap-1">
-                <span className="text-[15px] text-ink-soft">$</span>
-                <input
-                  value={declared}
-                  onChange={(e) => setDeclared(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="0"
-                  required
-                  className="font-money w-32 bg-transparent text-right text-[15px] outline-none placeholder:text-ink-soft/60"
-                />
-              </div>
-            </label>
-          </div>
+          </label>
 
           {/* Previsualización del ajuste antes de confirmar */}
           {valid && hasDifference && (
