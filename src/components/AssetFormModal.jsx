@@ -37,7 +37,6 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   const [name, setName] = useState('')
   const [assetTypeId, setAssetTypeId] = useState('')
   const [valuationMode, setValuationMode] = useState('manual')
-  const [ticker, setTicker] = useState('')
   const [instrument, setInstrument] = useState(null)
   const [yieldsFlag, setYieldsFlag] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -67,7 +66,6 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
       initial?.valuation_mode ?? predominantValuationMode(defaultAssetTypeId, assets) ?? 'manual',
     )
     setInstrument(initial?.instrument ?? null)
-    setTicker(initial?.ticker ?? '')
     setYieldsFlag(initial ? initial.yields !== false : true)
     setError(null)
     setConfirmArchive(false)
@@ -115,7 +113,6 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
       name: name.trim(),
       assetTypeId,
       valuationMode,
-      ticker,
       instrumentId: instrument?.id ?? null,
       yields: yieldsFlag,
     }
@@ -239,15 +236,6 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
               </p>
             </div>
 
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Ticker</span>
-              <input
-                value={ticker}
-                onChange={(e) => setTicker(e.target.value)}
-                placeholder="Opcional — ej: AAPL"
-                className="min-w-0 flex-1 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
-              />
-            </label>
             {valuationMode === 'live' && (
               <InstrumentPicker value={instrument} onChange={setInstrument} />
             )}

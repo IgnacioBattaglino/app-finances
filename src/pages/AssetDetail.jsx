@@ -232,9 +232,6 @@ function AssetDetail() {
       <div className="mb-5 flex items-start justify-between gap-4 md:mb-7">
         <p className="flex min-w-0 items-center gap-2">
           <span className="title-page truncate">{asset?.name}</span>
-          {asset?.ticker && (
-            <span className="font-money text-[15px] text-ink-faint">{asset.ticker}</span>
-          )}
           <button type="button" onClick={() => setAssetFormModal(true)} aria-label="Editar activo">
             <EditIcon className="h-4 w-4 shrink-0 text-ink-soft" />
           </button>

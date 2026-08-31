@@ -7,12 +7,15 @@ import { supabase } from './supabase.js'
 // Solo los activos de valuación automática llevan instrumento: cambiar un
 // activo a otro modo lo desengancha, para que no quede un vínculo colgado que
 // el gráfico de evolución interpretaría como precio.
-function toRow({ name, assetTypeId, valuationMode, ticker, instrumentId, yields }) {
+// `ticker` (columna aparte, previa a instrument_id) ya no se ofrece en el
+// formulario: no la lee ninguna función, y el vínculo real con el precio es
+// instrument_id. Se deja de escribir acá; la columna sigue en la base con lo
+// que ya tenía cargado, su limpieza es aparte.
+function toRow({ name, assetTypeId, valuationMode, instrumentId, yields }) {
   return {
     name,
     asset_type_id: assetTypeId,
     valuation_mode: valuationMode,
-    ticker: ticker?.trim() || null,
     instrument_id: valuationMode === 'live' ? (instrumentId ?? null) : null,
     yields,
   }

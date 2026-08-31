@@ -17,8 +17,7 @@ function secondLine(asset, valuation, own) {
     const quantity = heldQuantity(asset, own)
     const avg = averagePurchasePrice(own)
     const unitPrice = currentUnitPrice(asset, own, valuation)
-    const tickerPart = asset.ticker ? ` ${asset.ticker.toUpperCase()}` : ''
-    return `${formatQuantity(quantity)}${tickerPart} · prom. ${avg !== null ? formatUSD(avg) : '—'} → hoy ${
+    return `${formatQuantity(quantity)} · prom. ${avg !== null ? formatUSD(avg) : '—'} → hoy ${
       unitPrice !== null ? formatUSD(unitPrice) : '—'
     }`
   }
@@ -42,15 +41,7 @@ function AssetRow({ asset, valuation, contributions }) {
     >
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate text-[17px] font-medium">
-            {asset.name}
-            {asset.ticker && (
-              // El espacio va en el texto, no solo en el margen: sin él el
-              // nombre accesible del link se lee "AL30AL30" (el ml-1.5 separa
-              // en pantalla, no en el árbol de accesibilidad).
-              <span className="font-money ml-1.5 text-[13px] font-normal text-ink-faint">{` ${asset.ticker}`}</span>
-            )}
-          </span>
+          <span className="truncate text-[17px] font-medium">{asset.name}</span>
         </span>
         <span className="font-money shrink-0 text-[17px] font-medium">
           {valuation.value !== null ? formatUSD(valuation.value) : '—'}
