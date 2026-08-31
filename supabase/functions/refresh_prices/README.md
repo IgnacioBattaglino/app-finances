@@ -98,15 +98,16 @@ curl -s -X POST \
 ```
 
 **data912** NO recorre todo el catálogo activo: solo trae historia para
-instrumentos ya referenciados por algún activo de usuario o que ya tengan
-precios cargados (ver el comentario de `data912BackfillTargets` en
+instrumentos ya referenciados por algún activo de usuario
+(`assets.instrument_id`; ver el comentario de `data912BackfillTargets` en
 `index.ts`). Instrumentos sembrados pero que nadie usa todavía no se
-backfillean hasta que alguien los use.
+backfillean hasta que alguien los use — aunque el cron diario ya les esté
+guardando precio, que NO alcanza para entrar al backfill.
 
 **`&force=true`** salta ese filtro para data912 y backfillea **todos** los
 instrumentos data912 activos, los usados y los que no. Sirve para el arranque
 inicial de instrumentos recién sembrados (todavía sin ningún `asset` que los
-referencie ni precios cargados — sin `force` esa corrida no trae nada). Ojo
+referencie — sin `force` esa corrida no trae nada). Ojo
 con un catálogo grande: es un request HTTP por instrumento, secuencial, sin
 delay pero ~1s cada uno — con muchos instrumentos sembrados puede tardar
 varios minutos y arriesgar el timeout de la Edge Function. Usalo puntualmente

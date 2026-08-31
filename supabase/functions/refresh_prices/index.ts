@@ -415,12 +415,20 @@ async function data912Daily(instruments: Instrument[], date: string): Promise<Pr
 }
 
 // El backfill NO recorre todo el catálogo data912 activo (podrían ser cientos
-// de CEDEARs si el catálogo crece): solo trae historia para instrumentos que
-// ya usa algún usuario (assets.instrument_id) o que ya tienen precios cargados
-// (para completar huecos o extender la serie de una corrida anterior). El
-// resto queda sin historia hasta que alguien lo use -- momento en el que el
-// próximo backfill ya lo va a levantar. ?force=true en el request salta este
-// filtro (ver handler) y backfillea todos los instrumentos data912 activos.
+// de CEDEARs si el catálogo crece): solo trae historia para instrumentos
+// enganchados a un activo de algún usuario (assets.instrument_id). El resto
+// queda sin historia hasta que alguien lo use -- momento en el que el próximo
+// backfill ya lo va a levantar. ?force=true en el request salta este filtro
+// (ver handler) y backfillea todos los instrumentos data912 activos.
+//
+// "Tener precios cargados" NO es criterio, aunque lo fue: la condición era un
+// OR (usado por un asset O ya con precios) pensada para completar huecos y
+// extender la serie de una corrida anterior. Se cayó sola al crecer el
+// catálogo -- el cron diario le pone precio a TODO instrumento activo, así que
+// al día siguiente de sembrar N CEDEARs los N cumplen esa condición, el filtro
+// deja de filtrar y el backfill intenta la serie completa de los N,
+// secuencial, en una sola invocación. Justo lo que esta función existe para
+// evitar. Los huecos los sigue resolviendo la lectura con carry-forward.
 async function data912BackfillTargets(
   supabase: SupabaseClient,
   candidates: Instrument[],
@@ -428,17 +436,14 @@ async function data912BackfillTargets(
   const ids = candidates.map((i) => i.id)
   if (ids.length === 0) return []
 
-  const [{ data: assetRows }, { data: priceRows }] = await Promise.all([
-    supabase.from('assets').select('instrument_id').in('instrument_id', ids),
-    supabase.from('instrument_prices').select('instrument_id').in('instrument_id', ids),
-  ])
+  const { data: assetRows } = await supabase
+    .from('assets')
+    .select('instrument_id')
+    .in('instrument_id', ids)
 
   const usedIds = new Set<string>()
   for (const r of (assetRows ?? []) as { instrument_id: string | null }[]) {
     if (r.instrument_id) usedIds.add(r.instrument_id)
-  }
-  for (const r of (priceRows ?? []) as { instrument_id: string }[]) {
-    usedIds.add(r.instrument_id)
   }
 
   return candidates.filter((i) => usedIds.has(i.id))
