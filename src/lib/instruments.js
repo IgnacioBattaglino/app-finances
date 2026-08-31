@@ -64,6 +64,7 @@ function normalize(text) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/-/g, ' ')
 }
 
 // Busca por nombre o por símbolo, sin acentos ni mayúsculas. Pura y testeable.
@@ -71,18 +72,25 @@ function normalize(text) {
 // que traer Bitcoin arriba, no un nombre que lo menciona al pasar), y dentro
 // de cada tramo, primero el match por símbolo: quien escribe "AL30" busca ese
 // ticker exacto.
+//
+// El query se parte en palabras (por espacio; un guión cuenta como espacio,
+// igual que en los nombres guardados) y cada palabra matchea por separado
+// contra nombre o símbolo: así "Mercado Libre" encuentra "MercadoLibre" (cada
+// palabra es substring del nombre pegado) y "coca cola" encuentra "Coca-Cola"
+// sin que el guión o la falta de espacio en el dato lo bloqueen.
 export function searchInstruments(instruments, query, limit = 8) {
   const q = normalize(query).trim()
   if (!q) return []
+  const words = q.split(/\s+/).filter(Boolean)
 
   const scored = []
   for (const instrument of instruments) {
     const name = normalize(instrument.name)
     const symbol = normalize(instrument.symbol)
+    const matches = words.every((word) => symbol.includes(word) || name.includes(word))
+    if (!matches) continue
     const symbolStarts = symbol.startsWith(q)
     const nameStarts = name.startsWith(q)
-    const contains = symbol.includes(q) || name.includes(q)
-    if (!contains) continue
     const score = symbolStarts ? 0 : nameStarts ? 1 : 2
     scored.push({ instrument, score })
   }

@@ -8,6 +8,8 @@ const CATALOG = [
   { id: 'i4', symbol: 'GGAL', name: 'Grupo Financiero Galicia', kind: 'stock', currency: 'ARS' },
   { id: 'i5', symbol: 'SOLUSDT', name: 'Solana', kind: 'crypto', currency: 'USD' },
   { id: 'i6', symbol: 'BNBUSDT', name: 'BNB', kind: 'crypto', currency: 'USD' },
+  { id: 'i7', symbol: 'MELI', name: 'MercadoLibre', kind: 'cedear', currency: 'ARS' },
+  { id: 'i8', symbol: 'KO', name: 'Coca-Cola', kind: 'cedear', currency: 'ARS' },
 ]
 
 describe('searchInstruments', () => {
@@ -41,6 +43,24 @@ describe('searchInstruments', () => {
 
   it('sin coincidencias devuelve vacío — de ahí sale el aviso de usar valuación manual', () => {
     expect(searchInstruments(CATALOG, 'tesla motors sa')).toEqual([])
+  })
+
+  it('busca por varias palabras aunque el nombre esté guardado pegado, sin espacio', () => {
+    expect(searchInstruments(CATALOG, 'Mercado Libre').map((i) => i.id)).toEqual(['i7'])
+  })
+
+  it('busca por varias palabras aunque el nombre esté guardado con guion', () => {
+    expect(searchInstruments(CATALOG, 'coca cola').map((i) => i.id)).toEqual(['i8'])
+  })
+
+  it('un guion en lo que se escribe también cuenta como espacio', () => {
+    expect(searchInstruments(CATALOG, 'coca-cola').map((i) => i.id)).toEqual(['i8'])
+  })
+
+  it('lo que ya andaba por una sola palabra sigue andando', () => {
+    expect(searchInstruments(CATALOG, 'MELI').map((i) => i.id)).toEqual(['i7'])
+    expect(searchInstruments(CATALOG, 'mercado').map((i) => i.id)).toEqual(['i7'])
+    expect(searchInstruments(CATALOG, 'mercadolibre').map((i) => i.id)).toEqual(['i7'])
   })
 
   it('corta la lista para que no tape la pantalla', () => {
