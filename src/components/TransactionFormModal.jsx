@@ -4,6 +4,7 @@ import {
   updateTransaction,
   deleteTransaction,
 } from '../lib/transactions.js'
+import { createCategory } from '../lib/categories.js'
 import { todayISO, toDecimalInput } from '../lib/format.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
@@ -19,6 +20,7 @@ function TransactionFormModal({
   onClose,
   onSaved,
   onDeleted,
+  onCategoryCreated,
 }) {
   const [date, setDate] = useState(todayISO())
   const [kind, setKind] = useState(defaultKind)
@@ -28,6 +30,13 @@ function TransactionFormModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Alta de categoría sin salir del formulario (mismo patrón que "+ Nuevo
+  // grupo" en AssetFormModal): antes había que abandonar el gasto a medio
+  // cargar, ir a Ajustes y volver a empezar.
+  const [creatingCategory, setCreatingCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [categoryBusy, setCategoryBusy] = useState(false)
+  const [categoryError, setCategoryError] = useState(null)
 
   const editing = Boolean(initial?.id)
 
@@ -41,6 +50,9 @@ function TransactionFormModal({
     setError(null)
     setConfirmDelete(false)
     setBusy(false)
+    setCreatingCategory(false)
+    setNewCategoryName('')
+    setCategoryError(null)
   }, [open, initial, defaultKind])
 
   if (!open) return null
@@ -62,6 +74,32 @@ function TransactionFormModal({
     // La categoría elegida deja de valer si es del otro tipo
     const stillValid = categories.some((c) => c.id === categoryId && c.kind === next)
     if (!stillValid) setCategoryId('')
+    // El alta a medio escribir era para el otro tipo: se cancela en vez de
+    // crear un "Nafta" de ingreso porque quedó el input abierto.
+    setCreatingCategory(false)
+    setNewCategoryName('')
+    setCategoryError(null)
+  }
+
+  // La categoría nace con el tipo del movimiento que se está cargando y queda
+  // elegida: el usuario escribió el nombre para usarla ahora, no para tener
+  // que buscarla en el selector después de crearla.
+  async function handleCreateCategory() {
+    const trimmed = newCategoryName.trim()
+    if (!trimmed || categoryBusy) return
+    setCategoryBusy(true)
+    setCategoryError(null)
+    try {
+      const created = await createCategory(trimmed, kind)
+      onCategoryCreated?.(created)
+      setCategoryId(created.id)
+      setCreatingCategory(false)
+      setNewCategoryName('')
+    } catch (e) {
+      setCategoryError({ message: 'No se pudo crear la categoría.', detail: e.message })
+    } finally {
+      setCategoryBusy(false)
+    }
   }
 
   async function handleSubmit(event) {
@@ -135,24 +173,87 @@ function TransactionFormModal({
                 />
               </div>
             </label>
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Categoría</span>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                required
-                className="max-w-[55%] bg-transparent text-right text-[17px] outline-none"
-              >
-                <option value="" disabled>
-                  Elegir…
-                </option>
-                {kindCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
+            <div className="px-4 py-3">
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-[17px]">Categoría</span>
+                {/* El orden de las opciones es el que el usuario arrastró en
+                    Ajustes (categories viene ordenado por position), no el
+                    alfabético: acá es donde se elige una decenas de veces. */}
+                <select
+                  value={creatingCategory ? '__new__' : categoryId}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '__new__') {
+                      setCreatingCategory(true)
+                      setCategoryError(null)
+                      return
+                    }
+                    setCreatingCategory(false)
+                    setCategoryId(value)
+                  }}
+                  required={!creatingCategory}
+                  className="max-w-[55%] bg-transparent text-right text-[17px] outline-none"
+                >
+                  <option value="" disabled>
+                    Elegir…
                   </option>
-                ))}
-              </select>
-            </label>
+                  {kindCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                  <option value="__new__">+ Nueva categoría</option>
+                </select>
+              </label>
+
+              {creatingCategory && (
+                <div className="mt-2.5 space-y-2.5">
+                  <input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        // Enter acá crearía el movimiento entero con el submit
+                        // del form de arriba, todavía sin categoría elegida.
+                        e.preventDefault()
+                        handleCreateCategory()
+                      }
+                      if (e.key === 'Escape') {
+                        setCreatingCategory(false)
+                        setNewCategoryName('')
+                      }
+                    }}
+                    placeholder={kind === 'expense' ? 'ej: Comida, Transporte' : 'ej: Sueldo, Freelance'}
+                    autoFocus
+                    disabled={categoryBusy}
+                    className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none placeholder:text-ink-faint"
+                  />
+                  <FormError message={categoryError?.message} detail={categoryError?.detail} />
+                  <div className="flex items-center justify-end gap-4 text-[15px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreatingCategory(false)
+                        setNewCategoryName('')
+                        setCategoryError(null)
+                      }}
+                      disabled={categoryBusy}
+                      className="text-ink-soft"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateCategory}
+                      disabled={categoryBusy || !newCategoryName.trim()}
+                      className="font-semibold text-accent-ink disabled:opacity-50"
+                    >
+                      Crear
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <CollapsedDateField value={date} onChange={setDate} />
             <div className="px-4 py-3">
               <label className="flex items-center justify-between gap-3">

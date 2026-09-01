@@ -365,6 +365,7 @@ function Dashboard() {
           open={expenseModalOpen}
           defaultKind="expense"
           categories={categories ?? []}
+          onCategoryCreated={(created) => setCategories((prev) => [...(prev ?? []), created])}
           onClose={() => setExpenseModalOpen(false)}
           onSaved={afterLiquidChanged}
         />

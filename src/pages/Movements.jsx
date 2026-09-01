@@ -340,6 +340,7 @@ function Movements() {
         open={modalOpen}
         initial={editing}
         categories={categories}
+        onCategoryCreated={(created) => setCategories((prev) => [...prev, created])}
         onClose={closeModal}
         onSaved={refreshAfterSave}
         onDeleted={refreshAfterSave}
