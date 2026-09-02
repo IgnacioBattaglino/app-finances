@@ -13,6 +13,7 @@ import {
   totalableAssets,
   computePortfolioValue,
   computePortfolioContributed,
+  splitPortfolioByYield,
   needsManualValuation,
   groupAssetsByType,
 } from './portfolio.js'
@@ -235,6 +236,112 @@ describe('valueAsset — valuación manual desactualizada', () => {
       { asset_id: 'OTRO', direction: 'in', amount_usd: 999, date: '2026-08-10' },
     ]
     expect(valueAsset(manual, own, valuation, {}).outdated).toBe(false)
+  })
+})
+
+describe('splitPortfolioByYield', () => {
+  // La invariante de la cabecera: los dos baldes tienen que dar el total.
+  function expectSuma(assets, valuations) {
+    const { yielding, notYielding } = splitPortfolioByYield(assets, valuations)
+    expect(yielding + notYielding).toBeCloseTo(computePortfolioValue(assets, valuations), 8)
+  }
+
+  it('parte el valor en lo que rinde y lo que no', () => {
+    const assets = [
+      { id: 'btc', yields: true },
+      { id: 'efectivo', yields: false },
+    ]
+    const valuations = {
+      btc: { contributed: 800, value: 1000 },
+      efectivo: { contributed: 500, value: 500 },
+    }
+    expect(splitPortfolioByYield(assets, valuations)).toEqual({
+      yielding: 1000,
+      notYielding: 500,
+      outdated: false,
+    })
+    expectSuma(assets, valuations)
+  })
+
+  it('yields null o ausente cuenta como que rinde: solo un false explícito es reserva', () => {
+    const assets = [{ id: 'a', yields: null }, { id: 'b' }, { id: 'c', yields: false }]
+    const valuations = {
+      a: { contributed: 10, value: 100 },
+      b: { contributed: 10, value: 200 },
+      c: { contributed: 10, value: 300 },
+    }
+    const { yielding, notYielding } = splitPortfolioByYield(assets, valuations)
+    expect(yielding).toBe(300)
+    expect(notYielding).toBe(300)
+  })
+
+  it('el activo que rinde con la valuación vieja SIGUE sumando su valor, y se avisa', () => {
+    // El monto no es el `value` de computePortfolioGain: esa función excluye
+    // al desactualizado para no ensuciar el %, pero su último valor conocido
+    // es verdadero a su fecha y tiene que verse en la cabecera.
+    const assets = [
+      { id: 'ok', yields: true },
+      { id: 'viejo', yields: true },
+      { id: 'efectivo', yields: false },
+    ]
+    const valuations = {
+      ok: { contributed: 100, value: 120 },
+      viejo: { contributed: 569.46, value: 262.5, outdated: true },
+      efectivo: { contributed: 500, value: 500 },
+    }
+    const { yielding, notYielding, outdated } = splitPortfolioByYield(assets, valuations)
+    expect(yielding).toBe(382.5) // 120 + 262,50, no los 120 de computePortfolioGain
+    expect(computePortfolioGain(assets, valuations).value).toBe(120)
+    expect(notYielding).toBe(500)
+    expect(outdated).toBe(true)
+    expectSuma(assets, valuations)
+  })
+
+  it('un activo desactualizado que NO rinde no dispara el aviso del %', () => {
+    const assets = [
+      { id: 'btc', yields: true },
+      { id: 'efectivo', yields: false },
+    ]
+    const valuations = {
+      btc: { contributed: 800, value: 1000 },
+      efectivo: { contributed: 500, value: 500, outdated: true },
+    }
+    expect(splitPortfolioByYield(assets, valuations).outdated).toBe(false)
+  })
+
+  it('un activo sin valuación no suma ni marca desactualizado: le falta el dato', () => {
+    const assets = [{ id: 'btc', yields: true }, { id: 'sin', yields: true }]
+    const valuations = {
+      btc: { contributed: 800, value: 1000 },
+      sin: { contributed: 300, value: null, outdated: true },
+    }
+    const { yielding, outdated } = splitPortfolioByYield(assets, valuations)
+    expect(yielding).toBe(1000)
+    expect(outdated).toBe(false)
+    expectSuma(assets, valuations)
+  })
+
+  it('respeta include_in_total: lo que queda fuera del total no cae en ningún balde', () => {
+    const assets = [
+      { id: 'btc', yields: true },
+      { id: 'fuera', yields: true, asset_type: { include_in_total: false } },
+      { id: 'efectivo', yields: false, asset_type: { include_in_total: false } },
+    ]
+    const valuations = {
+      btc: { contributed: 800, value: 1000 },
+      fuera: { contributed: 100, value: 900 },
+      efectivo: { contributed: 50, value: 50 },
+    }
+    expect(splitPortfolioByYield(assets, valuations)).toEqual({
+      yielding: 1000,
+      notYielding: 0,
+      outdated: false,
+    })
+    expectSuma(assets, valuations)
+  })
+
+  it('sin activos da cero en los dos baldes', () => {
+    expect(splitPortfolioByYield([], {})).toEqual({ yielding: 0, notYielding: 0, outdated: false })
   })
 })
 

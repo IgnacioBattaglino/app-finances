@@ -214,6 +214,37 @@ export function computePortfolioContributed(assets, valuations) {
   return totalableAssets(assets).reduce((sum, a) => sum + (valuations[a.id]?.contributed ?? 0), 0)
 }
 
+// Reparte el valor del portafolio en los dos baldes que la cabecera nombra:
+// lo que busca rendimiento y lo que es reserva de valor (yields === false, ej.
+// efectivo). La suma de los dos ES computePortfolioValue, siempre — por eso se
+// parte del mismo conjunto (totalableAssets) y con la misma regla para el
+// valor faltante (null no suma ni resta). yields null/undefined rinde: solo un
+// false explícito manda un activo al balde de la reserva.
+//
+// Ojo con el monto de `yielding`: NO es el `value` de computePortfolioGain.
+// Esa función deja afuera los activos con la valuación desactualizada porque
+// su rendimiento sería falso, pero su VALOR sigue siendo el último dato
+// verdadero y tiene que mostrarse. `outdated` marca justamente ese caso, para
+// que la cabecera muestre el monto y cambie el % por el aviso.
+export function splitPortfolioByYield(assets, valuations) {
+  let yielding = 0
+  let notYielding = 0
+  let outdated = false
+  for (const asset of totalableAssets(assets)) {
+    const v = valuations[asset.id]
+    const value = v?.value ?? 0
+    if (asset.yields === false) {
+      notYielding += value
+      continue
+    }
+    yielding += value
+    // Un activo sin valuación no está "desactualizado": le falta el dato, y de
+    // eso ya avisa la pantalla por otro lado.
+    if (v?.outdated && v.value !== null) outdated = true
+  }
+  return { yielding, notYielding, outdated }
+}
+
 // Ganancia total de un conjunto de activos, solo sobre los que buscan
 // rendimiento (yields !== false) y tienen valor. Los que no rinden (ej:
 // efectivo) o no tienen valuación quedan afuera de este cálculo, pero
