@@ -29,7 +29,11 @@ function secondLine(asset, valuation, own) {
 
 // Fila de 3 líneas, toda ella un link al detalle del activo — ahí viven
 // aportar/retirar/transferir/liquidar/editar y el historial completo.
-function AssetRow({ asset, valuation, contributions }) {
+//
+// Se exporta porque un activo sin grupo se dibuja con ESTA misma fila, sola
+// dentro de su tarjeta (ver Portafolio): un activo suelto tiene que decir lo
+// mismo que uno agrupado, no una versión propia que se desincronice.
+export function AssetRow({ asset, valuation, contributions }) {
   const own = contributions.filter((c) => c.asset_id === asset.id)
   const gain = valuation.value !== null ? valuation.value - valuation.contributed : null
   const neutral = asset.yields === false || asset.valuation_mode === 'contributed'

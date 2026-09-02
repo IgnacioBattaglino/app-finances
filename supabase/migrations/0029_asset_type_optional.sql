@@ -1,0 +1,29 @@
+-- 0029: el grupo de un activo pasa a ser opcional.
+--
+-- La 0014 creó asset_types y dejó assets.asset_type_id NOT NULL: todo activo
+-- tenía que vivir en un grupo. Eso obliga a inventar una bolsa para el activo
+-- que no pertenece a ninguna ("Efectivo USD" con un solo activo adentro), y el
+-- encabezado del grupo termina repitiendo el nombre de su única fila sin
+-- agregar información.
+--
+-- Con la columna nullable, un activo sin grupo se muestra en Portafolio como
+-- tarjeta suelta, al mismo nivel que los grupos (ver portfolioEntries en
+-- src/lib/portfolio.js). Es una decisión del usuario -- dejar "Grupo" vacío en
+-- el formulario --, no un dato faltante.
+--
+-- Lo que NO cambia:
+--
+--   * La FK a asset_types queda igual: un null no referencia nada, que es
+--     justamente lo que significa "sin grupo", y la FK solo valida los valores
+--     presentes.
+--   * El índice idx_assets_asset_type (0014) queda: lo usa el conteo por grupo
+--     de countAssetsForType (lib/assetTypes.js), que siempre filtra por un id
+--     concreto.
+--   * RLS no se toca: la policy "own rows" de la 0005 es sobre user_id.
+--   * get_portfolio_series (0022, redefinida en la 0026) ya resuelve el caso:
+--     hace `left join asset_types at on at.id = a.asset_type_id` y decide con
+--     `at.include_in_total is distinct from false`, así que un activo sin grupo
+--     deja esa columna en null y cuenta en el total -- la misma regla que el
+--     cliente (`a.asset_type?.include_in_total !== false`). Nada que redefinir.
+
+alter table assets alter column asset_type_id drop not null;

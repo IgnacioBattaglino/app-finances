@@ -55,10 +55,12 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   // grupos, borrando lo ya escrito y pisando el grupo recién creado.
   useEffect(() => {
     if (!open) return
-    // Editando, el grupo del activo. Creando, NINGUNO: preseleccionar el
-    // primero de la lista hace que quien no toca el campo termine con el
-    // activo en un grupo que nunca eligió (una acción argentina dentro de
-    // "Cripto", por ejemplo). Es una decisión que tiene que tomar el usuario.
+    // Editando, el grupo del activo (o '' si no tiene: el grupo es opcional
+    // desde la migración 0029). Creando, NINGUNO: preseleccionar el primero de
+    // la lista hace que quien no toca el campo termine con el activo en un
+    // grupo que nunca eligió (una acción argentina dentro de "Cripto", por
+    // ejemplo). Es una decisión que tiene que tomar el usuario, y ahora
+    // "ninguno" es una respuesta válida.
     const defaultAssetTypeId = initial?.asset_type_id ?? ''
     setName(initial?.name ?? '')
     setAssetTypeId(defaultAssetTypeId)
@@ -78,6 +80,10 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   // bolsa elegida (el predominante entre sus activos). Solo tiene sentido al
   // dar de alta — editando un activo existente, cambiar de bolsa es solo
   // moverlo, no debe pisar lo que ya se eligió por activo.
+  //
+  // Sin grupo ('') no hay bolsa de la que heredar nada: el activo arranca
+  // rindiendo (que es lo que hace la mayoría) y con valuación manual, y el
+  // usuario apaga el toggle o cambia el modo si no es el caso.
   function handleAssetTypeChange(value) {
     if (value === '__new__') {
       setCreatingBolsa(true)
@@ -86,7 +92,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
     setAssetTypeId(value)
     if (!editing) {
       const at = assetTypes.find((a) => a.id === value)
-      if (at) setYieldsFlag(at.earns_yield)
+      setYieldsFlag(at ? at.earns_yield : true)
       setValuationMode(predominantValuationMode(value, assets) ?? 'manual')
     }
   }
@@ -95,7 +101,9 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
 
   const missing = []
   if (!name.trim()) missing.push('nombre')
-  if (!assetTypeId) missing.push('grupo de activos')
+  // El grupo NO está acá: es opcional (migración 0029). Un activo sin grupo se
+  // muestra suelto en Portafolio, que es un resultado válido y no un formulario
+  // a medio llenar.
   if (!valuationMode) missing.push('modo de valuación')
   // Un activo de valuación automática sin instrumento no tiene de dónde sacar
   // un precio: se valuaría en 0 en el historial y pediría carga manual en la
@@ -183,9 +191,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                     onChange={(e) => handleAssetTypeChange(e.target.value)}
                     className="max-w-[60%] bg-transparent text-right text-[17px] outline-none"
                   >
-                    <option value="" disabled>
-                      Elegir…
-                    </option>
+                    <option value="">Sin grupo</option>
                     {assetTypes.map((at) => (
                       <option key={at.id} value={at.id}>
                         {at.name}
@@ -199,7 +205,8 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
               {!creatingBolsa && (
                 <p className="mt-1.5 text-[13px] text-ink-soft">
                   Agrupá tus activos por categoría (cripto, efectivo, acciones) para ver cómo
-                  rinde cada grupo. Renombrar y archivar grupos: en Ajustes.
+                  rinde cada grupo. Sin grupo el activo aparece solo, con su propio valor.
+                  Renombrar y archivar grupos: en Ajustes.
                 </p>
               )}
 

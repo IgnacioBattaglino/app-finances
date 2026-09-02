@@ -11,10 +11,13 @@ import { supabase } from './supabase.js'
 // formulario: no la lee ninguna función, y el vínculo real con el precio es
 // instrument_id. Se deja de escribir acá; la columna sigue en la base con lo
 // que ya tenía cargado, su limpieza es aparte.
+// El grupo es OPCIONAL (migración 0029): el formulario manda '' cuando el
+// usuario elige "Sin grupo", y acá se traduce a null — una cadena vacía en una
+// columna uuid es un error de la base, no un "sin grupo".
 function toRow({ name, assetTypeId, valuationMode, instrumentId, yields }) {
   return {
     name,
-    asset_type_id: assetTypeId,
+    asset_type_id: assetTypeId || null,
     valuation_mode: valuationMode,
     instrument_id: valuationMode === 'live' ? (instrumentId ?? null) : null,
     yields,

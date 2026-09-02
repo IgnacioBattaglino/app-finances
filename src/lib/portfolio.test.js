@@ -16,6 +16,8 @@ import {
   splitPortfolioByYield,
   needsManualValuation,
   groupAssetsByType,
+  portfolioEntries,
+  sortPortfolioEntries,
 } from './portfolio.js'
 
 describe('decomposeWithdrawal', () => {
@@ -767,15 +769,26 @@ describe('groupAssetsByType — la lista y el total cuentan lo mismo', () => {
       { id: 'c', asset_type_id: 'g9', asset_type: null }, // grupo que no resuelve
       { id: 'd', asset_type_id: null, asset_type: null }, // sin grupo
     ]
-    const agrupados = groupAssetsByType(assets, [cripto]).flatMap((g) => g.assets)
-    expect(agrupados).toHaveLength(assets.length)
-    expect(agrupados.map((a) => a.id).sort()).toEqual(['a', 'b', 'c', 'd'])
+    // La garantía es sobre la PANTALLA, que dibuja portfolioEntries: los
+    // agrupados salen de groupAssetsByType y el sin grupo va suelto.
+    const vistos = portfolioEntries(assets, [cripto]).flatMap((e) =>
+      e.kind === 'group' ? e.assets.map((a) => a.id) : [e.asset.id],
+    )
+    expect(vistos).toHaveLength(assets.length)
+    expect([...vistos].sort()).toEqual(['a', 'b', 'c', 'd'])
   })
 
-  it('un activo sin grupo resoluble igual cae en algo con nombre', () => {
-    const groups = groupAssetsByType([{ id: 'c', asset_type_id: null, asset_type: null }], [])
+  it('un asset_type_id que no resuelve contra nada igual cae en algo con nombre', () => {
+    // Estado imposible en la práctica (un id que no está ni en la lista ni
+    // embebido en el activo), pero mientras exista tiene que verse. Distinto
+    // del activo SIN grupo, que va suelto y no fabrica ningún encabezado.
+    const groups = groupAssetsByType([{ id: 'c', asset_type_id: 'g9', asset_type: null }], [])
     expect(groups).toHaveLength(1)
     expect(groups[0].assetType.name).toBe('Sin grupo')
+  })
+
+  it('un activo sin grupo no arma ningún grupo', () => {
+    expect(groupAssetsByType([{ id: 'd', asset_type_id: null, asset_type: null }], [])).toEqual([])
   })
 
   it('sin grupos activos igual agrupa todo, en orden estable por nombre', () => {
@@ -787,5 +800,168 @@ describe('groupAssetsByType — la lista y el total cuentan lo mismo', () => {
       'Cripto',
       'Grupo viejo',
     ])
+  })
+})
+
+describe('portfolioEntries — grupos y activos sueltos en la misma lista', () => {
+  const cripto = { id: 'g1', name: 'Cripto' }
+  const cedears = { id: 'g2', name: 'CEDEARs' }
+
+  it('un activo sin grupo es una entrada propia, no un grupo fabricado', () => {
+    const assets = [
+      { id: 'a', name: 'Bitcoin', asset_type_id: 'g1', asset_type: cripto },
+      { id: 'b', name: 'Colchón USD', asset_type_id: null, asset_type: null },
+    ]
+    const entries = portfolioEntries(assets, [cripto])
+    expect(entries.map((e) => e.kind)).toEqual(['group', 'asset'])
+    expect(entries[0].assetType.name).toBe('Cripto')
+    expect(entries[1].asset.name).toBe('Colchón USD')
+  })
+
+  it('EL EFECTO BUSCADO: sacarle el grupo al único activo de un grupo hace desaparecer el grupo', () => {
+    const efectivo = { id: 'g5', name: 'Efectivo USD' }
+    const conGrupo = [{ id: 'a', name: 'Colchón USD', asset_type_id: 'g5', asset_type: efectivo }]
+    expect(portfolioEntries(conGrupo, [efectivo])).toHaveLength(1)
+    expect(portfolioEntries(conGrupo, [efectivo])[0].kind).toBe('group')
+
+    const sinGrupo = [{ id: 'a', name: 'Colchón USD', asset_type_id: null, asset_type: null }]
+    const entries = portfolioEntries(sinGrupo, [efectivo])
+    expect(entries).toHaveLength(1)
+    expect(entries[0].kind).toBe('asset')
+    expect(entries.some((e) => e.kind === 'group')).toBe(false)
+  })
+
+  it('en orden manual los sueltos van al final, después de todos los grupos', () => {
+    const assets = [
+      { id: 'x', name: 'Suelto', asset_type_id: null, asset_type: null },
+      { id: 'a', name: 'Bitcoin', asset_type_id: 'g1', asset_type: cripto },
+      { id: 'b', name: 'AAPL', asset_type_id: 'g2', asset_type: cedears },
+    ]
+    const entries = portfolioEntries(assets, [cripto, cedears])
+    expect(entries.map((e) => (e.kind === 'group' ? e.assetType.name : e.asset.name))).toEqual([
+      'Cripto',
+      'CEDEARs',
+      'Suelto',
+    ])
+  })
+})
+
+describe('sortPortfolioEntries — grupos y sueltos ordenados JUNTOS', () => {
+  // Un grupo de dos activos (total 300, aportado 200 → +50%), otro de uno
+  // (100, aportado 125 → −20%) y dos activos sueltos (50 → +25%, 500 → 0%).
+  const cripto = { id: 'g1', name: 'Cripto' }
+  const cedears = { id: 'g2', name: 'CEDEARs' }
+  const assets = [
+    { id: 'btc', name: 'Bitcoin', asset_type_id: 'g1', asset_type: cripto },
+    { id: 'eth', name: 'Ethereum', asset_type_id: 'g1', asset_type: cripto },
+    { id: 'aapl', name: 'AAPL', asset_type_id: 'g2', asset_type: cedears },
+    { id: 'oro', name: 'Oro', asset_type_id: null, asset_type: null },
+    { id: 'zzz', name: 'Zafiro', asset_type_id: null, asset_type: null },
+  ]
+  const valuations = {
+    btc: { value: 200, contributed: 150 },
+    eth: { value: 100, contributed: 50 },
+    aapl: { value: 100, contributed: 125 },
+    oro: { value: 50, contributed: 40 },
+    zzz: { value: 500, contributed: 500 },
+  }
+  const entries = portfolioEntries(assets, [cripto, cedears])
+  const names = (list) => list.map((e) => (e.kind === 'group' ? e.assetType.name : e.asset.name))
+
+  it('manual: no toca nada — grupos en su orden, sueltos al final', () => {
+    expect(names(sortPortfolioEntries(entries, 'manual', valuations))).toEqual([
+      'Cripto',
+      'CEDEARs',
+      'Oro',
+      'Zafiro',
+    ])
+  })
+
+  it('un modo desconocido cae en el orden manual, no deja la lista sin ordenar de otra forma', () => {
+    expect(names(sortPortfolioEntries(entries, 'inventado', valuations))).toEqual(
+      names(sortPortfolioEntries(entries, 'manual', valuations)),
+    )
+  })
+
+  it('alfabético: mezcla nombres de grupo y de activo suelto en la misma lista', () => {
+    expect(names(sortPortfolioEntries(entries, 'name', valuations))).toEqual([
+      'CEDEARs',
+      'Cripto',
+      'Oro',
+      'Zafiro',
+    ])
+  })
+
+  it('monto ↑: cada grupo pesa por su total, cada suelto por su propio valor', () => {
+    expect(names(sortPortfolioEntries(entries, 'value-asc', valuations))).toEqual([
+      'Oro', // 50 (suelto)
+      'CEDEARs', // 100 (el grupo, con un solo activo adentro)
+      'Cripto', // 300 (el grupo, sumando sus dos activos)
+      'Zafiro', // 500 (suelto)
+    ])
+  })
+
+  it('monto ↓: el mismo orden dado vuelta', () => {
+    expect(names(sortPortfolioEntries(entries, 'value-desc', valuations))).toEqual([
+      'Zafiro',
+      'Cripto',
+      'CEDEARs',
+      'Oro',
+    ])
+  })
+
+  it('rendimiento ↓: los que más ganan primero, grupo o suelto por igual', () => {
+    expect(names(sortPortfolioEntries(entries, 'gain-desc', valuations))).toEqual([
+      'Cripto', // +50%
+      'Oro', // +25%
+      'Zafiro', // 0%
+      'CEDEARs', // −20%
+    ])
+  })
+
+  it('rendimiento ↓: lo que no tiene % calculable va al final, no al fondo del ranking', () => {
+    // Sin valuación no es una pérdida: es un dato que falta. Un activo que no
+    // rinde (efectivo) tampoco tiene % que comparar.
+    const conFaltantes = [
+      ...assets,
+      { id: 'sinval', name: 'Sin valuar', asset_type_id: null, asset_type: null },
+      { id: 'cash', name: 'Efectivo', asset_type_id: null, asset_type: null, yields: false },
+    ]
+    const vals = {
+      ...valuations,
+      sinval: { value: null, contributed: 90 },
+      cash: { value: 70, contributed: 70 },
+    }
+    const sorted = names(sortPortfolioEntries(portfolioEntries(conFaltantes, [cripto, cedears]), 'gain-desc', vals))
+    expect(sorted).toEqual(['Cripto', 'Oro', 'Zafiro', 'CEDEARs', 'Sin valuar', 'Efectivo'])
+  })
+
+  it('rendimiento ↓: una valuación desactualizada no compite con un % falso', () => {
+    const vals = { ...valuations, btc: { ...valuations.btc, outdated: true } }
+    // Cripto queda solo con Ethereum comparable (100 sobre 50 → +100%), así que
+    // pasa a encabezar en vez de calcularse contra un valor viejo.
+    expect(names(sortPortfolioEntries(entries, 'gain-desc', vals))[0]).toBe('Cripto')
+  })
+
+  it('los empates conservan el orden manual (sort estable)', () => {
+    const empatados = {
+      btc: { value: 50, contributed: 50 },
+      eth: { value: 50, contributed: 50 },
+      aapl: { value: 100, contributed: 100 },
+      oro: { value: 100, contributed: 100 },
+      zzz: { value: 100, contributed: 100 },
+    }
+    expect(names(sortPortfolioEntries(entries, 'value-desc', empatados))).toEqual([
+      'Cripto', // 100
+      'CEDEARs', // 100
+      'Oro', // 100
+      'Zafiro', // 100
+    ])
+  })
+
+  it('no muta la lista que recibe', () => {
+    const original = [...entries]
+    sortPortfolioEntries(entries, 'value-desc', valuations)
+    expect(entries).toEqual(original)
   })
 })

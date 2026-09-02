@@ -63,7 +63,7 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | id | uuid PK | |
 | user_id | uuid FK → auth.users | NOT NULL, default auth.uid(); dueño de la fila |
 | name | text NOT NULL | ej: "Bitcoin", "Colchón USD" |
-| asset_type_id | uuid FK → asset_types | NOT NULL; reemplaza a `type` |
+| asset_type_id | uuid FK → asset_types | nullable (migración 0029; la 0014 lo había creado NOT NULL); reemplaza a `type`. Null = **sin grupo**: el activo se muestra en Portafolio como tarjeta suelta, al mismo nivel que los grupos (ver `portfolioEntries` en lib/portfolio.js), y cuenta en el total como cualquier activo de un grupo sin `include_in_total = false` |
 | type | text | **deprecada** (migración 0014: se relajó NOT NULL y se sacó el CHECK); no la lee ni la escribe el código nuevo. Se elimina en una migración futura |
 | valuation_mode | text NOT NULL | 'contributed' (vale lo aportado, nunca pide valuación; hoy efectivo), 'manual' (valuación periódica), o 'live' (precio automático del instrumento enganchado en `instrument_id`) (CHECK). Migración 0015: antes vivía en asset_types; ahora es del activo — moverlo de bolsa no la afecta |
 | coingecko_id | text | **deprecada** (migración 0025): la reemplazó `instrument_id`. El frontend ya no la lee ni la escribe — el formulario de activo elige el instrumento de un buscador sobre `instruments` y guarda su id. Las filas viejas la conservan porque la 0025 la usa para emparejar; se elimina en una migración futura |

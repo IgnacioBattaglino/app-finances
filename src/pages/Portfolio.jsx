@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
-import AssetGroup from '../components/AssetGroup.jsx'
+import AssetGroup, { AssetRow } from '../components/AssetGroup.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
 import Gain from '../components/Gain.jsx'
 import Money from '../components/Money.jsx'
 import FormError from '../components/form/FormError.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
-import { needsManualValuation, groupAssetsByType } from '../lib/portfolio.js'
+import {
+  needsManualValuation,
+  portfolioEntries,
+  sortPortfolioEntries,
+  PORTFOLIO_SORTS,
+} from '../lib/portfolio.js'
+import { readStoredPortfolioSortId, storePortfolioSortId } from '../lib/portfolioSort.js'
 import { getArchivedAssets, restoreAsset } from '../lib/assets.js'
 import { formatUSD } from '../lib/format.js'
 
@@ -35,6 +41,15 @@ function Portfolio() {
 
   const [assetModal, setAssetModal] = useState({ open: false, editing: null })
   const [valuationModal, setValuationModal] = useState({ open: false, assets: [] })
+
+  // El orden de la lista se recuerda por dispositivo, como el acento y el modo
+  // claro/oscuro (ver lib/portfolioSort.js). Se lee una sola vez, al montar.
+  const [sortId, setSortId] = useState(readStoredPortfolioSortId)
+
+  function handleSortChange(id) {
+    setSortId(id)
+    storePortfolioSortId(id)
+  }
 
   const [archivedAssets, setArchivedAssets] = useState([])
   const [archivedError, setArchivedError] = useState(null)
@@ -74,8 +89,9 @@ function Portfolio() {
 
   // Se agrupa desde los activos, no desde los grupos: así ningún activo puede
   // quedar fuera de la lista mientras sigue sumando al total (ver
-  // groupAssetsByType).
-  const groups = groupAssetsByType(assets, assetTypes)
+  // groupAssetsByType). Los activos sin grupo entran como piezas sueltas al
+  // mismo nivel que los grupos, y el orden elegido los mezcla a todos juntos.
+  const entries = sortPortfolioEntries(portfolioEntries(assets, assetTypes), sortId, valuations)
 
   function closeModals() {
     setAssetModal({ open: false, editing: null })
@@ -235,18 +251,54 @@ function Portfolio() {
             </p>
           )}
 
-          {/* Grupos por bolsa. En desktop entran de a dos: son bloques
-              independientes, no una secuencia que haya que leer en orden. */}
+          {/* Selector de orden. Aparece recién con dos entradas: ordenar una
+              sola tarjeta no ordena nada. Un select nativo y no un segmentado:
+              cinco opciones no entran en el ancho de un teléfono. */}
+          {entries.length > 1 && (
+            <div className="flex items-center justify-end gap-2 px-1">
+              <label htmlFor="portfolio-sort" className="eyebrow">
+                Ordenar por
+              </label>
+              <select
+                id="portfolio-sort"
+                value={sortId}
+                onChange={(e) => handleSortChange(e.target.value)}
+                className="bg-transparent text-[15px] font-medium text-accent-ink outline-none"
+              >
+                {PORTFOLIO_SORTS.map((sort) => (
+                  <option key={sort.id} value={sort.id}>
+                    {sort.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Grupos y activos sueltos, al mismo nivel. En desktop entran de a
+              dos: son bloques independientes, no una secuencia que haya que
+              leer en orden. Un activo sin grupo es su propia tarjeta, con la
+              MISMA fila que tendría dentro de un grupo (AssetRow) — sin
+              encabezado, porque no hay nada que encabezar. */}
           <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
-            {groups.map((group) => (
-              <AssetGroup
-                key={group.assetType.id}
-                assetType={group.assetType}
-                assets={group.assets}
-                valuations={valuations}
-                contributions={contributions}
-              />
-            ))}
+            {entries.map((entry) =>
+              entry.kind === 'group' ? (
+                <AssetGroup
+                  key={`group:${entry.assetType.id}`}
+                  assetType={entry.assetType}
+                  assets={entry.assets}
+                  valuations={valuations}
+                  contributions={contributions}
+                />
+              ) : (
+                <div key={`asset:${entry.asset.id}`} className="list">
+                  <AssetRow
+                    asset={entry.asset}
+                    valuation={valuations[entry.asset.id]}
+                    contributions={contributions}
+                  />
+                </div>
+              ),
+            )}
           </div>
         </div>
       )}

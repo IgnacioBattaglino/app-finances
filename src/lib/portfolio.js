@@ -165,6 +165,9 @@ export function needsManualValuation(asset) {
 // Los grupos archivados que todavía tienen activos activos van al final y se
 // marcan (ver AssetGroup): archivar un grupo con activos adentro no es un
 // estado normal, pero mientras exista tiene que verse.
+//
+// Un activo con asset_type_id null NO entra acá: no tiene grupo porque el
+// usuario decidió que no lo tenga, y se muestra suelto (ver portfolioEntries).
 export function groupAssetsByType(assets, assetTypes) {
   const order = new Map(assetTypes.map((at, i) => [at.id, i]))
   const byId = new Map(assetTypes.map((at) => [at.id, at]))
@@ -172,10 +175,13 @@ export function groupAssetsByType(assets, assetTypes) {
   const groups = new Map()
   for (const asset of assets) {
     const id = asset.asset_type_id
+    if (id == null) continue
     if (!groups.has(id)) {
       // El grupo sale del listado si está ahí; si no (archivado), del que
       // viene embebido en el activo. Sin ninguno de los dos igual se muestra:
-      // un grupo sin nombre es raro, un activo perdido es un número mal.
+      // un grupo sin nombre es raro, un activo perdido es un número mal. Este
+      // último caso es un id que no resuelve contra nada (no un activo sin
+      // grupo, que ya quedó afuera del loop).
       const assetType = byId.get(id) ??
         asset.asset_type ?? { id, name: 'Sin grupo', include_in_total: true }
       groups.set(id, { assetType, assets: [] })
@@ -192,6 +198,87 @@ export function groupAssetsByType(assets, assetTypes) {
     if (oa !== ob) return oa - ob
     return String(a.assetType.name).localeCompare(String(b.assetType.name))
   })
+}
+
+// Las entradas de NIVEL SUPERIOR del portafolio: cada grupo con sus activos y,
+// al mismo nivel, cada activo sin grupo como pieza suelta. Es lo que la
+// pantalla dibuja y lo que ordenan los modos de orden (sortPortfolioEntries):
+// un grupo y un activo suelto compiten en la misma lista.
+//
+// Un activo suelto no se envuelve en un grupo fabricado "Sin grupo": un
+// encabezado que repite el nombre de su única fila, con su mismo total, no
+// dice nada. La forma de cada entrada:
+//
+//   { kind: 'group', assetType, assets }  |  { kind: 'asset', asset }
+export function portfolioEntries(assets, assetTypes) {
+  const groups = groupAssetsByType(assets, assetTypes).map((group) => ({ kind: 'group', ...group }))
+  // Los sueltos al final: el orden manual respeta el display_order de los
+  // grupos, y un activo sin grupo no tiene una posición propia que respetar.
+  const loose = assets.filter((a) => a.asset_type_id == null).map((asset) => ({ kind: 'asset', asset }))
+  return [...groups, ...loose]
+}
+
+// Modos de orden de esa lista. El id es lo que se guarda por dispositivo (ver
+// lib/portfolioSort.js); el nombre es lo que dice el selector.
+export const PORTFOLIO_SORTS = [
+  { id: 'manual', name: 'Orden manual' },
+  { id: 'name', name: 'Alfabético' },
+  { id: 'value-asc', name: 'Monto ↑' },
+  { id: 'value-desc', name: 'Monto ↓' },
+  { id: 'gain-desc', name: 'Rendimiento ↓' },
+]
+
+function entryName(entry) {
+  return entry.kind === 'group' ? entry.assetType.name : entry.asset.name
+}
+
+// Cuánto pesa la entrada: el total del grupo, o el valor del activo suelto.
+// Un activo sin valuación aporta 0 acá — para ORDENAR hace falta un número, y
+// el "sin valuación" ya se ve en la fila misma.
+function entryValue(entry, valuations) {
+  const assets = entry.kind === 'group' ? entry.assets : [entry.asset]
+  return assets.reduce((sum, a) => sum + (valuations[a.id]?.value ?? 0), 0)
+}
+
+// Rendimiento comparable entre entradas: el % del grupo, o el del activo
+// suelto. Se calcula con computePortfolioGain, el mismo que muestran la
+// cabecera y cada grupo, así que hereda sus exclusiones (sin valuación,
+// valuación desactualizada, activos que no rinden). null cuando no queda nada
+// con qué calcularlo: esas entradas van al final, no al fondo del ranking.
+function entryGainRate(entry, valuations) {
+  const assets = entry.kind === 'group' ? entry.assets : [entry.asset]
+  const { contributed, gain } = computePortfolioGain(assets, valuations)
+  return contributed > 0 ? gain / contributed : null
+}
+
+// Ordena grupos y activos sueltos JUNTOS, en la misma lista. Función pura: no
+// muta `entries` y no lee nada de afuera. Un id desconocido cae en el orden
+// manual, igual que un acento guardado que ya no existe cae al default.
+//
+// Los empates conservan el orden manual porque Array.sort es estable por
+// especificación: dos grupos con el mismo total quedan en su display_order.
+export function sortPortfolioEntries(entries, sortId, valuations) {
+  const list = [...entries]
+  switch (sortId) {
+    case 'name':
+      return list.sort((a, b) => entryName(a).localeCompare(entryName(b), 'es'))
+    case 'value-asc':
+      return list.sort((a, b) => entryValue(a, valuations) - entryValue(b, valuations))
+    case 'value-desc':
+      return list.sort((a, b) => entryValue(b, valuations) - entryValue(a, valuations))
+    case 'gain-desc':
+      return list.sort((a, b) => {
+        const ra = entryGainRate(a, valuations)
+        const rb = entryGainRate(b, valuations)
+        if (ra === null || rb === null) {
+          if (ra === rb) return 0
+          return ra === null ? 1 : -1
+        }
+        return rb - ra
+      })
+    default:
+      return list
+  }
 }
 
 // Activos que entran en los totales generales del portafolio: los de bolsas
