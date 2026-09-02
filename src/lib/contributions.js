@@ -26,16 +26,22 @@ function toRow({
   }
 }
 
+// [inicio, fin) del mes, como texto 'YYYY-MM-DD': las fechas de la base son
+// date planas y se comparan como texto, sin pasar por Date (que las
+// interpretaría en UTC y podría correrlas un día).
+function monthRange(month, year) {
+  const start = `${year}-${String(month).padStart(2, '0')}-01`
+  const next =
+    month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`
+  return { start, next }
+}
+
 export async function getContributions({ assetId, month, year, limit, offset = 0 } = {}) {
   let query = supabase.from('contributions').select('*')
 
   if (assetId) query = query.eq('asset_id', assetId)
   if (month && year) {
-    const start = `${year}-${String(month).padStart(2, '0')}-01`
-    const next =
-      month === 12
-        ? `${year + 1}-01-01`
-        : `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const { start, next } = monthRange(month, year)
     query = query.gte('date', start).lt('date', next)
   }
 
@@ -43,6 +49,30 @@ export async function getContributions({ assetId, month, year, limit, offset = 0
   if (limit != null) query = query.range(offset, offset + limit - 1)
 
   const { data, error } = await query
+  if (error) throw error
+  return data
+}
+
+// Las inversiones del mes que Movimientos muestra junto a los gastos e
+// ingresos: SOLO las que mueven el disponible (affects_liquid), que son las
+// que pasaron por el bolsillo en pesos. Un aporte "de afuera" no aparece —
+// no movió plata del usuario— y las dos patas de una transferencia quedan
+// afuera solas, porque create_transfer (migración 0017) las graba con
+// affects_liquid = false.
+//
+// El nombre del activo viene por join: la lista tiene que poder decir "a qué"
+// se invirtió, y el id solo sirve para navegar al detalle.
+export async function getLiquidContributions({ month, year }) {
+  const { start, next } = monthRange(month, year)
+
+  const { data, error } = await supabase
+    .from('contributions')
+    .select('id, date, direction, amount_usd, mep_rate, created_at, asset:assets(id, name)')
+    .eq('affects_liquid', true)
+    .gte('date', start)
+    .lt('date', next)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
   if (error) throw error
   return data
 }

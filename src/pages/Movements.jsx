@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import BinaryChoice from '../components/form/BinaryChoice.jsx'
 import EditIcon from '../components/EditIcon.jsx'
 import FormError from '../components/form/FormError.jsx'
 import { getTransactions, groupExpensesByCategory } from '../lib/transactions.js'
+import { getLiquidContributions } from '../lib/contributions.js'
+import { contributionArs, contributionLabel, mergeMovements, monthTotals } from '../lib/movements.js'
 import { getCategories } from '../lib/categories.js'
 import { formatARS, formatMonthYear, formatDay } from '../lib/format.js'
 
@@ -43,11 +46,75 @@ function PlusIcon() {
   )
 }
 
+// Las dos filas de la lista comparten caja: son el mismo tipo de renglón, lo
+// que cambia es qué pasa al tocarlas.
+const ROW_CLASS =
+  'flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist'
+
+// Gasto o ingreso: se toca para editarlo (de ahí el lápiz).
+function TransactionRow({ tx, onEdit }) {
+  return (
+    <button type="button" onClick={onEdit} className={ROW_CLASS}>
+      <div className="min-w-0">
+        <p className="flex items-center gap-1.5 truncate text-[17px]">
+          <span className="truncate">
+            {tx.category?.name ?? 'Sin categoría'}
+            {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
+          </span>
+          <EditIcon />
+        </p>
+        <p className="mt-0.5 text-[13px] text-ink-soft">{formatDay(tx.date)}</p>
+      </div>
+      <span
+        className={`font-money shrink-0 text-[17px] font-medium ${
+          tx.kind === 'expense' ? 'text-clay' : 'text-gain'
+        }`}
+      >
+        {tx.kind === 'expense' ? '−' : '+'}
+        {formatARS(tx.amount_ars)}
+      </span>
+    </button>
+  )
+}
+
+// Inversión o retiro: acá es de solo lectura y lleva al detalle del activo,
+// que es donde se edita (de ahí el chevron en vez del lápiz). El monto va en
+// pesos, como el resto de la lista, y sin color: no es una pérdida ni una
+// ganancia, es plata que cambió de lugar. El signo dice para qué lado.
+function InvestmentRow({ contribution: c }) {
+  const isOut = c.direction === 'out'
+  return (
+    <Link to={`/portafolio/${c.asset?.id}`} className={ROW_CLASS}>
+      <div className="min-w-0">
+        <p className="flex items-center gap-1.5 truncate text-[17px]">
+          <span className="truncate">
+            {contributionLabel(c)}
+            <span className="text-ink-soft"> · {c.asset?.name ?? 'Activo'}</span>
+          </span>
+          <span className="shrink-0 text-ink-faint">
+            <Arrow direction="right" />
+          </span>
+        </p>
+        <p className="mt-0.5 text-[13px] text-ink-soft">{formatDay(c.date)}</p>
+      </div>
+      <span className="font-money shrink-0 text-[17px] font-medium">
+        {isOut ? '+' : '−'}
+        {formatARS(contributionArs(c))}
+      </span>
+    </Link>
+  )
+}
+
 function Movements() {
   // Movimientos del mes navegado, sin filtrar por tipo/categoría: de acá
   // salen tanto los totales y el desglose (que describen el mes completo)
   // como la lista filtrada de abajo (filtrada en cliente).
   const [monthItems, setMonthItems] = useState([])
+  // Las inversiones del mismo mes (contributions que mueven el disponible).
+  // Van en su propio estado y no mezcladas en monthItems: el desglose "En qué
+  // se fue" recorre monthItems buscando gastos, y una inversión no es un
+  // gasto — meterlas ahí las metería en el desglose.
+  const [monthInvestments, setMonthInvestments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -62,7 +129,16 @@ function Movements() {
     setLoading(true)
     setError(null)
     try {
-      setMonthItems(await getTransactions({ month, year }))
+      // Las dos fuentes en paralelo. Van en el mismo try a propósito: acá no
+      // hay un número principal que valga la pena salvar si la otra mitad
+      // falla — un mes al que le faltan las inversiones muestra un balance
+      // equivocado, y es peor que decir que no se pudo cargar.
+      const [transactions, investments] = await Promise.all([
+        getTransactions({ month, year }),
+        getLiquidContributions({ month, year }),
+      ])
+      setMonthItems(transactions)
+      setMonthInvestments(investments)
     } catch (e) {
       setError({ message: 'No se pudieron cargar los movimientos.', detail: e.message })
     } finally {
@@ -131,18 +207,24 @@ function Movements() {
   }
 
   // La lista de abajo respeta los filtros de tipo/categoría; los totales y el
-  // desglose (más arriba) se calculan sobre monthItems, sin filtrar: describen
-  // el mes navegado completo, no lo que quedó visible en la lista.
-  const items = monthItems
+  // desglose (más arriba) se calculan sobre el mes entero, sin filtrar:
+  // describen el mes navegado completo, no lo que quedó visible en la lista.
+  const filteredTransactions = monthItems
     .filter((t) => kind === 'all' || t.kind === kind)
     .filter((t) => !categoryId || t.category_id === categoryId)
 
-  const expenses = monthItems
-    .filter((t) => t.kind === 'expense')
-    .reduce((sum, t) => sum + Number(t.amount_ars), 0)
-  const incomes = monthItems
-    .filter((t) => t.kind === 'income')
-    .reduce((sum, t) => sum + Number(t.amount_ars), 0)
+  // Una inversión no es un gasto ni un ingreso, así que los filtros de tipo la
+  // dejan afuera en vez de meterla arbitrariamente en uno de los dos; el de
+  // categoría también, porque no tiene categoría que pueda coincidir. En
+  // "Todos" y sin categoría elegida, aparece. Los tres renglones de arriba no
+  // se mueven: siguen describiendo el mes completo.
+  const showInvestments = kind === 'all' && !categoryId
+  const items = mergeMovements(filteredTransactions, showInvestments ? monthInvestments : [])
+
+  const { expenses, incomes, invested, balance } = monthTotals({
+    transactions: monthItems,
+    contributions: monthInvestments,
+  })
   const hasExtraFilters = kind !== 'all' || categoryId !== ''
   const categoryBreakdown = groupExpensesByCategory(monthItems)
 
@@ -204,8 +286,10 @@ function Movements() {
 
           {!error && !loading && (
             <>
-              {/* Los tres números del mes. Gastos e ingresos llevan su color;
-                  el balance no, porque es una resta y su signo ya lo dice. */}
+              {/* Los números del mes. Gastos e ingresos llevan su color; lo
+                  invertido no, porque no es ni una pérdida ni una ganancia
+                  —es plata que cambió de lugar—, y el balance tampoco, porque
+                  es una resta y su signo ya lo dice. */}
               <div className="surface divide-y divide-line">
                 <div className="flex items-baseline justify-between px-4 py-3">
                   <span className="text-[15px] text-ink-soft">Gastos</span>
@@ -220,9 +304,15 @@ function Movements() {
                   </span>
                 </div>
                 <div className="flex items-baseline justify-between px-4 py-3">
+                  <span className="text-[15px] text-ink-soft">Invertido</span>
+                  <span className="font-money text-[17px] font-semibold">
+                    {formatARS(invested)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between px-4 py-3">
                   <span className="text-[15px] font-medium">Balance</span>
                   <span className="font-money text-[17px] font-semibold">
-                    {formatARS(incomes - expenses)}
+                    {formatARS(balance)}
                   </span>
                 </div>
               </div>
@@ -288,38 +378,22 @@ function Movements() {
           ) : (
             !error && (
               <div className="list">
-                {items.map((tx) => (
-                  <button
-                    key={tx.id}
-                    type="button"
-                    onClick={() => {
-                      setEditing(tx)
-                      setModalOpen(true)
-                    }}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
-                  >
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-1.5 truncate text-[17px]">
-                        <span className="truncate">
-                          {tx.category?.name ?? 'Sin categoría'}
-                          {tx.description && (
-                            <span className="text-ink-soft"> · {tx.description}</span>
-                          )}
-                        </span>
-                        <EditIcon />
-                      </p>
-                      <p className="mt-0.5 text-[13px] text-ink-soft">{formatDay(tx.date)}</p>
-                    </div>
-                    <span
-                      className={`font-money shrink-0 text-[17px] font-medium ${
-                        tx.kind === 'expense' ? 'text-clay' : 'text-gain'
-                      }`}
-                    >
-                      {tx.kind === 'expense' ? '−' : '+'}
-                      {formatARS(tx.amount_ars)}
-                    </span>
-                  </button>
-                ))}
+                {/* La key lleva el prefijo de la fuente: son dos tablas con
+                    uuid propios y nada garantiza que no se crucen. */}
+                {items.map(({ source, row }) =>
+                  source === 'contribution' ? (
+                    <InvestmentRow key={`c-${row.id}`} contribution={row} />
+                  ) : (
+                    <TransactionRow
+                      key={`t-${row.id}`}
+                      tx={row}
+                      onEdit={() => {
+                        setEditing(row)
+                        setModalOpen(true)
+                      }}
+                    />
+                  ),
+                )}
               </div>
             )
           )}
