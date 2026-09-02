@@ -26,3 +26,6 @@ npm-debug.log*
 
 # Artefactos de Playwright MCP (snapshots, logs de consola de pruebas manuales)
 .playwright-mcp/
+
+# Relevamientos de trabajo (notas locales, no forman parte del repo)
+docs/relevamiento/

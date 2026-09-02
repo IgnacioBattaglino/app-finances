@@ -77,9 +77,19 @@ const dayYear = new Intl.DateTimeFormat('es-AR', {
 
 // Igual que formatDay, pero con año — para cuando la fecha no es obvia por
 // contexto (ej. CollapsedDateField mostrando una fecha que no es hoy).
+//
+// Devuelve cadena vacía si no hay fecha o si no es una "YYYY-MM-DD" válida, en
+// vez de romper: Intl.DateTimeFormat.format tira RangeError con un Invalid
+// Date, y un input de fecha a medio completar emite '' como valor normal. Un
+// campo vacío no puede tumbar la pantalla entera; quien llama decide qué
+// mostrar en su lugar.
 export function formatDayYear(date) {
+  if (typeof date !== 'string') return ''
   const [y, m, d] = date.split('-').map(Number)
-  return dayYear.format(new Date(y, m - 1, d))
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return ''
+  const parsed = new Date(y, m - 1, d)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return dayYear.format(parsed)
 }
 
 export function todayISO() {

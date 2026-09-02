@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatARS, formatUSD, splitMoney } from './format.js'
+import { formatARS, formatUSD, splitMoney, formatDayYear } from './format.js'
 
 // splitMoney es la base del componente Money: si parte mal un monto, el número
 // que se ve en pantalla queda mal escrito (símbolo pegado, decimales del
@@ -48,5 +48,27 @@ describe('splitMoney', () => {
 
   it('un texto sin cifras no rompe', () => {
     expect(splitMoney('—')).toEqual({ sign: '', symbol: '—', integer: '', decimals: '' })
+  })
+})
+
+// formatDayYear recibe fechas de inputs y de la base; con una fecha vacía o
+// rota tiene que devolver cadena vacía en vez de tirar el RangeError de Intl,
+// que se llevaba puesta la pantalla que la estaba mostrando.
+describe('formatDayYear', () => {
+  it('formatea una fecha ISO con año', () => {
+    const out = formatDayYear('2024-03-15')
+    expect(out).toContain('2024')
+    expect(out).toContain('15')
+  })
+
+  it('devuelve cadena vacía con fecha vacía o ausente', () => {
+    expect(formatDayYear('')).toBe('')
+    expect(formatDayYear(undefined)).toBe('')
+    expect(formatDayYear(null)).toBe('')
+  })
+
+  it('devuelve cadena vacía con una fecha incompleta o no numérica', () => {
+    expect(formatDayYear('2024-03')).toBe('')
+    expect(formatDayYear('cualquier cosa')).toBe('')
   })
 })
