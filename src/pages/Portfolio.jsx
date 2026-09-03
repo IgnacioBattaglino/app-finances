@@ -279,7 +279,7 @@ function Portfolio() {
               leer en orden. Un activo sin grupo es su propia tarjeta, con la
               MISMA fila que tendría dentro de un grupo (AssetRow) — sin
               encabezado, porque no hay nada que encabezar. */}
-          <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:items-start">
             {entries.map((entry) =>
               entry.kind === 'group' ? (
                 <AssetGroup

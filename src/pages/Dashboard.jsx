@@ -253,7 +253,13 @@ function Dashboard() {
 
       {/* Los tres mundos, uno al lado del otro y del mismo tamaño. Nunca se
           suman ni se apilan en jerarquía: son magnitudes separadas. */}
-      <div className={`grid gap-3 ${hasDebts ? 'lg:grid-cols-3' : 'sm:grid-cols-2'}`}>
+      {/* `grid-cols-1` es la columna del celular y tiene que estar declarada:
+          sin ella la grilla cae en una columna implícita de `auto`, que no
+          puede achicarse por debajo de su min-content. Acá ese min-content es
+          el monto de la tarjeta, que en `Money` es un inline-flex y por lo
+          tanto no corta nunca — con un número grande la grilla se pasa del
+          ancho del teléfono. Mismo motivo que en Movimientos. */}
+      <div className={`grid grid-cols-1 gap-3 ${hasDebts ? 'lg:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <SummaryCard
           label="Dinero disponible"
           currency="ARS"
@@ -295,7 +301,7 @@ function Dashboard() {
 
       {/* En desktop la curva y los gastos conviven a lo ancho; en el celular
           van uno abajo del otro, que es el único orden posible. */}
-      <div className="mt-3 grid gap-3 xl:grid-cols-3 xl:items-start">
+      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-3 xl:items-start">
         {/* Curva de evolución del portafolio. Sin ninguna operación todavía no
             hay nada que graficar — ni carga el chunk de recharts, ni muestra
             el %. El error de usePortfolio ya se ve arriba en "Dinero

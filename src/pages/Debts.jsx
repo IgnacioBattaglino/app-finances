@@ -239,7 +239,7 @@ function Debts() {
           </div>
 
           {active.length > 0 && (
-            <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:items-start">
               {active.map((debt) => (
                 <DebtCard
                   key={debt.id}
@@ -277,7 +277,7 @@ function Debts() {
                   saldada por error quedaba sin arreglo posible y encima no se
                   podía eliminar (el borrado exige borrar sus pagos antes). */}
               {showSettled && (
-                <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+                <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:items-start">
                   {settled.map((debt) => (
                     <DebtCard
                       key={debt.id}

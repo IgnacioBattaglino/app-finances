@@ -270,7 +270,7 @@ function AssetDetail() {
           </button>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
           <div className="space-y-3">
           <div className="surface px-5 py-5">
             {/* Sin valuación no hay valor que mostrar: un "US$ 0" se lee como

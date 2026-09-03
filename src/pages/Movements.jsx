@@ -248,7 +248,18 @@ function Movements() {
           lecturas distintas del mismo mes y conviene tenerlas a la vista al
           mismo tiempo. En el celular no hay ancho para eso y van una debajo
           de la otra, en ese orden. */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-8">
+      {/* `grid-cols-1` no es decorativo ni redundante: sin él, en el celular
+          esta grilla no declara ninguna columna y cae en una columna IMPLÍCITA
+          de `auto`, cuyo ancho mínimo es el min-content de su contenido. El
+          min-content de una fila de la lista es su etiqueta ENTERA (el
+          `truncate` de ROW_CLASS es white-space: nowrap, así que el texto no
+          corta) más el monto, que es shrink-0: con un nombre largo eso da más
+          que el ancho del teléfono, la columna crece, y la pantalla entera
+          —navegador de mes, totales y desglose incluidos— queda más ancha que
+          el viewport y se scrollea de costado. `grid-cols-1` es
+          repeat(1, minmax(0, 1fr)): el 0 deja que la columna baje del
+          min-content y ahí el truncate hace su trabajo. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-8">
         <section className="space-y-3 lg:sticky lg:top-10 lg:self-start">
           {/* Navegador de mes */}
           <div className="surface flex items-center justify-between px-2 py-1.5">
