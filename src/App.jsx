@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './hooks/useAuth.jsx'
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import Login from './pages/Login.jsx'
+import ResetPassword from './pages/ResetPassword.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Movements from './pages/Movements.jsx'
 import Portfolio from './pages/Portfolio.jsx'
@@ -18,6 +20,23 @@ import ExportData from './pages/settings/ExportData.jsx'
 import Account from './pages/settings/Account.jsx'
 
 function App() {
+  const { passwordRecovery } = useAuth()
+
+  // El link de recuperación de Supabase no llega a una ruta nuestra: cae en el
+  // Site URL (el inicio) con el token en el hash (ver lib/supabase.js). Sin
+  // esto el usuario terminaba parado en Inicio, ya adentro con la sesión de
+  // recuperación y sin ninguna pantalla donde poner la contraseña nueva.
+  // Mientras dura ese flujo la app es una sola pantalla, así que las rutas
+  // normales ni se montan.
+  if (passwordRecovery) {
+    return (
+      <Routes>
+        <Route path="/nueva-contrasena" element={<ResetPassword />} />
+        <Route path="*" element={<Navigate to="/nueva-contrasena" replace />} />
+      </Routes>
+    )
+  }
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
