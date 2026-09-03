@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { earliestOperationDate, rangeFrom, trimLeadingZeros } from './portfolioSeries.js'
+import { earliestOperationDate, rangeFrom, trimLeadingZeros, resampleMonthly } from './portfolioSeries.js'
 
 describe('earliestOperationDate', () => {
   it('sin contribuciones → null', () => {
@@ -55,5 +55,38 @@ describe('trimLeadingZeros', () => {
   it('sin ceros al principio → devuelve la serie tal cual', () => {
     const series = [{ date: '2026-01-01', total_value: 50, contributed: 50 }]
     expect(trimLeadingZeros(series)).toEqual(series)
+  })
+})
+
+describe('resampleMonthly', () => {
+  it('varios meses completos + el mes en curso parcial: un punto por mes, el último de cada uno', () => {
+    const series = [
+      { date: '2026-06-05', total_value: 100, contributed: 100 },
+      { date: '2026-06-20', total_value: 110, contributed: 100 },
+      { date: '2026-06-30', total_value: 120, contributed: 100 },
+      { date: '2026-07-01', total_value: 121, contributed: 100 },
+      { date: '2026-07-15', total_value: 130, contributed: 110 },
+      { date: '2026-07-31', total_value: 140, contributed: 110 },
+      { date: '2026-08-01', total_value: 141, contributed: 110 },
+      { date: '2026-08-03', total_value: 145, contributed: 110 }, // hoy, mes en curso
+    ]
+    expect(resampleMonthly(series)).toEqual([
+      { date: '2026-06-30', total_value: 120, contributed: 100 },
+      { date: '2026-07-31', total_value: 140, contributed: 110 },
+      { date: '2026-08-03', total_value: 145, contributed: 110 },
+    ])
+  })
+
+  it('rango "3 meses" que cae dentro de un mismo mes → un solo punto, no rompe', () => {
+    const series = [
+      { date: '2026-08-01', total_value: 140, contributed: 110 },
+      { date: '2026-08-02', total_value: 142, contributed: 110 },
+      { date: '2026-08-03', total_value: 145, contributed: 110 },
+    ]
+    expect(resampleMonthly(series)).toEqual([{ date: '2026-08-03', total_value: 145, contributed: 110 }])
+  })
+
+  it('serie vacía → serie vacía', () => {
+    expect(resampleMonthly([])).toEqual([])
   })
 })

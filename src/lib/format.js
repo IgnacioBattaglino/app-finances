@@ -69,6 +69,16 @@ export function formatDay(date) {
   return dayShort.format(new Date(y, m - 1, d))
 }
 
+const monthShortYear = new Intl.DateTimeFormat('es-AR', { month: 'short', year: '2-digit' })
+
+// Eje X de un gráfico con un punto por mes (ej. las curvas resampleadas de
+// portfolioSeries.js): "ago 26" en vez de día+mes — el día ya no aporta nada
+// cuando cada punto ES un mes.
+export function formatMonthShortYear(date) {
+  const [y, m, d] = date.split('-').map(Number)
+  return monthShortYear.format(new Date(y, m - 1, d))
+}
+
 const dayYear = new Intl.DateTimeFormat('es-AR', {
   day: 'numeric',
   month: 'short',

@@ -43,3 +43,21 @@ export function trimLeadingZeros(series) {
   const idx = series.findIndex((row) => row.total_value !== 0 || row.contributed !== 0)
   return idx === -1 ? [] : series.slice(idx)
 }
+
+// Resamplea una serie diaria a un punto por mes calendario: para cada mes se
+// queda con la ÚLTIMA fila disponible (el mes en curso queda con la fila de
+// hoy, porque get_portfolio_series siempre llega hasta hoy). No promedia ni
+// agrega nada — para una curva de saldo acumulado el último valor del mes ES
+// el dato del mes, no un promedio de sus días.
+//
+// Un Map conserva el orden de inserción de sus claves: como `series` llega
+// ordenada por fecha ascendente, la primera vez que aparece cada mes fija su
+// posición y los set() siguientes solo actualizan el valor sin moverla — el
+// resultado sale ordenado sin ordenar de nuevo.
+export function resampleMonthly(series) {
+  const byMonth = new Map()
+  for (const row of series) {
+    byMonth.set(row.date.slice(0, 7), row)
+  }
+  return Array.from(byMonth.values())
+}

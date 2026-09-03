@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  ResponsiveContainer,
-  ComposedChart,
-  Area,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { useTheme } from '../hooks/useTheme.jsx'
 import { readChartColors } from '../lib/chartColors.js'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import FormError from './form/FormError.jsx'
 import InfoButton from './InfoButton.jsx'
-import { getPortfolioSeries, earliestOperationDate, rangeFrom, trimLeadingZeros } from '../lib/portfolioSeries.js'
-import { formatUSD, formatPercent, formatCompactNumber, formatDay, formatDayYear, todayISO } from '../lib/format.js'
+import Money from './Money.jsx'
+import {
+  getPortfolioSeries,
+  earliestOperationDate,
+  rangeFrom,
+  trimLeadingZeros,
+  resampleMonthly,
+} from '../lib/portfolioSeries.js'
+import { formatUSD, formatPercent, formatCompactNumber, formatMonthShortYear, formatDayYear, todayISO } from '../lib/format.js'
 
 // Recharts pinta en SVG, así que necesita valores y no clases de Tailwind.
 // Los colores se leen de las mismas variables CSS que usa el resto de la app
@@ -29,54 +27,78 @@ const RANGE_OPTIONS = [
   { value: 'todo', label: 'Todo' },
 ]
 
-function ChartTooltip({ active, payload, label, colors }) {
+function ChartTooltip({ active, payload, label, color, seriesLabel, dataKey }) {
   if (!active || !payload?.length) return null
-  const value = payload.find((p) => p.dataKey === 'total_value')?.value
-  const contributed = payload.find((p) => p.dataKey === 'contributed')?.value
+  const value = payload.find((p) => p.dataKey === dataKey)?.value
   return (
     <div className="surface px-3 py-2.5 text-[13px] shadow-[var(--shadow-raised)]">
       <p className="mb-1.5 font-semibold">{formatDayYear(label)}</p>
       <p className="flex items-center gap-1.5">
-        <span className="inline-block h-0.5 w-3.5 rounded-full" style={{ backgroundColor: colors.accent }} />
-        <span className="text-ink-soft">Dinero invertido</span>
+        <span className="inline-block h-0.5 w-3.5 rounded-full" style={{ backgroundColor: color }} />
+        <span className="text-ink-soft">{seriesLabel}</span>
         <span className="font-money font-semibold">{formatUSD(value)}</span>
       </p>
-      <p className="flex items-center gap-1.5">
-        <span className="inline-block h-0.5 w-3.5 border-t border-dashed" style={{ borderColor: colors.inkFaint }} />
-        <span className="text-ink-soft">Aportado</span>
-        <span className="font-money font-semibold">{formatUSD(contributed)}</span>
-      </p>
     </div>
   )
 }
 
-function Legend({ colors }) {
+// Tarjeta con un único gráfico de línea mensual. Se dibuja solo con 2+
+// puntos: con menos (ej. un rango "3 meses" que cae dentro del mismo mes
+// calendario) no hay línea que trazar, así que se muestra el estado vacío en
+// vez de arriesgar un gráfico roto o engañoso con un solo punto.
+function ChartCard({ eyebrow, data, dataKey, color, colors, seriesLabel, footer }) {
+  const hasLine = data.length >= 2
   return (
-    <div className="flex items-center gap-4 text-[13px] text-ink-soft">
-      <span className="flex items-center gap-1.5">
-        <span
-          className="inline-block h-0.5 w-4 rounded-full"
-          style={{ backgroundColor: colors.accent }}
-        />
-        Dinero invertido
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="inline-block h-0.5 w-4 border-t border-dashed" style={{ borderColor: colors.inkFaint }} />
-        Aportado
-      </span>
+    <div className="surface px-5 py-4">
+      <span className="eyebrow">{eyebrow}</span>
+      {hasLine ? (
+        <div className="mt-3">
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke={colors.line} strokeWidth={1} />
+              <XAxis
+                dataKey="date"
+                tickFormatter={formatMonthShortYear}
+                tick={{ fontSize: 11, fill: colors.inkFaint }}
+                axisLine={false}
+                tickLine={false}
+                minTickGap={24}
+              />
+              <YAxis
+                tickFormatter={formatCompactNumber}
+                tick={{ fontSize: 11, fill: colors.inkFaint }}
+                axisLine={false}
+                tickLine={false}
+                width={36}
+              />
+              <Tooltip content={<ChartTooltip color={color} seriesLabel={seriesLabel} dataKey={dataKey} />} />
+              <Line dataKey={dataKey} stroke={color} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="mt-3 flex h-[200px] items-center justify-center text-center text-[15px] text-ink-soft">
+          Todavía no hay suficientes puntos para graficar este rango.
+        </div>
+      )}
+      {footer}
     </div>
   )
 }
 
-// Curva de evolución del portafolio (get_portfolio_series) + el % de
-// rendimiento acumulado. El % sale de la MISMA serie (último día:
-// total_value − contributed), no de usePortfolio — la serie dibuja TODO
-// (incluye archivados, precio de cierre — ver migración 0022), así que
-// mezclar un % acotado (el de Portafolio) con una curva completa daba
-// resultados contradictorios entre sí (brecha positiva con % negativo).
-// Ahora el mismo número maneja el color del área Y el %: no pueden
-// contradecirse. A cambio, este % puede no coincidir con el "Rendimiento" de
-// Portafolio — es intencional, miden universos distintos.
+// Curva de evolución del portafolio (get_portfolio_series), resampleada a un
+// punto por mes (ver resampleMonthly) y separada en dos gráficos porque
+// "aportado" y "valor" son preguntas distintas: cuánto puse vs. cuánto vale
+// hoy lo que puse. Comparten un solo selector de rango.
+//
+// El % de rendimiento sale de la MISMA serie (último punto: total_value −
+// contributed), no de usePortfolio — la serie dibuja TODO (incluye
+// archivados, precio de cierre — ver migración 0022), así que mezclar un %
+// acotado (el de Portafolio) con una curva completa daba resultados
+// contradictorios entre sí (brecha positiva con % negativo). Ahora el mismo
+// número maneja el color de la línea Y el %: no pueden contradecirse. A
+// cambio, este % puede no coincidir con el "Rendimiento" de Portafolio — es
+// intencional, miden universos distintos.
 //
 // Excepción (misma regla que Portafolio, ver hasOperationsAfter en
 // portfolio.js): con al menos un activo de valuación desactualizada, ese
@@ -118,15 +140,17 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
     load()
   }, [load])
 
-  // Siempre el último día disponible (hoy), sin importar el rango elegido:
-  // trimLeadingZeros solo recorta el principio de la serie, nunca la punta.
-  const last = series && series.length > 0 ? series.at(-1) : null
+  const monthly = useMemo(() => (series ? resampleMonthly(series) : []), [series])
+
+  // Siempre el último punto disponible (hoy), sin importar el rango elegido:
+  // trimLeadingZeros solo recorta el principio de la serie, y resampleMonthly
+  // conserva la última fila del mes en curso, que ya es la de hoy.
+  const last = monthly.length > 0 ? monthly.at(-1) : null
   const gain = last ? last.total_value - last.contributed : null
   const pct = last && last.contributed > 0 ? (gain / last.contributed) * 100 : null
   const hasOutdated = outdatedAssetNames.length > 0
   const gainPositive = gain !== null ? gain >= 0 : true
   const gainColor = gainPositive ? 'text-gain' : 'text-clay'
-  const areaColor = gainPositive ? colors.gain : colors.clay
 
   if (error) {
     return (
@@ -139,139 +163,106 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
     )
   }
 
-  const hasLine = !loading && series && series.length >= 2
-
   return (
-    <div className="surface px-5 py-4">
+    <div>
       <span className="eyebrow">Evolución del portafolio</span>
 
-      {/* El selector de rango no se estira a lo ancho del gráfico en desktop:
-          son tres opciones cortas y un segmentado de 700px se lee como una
-          barra de navegación, no como un control. */}
+      {/* El selector de rango no se estira a lo ancho en desktop: son tres
+          opciones cortas y un segmentado de 700px se lee como una barra de
+          navegación, no como un control. Uno solo controla los dos gráficos. */}
       <div className="mt-3 md:max-w-xs">
         <BinaryChoice options={RANGE_OPTIONS} value={range} onChange={setRange} />
       </div>
 
-      {loading && (
-        <div className="mt-3 flex h-[220px] items-center justify-center text-[15px] text-ink-soft">
+      {loading ? (
+        <div className="mt-3 flex h-[200px] items-center justify-center text-[15px] text-ink-soft">
           Calculando…
         </div>
-      )}
-
-      {hasLine && (
-        <div className="mt-3">
-          <div className="mb-2">
-            <Legend colors={colors} />
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={series} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke={colors.line} strokeWidth={1} />
-              <XAxis
-                dataKey="date"
-                tickFormatter={formatDay}
-                tick={{ fontSize: 11, fill: colors.inkFaint }}
-                axisLine={false}
-                tickLine={false}
-                minTickGap={40}
-              />
-              <YAxis
-                tickFormatter={formatCompactNumber}
-                tick={{ fontSize: 11, fill: colors.inkFaint }}
-                axisLine={false}
-                tickLine={false}
-                width={36}
-              />
-              <Tooltip content={<ChartTooltip colors={colors} />} />
-              <Area
-                dataKey="contributed"
-                stackId="gap"
-                stroke="none"
-                fill="transparent"
-                isAnimationActive={false}
-                activeDot={false}
-              />
-              {/* Sombreado apilado: el área "contributed" es invisible y solo
-                  empuja la base; encima se sombrea el hueco hasta
-                  total_value. Un hueco negativo (pérdida) se recorta a 0 en
-                  vez de apilar un valor negativo — Recharts no lo dibuja
-                  "hacia abajo" de forma legible. */}
-              <Area
-                dataKey={(row) => Math.max(row.total_value - row.contributed, 0)}
-                stackId="gap"
-                stroke="none"
-                fill={areaColor}
-                fillOpacity={0.1}
-                isAnimationActive={false}
-                activeDot={false}
-              />
-              <Line
-                dataKey="contributed"
-                stroke={colors.inkFaint}
-                strokeWidth={1.5}
-                strokeDasharray="4 3"
-                dot={false}
-                isAnimationActive={false}
-              />
-              <Line
-                dataKey="total_value"
-                stroke={colors.accent}
-                strokeWidth={2.5}
-                dot={false}
-                isAnimationActive={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {hasOutdated ? (
-        <div className="notice mt-3 space-y-2 text-[13px]">
-          <p>
-            {outdatedAssetNames.length === 1
-              ? `«${outdatedAssetNames[0]}» tiene una valuación vieja, así que no podemos calcular cuánto ganaste.`
-              : `${outdatedAssetNames.length} activos tienen una valuación vieja, así que no podemos calcular cuánto ganaste.`}
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate('/portafolio')}
-            className="font-semibold underline"
-          >
-            Actualizar valuación
-          </button>
-        </div>
       ) : (
-        (pct !== null || (gain !== null && gain !== 0)) && (
-          <div className="mt-4 border-t border-line pt-3.5">
-            <div className="flex items-center gap-1.5">
-              <span className="eyebrow">Rendimiento acumulado</span>
-              <InfoButton
-                label="Rendimiento acumulado"
-                active={infoOpen}
-                onToggle={() => setInfoOpen((v) => !v)}
-              />
-            </div>
-            <p className="font-money mt-1.5 flex flex-wrap items-baseline gap-x-2.5">
-              {pct !== null && (
-                <span className={`text-[30px] leading-none font-semibold ${gainColor}`}>
-                  {gainPositive ? '+' : '−'}
-                  {formatPercent(Math.abs(pct))}
-                </span>
-              )}
-              <span className={`text-[15px] font-semibold ${gainColor}`}>
-                {gainPositive ? '+' : '−'}
-                {formatUSD(Math.abs(gain))}
-              </span>
-            </p>
-            {infoOpen && (
-              <p className="mt-2.5 rounded-[14px] bg-mist px-3.5 py-2.5 text-left text-[13px] leading-relaxed text-ink-soft">
-                Cuánto ganaste o perdiste sobre todo lo que aportaste, contando absolutamente todo lo
-                que tenés invertido (incluidos activos archivados o que no buscan rendimiento) — por eso
-                puede no coincidir con el "Rendimiento" de Portafolio, que mide un grupo más acotado. No
-                tiene en cuenta en qué momento pusiste cada aporte.
-              </p>
-            )}
-          </div>
-        )
+        // grid-cols-1 en la base es obligatorio, no decorativo: sin ella esta
+        // grilla cae en el celular en una columna implícita de `auto`, que no
+        // baja de su min-content y desborda el viewport (mismo bug que el fix
+        // de las siete grillas de layout — grid-cols-1 = repeat(1, minmax(0, 1fr))).
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <ChartCard
+            eyebrow="Aportado acumulado"
+            data={monthly}
+            dataKey="contributed"
+            color={colors.accent}
+            colors={colors}
+            seriesLabel="Aportado"
+            footer={
+              last && (
+                <div className="mt-4 border-t border-line pt-3.5">
+                  <span className="eyebrow">Aportado a hoy</span>
+                  <p className="mt-1.5 text-[28px] leading-none font-semibold">
+                    <Money value={last.contributed} />
+                  </p>
+                </div>
+              )
+            }
+          />
+
+          <ChartCard
+            eyebrow="Valor del portafolio"
+            data={monthly}
+            dataKey="total_value"
+            color={colors.accent}
+            colors={colors}
+            seriesLabel="Dinero invertido"
+            footer={
+              hasOutdated ? (
+                <div className="notice mt-4 space-y-2 text-[13px]">
+                  <p>
+                    {outdatedAssetNames.length === 1
+                      ? `«${outdatedAssetNames[0]}» tiene una valuación vieja, así que no podemos calcular cuánto ganaste.`
+                      : `${outdatedAssetNames.length} activos tienen una valuación vieja, así que no podemos calcular cuánto ganaste.`}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/portafolio')}
+                    className="font-semibold underline"
+                  >
+                    Actualizar valuación
+                  </button>
+                </div>
+              ) : (
+                (pct !== null || (gain !== null && gain !== 0)) && (
+                  <div className="mt-4 border-t border-line pt-3.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="eyebrow">Rendimiento acumulado</span>
+                      <InfoButton
+                        label="Rendimiento acumulado"
+                        active={infoOpen}
+                        onToggle={() => setInfoOpen((v) => !v)}
+                      />
+                    </div>
+                    <p className="font-money mt-1.5 flex flex-wrap items-baseline gap-x-2.5">
+                      {pct !== null && (
+                        <span className={`text-[28px] leading-none font-semibold ${gainColor}`}>
+                          {gainPositive ? '+' : '−'}
+                          {formatPercent(Math.abs(pct))}
+                        </span>
+                      )}
+                      <span className={`text-[15px] font-semibold ${gainColor}`}>
+                        {gainPositive ? '+' : '−'}
+                        {formatUSD(Math.abs(gain))}
+                      </span>
+                    </p>
+                    {infoOpen && (
+                      <p className="mt-2.5 rounded-[14px] bg-mist px-3.5 py-2.5 text-left text-[13px] leading-relaxed text-ink-soft">
+                        Cuánto ganaste o perdiste sobre todo lo que aportaste, contando absolutamente todo
+                        lo que tenés invertido (incluidos activos archivados o que no buscan rendimiento) —
+                        por eso puede no coincidir con el "Rendimiento" de Portafolio, que mide un grupo más
+                        acotado. No tiene en cuenta en qué momento pusiste cada aporte.
+                      </p>
+                    )}
+                  </div>
+                )
+              )
+            }
+          />
+        </div>
       )}
     </div>
   )
