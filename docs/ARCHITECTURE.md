@@ -88,7 +88,7 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | realized_gain | numeric(14,2) | (migración 0016) ganancia (positivo) o pérdida (negativo) que un retiro cristaliza por encima del capital aportado; se calcula y congela en el momento del retiro, no se recalcula si después se editan aportes anteriores. Null en entradas ('in') |
 | transfer_id | uuid | (migración 0016) vincula el retiro con el aporte que lo reinvierte en otro activo (transferencia, ver create_transfer). No es FK: dos filas comparten el mismo uuid, generado en el cliente. Sin unicidad — agrupa, no referencia |
 | via_mep | boolean | **columna presente, lógica pendiente** (migración 0017): marca de que la operación se hizo vía dólar MEP. Hoy ningún código la lee ni la escribe |
-| empties_asset | boolean | **columna presente, lógica pendiente** (migración 0017): marca explícita de liquidación (vaciado del activo). Hoy el formulario captura ese dato y lo descarta; cuando se persista, reemplazará la inferencia por posición de classifyOperations (ver portfolio.js). Hoy ningún código la lee ni la escribe |
+| empties_asset | boolean | marca explícita de liquidación (vaciado del activo). La columna nace en la migración 0017 y **se escribe y se lee desde ADR-011**: la declara el formulario que origina la operación (true en Liquidar, false en Retirar) y es uno de los dos insumos del `realized_gain` (ver decomposeWithdrawal en portfolio.js), así que sin guardarla no había con qué recalcularlo al editar — reeditar un retiro nacido de Liquidar le borraba la ganancia. Null en los aportes (no aplica), en las patas de una transferencia (create_transfer no la setea, y no hace falta: nunca vacían el activo ni se editan) y en los retiros anteriores a ADR-011, que **no se backfillean ni se infieren**: se leen como false, igual que antes. `classifyOperations` sigue infiriendo por posición la etiqueta "Liquidación" del historial, que es otra cosa |
 | created_at | timestamptz default now() | |
 
 ### asset_valuations
@@ -232,3 +232,6 @@ RLS de instruments e instrument_prices: SELECT para authenticated, **ninguna pol
 - ADR-006: historial de precios diarios como catálogo compartido (instruments/instrument_prices), alimentado por cron; MEP con dos orígenes (dolarapi diario, argentinadatos histórico).
 - ADR-007: el vínculo activo↔precio es instrument_id elegido de un buscador, no un identificador escrito a mano.
 - ADR-008: la conversión a dólares de los precios del catálogo vive en una sola vista (instrument_prices_usd), no en cada lector.
+- ADR-009: el grupo de un activo (asset_type_id) es opcional; sin grupo, el activo se muestra suelto en Portafolio.
+- ADR-010: una posición está cerrada según el aportado neto acumulado, no según la cantidad.
+- ADR-011: empties_asset se guarda en la fila del retiro (es un insumo del realized_gain); los retiros anteriores no se backfillean ni se infieren.

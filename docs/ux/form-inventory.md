@@ -58,13 +58,14 @@ liquidación: **Transferir y Liquidar son formularios propios** (secciones 3 y
 
 ### Inventario de campos (alta, activo de precio en vivo con precio disponible)
 1. **Cantidad + Monto** (`QuantityAmountField`, sección 5) — vinculados: editar cualquiera deriva el otro a partir del precio del instrumento.
-2. **¿Cuántos pesos moviste?** (`ExchangeRateField`, sección 5) — con el monto ya fijado por el campo anterior, acá solo se registra el tipo de cambio: MEP del día automático, o "Usar otro" para cargarlo a mano.
+2. **¿Cuántos pesos moviste?** (`ExchangeRateField`, sección 5) — con el monto ya fijado por el campo anterior, acá se registra el tipo de cambio (MEP del día automático, con un botón "Cambiar" para corregirlo) y se muestran los pesos equivalentes, editables: escribirlos define la tasa.
 3. **¿De dónde sale?** / **¿A dónde va?** (`BinaryChoice`, el label y las opciones cambian según sea aporte o retiro) — "De mi disponible"/"A mi disponible" (afecta el disponible) vs. "De afuera"/"Afuera" (no lo afecta). Reemplaza al viejo par de toggles con polaridad invertida: es una sola pregunta que se lee igual en los dos sentidos.
 4. **Fecha** (`CollapsedDateField`).
 
 Si el activo NO es de precio en vivo (o no hay precio disponible), no hay
-vínculo cantidad↔monto: `ExchangeRateField` cae a su modo completo, con
-ARS/USD + MEP automático o el par Pesos/Dólares manual (ver sección 5).
+vínculo cantidad↔monto: `ExchangeRateField` cae a su rail completo, con Pesos y
+Dólares lado a lado (se carga el que se sepa) y el tipo de cambio abajo (ver
+sección 5).
 
 ### Validaciones y guards
 - Obligatorio: monto, cantidad (solo si el activo es de precio en vivo), tipo de cambio (**solo si la operación afecta el disponible** — "de afuera" no lo pide), fecha.
@@ -79,7 +80,8 @@ ARS/USD + MEP automático o el par Pesos/Dólares manual (ver sección 5).
 ### Variantes crear vs. editar
 - Título: "Aportar a {activo}"/"Retirar de {activo}" en alta; "Editar aporte"/"Editar retiro" en edición.
 - El vínculo cantidad↔monto **solo aplica en alta**: al editar, cantidad y monto son dos campos sueltos (no se recalculan contra el precio de hoy).
-- Editando, el tipo de cambio se muestra "congelado" (`FrozenRateField`, ver sección 5): el valor guardado con un botón "Cambiar" para corregirlo, no una re-derivación automática.
+- Editando, el tipo de cambio se muestra "congelado" (`FrozenRateField`, ver sección 5): el valor guardado con un botón "Cambiar" para corregirlo, no una re-derivación automática. Guardar sin tocarlo deja la fila idéntica — incluida una fila que se guardó sin tipo de cambio, que sigue sin ninguno.
+- Editando un **retiro**, `empties_asset` sale de la fila guardada y no de un `false` fijo: es el insumo con el que se calculó su ganancia realizada la primera vez (ver ADR-011).
 
 ---
 
@@ -97,7 +99,7 @@ Formulario propio, no una variante de ContributionFormModal.
 2. **Cantidad que sale** — solo si el activo origen es de precio en vivo.
 3. **Monto** (USD) — un solo campo compartido por las dos patas de la transferencia.
 4. **Cantidad que entra** — solo si el activo destino es de precio en vivo.
-5. **¿Cuántos pesos moviste?** (`ExchangeRateField`, con el monto ya fijo) — la tasa es siempre un dato de registro **opcional** acá: una transferencia nunca toca el disponible.
+5. **Tipo de cambio** (`ExchangeRateField`, con el monto ya fijo y `askPesos={false}`) — la tasa es siempre un dato de registro **opcional** acá: una transferencia nunca toca el disponible. Es el único call site que **no** muestra la fila de pesos: la plata pasa de un activo a otro sin pasar por el bolsillo, así que no hay ningún movimiento en pesos que preguntar.
 6. **Fecha** (`CollapsedDateField`).
 
 El vínculo cantidad↔monto se aplica **de forma independiente a cada lado**
@@ -155,9 +157,11 @@ específicamente) el vínculo cantidad↔monto de Aportar/Retirar.
 
 **`ExchangeRateField`** resuelve el tipo de cambio según el contexto, sin que
 cada formulario reimplemente la lógica:
-- **Editando** (`editing=true`): `FrozenRateField` — muestra el valor guardado, con un botón "Cambiar" que revela un input para corregirlo. No se re-deriva de nada.
-- **Monto ya fijado por otro campo** (`fixedAmountUsd` no nulo — el caso de Transferir, Liquidar, y Aportar/Retirar con vínculo cantidad↔monto activo): `CompactRateField` — trae el MEP del día automático (con un botón "Usar otro" para cargarlo a mano) o, si falla, pide los pesos para derivar la tasa.
-- **Monto todavía no determinado** (Aportar/Retirar sin precio en vivo): `FullAmountRail` — el rail completo de siempre, con segmentado ARS/USD + MEP automático, o el par Pesos/Dólares manual.
+- **Editando** (`editing=true`, siempre que se edite: con tasa guardada o sin ella): `FrozenRateField` — muestra la tasa que quedó guardada con la operación y no re-deriva nada. **No reporta nada al montar**: el estado del tipo de cambio lo siembra el formulario padre desde `initial.mep_rate` (los efectos de los hijos corren antes que los del padre, así que el reseteo del padre pisaba lo que el hijo reportaba y el formulario se creía sin tasa). Si la fila **no tiene** tasa guardada, tampoco sale a buscar el MEP de hoy: se ofrece cargarla a mano ("Cargar tipo de cambio"), porque guardar sin tocar nada no puede estamparle a una operación vieja la cotización de hoy.
+- **Monto ya fijado por otro campo** (`fixedAmountUsd` no nulo — el caso de Transferir, Liquidar, y Aportar/Retirar con vínculo cantidad↔monto activo): `CompactRateField` — el MEP del día automático y, siempre a la vista, el monto en pesos. Como los dólares ya están fijados arriba, escribir los pesos define la tasa, y cambiar la tasa a mano recalcula los pesos. Con `askPesos={false}` (hoy solo Transferir) esa fila no se dibuja: si la operación no movió pesos, preguntarlos es pedir un dato que no existe.
+- **Monto todavía no determinado** (Aportar/Retirar sin precio en vivo, pago de deuda nuevo): `FullAmountRail` — **Pesos y Dólares lado a lado**, con el mismo peso visual: se carga el que se sepa y el otro se deriva con el tipo de cambio vigente (bidireccional, mismo criterio que `QuantityAmountField`). Reemplaza al viejo campo único con segmentado ARS/USD + modo manual escondido detrás de "Usar otro".
+- **Cambiar la cotización** es en las tres variantes un `.btn` de verdad (52px en celular, 36px en desktop), no un texto gris de 13px.
+- **Al cambiar la tasa a mano en el rail completo**, los dos montos dejan de cuadrar entre sí: en vez de recalcular a ciegas aparece la pregunta "¿Cuál está bien?" (`BinaryChoice`) con los dos importes concretos a la vista. El elegido queda intacto y el otro se recalcula al instante. Arranca preseleccionada en el último monto que tocó el usuario, así que nunca bloquea. En `CompactRateField` no aparece: con los dólares fijados desde afuera no hay ambigüedad posible.
 - `required`: si la operación no afecta el disponible ("de afuera", o cualquier campo de Transferir/Liquidar hacia afuera), el tipo de cambio es opcional — no se le pide al usuario ni bloquea el guardado, aunque igual se intenta traer el MEP del día por detrás.
 
 **`QuantityAmountField`**: cantidad y monto USD vinculados a un precio unitario — escribir en cualquiera de los dos deriva el otro; el último campo tocado manda. Solo se usa en alta (`editing=false` en el uso real): al editar, cantidad y monto quedan como campos sueltos.
