@@ -2,6 +2,21 @@
 
 PWA de finanzas personales con enfoque FIRE (Financial Independence, Retire Early). Herramienta de uso real y pieza de portfolio. Multiusuario con registro semi-cerrado (las cuentas las crea el administrador; sin signup público). El frontend nunca envía user_id: lo completa la base con default auth.uid(), y RLS garantiza el aislamiento.
 
+## Mapa del proyecto
+
+Actualizá esta sección cuando agregues o muevas un archivo importante. Es un índice hacia el código, no una explicación — para arquitectura y decisiones ver ARCHITECTURE.md y FUNCTIONAL.md. Nunca cites números de línea acá: envejecen mal y quedan mintiendo.
+
+- **Auth**: `hooks/useAuth.jsx` (sesión, recuperación) · `lib/supabase.js` (parseo del link de recovery) · `pages/Login.jsx` · `pages/ResetPassword.jsx` (nueva contraseña) · `components/ProtectedRoute.jsx`.
+- **Portafolio / contributions**: `pages/Portfolio.jsx`, `components/AssetGroup.jsx` (lista) · `pages/AssetDetail.jsx` (detalle de activo) · `components/AssetFormModal.jsx` (alta/edición de activo) · `components/ContributionFormModal.jsx`, `components/contribution/{TransferFormModal,LiquidatePositionModal,QuantityAmountField,ExchangeRateField}.jsx` (aportar/retirar/transferir/liquidar) · `lib/portfolio.js` (cálculo, guardas, orden) · `lib/portfolioSort.js` (orden persistido) · `lib/contributions.js`, `lib/assets.js`, `lib/assetTypes.js`.
+- **Movimientos / transactions**: `pages/Movements.jsx` (mezcla transactions y contributions) · `components/TransactionFormModal.jsx` · `lib/transactions.js`, `lib/movements.js`.
+- **Categorías**: `pages/settings/Categories.jsx` (lista, alta, reordenar) · `pages/settings/CategoryDetail.jsx` (renombrar) · `lib/categories.js` (borrado real u oculta).
+- **Instrumentos / precios**: `lib/instruments.js` (catálogo, búsqueda) · `lib/portfolioPrices.js` (precio por activo) · `lib/prices.js` (Binance/CoinGecko/MEP) · `components/asset/InstrumentPicker.jsx` (buscador) · `supabase/functions/refresh_prices/` (cron).
+- **Cálculo del disponible**: `lib/liquid.js` (líquido, reconciliación) · `components/LiquidModal.jsx` (modal, se abre desde Dashboard).
+- **Dashboard**: `pages/Dashboard.jsx` · `components/dashboardCharts.js` (carga diferida) → `components/PortfolioEvolutionChart.jsx`, `components/ExpensesBlock.jsx` · `lib/portfolioSeries.js`, `lib/expensesSummary.js`.
+- **Deudas**: `pages/Debts.jsx` · `components/DebtFormModal.jsx`, `components/DebtPaymentModal.jsx` · `lib/debts.js`.
+- **Ajustes**: `pages/settings/SettingsHome.jsx` (índice) → `Appearance.jsx`, `AssetTypes.jsx`/`AssetTypeDetail.jsx`, `Account.jsx`, `ExportData.jsx` · `components/settings/{SettingsList,SettingsPage}.jsx` (piezas compartidas).
+- **Formularios compartidos**: `components/FormSheet.jsx` (chrome del modal) · `components/form/{CollapsedDateField,BinaryChoice,Switch,FormError,MissingHint}.jsx`.
+
 ## Stack
 - React + Vite
 - Tailwind CSS
@@ -22,6 +37,7 @@ PWA de finanzas personales con enfoque FIRE (Financial Independence, Retire Earl
 - Prioridad del proyecto: que yo entienda el código. Antes de cambios grandes, explicá el plan y esperá mi OK.
 - Commits en formato Conventional Commits (feat:, fix:, chore:, docs:).
 - Español para explicaciones; código y nombres de variables en inglés.
+- Las respuestas a Nacho en el chat son siempre en español rioplatense, incluso en este proyecto de código y commits en inglés.
 
 ## Sistema visual
 El lenguaje es el de una app de iOS: fondo agrupado gris frío, tarjetas SIN marco (la jerarquía la da el contraste con el fondo, más una sombra mínima), separadores internos sangrados desde el texto, y tipografía del sistema — que en iPhone y Mac resuelve a San Francisco. Ninguna webfont.
@@ -45,6 +61,7 @@ El lenguaje es el de una app de iOS: fondo agrupado gris frío, tarjetas SIN mar
 - Botón primario de los modales: siempre "Guardar", salvo un verbo explícito que describa mejor la acción (ej. "Liquidar" en la liquidación de una posición — no es un guardado genérico, es vender).
 - Errores: siempre con `FormError` (`src/components/form/`) — mensaje en español + detalle técnico opcional, nunca `e.message` concatenado al mensaje.
 - Todo modal de formulario usa el componente `FormSheet` (`src/components/FormSheet.jsx`), nunca su propia caja `fixed`. En mobile abre como bottom sheet compacto (alto natural hasta `85dvh`, anclado abajo, esquinas superiores redondeadas) SIN teclado, y al enfocar un campo se expande a pantalla completa (`h-dvh`, header fijo + cuerpo scrolleable) subiendo el campo por encima del teclado. Los formularios que autoenfocan (Movimientos) pasan `startExpanded` para abrir ya expandidos con teclado, sin parpadeo. En desktop es una card centrada con alto acotado y scroll interno (compacto/expandido no aplica). El botón de acción (submit) se pasa como prop `action` y usa `form="<id>"` para enviar el `<form>` del cuerpo. NO detectar el teclado on-screen para acomodar el sheet: en PWA standalone de iOS el evento `resize` de `visualViewport` es poco confiable (bug de WebKit sin arreglar) y `interactive-widget` del viewport meta no lo soporta Safari en ninguna versión — por eso la expansión a full-screen es el mecanismo, no medir el teclado. Respeta `env(safe-area-inset-bottom)`. Una barra fija inferior no-modal (ej. la de acciones del detalle de activo) sigue la misma regla de `safe-area-inset-bottom`.
+- Recuperación de contraseña: el link de Supabase no apunta a una ruta propia — cae en el Site URL con los tokens en el hash de la URL. `lib/supabase.js` los parsea de forma SINCRÓNICA, antes de crear el cliente, porque el evento `PASSWORD_RECOVERY` de supabase-js puede llegar tarde. Mientras hay una recuperación en curso, `App.jsx` no monta las rutas normales: todo redirige a `ResetPassword`.
 - Al enfocar un campo, FormSheet lo scrollea al tope del cuerpo (`block: 'start'`) para dejarlo por encima del teclado. Esto es OBLIGATORIO, no una mejora: en PWA standalone de iOS WebKit no auto-scrollea un contenedor anidado (`overflow-y-auto`) para revelar el campo enfocado, solo el documento raíz — sin este scroll el teclado tapa cualquier campo de la mitad de abajo. Criterio de aceptación de cualquier form: el campo enfocado siempre visible por encima del teclado, nunca tapado.
 - Autofocus SOLO en los formularios de Movimientos (captura rápida de gasto/ingreso). Todos los demás formularios (Aportar, Retirar, Transferir, Liquidar, Valuación, alta/edición de activo, reconciliación de líquido) abren SIN teclado: el usuario toca el campo cuando quiere. Excepción: un input que se revela por una acción explícita del usuario (ej. el date picker de `CollapsedDateField` tras tocar "cambiar", o los inputs inline de Ajustes) puede autoenfocarse — no es "abrir el form con teclado".
 
