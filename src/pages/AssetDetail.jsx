@@ -352,45 +352,39 @@ function AssetDetail() {
           {/* Acciones menos frecuentes que aportar/retirar: viven al final de
               la columna del activo, cada una con lo que hace escrito abajo. */}
           <div className="list">
-            <div className="px-4 py-3">
-              <button
-                type="button"
-                onClick={() => setTransferModal(true)}
-                className="text-[17px] font-medium text-accent-ink"
-              >
-                Transferir
-              </button>
+            <button
+              type="button"
+              onClick={() => setTransferModal(true)}
+              className="block w-full px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+            >
+              <span className="text-[17px] font-medium text-accent-ink">Transferir</span>
               <p className="mt-0.5 text-[13px] text-ink-soft">
                 Mover valor de este activo a otro tuyo.
               </p>
-            </div>
+            </button>
             {canLiquidate && (
-              <div className="px-4 py-3">
-                <button
-                  type="button"
-                  onClick={() => setLiquidateModal(true)}
-                  className="text-[17px] font-medium text-accent-ink"
-                >
-                  Liquidar
-                </button>
+              <button
+                type="button"
+                onClick={() => setLiquidateModal(true)}
+                className="block w-full px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+              >
+                <span className="text-[17px] font-medium text-accent-ink">Liquidar</span>
                 <p className="mt-0.5 text-[13px] text-ink-soft">
                   Vender todo y cerrar la posición. Para vender una parte, usá Retirar.
                 </p>
-              </div>
+              </button>
             )}
             {asset.valuation_mode === 'manual' && (
-              <div className="px-4 py-3">
-                <button
-                  type="button"
-                  onClick={() => setValuationModal(true)}
-                  className="text-[17px] font-medium text-accent-ink"
-                >
-                  Actualizar valuación
-                </button>
+              <button
+                type="button"
+                onClick={() => setValuationModal(true)}
+                className="block w-full px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+              >
+                <span className="text-[17px] font-medium text-accent-ink">Actualizar valuación</span>
                 <p className="mt-0.5 text-[13px] text-ink-soft">
                   Cargar cuánto vale hoy este activo.
                 </p>
-              </div>
+              </button>
             )}
           </div>
           </div>

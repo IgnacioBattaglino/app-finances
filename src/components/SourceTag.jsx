@@ -23,7 +23,7 @@ function SourceTag({ valuation }) {
   if (valuation.source === 'close') {
     return (
       <span className="shrink-0 text-[13px] text-ink-soft">
-        Cierre{valuation.date ? ` ${formatDay(valuation.date)}` : ''}
+        Precio actualizado{valuation.date ? ` ${formatDay(valuation.date)}` : ''}
       </span>
     )
   }
