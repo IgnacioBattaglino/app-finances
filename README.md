@@ -12,7 +12,7 @@ Proyecto personal en desarrollo — sirve como herramienta de uso real y como pi
 - Deploy en Vercel
 
 ## Estado
-🚧 En construcción.
+En uso real. Multiusuario con aislamiento por RLS a nivel de base de datos, PWA instalable, historial de precios alimentado por un cron propio. En desarrollo activo — quedan features por sumar (ver `docs/FUNCTIONAL.md`).
 
 ---
 

@@ -12,7 +12,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 ## Principios del modelo de datos
 
 1. Se guardan EVENTOS y CONFIGURACIÓN. Los totales (saldos, líquido, tasas, ganancias) se calculan siempre al vuelo; nunca se almacenan.
-2. Nada se borra si tiene historia: categorías y activos se archivan (is_archived), no se eliminan, para no romper datos históricos.
+2. Nada se borra si tiene historia: activos y asset_types se archivan (is_archived), no se eliminan, para no romper datos históricos. Categorías son la excepción desde la migración 0028 (ver tabla `categories` abajo): se borran de verdad cuando pueden.
 3. Las cotizaciones del momento se congelan en el evento: cada aporte guarda el MEP de su fecha (ídem debt_payments.mep_rate). Las métricas históricas no dependen de reconstruir cotizaciones pasadas.
 4. Moneda: transactions y liquid_reconciliations en ARS (vida diaria); contributions, valuations y deudas en USD (inversión).
 5. Multiusuario: las tablas raíz (categories, transactions, assets, asset_types, debts, settings, liquid_reconciliations) llevan user_id → auth.users; las tablas hijas (contributions, asset_valuations, debt_payments) heredan el dueño vía su FK. El aislamiento lo garantiza RLS (user_id = auth.uid()).
@@ -27,8 +27,9 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 | user_id | uuid FK → auth.users | NOT NULL, default auth.uid(); dueño de la fila |
 | name | text NOT NULL | ej: "Comida", "Cafetería" |
 | kind | text NOT NULL | 'expense' o 'income' (CHECK) |
-| is_system | boolean NOT NULL default false | categoría del sistema (hoy: "Ajuste de saldo", expense e income). La reconciliación del líquido la busca por este flag + kind, no por nombre; la UI la muestra pero no permite renombrarla ni archivarla |
-| is_archived | boolean NOT NULL default false | |
+| is_system | boolean NOT NULL default false | categoría del sistema (hoy: "Ajuste de saldo", expense e income). La reconciliación del líquido la busca por este flag + kind, no por nombre; la UI la muestra pero no permite renombrarla ni eliminarla |
+| is_archived | boolean NOT NULL default false | **cambió de significado en la migración 0028**: ya no es "archivada" con UI propia de archivar/restaurar (eso lo siguen siendo `assets.is_archived` y `asset_types.is_archived`). Acá significa **oculta**, y la pone sola la app, nunca el usuario: `deleteCategory` (`lib/categories.js`) intenta un `DELETE` real primero; si la FK `transactions.category_id` (sin `ON DELETE CASCADE`, a propósito) lo rechaza con `23503` porque hay movimientos que la usan, cae a marcarla oculta en vez de dejar el error. Sin movimientos que la usen, se borra de verdad — no queda ninguna fila "archivada" en ese caso. Una categoría oculta sale del selector y de Ajustes; sus movimientos viejos la siguen mostrando por nombre. Crear una categoría con el mismo nombre + kind de una oculta la revive en vez de duplicarla |
+| position | int NOT NULL default 0 | orden manual (migración 0028), 0-based dentro de su `(user_id, kind)`: el usuario arrastra las categorías en Ajustes, y ese orden es el que manda también en el selector de categoría al cargar un movimiento. Sin restricción de unicidad — un empate lo desempata el orden por nombre, no invalida nada |
 | created_at | timestamptz default now() | |
 
 ### transactions
@@ -68,7 +69,7 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | valuation_mode | text NOT NULL | 'contributed' (vale lo aportado, nunca pide valuación; hoy efectivo), 'manual' (valuación periódica), o 'live' (precio automático del instrumento enganchado en `instrument_id`) (CHECK). Migración 0015: antes vivía en asset_types; ahora es del activo — moverlo de bolsa no la afecta |
 | coingecko_id | text | **deprecada** (migración 0025): la reemplazó `instrument_id`. El frontend ya no la lee ni la escribe — el formulario de activo elige el instrumento de un buscador sobre `instruments` y guarda su id. Las filas viejas la conservan porque la 0025 la usa para emparejar; se elimina en una migración futura |
 | instrument_id | uuid FK → instruments | nullable (migración 0018): referencia al catálogo compartido de precios, y **el único vínculo que se lee hoy** — tanto el precio de la pantalla (`lib/portfolioPrices.js`) como el gráfico de evolución (`get_portfolio_series`). Lo escribe el formulario de activo desde el buscador de instrumentos; solo los activos de `valuation_mode='live'` lo llevan (cambiar de modo lo pone en null, para no dejar un vínculo colgado). La 0018 lo completó desde coingecko_id y la 0025 terminó de emparejar lo que había quedado sin enganchar |
-| ticker | text | opcional; símbolo del activo (ej: AAPL, AL30, BTC). Informativo — se muestra al lado del nombre. La 0025 lo usó como una de las dos reglas de emparejamiento con `instruments`, pero el vínculo real es `instrument_id`, no este texto |
+| ticker | text | **deprecada** (commit `6a8a8c1`, sin migración propia): sigue en la base pero ya no se ofrece en el alta/edición de activo ni se muestra en ninguna vista — el buscador de instrumentos (`InstrumentPicker`) hace ese trabajo. La 0025 la usó como una de las dos reglas de emparejamiento con `instruments`, pero el vínculo real es `instrument_id`, no este texto. Mismo tratamiento que `type` o `coingecko_id`: dato muerto hasta una limpieza futura |
 | yields | boolean NOT NULL default true | false = reserva de valor (ej: efectivo/colchón); se excluye del cálculo de rendimiento del portafolio pero sigue sumando al valor total. Por activo, independiente del default de la bolsa |
 | is_archived | boolean NOT NULL default false | |
 | created_at | timestamptz default now() | |
@@ -100,7 +101,9 @@ Bolsas de activos personalizables por usuario (migración 0014): generalizan los
 | created_at | timestamptz default now() | |
 | | | UNIQUE (asset_id, date): una valuación por activo por día |
 
-La "curva histórica" del dashboard se calcula agrupando valuations por mes (última de cada mes por activo) contra el acumulado de contributions a esa fecha. Decisión documentada: NO se materializan snapshots (ver ADR-002).
+La "curva histórica" del dashboard sale de la función `get_portfolio_series` (migración 0022, ajustada en 0026 y 0030), que arma la serie diaria por activo con una cascada según su modo de valuación (aportado, última valuación manual conocida en cada día, o cantidad × `instrument_prices_usd`) y la resamplea a mensual en el cliente (`lib/portfolioSeries.js`). Decisión documentada: NO se materializan snapshots (ver ADR-002).
+
+**Definición de "posición cerrada" (migración 0030).** La función necesita decidir, para cada activo y cada día, si la posición ya está cerrada (vale 0) o todavía abierta. Hasta la 0030 lo decidía mirando si el activo tenía ALGUNA vez una `quantity` cargada (`exists` sin cota de fecha): en cuanto una sola operación traía cantidad, el activo pasaba a medirse en cantidad desde SIEMPRE, y los días anteriores a que esa cantidad existiera quedaban en 0 aunque ya hubiera aportado acumulado. Desde la 0030, la cascada usa el **aportado neto acumulado** (que existe siempre y ya descuenta los retiros) para decidir si la posición está cerrada — la cantidad, al ser un dato opcional de la contribución, nunca decide esto por sí sola.
 
 Los activos con coingecko_id no requieren valuación manual: su valor = SUM(quantity) × precio API en vivo.
 
