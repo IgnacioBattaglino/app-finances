@@ -311,10 +311,14 @@ function TransferFormModal({
                 mismo nombre, cuyo valor además se descarta (este onChange solo
                 lee `rate`). */}
             {/* Una transferencia nunca toca el disponible: el tipo de cambio
-                es siempre un dato de registro opcional, nunca obligatorio. */}
+                es siempre un dato de registro opcional, nunca obligatorio.
+                Y `askPesos={false}` porque acá NO se mueven pesos: la plata
+                pasa de un activo a otro sin pasar por el bolsillo, así que
+                preguntar "¿cuántos pesos moviste?" es pedir un dato que no
+                existe. La tasa se puede cargar igual, con el botón. */}
             <ExchangeRateField
               fixedAmountUsd={finalAmountUsd}
-              pesosQuestion="¿Cuántos pesos moviste?"
+              askPesos={false}
               required={false}
               onChange={({ rate }) => setMepRate(rate)}
             />
