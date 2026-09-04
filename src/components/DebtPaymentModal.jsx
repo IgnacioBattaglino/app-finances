@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPayment, updatePayment, deletePayment, debtBalance } from '../lib/debts.js'
 import { todayISO, formatUSD, toDecimalInput } from '../lib/format.js'
+import { round } from '../lib/money.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
@@ -42,7 +43,12 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
     if (!open) return
     setAmountUsd(initial ? toDecimalInput(Number(initial.amount_usd)) : '')
     setRailAmountUsd(null)
-    setMepRate(null)
+    // Igual que en Aportar: la tasa guardada del pago se siembra ACÁ, no la
+    // reporta el campo hijo al montar. Los efectos de los hijos corren antes
+    // que los del padre, así que un reseteo a null pisaba lo que el hijo
+    // acababa de reportar y editar un pago mostraba su tipo de cambio con
+    // Guardar en gris.
+    setMepRate(initial?.mep_rate != null ? round(Number(initial.mep_rate)) : null)
     setOrigin(initial?.affects_liquid === false ? 'outside' : 'liquid')
     setDate(initial?.date ?? todayISO())
     setError(null)
@@ -136,12 +142,13 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
           )}
 
           {/* Un pago viejo sin mep_rate (anterior a que se congelara la tasa)
-              no tiene nada "guardado" que mostrar: con editing=true el campo
-              diría "$ 0 (guardado)", que es mentira. Tratándolo como no-editado
-              se le pide la tasa que falta, que además es lo que lo devuelve al
-              cálculo del líquido. */}
+              tampoco sale a buscar el MEP de hoy: guardar sin tocar nada no
+              puede estamparle a un pago de hace meses la cotización de hoy. El
+              campo congelado lo muestra sin tasa y ofrece cargarla a mano —y
+              si el pago sale del disponible, MissingHint la sigue pidiendo,
+              que es lo que lo devuelve al cálculo del líquido. */}
           <ExchangeRateField
-            editing={editing && initial?.mep_rate != null}
+            editing={editing}
             initialRate={initial?.mep_rate}
             fixedAmountUsd={editing ? amount : null}
             required={affectsLiquid}

@@ -12,6 +12,7 @@ function toRow({
   direction,
   realizedGain,
   transferId,
+  emptiesAsset,
 }) {
   return {
     asset_id: assetId,
@@ -23,6 +24,14 @@ function toRow({
     direction: direction ?? 'in',
     realized_gain: realizedGain ?? null,
     transfer_id: transferId ?? null,
+    // Si vació el activo o no (migración 0017, columna nullable). Se persiste
+    // desde acá porque es la ÚNICA forma de recalcular bien el realized_gain
+    // al reeditar el retiro: antes el formulario mandaba `false` fijo al
+    // editar, así que reabrir y guardar un retiro nacido de Liquidar le
+    // borraba la ganancia realizada y resucitaba una posición cerrada.
+    // `?? null` y no `?? false`: las filas viejas (anteriores a esto) tienen
+    // null y ahí se quedan — null es "no sé", no "no vació".
+    empties_asset: emptiesAsset ?? null,
   }
 }
 
@@ -96,10 +105,12 @@ export async function createContribution(fields) {
 
 // Guarda un retiro: calcula la descomposición capital/ganancia contra el
 // aportado vigente del activo y la congela en la fila (realized_gain).
-// emptiesAsset viene del formulario (checkbox "Vendí/retiré todo este
-// activo") — nunca se infiere comparando amountUsd contra la valuación,
-// porque una valuación desactualizada cristalizaría una ganancia o pérdida
-// falsa para siempre.
+// emptiesAsset lo declara el formulario que origina la operación (true en
+// Liquidar, false en Retirar) — nunca se infiere comparando amountUsd contra
+// la valuación, porque una valuación desactualizada cristalizaría una
+// ganancia o pérdida falsa para siempre. Además de alimentar el cálculo,
+// ahora queda guardado en la fila: sin eso, reeditar el retiro no tiene con
+// qué recalcularlo y la ganancia se pierde.
 export async function createWithdrawal({
   assetId,
   date,
@@ -129,6 +140,7 @@ export async function createWithdrawal({
     direction: 'out',
     realizedGain,
     transferId,
+    emptiesAsset,
   })
 }
 
@@ -143,6 +155,11 @@ export async function createWithdrawal({
 // El realized_gain del retiro (Opción A, "primero capital") se sigue
 // calculando acá y se pasa a la función: la lógica de negocio vive en un solo
 // lugar (portfolio.js), la base solo garantiza atomicidad y pertenencia.
+//
+// empties_asset queda en null en las dos patas: create_transfer (migración
+// 0017) no lo setea, y no hace falta — una transferencia nunca vacía el
+// activo (emptiesAsset es false fijo acá) y sus patas son de solo lectura,
+// así que nunca vuelven a pasar por un recálculo de realized_gain.
 export async function createTransfer({
   fromAssetId,
   toAssetId,
@@ -183,6 +200,12 @@ export async function createTransfer({
 // vigente, excluyéndose a sí mismo del cómputo (si no, se restaría dos
 // veces). No es "recalcular retroactivamente" — es la fila editándose a sí
 // misma, igual que cualquier otro campo de un aporte editado.
+//
+// emptiesAsset tiene que llegar desde la fila guardada (contributions
+// .empties_asset), no como un false fijo: es el mismo insumo con el que se
+// calculó la primera vez, y con otro valor el recálculo da otra cosa. Un
+// retiro que vació el activo, reeditado con emptiesAsset=false, perdía toda
+// su ganancia realizada.
 export async function updateWithdrawal({
   id,
   assetId,
@@ -213,6 +236,7 @@ export async function updateWithdrawal({
     direction: 'out',
     realizedGain,
     transferId,
+    emptiesAsset,
   })
 }
 

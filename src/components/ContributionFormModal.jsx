@@ -86,7 +86,14 @@ function ContributionFormModal({
     setQuantity(initial?.quantity ? toDecimalInput(Number(initial.quantity)) : '')
     setAmountUsd(initial ? toDecimalInput(Number(initial.amount_usd)) : '')
     setNonLiveAmountUsd(null)
-    setMepRate(null)
+    // El tipo de cambio arranca con el que tiene la fila (o sin ninguno, si no
+    // tiene). Sembrarlo ACÁ, y que el campo hijo no reporte nada al montar, es
+    // lo que hace que abrir una edición y guardar sin tocar nada deje la fila
+    // idéntica: los efectos de los hijos corren antes que los del padre, así
+    // que este reseteo pisaba la tasa que el hijo acababa de reportar y el
+    // formulario se creía sin tipo de cambio (Guardar gris, "Falta: tipo de
+    // cambio") aunque la pantalla mostrara la tasa guardada.
+    setMepRate(initial?.mep_rate != null ? round(Number(initial.mep_rate)) : null)
     setDate(initial?.date ?? todayISO())
     setOrigin(initial ? (initial.affects_liquid !== false ? 'liquid' : 'outside') : 'liquid')
     setError(null)
@@ -224,11 +231,6 @@ function ContributionFormModal({
   const finalQuantity = Number(String(quantity).replace(',', '.'))
   const affectsLiquid = origin === 'liquid'
 
-  // Un registro viejo "de afuera" puede no tener tipo de cambio guardado (ver
-  // más abajo): tratarlo como no-editado en el campo de tasa hace que se
-  // comporte igual que un alta nueva, en vez de mostrar "$0 (guardado)".
-  const rateFieldEditing = editing && initial?.mep_rate != null
-
   // Con el vínculo cantidad↔monto activo (alta nueva vinculada), o editando
   // (con o sin tasa guardada), el monto ya lo fija otro campo: acá el de tipo
   // de cambio solo registra la cotización. Se le pasa 0 (no null) mientras el
@@ -293,7 +295,18 @@ function ContributionFormModal({
           mepRate,
           affectsLiquid,
           contributions,
-          emptiesAsset: false,
+          // Al crear, este formulario es "Retirar": un retiro parcial, que
+          // por definición no vacía el activo (vaciarlo es Liquidar). Al
+          // editar manda lo que quedó guardado en la fila: con un `false`
+          // fijo, reabrir y guardar un retiro nacido de Liquidar recalculaba
+          // su ganancia realizada con la regla equivocada y la borraba,
+          // resucitando además una posición cerrada (ver ADR-011).
+          //
+          // Las filas anteriores a que esto se persistiera tienen null y se
+          // comportan como hasta ahora (false): no se infiere nada mirando el
+          // historial, porque una inferencia equivocada cristalizaría una
+          // ganancia falsa para siempre.
+          emptiesAsset: editing ? initial.empties_asset === true : false,
           transferId: null,
         }
         saved = editing
@@ -396,8 +409,13 @@ function ContributionFormModal({
               />
             )}
 
+            {/* Editando, el campo va SIEMPRE en modo congelado, tenga o no
+                tasa guardada la fila: una fila sin tasa (aporte "de afuera"
+                posterior a la 0024) no debe salir a buscar el MEP de hoy y
+                estampárselo a una operación vieja al guardar sin tocar nada.
+                Se ofrece cargarla a mano, que es intervención explícita. */}
             <ExchangeRateField
-              editing={rateFieldEditing}
+              editing={editing}
               initialRate={initial?.mep_rate}
               fixedAmountUsd={rateFieldAmountUsd}
               required={affectsLiquid}

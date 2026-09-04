@@ -29,7 +29,19 @@ vi.mock('./supabase.js', () => ({
   },
 }))
 
-import { splitPage, getContributions, getTransferPair, deleteTransfer } from './contributions.js'
+import {
+  splitPage,
+  getContributions,
+  getTransferPair,
+  deleteTransfer,
+  createWithdrawal,
+  updateWithdrawal,
+} from './contributions.js'
+
+// La fila que se mandó a la base en el último insert/update.
+function writtenRow(op) {
+  return h.state.calls.find(([method]) => method === op)?.[1]?.[0]
+}
 
 describe('splitPage', () => {
   it('con exactamente pageSize filas, no hay más', () => {
@@ -123,5 +135,98 @@ describe('deleteTransfer', () => {
   it('propaga el error de la consulta', async () => {
     h.state.result = { data: null, error: new Error('boom') }
     await expect(deleteTransfer('t1')).rejects.toThrow('boom')
+  })
+})
+
+// Un retiro que vacía el activo cristaliza toda la diferencia contra el
+// aportado; uno parcial no cristaliza nada. Esa decisión es un insumo del
+// cálculo, así que tiene que quedar guardada en la fila: sin ella, reeditar el
+// retiro lo recalcula con la regla equivocada (ver ADR-011).
+describe('empties_asset se persiste con el retiro', () => {
+  const contributions = [
+    { id: 'c1', asset_id: 'a1', direction: 'in', amount_usd: 500 },
+  ]
+
+  beforeEach(() => {
+    h.state.calls = []
+    h.state.result = { data: { id: 'w1' }, error: null }
+  })
+
+  it('una liquidación se guarda marcada, con su ganancia realizada', async () => {
+    await createWithdrawal({
+      assetId: 'a1',
+      date: '2026-09-01',
+      amountUsd: 439.32,
+      quantity: null,
+      mepRate: 1500,
+      affectsLiquid: true,
+      contributions,
+      emptiesAsset: true,
+    })
+    const row = writtenRow('insert')
+    expect(row.empties_asset).toBe(true)
+    expect(row.realized_gain).toBe(-60.68)
+  })
+
+  it('un retiro parcial se guarda sin marcar y sin cristalizar nada', async () => {
+    await createWithdrawal({
+      assetId: 'a1',
+      date: '2026-09-01',
+      amountUsd: 200,
+      quantity: null,
+      mepRate: 1500,
+      affectsLiquid: true,
+      contributions,
+      emptiesAsset: false,
+    })
+    const row = writtenRow('insert')
+    expect(row.empties_asset).toBe(false)
+    expect(row.realized_gain).toBe(0)
+  })
+
+  it('reeditar la liquidación con el dato guardado conserva su ganancia', async () => {
+    await updateWithdrawal({
+      id: 'w1',
+      assetId: 'a1',
+      date: '2026-09-01',
+      amountUsd: 439.32,
+      quantity: null,
+      mepRate: 1500,
+      affectsLiquid: true,
+      // La fila que se está editando nunca entra en el aportado previo.
+      contributions: [...contributions, { id: 'w1', asset_id: 'a1', direction: 'out', amount_usd: 439.32 }],
+      emptiesAsset: true,
+    })
+    const row = writtenRow('update')
+    expect(row.empties_asset).toBe(true)
+    expect(row.realized_gain).toBe(-60.68)
+  })
+
+  it('reeditarla como si no vaciara (el bug) le borraría la ganancia', async () => {
+    await updateWithdrawal({
+      id: 'w1',
+      assetId: 'a1',
+      date: '2026-09-01',
+      amountUsd: 439.32,
+      quantity: null,
+      mepRate: 1500,
+      affectsLiquid: true,
+      contributions: [...contributions, { id: 'w1', asset_id: 'a1', direction: 'out', amount_usd: 439.32 }],
+      emptiesAsset: false,
+    })
+    expect(writtenRow('update').realized_gain).toBe(0)
+  })
+
+  it('un aporte no lleva la marca: null es "no aplica", no "no vació"', async () => {
+    const { createContribution } = await import('./contributions.js')
+    await createContribution({
+      assetId: 'a1',
+      date: '2026-09-01',
+      amountUsd: 100,
+      quantity: null,
+      mepRate: 1500,
+      affectsLiquid: true,
+    })
+    expect(writtenRow('insert').empties_asset).toBe(null)
   })
 })
