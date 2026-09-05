@@ -152,6 +152,20 @@ export async function setIncludeInTotal(id, includeInTotal) {
   return data
 }
 
+// Color del grupo (migración 0031): el id de un color de la paleta, o null
+// para dejarlo sin color. Es puramente presentación —Portafolio tiñe el
+// encabezado y las filas del grupo— y no toca ningún cálculo.
+export async function setAssetTypeColor(id, color) {
+  const { data, error } = await supabase
+    .from('asset_types')
+    .update({ color })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 // El default de rendimiento que hereda un activo nuevo creado en este grupo.
 // Se elegía al crear el grupo y no había forma de cambiarlo después: no es el
 // flag operativo (ese es assets.yields, por activo), así que cambiarlo no

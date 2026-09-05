@@ -6,6 +6,7 @@ import {
   averagePurchasePrice,
   currentUnitPrice,
 } from '../lib/portfolio.js'
+import { getGroupColor } from '../lib/theme.js'
 import Gain from './Gain.jsx'
 import SourceTag from './SourceTag.jsx'
 
@@ -87,11 +88,23 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
   // explicar mirando la pantalla.
   const archivedGroup = assetType.is_archived === true
 
+  // Color del grupo (migración 0031). Null = sin color: el grupo se ve
+  // exactamente como se veía antes de que esto existiera, con el relleno gris
+  // neutro. No hay un color por default — un color que el usuario no eligió
+  // diría algo que él no dijo.
+  //
+  // Los dos tonos van como variables inline y las clases del CSS deciden cuál
+  // usar según el modo y con qué intensidad (ver .group-tint en index.css).
+  // Acá no se calcula ningún color: este componente solo pasa la paleta.
+  const color = getGroupColor(assetType.color)
+  const tintVars = color ? { '--group-color': color.fill, '--group-color-dark': color.inkDark } : undefined
+
   return (
-    <div className="list">
+    <div className="list" style={tintVars}>
       {/* Encabezado del grupo: se apoya sobre un relleno apenas distinto para
-          separarlo de sus activos sin necesidad de un borde. */}
-      <div className="bg-mist/45 px-4 py-3">
+          separarlo de sus activos sin necesidad de un borde. Con un color
+          asignado ese relleno pasa a ser el tinte fuerte del color. */}
+      <div className={`px-4 py-3 ${color ? 'group-tint' : 'bg-mist/45'}`}>
         <div className="flex items-baseline justify-between gap-3">
           <span className="flex items-center gap-1.5 text-[15px] font-semibold">
             {assetType.name}
@@ -136,7 +149,10 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
         )}
       </div>
 
-      <div className="rows">
+      {/* Las filas llevan el tinte SUAVE del mismo color: leídas juntas dicen
+          "estas son las de ese encabezado" sin repetir su nombre ni sumar un
+          borde. Sin color, el bloque es la tarjeta blanca de siempre. */}
+      <div className={`rows ${color ? 'group-tint-soft' : ''}`}>
         {assets.map((asset) => (
           <AssetRow
             key={asset.id}

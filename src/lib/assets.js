@@ -25,7 +25,7 @@ function toRow({ name, assetTypeId, valuationMode, instrumentId, yields }) {
 }
 
 const ASSET_SELECT =
-  '*, asset_type:asset_types(id, name, earns_yield, include_in_total, is_archived, display_order), instrument:instruments(id, source, symbol, name, kind, currency)'
+  '*, asset_type:asset_types(id, name, earns_yield, include_in_total, is_archived, display_order, color), instrument:instruments(id, source, symbol, name, kind, currency)'
 
 export async function getAssets() {
   const { data, error } = await supabase

@@ -11,7 +11,9 @@ import {
   archiveAssetType,
   restoreAssetType,
   deleteAssetType,
+  setAssetTypeColor,
 } from '../../lib/assetTypes.js'
+import { ACCENTS } from '../../lib/theme.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
   SettingsGroup,
@@ -35,6 +37,72 @@ function Arrow({ direction }) {
     >
       {direction === 'up' ? <path d="M12 19V5m0 0-6 6m6-6 6 6" /> : <path d="M12 5v14m0 0 6-6m-6 6-6-6" />}
     </svg>
+  )
+}
+
+function Check() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5 text-ink"
+      aria-hidden="true"
+    >
+      <path d="m5 12.5 5 5 9-11" />
+    </svg>
+  )
+}
+
+// El color del grupo, con la misma forma que el selector de color de la app
+// (Ajustes › Apariencia): círculos grandes, el elegido con un aro y un tilde.
+// Es la misma paleta, no una segunda — dos escalas de color en una app chica
+// se leen como dos apps.
+//
+// Dos diferencias con el de Apariencia, las dos por lo mismo (allá el color se
+// usa lleno, acá teñido):
+//   * cada muestra se pinta con el tinte real del encabezado (.group-swatch),
+//     no con el color puro, así lo que se elige es lo que se ve;
+//   * hay una opción "Sin color", que es el estado por default y una elección
+//     válida, no la ausencia de una.
+const NO_COLOR = { id: null, name: 'Sin color' }
+
+function ColorChoice({ value, onChange, disabled }) {
+  return (
+    <div className="grid grid-cols-3 gap-4 p-4">
+      {[NO_COLOR, ...ACCENTS].map((option) => {
+        const selected = (value ?? null) === option.id
+        return (
+          <button
+            key={option.id ?? 'none'}
+            type="button"
+            onClick={() => onChange(option.id)}
+            disabled={disabled}
+            aria-pressed={selected}
+            className="flex flex-col items-center gap-2 disabled:opacity-40"
+          >
+            <span
+              className={`flex h-13 w-13 items-center justify-center rounded-full transition ${
+                option.id ? 'group-swatch' : 'bg-mist'
+              } ${selected ? 'ring-2 ring-ink/25 ring-offset-3 ring-offset-card' : ''}`}
+              style={
+                option.id
+                  ? { '--group-color': option.fill, '--group-color-dark': option.inkDark }
+                  : undefined
+              }
+            >
+              {selected && <Check />}
+            </span>
+            <span className={`text-[13px] ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}>
+              {option.name}
+            </span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -124,6 +192,15 @@ function AssetTypeDetail() {
       'No se pudo cambiar el orden.',
     )
     if (reordered) setSiblings(reordered)
+  }
+
+  async function handleColor(colorId) {
+    if (colorId === (assetType.color ?? null)) return
+    const updated = await run(
+      () => setAssetTypeColor(assetType.id, colorId),
+      'No se pudo cambiar el color del grupo.',
+    )
+    if (updated) setAssetType(updated)
   }
 
   async function handleToggleYield(next) {
@@ -234,6 +311,13 @@ function AssetTypeDetail() {
           </div>
         </SettingsGroup>
       )}
+
+      <SettingsGroup
+        title="Color"
+        footer="Tiñe el encabezado del grupo y sus activos en Portafolio, para distinguirlo de un vistazo. No cambia ningún número ni los verdes y rojos de ganancia y pérdida."
+      >
+        <ColorChoice value={assetType.color} onChange={handleColor} disabled={busy} />
+      </SettingsGroup>
 
       <SettingsGroup footer="Si lo apagás, el grupo se sigue viendo en Portafolio pero no suma al valor total ni al rendimiento general.">
         <SettingsSwitchRow

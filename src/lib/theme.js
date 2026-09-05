@@ -30,6 +30,29 @@ export const ACCENTS = [
 
 export const DEFAULT_ACCENT_ID = 'pino'
 
+// ---------------------------------------------------------------------------
+// LA MISMA PALETA, COMO COLOR DE UN GRUPO DE ACTIVOS
+// ---------------------------------------------------------------------------
+// Un grupo de Portafolio (asset_types.color, migración 0031) puede llevar uno
+// de estos mismos colores. Es la misma paleta acotada a propósito: dos escalas
+// de color distintas en una app de seis pantallas se leen como dos apps.
+//
+// Pero se resuelve distinto que el acento. `getAccent` cae al primero de la
+// lista ante un id desconocido, porque la app SIEMPRE tiene un color de marca;
+// un grupo, en cambio, puede legítimamente no tener color, así que acá un id
+// desconocido (o null) cae a "sin color" y no a un verde que el usuario nunca
+// eligió.
+//
+// Se devuelven los dos tonos, no uno: `fill` es el que tiñe en modo claro y
+// `inkDark` el que tiñe en oscuro, por la misma razón por la que existe
+// `--color-accent-ink` (un verde oscuro sobre un fondo casi negro no se ve).
+// Quién elige entre los dos es el CSS, no este módulo: ver .group-tint en
+// index.css.
+export function getGroupColor(id) {
+  if (!id) return null
+  return ACCENTS.find((accent) => accent.id === id) ?? null
+}
+
 const ACCENT_KEY = 'finanzas:accent'
 
 // Un id desconocido (guardado por una versión anterior, o tocado a mano) cae

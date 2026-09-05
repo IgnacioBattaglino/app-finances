@@ -1,0 +1,30 @@
+-- 0031: color opcional por grupo de activos.
+--
+-- Portafolio muestra los grupos como tarjetas con un encabezado y sus activos
+-- debajo. La única separación entre el encabezado y sus filas era un relleno
+-- gris (bg-mist/45) igual para todos los grupos: con varios grupos en pantalla
+-- —y en desktop, dos por fila— cuesta ver de un vistazo dónde termina uno y
+-- empieza el otro, y a qué grupo pertenece la fila que se está mirando.
+--
+-- Con un color asignado, el encabezado lleva un tinte fuerte de ese color y
+-- sus filas uno suave del mismo color. El color es del GRUPO, no del
+-- dispositivo: viaja con la cuenta (a diferencia del acento de la app y del
+-- modo claro/oscuro, que viven en localStorage porque son preferencias de
+-- dispositivo -- ver src/lib/theme.js).
+--
+-- Nullable y sin default a propósito: null = sin color, que es exactamente lo
+-- que se ve hoy (encabezado gris neutro). Los grupos que ya existen no cambian
+-- de aspecto al aplicar esta migración, y "sin color" sigue siendo una opción
+-- elegible, no un estado a completar.
+--
+-- Sin CHECK sobre los valores posibles, a diferencia de las columnas con
+-- semántica cerrada de la app (transactions.kind, contributions.direction).
+-- Acá el valor es el id de un color de la paleta de presentación, que vive en
+-- src/lib/theme.js (ACCENTS: 'pino', 'oceano', 'indigo', 'ciruela', 'vino',
+-- 'grafito') y es la misma que el selector de color de Ajustes. Esa paleta es
+-- una decisión de diseño y puede crecer o cambiar de nombres; encadenarla a un
+-- CHECK obligaría a una migración por cada retoque visual. El cliente resuelve
+-- el id contra la paleta y un id desconocido (una versión anterior, un valor
+-- editado a mano) cae a "sin color" -- neutro, nunca a un color arbitrario.
+
+alter table asset_types add column color text;
