@@ -366,6 +366,22 @@
      verdes/rojos de ganancia y pérdida no se tocan: ahí el color ES el
      significado y un tinte de grupo encima lo ensuciaría.
 
+     El color NO es lo que separa al encabezado de sus filas: eso ya lo hace
+     el relleno `mist` que lleva todo encabezado, tenga color o no (ver
+     AssetGroup). El color se suma encima de esa distinción base, y por eso
+     el tinte del encabezado queda al menos tan marcado como ese gris: con
+     los seis colores de la paleta, un 20% sobre la tarjeta es más oscuro
+     que `mist` en claro, y un 22% más claro que la tarjeta en oscuro.
+
+     De dónde salen 20 y 13 y no un par más contrastado: el encabezado lleva
+     texto secundario (`ink-soft`) y el verde/rojo del rendimiento, y cuanto
+     más se tiñe el fondo, menos contraste les queda. Medido sobre el peor
+     caso (el rojo de pérdida sobre el tinte «vino»): a 26% el rojo cae a
+     3,5:1 y el secundario a 3,2:1, contra 4,5:1 y 4,1:1 del encabezado gris
+     sin color. A 20% quedan en 3,9:1 y 3,5:1 — cerca de la línea base de la
+     app, que ya de por sí es justa. Subir más el tinte se paga en
+     legibilidad de números que son el contenido de la pantalla.
+
      Se tiñe con alpha (`color-mix` contra `transparent`) y no con un color
      opaco, igual que `.notice` y `.btn-danger`: así el tinte se compone
      sobre la tarjeta que tenga debajo y no hay que definir una paleta de
@@ -375,11 +391,11 @@
      que existe `--color-accent-ink`. Los porcentajes suben un punto en
      oscuro porque un tinte claro sobre fondo oscuro rinde menos. */
   .group-tint {
-    background-color: color-mix(in oklab, var(--group-color) 16%, transparent);
+    background-color: color-mix(in oklab, var(--group-color) 20%, transparent);
   }
 
   .group-tint-soft {
-    background-color: color-mix(in oklab, var(--group-color) 7%, transparent);
+    background-color: color-mix(in oklab, var(--group-color) 13%, transparent);
   }
 
   /* La muestra del selector de color de un grupo (Ajustes › Grupos). Es el
@@ -388,7 +404,7 @@
      que promete otra cosa. El aro está porque el tinte solo, a 52px, no
      alcanza para distinguir seis colores. */
   .group-swatch {
-    background-color: color-mix(in oklab, var(--group-color) 16%, transparent);
+    background-color: color-mix(in oklab, var(--group-color) 20%, transparent);
     box-shadow: inset 0 0 0 2px var(--group-color);
   }
 }
@@ -398,29 +414,29 @@
    la capa no le gana a otra de la misma capa por especificidad de :root, y
    fuera de capa siempre pisa a lo que está adentro. */
 :root[data-theme='dark'] .group-tint {
-  background-color: color-mix(in oklab, var(--group-color-dark) 18%, transparent);
+  background-color: color-mix(in oklab, var(--group-color-dark) 22%, transparent);
 }
 
 :root[data-theme='dark'] .group-tint-soft {
-  background-color: color-mix(in oklab, var(--group-color-dark) 8%, transparent);
+  background-color: color-mix(in oklab, var(--group-color-dark) 14%, transparent);
 }
 
 :root[data-theme='dark'] .group-swatch {
-  background-color: color-mix(in oklab, var(--group-color-dark) 18%, transparent);
+  background-color: color-mix(in oklab, var(--group-color-dark) 22%, transparent);
   box-shadow: inset 0 0 0 2px var(--group-color-dark);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .group-tint {
-    background-color: color-mix(in oklab, var(--group-color-dark) 18%, transparent);
+    background-color: color-mix(in oklab, var(--group-color-dark) 22%, transparent);
   }
 
   :root:not([data-theme='light']) .group-tint-soft {
-    background-color: color-mix(in oklab, var(--group-color-dark) 8%, transparent);
+    background-color: color-mix(in oklab, var(--group-color-dark) 14%, transparent);
   }
 
   :root:not([data-theme='light']) .group-swatch {
-    background-color: color-mix(in oklab, var(--group-color-dark) 18%, transparent);
+    background-color: color-mix(in oklab, var(--group-color-dark) 22%, transparent);
     box-shadow: inset 0 0 0 2px var(--group-color-dark);
   }
 }

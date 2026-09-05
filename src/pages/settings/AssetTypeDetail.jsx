@@ -14,10 +14,13 @@ import {
   setAssetTypeColor,
 } from '../../lib/assetTypes.js'
 import { ACCENTS } from '../../lib/theme.js'
+import { formatUSD } from '../../lib/format.js'
+import { usePortfolio } from '../../hooks/usePortfolio.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
   SettingsGroup,
   SettingsValueRow,
+  SettingsLinkRow,
   SettingsButtonRow,
   SettingsSwitchRow,
 } from '../../components/settings/SettingsList.jsx'
@@ -127,6 +130,14 @@ function AssetTypeDetail() {
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [error, setError] = useState(null)
+
+  // Los activos del grupo con su valor salen del MISMO lugar que Portafolio
+  // (usePortfolio), no de una consulta propia: el valor de un activo depende
+  // de su modo de valuación, del precio en vivo y de la última valuación
+  // manual, y recalcularlo acá por separado es la forma más segura de que las
+  // dos pantallas terminen mostrando números distintos para lo mismo.
+  const { assets, valuations, loading: portfolioLoading } = usePortfolio()
+  const groupAssets = assets.filter((a) => a.asset_type_id === assetTypeId)
 
   useEffect(() => {
     let active = true
@@ -278,6 +289,33 @@ function AssetTypeDetail() {
           )}
         </SettingsGroup>
       </form>
+
+      {/* Qué hay adentro del grupo. Es lo primero que se quiere ver al llegar
+          acá desde Portafolio (tocando el encabezado), y hasta ahora esta
+          pantalla no lo mostraba: decía cuántos activos había, no cuáles.
+          Cada fila entra al detalle del activo, que es donde se opera. */}
+      {(portfolioLoading || groupAssets.length > 0) && (
+        <SettingsGroup title="Activos" footer="Tocá uno para ver su detalle y operar.">
+          {portfolioLoading ? (
+            <p className="px-4 py-3 text-[15px] text-ink-soft">Cargando…</p>
+          ) : (
+            groupAssets.map((asset) => (
+              <SettingsLinkRow
+                key={asset.id}
+                to={`/portafolio/${asset.id}`}
+                label={asset.name}
+                value={
+                  <span className="font-money">
+                    {valuations[asset.id]?.value != null
+                      ? formatUSD(valuations[asset.id].value)
+                      : '—'}
+                  </span>
+                }
+              />
+            ))
+          )}
+        </SettingsGroup>
+      )}
 
       {canMove && (
         <SettingsGroup footer="Es el orden con el que los grupos aparecen en Portafolio.">

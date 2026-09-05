@@ -10,6 +10,25 @@ import { getGroupColor } from '../lib/theme.js'
 import Gain from './Gain.jsx'
 import SourceTag from './SourceTag.jsx'
 
+// El mismo chevron que usan las filas de Ajustes que entran a otra pantalla:
+// es la marca de "esto lleva a algún lado" que ya tiene la app.
+function Chevron() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0 text-ink-faint"
+      aria-hidden="true"
+    >
+      <path d="m9 5 7 7-7 7" />
+    </svg>
+  )
+}
+
 // Línea 2 de la fila, según el modo de valuación del activo (ver
 // FUNCTIONAL.md — Portafolio): la única línea que cambia de forma entre
 // modos, porque cada uno mide su posición distinto.
@@ -101,13 +120,23 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
 
   return (
     <div className="list" style={tintVars}>
-      {/* Encabezado del grupo: se apoya sobre un relleno apenas distinto para
-          separarlo de sus activos sin necesidad de un borde. Con un color
-          asignado ese relleno pasa a ser el tinte fuerte del color. */}
-      <div className={`px-4 py-3 ${color ? 'group-tint' : 'bg-mist/45'}`}>
+      {/* Encabezado del grupo. Lleva `mist` entero y no un 45% de `mist`: la
+          diferencia contra la tarjeta blanca de las filas tiene que verse
+          sola, sin depender de que el grupo tenga color. Esa es la
+          distinción base; el color, cuando está, se suma encima con su
+          tinte (que está calibrado para no quedar más flojo que este gris).
+
+          Y es un link al detalle del grupo, la MISMA pantalla que se abre
+          desde Ajustes: ahí se le cambia el nombre, el color y el resto. Dos
+          pantallas para lo mismo se desincronizan; una sola, no. */}
+      <Link
+        to={`/ajustes/grupos/${assetType.id}`}
+        className={`block px-4 py-3 transition active:opacity-90 ${color ? 'group-tint' : 'bg-mist'}`}
+      >
         <div className="flex items-baseline justify-between gap-3">
           <span className="flex items-center gap-1.5 text-[15px] font-semibold">
             {assetType.name}
+            <Chevron />
             {outOfTotal && (
               <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-medium tracking-wide text-ink-soft uppercase">
                 fuera del total
@@ -147,7 +176,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
             Este grupo se ve, pero no suma al valor total.
           </p>
         )}
-      </div>
+      </Link>
 
       {/* Las filas llevan el tinte SUAVE del mismo color: leídas juntas dicen
           "estas son las de ese encabezado" sin repetir su nombre ni sumar un

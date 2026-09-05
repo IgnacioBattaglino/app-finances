@@ -7,6 +7,7 @@ import Gain from '../components/Gain.jsx'
 import Money from '../components/Money.jsx'
 import FormError from '../components/form/FormError.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
+import { useScrollRestoration } from '../hooks/useScrollRestoration.js'
 import {
   needsManualValuation,
   portfolioEntries,
@@ -38,6 +39,12 @@ function Portfolio() {
     reload: load,
     reloadAssetTypes: refreshAssetTypes,
   } = usePortfolio()
+
+  // Volver de un activo o del detalle de un grupo (se entra tocando el
+  // encabezado) devuelve a la lista donde estaba, no arriba de todo. Espera a
+  // que la lista esté cargada: antes de eso la página no tiene alto que
+  // scrollear.
+  useScrollRestoration('portafolio', !loading)
 
   const [assetModal, setAssetModal] = useState({ open: false, editing: null })
   const [valuationModal, setValuationModal] = useState({ open: false, assets: [] })
