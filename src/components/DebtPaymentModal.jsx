@@ -8,6 +8,7 @@ import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
 import ExchangeRateField from './contribution/ExchangeRateField.jsx'
+import AccountField from './form/AccountField.jsx'
 
 // De dónde sale la plata del pago. Mismo mecanismo y mismas palabras que
 // Aportar: mapea directo a affects_liquid (migración 0023).
@@ -27,11 +28,22 @@ const ORIGIN_OPTIONS = [
 // Registrar (o corregir) un pago de una deuda ya elegida. El monto va en USD;
 // el tipo de cambio se congela igual que en un aporte, porque de ahí sale
 // cuántos pesos descontarle al líquido.
-function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) {
+function DebtPaymentModal({
+  open,
+  debt,
+  initial,
+  accounts = [],
+  defaultAccountId = null,
+  onClose,
+  onSaved,
+  onDeleted,
+  onAccountCreated,
+}) {
   const [amountUsd, setAmountUsd] = useState('') // solo al editar: input propio
   const [railAmountUsd, setRailAmountUsd] = useState(null) // al crear: lo reporta ExchangeRateField
   const [mepRate, setMepRate] = useState(null)
   const [origin, setOrigin] = useState('liquid')
+  const [accountId, setAccountId] = useState(null)
   const [date, setDate] = useState(todayISO())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -50,11 +62,14 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
     // Guardar en gris.
     setMepRate(initial?.mep_rate != null ? round(Number(initial.mep_rate)) : null)
     setOrigin(initial?.affects_liquid === false ? 'outside' : 'liquid')
+    // Editando manda la cuenta de la fila, aunque sea null: guardar sin tocar
+    // nada deja el pago idéntico. Creando, la cuenta por defecto ya elegida.
+    setAccountId(initial ? (initial.account_id ?? null) : defaultAccountId)
     setDate(initial?.date ?? todayISO())
     setError(null)
     setConfirmDelete(false)
     setBusy(false)
-  }, [open, initial])
+  }, [open, initial, defaultAccountId])
 
   if (!open) return null
 
@@ -85,6 +100,7 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
       amountUsd: amount,
       mepRate: mepRate ?? null,
       affectsLiquid,
+      accountId,
     }
     try {
       const saved = editing ? await updatePayment(initial.id, fields) : await createPayment(fields)
@@ -169,6 +185,18 @@ function DebtPaymentModal({ open, debt, initial, onClose, onSaved, onDeleted }) 
               {ORIGIN_OPTIONS.find((o) => o.value === origin)?.help}
             </p>
           </div>
+
+          {/* Solo si el pago salió del disponible: pagar con dólares que ya
+              tenías no pasó por ninguna cuenta. */}
+          {affectsLiquid && (
+            <AccountField
+              accounts={accounts}
+              value={accountId}
+              onChange={setAccountId}
+              label="¿De qué cuenta?"
+              onAccountCreated={onAccountCreated}
+            />
+          )}
 
           <CollapsedDateField value={date} onChange={setDate} />
         </div>

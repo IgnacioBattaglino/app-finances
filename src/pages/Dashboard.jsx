@@ -11,6 +11,8 @@ import { usePortfolio } from '../hooks/usePortfolio.js'
 import { computeCurrentLiquid } from '../lib/liquid.js'
 import { getCategories } from '../lib/categories.js'
 import { getDebts, summarizeDebts } from '../lib/debts.js'
+import { formatARS } from '../lib/format.js'
+import { useAccounts } from '../hooks/useAccounts.js'
 
 // Recharts pesa bastante: se carga solo cuando hace falta (hay al menos un
 // aporte o un gasto para graficar), no en el bundle principal. Las dos
@@ -84,6 +86,7 @@ function SummaryCard({
   amount,
   hint,
   note,
+  breakdown,
   info,
   loading,
   error,
@@ -136,6 +139,18 @@ function SummaryCard({
         </span>
         <Chevron />
       </button>
+      {/* Desglose por cuenta: nombre y monto por línea, nada más. No compite
+          con el monto grande de arriba — lo explica. */}
+      {breakdown && breakdown.length > 0 && (
+        <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
+          {breakdown.map((row) => (
+            <li key={row.key} className="flex items-baseline justify-between gap-3 text-[13px]">
+              <span className="min-w-0 truncate text-ink-soft">{row.name}</span>
+              <span className="font-money shrink-0 text-ink">{formatARS(row.amount)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {infoOpen && info && (
         <p className="mt-3 rounded-[14px] bg-mist px-3.5 py-2.5 text-left text-[13px] leading-relaxed text-ink-soft">
           {info}
@@ -147,6 +162,10 @@ function SummaryCard({
 
 function Dashboard() {
   const navigate = useNavigate()
+
+  // Cuentas del disponible (migración 0032): las ofrece el formulario de
+  // carga, con la primera preseleccionada.
+  const { accounts, defaultAccountId, addAccount } = useAccounts()
 
   // Mismo cálculo que usa Portafolio (precio en vivo + filtro
   // include_in_total): el número tiene que ser el mismo en las dos pantallas.
@@ -238,6 +257,20 @@ function Dashboard() {
     setExpensesVersion((v) => v + 1)
   }
 
+  // Desglose del disponible por cuenta, para la tarjeta. Con una sola cuenta
+  // no se muestra: repetir el total abajo con un nombre al lado no dice nada.
+  // El balde "sin cuenta" entra como una línea más solo si tiene algo — cuenta
+  // para el total, así que sin él la suma de las líneas no daría.
+  const liquidRows = liquid
+    ? [
+        ...liquid.accounts.map((a) => ({ key: a.id, name: a.name, amount: a.amount })),
+        ...(Math.abs(liquid.unassigned) >= 0.01
+          ? [{ key: '__none__', name: 'Sin cuenta', amount: liquid.unassigned }]
+          : []),
+      ]
+    : []
+  const liquidBreakdown = liquidRows.length > 1 ? liquidRows : null
+
   const hasDebts = debtsError || debts.length > 0
 
   return (
@@ -265,6 +298,7 @@ function Dashboard() {
           currency="ARS"
           amount={liquid ? <Money value={liquid.current} currency="ars" /> : null}
           hint={liquid?.isFirst ? 'Declarar mi saldo' : null}
+          breakdown={liquidBreakdown}
           info="La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones."
           loading={liquidLoading}
           error={liquidError}
@@ -371,7 +405,10 @@ function Dashboard() {
           open={expenseModalOpen}
           defaultKind="expense"
           categories={categories ?? []}
+          accounts={accounts}
+          defaultAccountId={defaultAccountId}
           onCategoryCreated={(created) => setCategories((prev) => [...(prev ?? []), created])}
+          onAccountCreated={addAccount}
           onClose={() => setExpenseModalOpen(false)}
           onSaved={afterLiquidChanged}
         />

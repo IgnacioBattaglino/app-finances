@@ -14,6 +14,8 @@ import SettingsHome from './pages/settings/SettingsHome.jsx'
 import Appearance from './pages/settings/Appearance.jsx'
 import Categories from './pages/settings/Categories.jsx'
 import CategoryDetail from './pages/settings/CategoryDetail.jsx'
+import Accounts from './pages/settings/Accounts.jsx'
+import AccountDetail from './pages/settings/AccountDetail.jsx'
 import AssetTypes from './pages/settings/AssetTypes.jsx'
 import AssetTypeDetail from './pages/settings/AssetTypeDetail.jsx'
 import ExportData from './pages/settings/ExportData.jsx'
@@ -54,6 +56,8 @@ function App() {
           <Route path="/ajustes/apariencia" element={<Appearance />} />
           <Route path="/ajustes/categorias" element={<Categories />} />
           <Route path="/ajustes/categorias/:categoryId" element={<CategoryDetail />} />
+          <Route path="/ajustes/cuentas" element={<Accounts />} />
+          <Route path="/ajustes/cuentas/:accountId" element={<AccountDetail />} />
           <Route path="/ajustes/grupos" element={<AssetTypes />} />
           <Route path="/ajustes/grupos/:assetTypeId" element={<AssetTypeDetail />} />
           <Route path="/ajustes/exportar" element={<ExportData />} />

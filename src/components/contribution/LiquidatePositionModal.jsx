@@ -10,6 +10,7 @@ import CollapsedDateField from '../form/CollapsedDateField.jsx'
 import FormError from '../form/FormError.jsx'
 import MissingHint from '../form/MissingHint.jsx'
 import ExchangeRateField from './ExchangeRateField.jsx'
+import AccountField from '../form/AccountField.jsx'
 
 const DESTINATION_OPTIONS = [
   { value: 'liquid', label: 'A mi disponible', help: 'Entra a tu dinero disponible y lo sube.' },
@@ -25,11 +26,22 @@ const DESTINATION_OPTIONS = [
 // real de venta y manda sobre cualquier valuación calculada; si se aleja del
 // último valor conocido (para cualquier lado, no solo por encima) se avisa,
 // mismo criterio y tono que Retirar/Transferir/pago de deuda.
-function LiquidatePositionModal({ open, asset, valuation, contributions, onClose, onSaved }) {
+function LiquidatePositionModal({
+  open,
+  asset,
+  valuation,
+  contributions,
+  accounts = [],
+  defaultAccountId = null,
+  onClose,
+  onSaved,
+  onAccountCreated,
+}) {
   const [amount, setAmount] = useState('')
   const [quantity, setQuantity] = useState('')
   const [mepRate, setMepRate] = useState(null)
   const [destination, setDestination] = useState('liquid')
+  const [accountId, setAccountId] = useState(null)
   const [archiveAfter, setArchiveAfter] = useState(true)
   const [date, setDate] = useState(todayISO())
   const [busy, setBusy] = useState(false)
@@ -53,6 +65,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
     )
     setMepRate(null)
     setDestination('liquid')
+    setAccountId(defaultAccountId)
     setArchiveAfter(true)
     setDate(todayISO())
     setError(null)
@@ -109,6 +122,7 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
         affectsLiquid,
         contributions,
         emptiesAsset: true,
+        accountId,
       })
       if (archiveAfter) await archiveAsset(asset.id)
       onSaved(saved)
@@ -214,6 +228,20 @@ function LiquidatePositionModal({ open, asset, valuation, contributions, onClose
                 {DESTINATION_OPTIONS.find((o) => o.value === destination)?.help}
               </p>
             </div>
+
+            {/* Liquidar también acredita en el disponible cuando va "a mi
+                disponible": sin este campo, toda liquidación caería en el balde
+                "sin cuenta" y el desglose dejaría de cuadrar con lo que el
+                usuario ve en el bolsillo. */}
+            {affectsLiquid && (
+              <AccountField
+                accounts={accounts}
+                value={accountId}
+                onChange={setAccountId}
+                label="¿A qué cuenta?"
+                onAccountCreated={onAccountCreated}
+              />
+            )}
 
             <label className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="text-[17px]">Archivar el activo</span>

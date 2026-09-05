@@ -3,13 +3,18 @@ import { supabase } from './supabase.js'
 // El join implícito trae el nombre de la categoría en la misma query
 const SELECT = '*, category:categories(name)'
 
-function toRow({ date, kind, categoryId, description, amountArs }) {
+function toRow({ date, kind, categoryId, description, amountArs, accountId }) {
   return {
     date,
     kind,
     category_id: categoryId,
     description: description?.trim() || null,
     amount_ars: amountArs,
+    // De qué cuenta del disponible salió (o a cuál entró). Nullable: null es
+    // "sin cuenta", el balde que no se muestra como cuenta pero suma al total
+    // (migración 0032). `?? null` y no un default: el formulario ya elige la
+    // cuenta por defecto, acá un undefined es ausencia, no "la primera".
+    account_id: accountId ?? null,
   }
 }
 

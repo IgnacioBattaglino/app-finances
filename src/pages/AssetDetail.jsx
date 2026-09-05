@@ -23,6 +23,7 @@ import AssetHistory from '../components/assetDetail/AssetHistory.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
 import FormError from '../components/form/FormError.jsx'
 import ContributionFormModal from '../components/ContributionFormModal.jsx'
+import { useAccounts } from '../hooks/useAccounts.js'
 import TransferFormModal from '../components/contribution/TransferFormModal.jsx'
 import LiquidatePositionModal from '../components/contribution/LiquidatePositionModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
@@ -43,6 +44,10 @@ const METRIC_EXPLANATIONS = {
 function AssetDetail() {
   const { assetId } = useParams()
   const navigate = useNavigate()
+
+  // Cuentas del disponible (migración 0032): las ofrece el formulario de
+  // carga, con la primera preseleccionada.
+  const { accounts, defaultAccountId, addAccount } = useAccounts()
 
   const [assets, setAssets] = useState([])
   const [assetTypes, setAssetTypes] = useState([])
@@ -444,6 +449,9 @@ function AssetDetail() {
         valuation={valuation}
         contributions={fullContributions}
         prices={prices}
+        accounts={accounts}
+        defaultAccountId={defaultAccountId}
+        onAccountCreated={addAccount}
         onClose={closeModals}
         onSaved={refresh}
         onDeleted={refresh}
@@ -463,6 +471,9 @@ function AssetDetail() {
         asset={asset}
         valuation={valuation}
         contributions={fullContributions}
+        accounts={accounts}
+        defaultAccountId={defaultAccountId}
+        onAccountCreated={addAccount}
         onClose={closeModals}
         onSaved={refresh}
       />

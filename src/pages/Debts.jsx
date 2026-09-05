@@ -4,6 +4,7 @@ import Money from '../components/Money.jsx'
 import EditIcon from '../components/EditIcon.jsx'
 import DebtFormModal from '../components/DebtFormModal.jsx'
 import DebtPaymentModal from '../components/DebtPaymentModal.jsx'
+import { useAccounts } from '../hooks/useAccounts.js'
 import FormError from '../components/form/FormError.jsx'
 import {
   getDebts,
@@ -130,6 +131,9 @@ export function DebtCard({ debt, expanded, onToggle, onEdit, onPay, onEditPaymen
 
 
 function Debts() {
+  // Cuentas del disponible (migración 0032): las ofrece el formulario de
+  // carga, con la primera preseleccionada.
+  const { accounts, defaultAccountId, addAccount } = useAccounts()
   const [debts, setDebts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -308,6 +312,9 @@ function Debts() {
           open={paymentModal.open}
           debt={paymentModal.debt}
           initial={paymentModal.editing}
+          accounts={accounts}
+          defaultAccountId={defaultAccountId}
+          onAccountCreated={addAccount}
           onClose={closeModals}
           onSaved={refresh}
           onDeleted={refresh}

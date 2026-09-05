@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { computeLiquidFromCollections, decideAdjustment } from './liquid.js'
+import {
+  computeLiquidFromCollections,
+  computeLiquidByAccount,
+  lastReconciliationByAccount,
+  decideAdjustment,
+} from './liquid.js'
 import { round } from './money.js'
 
 describe('computeLiquidFromCollections', () => {
@@ -131,5 +136,180 @@ describe('decideAdjustment', () => {
 
   it('declarado igual al actual → no genera ajuste (evita insertar amount_ars=0, que violaría el CHECK > 0)', () => {
     expect(decideAdjustment(1000, 1000)).toBe(null)
+  })
+})
+
+describe('computeLiquidByAccount', () => {
+  const accountA = 'cuenta-efectivo'
+  const accountB = 'cuenta-mercado-pago'
+
+  it('colecciones vacías → sin baldes', () => {
+    const byAccount = computeLiquidByAccount({
+      transactions: [],
+      contributions: [],
+      debtPayments: [],
+    })
+    expect(byAccount.size).toBe(0)
+  })
+
+  it('separa las transacciones por cuenta', () => {
+    const transactions = [
+      { kind: 'income', amount_ars: 1000, account_id: accountA },
+      { kind: 'expense', amount_ars: 200, account_id: accountA },
+      { kind: 'income', amount_ars: 500, account_id: accountB },
+    ]
+    const byAccount = computeLiquidByAccount({ transactions, contributions: [], debtPayments: [] })
+    expect(byAccount.get(accountA)).toBe(800)
+    expect(byAccount.get(accountB)).toBe(500)
+  })
+
+  it('las tres fuentes caen en la cuenta de cada fila', () => {
+    const transactions = [{ kind: 'income', amount_ars: 10000, account_id: accountA }]
+    const contributions = [
+      { amount_usd: 5, mep_rate: 100, direction: 'in', affects_liquid: true, account_id: accountA },
+      { amount_usd: 2, mep_rate: 100, direction: 'out', affects_liquid: true, account_id: accountB },
+    ]
+    const debtPayments = [{ amount_usd: 3, mep_rate: 100, account_id: accountB }]
+    const byAccount = computeLiquidByAccount({ transactions, contributions, debtPayments })
+    expect(byAccount.get(accountA)).toBe(9500) // 10000 − 500
+    expect(byAccount.get(accountB)).toBe(-100) // +200 − 300
+  })
+
+  it('account_id null/ausente cae en el balde "sin cuenta" (clave null)', () => {
+    const transactions = [
+      { kind: 'income', amount_ars: 300, account_id: null },
+      { kind: 'income', amount_ars: 200 }, // fila anterior a la migración 0032
+    ]
+    const byAccount = computeLiquidByAccount({ transactions, contributions: [], debtPayments: [] })
+    expect(byAccount.get(null)).toBe(500)
+    expect([...byAccount.keys()]).toEqual([null])
+  })
+
+  it('lo que no toca el disponible no crea cuenta ni suma: aporte "de afuera", pago con dólares propios y pago sin tasa', () => {
+    const contributions = [
+      // De afuera: aunque traiga una cuenta pegada, no debe contar en ningún lado.
+      { amount_usd: 100, mep_rate: 1000, direction: 'in', affects_liquid: false, account_id: accountA },
+    ]
+    const debtPayments = [
+      { amount_usd: 50, mep_rate: 1000, affects_liquid: false, account_id: accountA },
+      { amount_usd: 50, mep_rate: null, account_id: accountA },
+    ]
+    const byAccount = computeLiquidByAccount({ transactions: [], contributions, debtPayments })
+    expect(byAccount.size).toBe(0)
+  })
+
+  it('el total sigue siendo la suma de las cuentas: desglose y total no pueden divergir', () => {
+    const collections = {
+      transactions: [
+        { kind: 'income', amount_ars: 1000, account_id: accountA },
+        { kind: 'expense', amount_ars: 250, account_id: accountB },
+      ],
+      contributions: [
+        { amount_usd: 1, mep_rate: 100, direction: 'in', affects_liquid: true, account_id: accountB },
+      ],
+      debtPayments: [{ amount_usd: 2, mep_rate: 100, account_id: null }],
+    }
+    const byAccount = computeLiquidByAccount(collections)
+    const sumOfParts = [...byAccount.values()].reduce((a, b) => a + b, 0)
+    expect(computeLiquidFromCollections(collections)).toBe(sumOfParts)
+    expect(sumOfParts).toBe(450) // 1000 − 250 − 100 − 200
+  })
+})
+
+describe('la migración de datos existentes (0032): todo a "Efectivo", sin perder nada', () => {
+  // Reproduce lo que hacen los tres UPDATE de la migración sobre las filas ya
+  // cargadas, y comprueba la propiedad que importa: el disponible total no se
+  // mueve un centavo, y todo lo que lo mueve queda bajo la cuenta sembrada.
+  const EFECTIVO = 'cuenta-efectivo'
+
+  const before = {
+    transactions: [
+      { kind: 'income', amount_ars: 500000 },
+      { kind: 'expense', amount_ars: 120000 },
+      { kind: 'expense', amount_ars: 33333.33 },
+    ],
+    contributions: [
+      { amount_usd: 100, mep_rate: 1200, direction: 'in', affects_liquid: true },
+      { amount_usd: 40, mep_rate: 1200, direction: 'out', affects_liquid: true },
+      { amount_usd: 500, mep_rate: 1200, direction: 'in', affects_liquid: false }, // de afuera
+      { amount_usd: 20, mep_rate: 1200, direction: 'out', affects_liquid: false }, // pata de transferencia
+    ],
+    debtPayments: [
+      { amount_usd: 80, mep_rate: 1200, affects_liquid: true },
+      { amount_usd: 30, mep_rate: null, affects_liquid: true }, // sin tasa: se asigna igual
+      { amount_usd: 60, mep_rate: 1200, affects_liquid: false }, // con dólares propios
+    ],
+  }
+
+  // Las mismas reglas que los UPDATE de la migración.
+  const after = {
+    transactions: before.transactions.map((t) => ({ ...t, account_id: EFECTIVO })),
+    contributions: before.contributions.map((c) => ({
+      ...c,
+      account_id: c.affects_liquid === true ? EFECTIVO : null,
+    })),
+    debtPayments: before.debtPayments.map((p) => ({
+      ...p,
+      account_id: p.affects_liquid !== false ? EFECTIVO : null,
+    })),
+  }
+
+  it('el disponible total es exactamente el mismo antes y después', () => {
+    expect(round(computeLiquidFromCollections(after))).toBe(
+      round(computeLiquidFromCollections(before)),
+    )
+  })
+
+  it('todo el disponible queda en "Efectivo": no hay nada en el balde sin cuenta', () => {
+    const byAccount = computeLiquidByAccount(after)
+    expect([...byAccount.keys()]).toEqual([EFECTIVO])
+    expect(round(byAccount.get(EFECTIVO))).toBe(round(computeLiquidFromCollections(before)))
+  })
+
+  it('lo que no toca el disponible se queda sin cuenta (no se le inventa una)', () => {
+    const untouched = [
+      ...after.contributions.filter((c) => c.affects_liquid === false),
+      ...after.debtPayments.filter((p) => p.affects_liquid === false),
+    ]
+    expect(untouched).toHaveLength(3)
+    expect(untouched.every((row) => row.account_id === null)).toBe(true)
+  })
+
+  it('un pago sin tipo de cambio se asigna a la cuenta aunque no entre en el cálculo', () => {
+    const rateless = after.debtPayments.find((p) => p.mep_rate === null)
+    expect(rateless.account_id).toBe(EFECTIVO)
+    // Sigue fuera del cálculo por no tener tasa, no por no tener cuenta.
+    const byAccount = computeLiquidByAccount({
+      transactions: [],
+      contributions: [],
+      debtPayments: [rateless],
+    })
+    expect(byAccount.size).toBe(0)
+  })
+})
+
+describe('lastReconciliationByAccount', () => {
+  it('sin reconciliaciones → mapa vacío', () => {
+    expect(lastReconciliationByAccount([]).size).toBe(0)
+  })
+
+  it('gana la primera aparición de cada cuenta (las filas vienen de más nueva a más vieja)', () => {
+    const rows = [
+      { id: 'r3', account_id: 'a', date: '2026-03-01' },
+      { id: 'r2', account_id: 'b', date: '2026-02-01' },
+      { id: 'r1', account_id: 'a', date: '2026-01-01' },
+    ]
+    const byAccount = lastReconciliationByAccount(rows)
+    expect(byAccount.get('a').id).toBe('r3')
+    expect(byAccount.get('b').id).toBe('r2')
+  })
+
+  it('las filas anteriores a la 0032 (account_id null) quedan bajo la clave null, no bajo una cuenta real', () => {
+    const rows = [
+      { id: 'vieja', account_id: null, date: '2026-01-01' },
+    ]
+    const byAccount = lastReconciliationByAccount(rows)
+    expect(byAccount.get(null).id).toBe('vieja')
+    expect(byAccount.get('cuenta-efectivo')).toBeUndefined()
   })
 })

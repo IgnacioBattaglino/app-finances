@@ -39,6 +39,7 @@ const ROOT_TABLES = [
   'debts',
   'settings',
   'liquid_reconciliations',
+  'liquid_accounts',
 ]
 
 // Tablas hijas: sin user_id propio, heredan el dueño vía FK a su tabla raíz

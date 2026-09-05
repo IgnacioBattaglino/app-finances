@@ -11,22 +11,27 @@ import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
+import AccountField from './form/AccountField.jsx'
 
 function TransactionFormModal({
   open,
   initial,
   defaultKind = 'expense',
   categories = [],
+  accounts = [],
+  defaultAccountId = null,
   onClose,
   onSaved,
   onDeleted,
   onCategoryCreated,
+  onAccountCreated,
 }) {
   const [date, setDate] = useState(todayISO())
   const [kind, setKind] = useState(defaultKind)
   const [categoryId, setCategoryId] = useState('')
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
+  const [accountId, setAccountId] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -47,13 +52,17 @@ function TransactionFormModal({
     setCategoryId(initial?.category_id ?? '')
     setDescription(initial?.description ?? '')
     setAmount(initial ? toDecimalInput(Number(initial.amount_ars)) : '')
+    // Editando manda lo que tiene la fila, incluso si es null: guardar sin
+    // tocar nada tiene que dejar el movimiento idéntico, no mudarlo a la
+    // cuenta por defecto. Creando, la cuenta por defecto ya viene elegida.
+    setAccountId(initial ? (initial.account_id ?? null) : defaultAccountId)
     setError(null)
     setConfirmDelete(false)
     setBusy(false)
     setCreatingCategory(false)
     setNewCategoryName('')
     setCategoryError(null)
-  }, [open, initial, defaultKind])
+  }, [open, initial, defaultKind, defaultAccountId])
 
   if (!open) return null
 
@@ -107,7 +116,7 @@ function TransactionFormModal({
     if (!valid || busy) return
     setBusy(true)
     setError(null)
-    const fields = { date, kind, categoryId, description, amountArs: amountValue }
+    const fields = { date, kind, categoryId, description, amountArs: amountValue, accountId }
     try {
       const saved = editing
         ? await updateTransaction(initial.id, fields)
@@ -254,6 +263,16 @@ function TransactionFormModal({
                 </div>
               )}
             </div>
+            {/* Todo gasto o ingreso mueve el disponible, así que la cuenta se
+                pregunta siempre — a diferencia de un aporte o un pago de
+                deuda, que pueden no tocarlo. */}
+            <AccountField
+              accounts={accounts}
+              value={accountId}
+              onChange={setAccountId}
+              label={kind === 'income' ? '¿A qué cuenta?' : '¿De qué cuenta?'}
+              onAccountCreated={onAccountCreated}
+            />
             <CollapsedDateField value={date} onChange={setDate} />
             <div className="px-4 py-3">
               <label className="flex items-center justify-between gap-3">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
+import { useAccounts } from '../hooks/useAccounts.js'
 import BinaryChoice from '../components/form/BinaryChoice.jsx'
 import EditIcon from '../components/EditIcon.jsx'
 import FormError from '../components/form/FormError.jsx'
@@ -106,6 +107,9 @@ function InvestmentRow({ contribution: c }) {
 }
 
 function Movements() {
+  // Cuentas del disponible (migración 0032): las ofrece el formulario de
+  // carga, con la primera preseleccionada.
+  const { accounts, defaultAccountId, addAccount } = useAccounts()
   // Movimientos del mes navegado, sin filtrar por tipo/categoría: de acá
   // salen tanto los totales y el desglose (que describen el mes completo)
   // como la lista filtrada de abajo (filtrada en cliente).
@@ -425,7 +429,10 @@ function Movements() {
         open={modalOpen}
         initial={editing}
         categories={categories}
+        accounts={accounts}
+        defaultAccountId={defaultAccountId}
         onCategoryCreated={(created) => setCategories((prev) => [...prev, created])}
+        onAccountCreated={addAccount}
         onClose={closeModal}
         onSaved={refreshAfterSave}
         onDeleted={refreshAfterSave}

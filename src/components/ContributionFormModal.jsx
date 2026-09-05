@@ -18,6 +18,7 @@ import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
 import QuantityAmountField from './contribution/QuantityAmountField.jsx'
 import ExchangeRateField from './contribution/ExchangeRateField.jsx'
+import AccountField from './form/AccountField.jsx'
 
 const OUTSIDE_HELP = 'Plata que no estaba en la app (un sueldo, un regalo). No toca tu dinero disponible.'
 
@@ -59,15 +60,19 @@ function ContributionFormModal({
   valuation,
   contributions,
   prices,
+  accounts = [],
+  defaultAccountId = null,
   onClose,
   onSaved,
   onDeleted,
+  onAccountCreated,
 }) {
   const [quantity, setQuantity] = useState('')
   const [amountUsd, setAmountUsd] = useState('') // usado cuando el vínculo cantidad↔monto está activo
   const [nonLiveAmountUsd, setNonLiveAmountUsd] = useState(null) // reportado por ExchangeRateField cuando no hay vínculo
   const [mepRate, setMepRate] = useState(null)
   const [origin, setOrigin] = useState('liquid')
+  const [accountId, setAccountId] = useState(null)
   const [date, setDate] = useState(todayISO())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -96,12 +101,15 @@ function ContributionFormModal({
     setMepRate(initial?.mep_rate != null ? round(Number(initial.mep_rate)) : null)
     setDate(initial?.date ?? todayISO())
     setOrigin(initial ? (initial.affects_liquid !== false ? 'liquid' : 'outside') : 'liquid')
+    // Editando manda la cuenta de la fila, aunque sea null: guardar sin tocar
+    // nada deja la fila idéntica. Creando, la cuenta por defecto ya elegida.
+    setAccountId(initial ? (initial.account_id ?? null) : defaultAccountId)
     setError(null)
     setConfirmDelete(false)
     setBusy(false)
     setTransferSibling(null)
     setConfirmDeleteTransfer(false)
-  }, [open, initial, asset])
+  }, [open, initial, asset, defaultAccountId])
 
   // Una pata de transferencia no se edita (ver más abajo): solo necesitamos
   // el nombre del otro activo, para el mensaje de la confirmación de borrado.
@@ -308,6 +316,7 @@ function ContributionFormModal({
           // ganancia falsa para siempre.
           emptiesAsset: editing ? initial.empties_asset === true : false,
           transferId: null,
+          accountId,
         }
         saved = editing
           ? await updateWithdrawal({ id: initial.id, ...fields })
@@ -321,6 +330,7 @@ function ContributionFormModal({
           mepRate,
           affectsLiquid,
           transferId: null,
+          accountId,
         }
         saved = editing
           ? await updateContribution(initial.id, fields)
@@ -449,6 +459,19 @@ function ContributionFormModal({
                 {copy.originOptions.find((o) => o.value === origin)?.help}
               </p>
             </div>
+
+            {/* Solo si la operación toca el disponible: "de afuera" es plata
+                que nunca estuvo en ninguna cuenta de la app, así que no hay
+                cuenta que preguntar (y toRow fuerza el null igual). */}
+            {affectsLiquid && (
+              <AccountField
+                accounts={accounts}
+                value={accountId}
+                onChange={setAccountId}
+                label={operation === 'withdrawal' ? '¿A qué cuenta?' : '¿De qué cuenta?'}
+                onAccountCreated={onAccountCreated}
+              />
+            )}
 
             <CollapsedDateField value={date} onChange={setDate} />
           </div>

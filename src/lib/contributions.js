@@ -13,14 +13,22 @@ function toRow({
   realizedGain,
   transferId,
   emptiesAsset,
+  accountId,
 }) {
+  const affects = affectsLiquid ?? true
   return {
     asset_id: assetId,
     date,
     amount_usd: amountUsd,
     quantity: quantity ?? null,
     mep_rate: mepRate,
-    affects_liquid: affectsLiquid ?? true,
+    affects_liquid: affects,
+    // De qué cuenta del disponible salió la plata (migración 0032). Una
+    // operación que NO toca el disponible nunca tiene cuenta: se fuerza null
+    // acá y no solo escondiendo el campo, porque el usuario puede elegir la
+    // cuenta y recién después cambiar el origen a "de afuera" — y ahí la
+    // cuenta elegida quedaría pegada a una fila que jamás pasó por ella.
+    account_id: affects ? (accountId ?? null) : null,
     direction: direction ?? 'in',
     realized_gain: realizedGain ?? null,
     transfer_id: transferId ?? null,
@@ -121,6 +129,7 @@ export async function createWithdrawal({
   contributions,
   emptiesAsset,
   transferId = null,
+  accountId = null,
 }) {
   const own = contributions.filter((c) => c.asset_id === assetId)
   const contributedBefore = computeContributed(own)
@@ -141,6 +150,7 @@ export async function createWithdrawal({
     realizedGain,
     transferId,
     emptiesAsset,
+    accountId,
   })
 }
 
@@ -217,6 +227,7 @@ export async function updateWithdrawal({
   contributions,
   emptiesAsset,
   transferId = null,
+  accountId = null,
 }) {
   const own = contributions.filter((c) => c.asset_id === assetId && c.id !== id)
   const contributedBefore = computeContributed(own)
@@ -237,6 +248,7 @@ export async function updateWithdrawal({
     realizedGain,
     transferId,
     emptiesAsset,
+    accountId,
   })
 }
 

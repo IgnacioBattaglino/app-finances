@@ -4,7 +4,7 @@ import { round } from './money.js'
 // Los pagos vienen en la misma query que la deuda: el saldo no se puede leer
 // sin ellos (es original − pagos, calculado siempre al vuelo, nunca guardado).
 const SELECT =
-  '*, payments:debt_payments(id, date, amount_usd, mep_rate, affects_liquid, created_at)'
+  '*, payments:debt_payments(id, date, amount_usd, mep_rate, affects_liquid, account_id, created_at)'
 
 export async function getDebts() {
   const { data, error } = await supabase
@@ -108,13 +108,19 @@ export async function deleteDebt(id) {
   if (error) throw error
 }
 
-function toPaymentRow({ debtId, date, amountUsd, mepRate, affectsLiquid }) {
+function toPaymentRow({ debtId, date, amountUsd, mepRate, affectsLiquid, accountId }) {
   return {
     debt_id: debtId,
     date,
     amount_usd: amountUsd,
     mep_rate: mepRate,
     affects_liquid: affectsLiquid,
+    // De qué cuenta del disponible salió el pago (migración 0032). Un pago
+    // hecho con dólares que ya tenías (affects_liquid false) no salió de
+    // ninguna: se fuerza null acá y no solo escondiendo el campo, porque el
+    // usuario puede elegir la cuenta y después cambiar el origen a "de afuera"
+    // (mismo criterio que en contributions).
+    account_id: affectsLiquid === false ? null : (accountId ?? null),
   }
 }
 

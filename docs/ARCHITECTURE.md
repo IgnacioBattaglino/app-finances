@@ -15,7 +15,7 @@ Decisiones técnicas y modelo de datos. La especificación funcional está en FU
 2. Nada se borra si tiene historia: activos y asset_types se archivan (is_archived), no se eliminan, para no romper datos históricos. Categorías son la excepción desde la migración 0028 (ver tabla `categories` abajo): se borran de verdad cuando pueden.
 3. Las cotizaciones del momento se congelan en el evento: cada aporte guarda el MEP de su fecha (ídem debt_payments.mep_rate). Las métricas históricas no dependen de reconstruir cotizaciones pasadas.
 4. Moneda: transactions y liquid_reconciliations en ARS (vida diaria); contributions, valuations y deudas en USD (inversión).
-5. Multiusuario: las tablas raíz (categories, transactions, assets, asset_types, debts, settings, liquid_reconciliations) llevan user_id → auth.users; las tablas hijas (contributions, asset_valuations, debt_payments) heredan el dueño vía su FK. El aislamiento lo garantiza RLS (user_id = auth.uid()).
+5. Multiusuario: las tablas raíz (categories, transactions, assets, asset_types, debts, settings, liquid_reconciliations, liquid_accounts) llevan user_id → auth.users; las tablas hijas (contributions, asset_valuations, debt_payments) heredan el dueño vía su FK. El aislamiento lo garantiza RLS (user_id = auth.uid()).
 6. El frontend nunca envía user_id: lo completa la base con default auth.uid(), y el with check de RLS garantiza la pertenencia. Defensa en dos capas: la base completa, RLS valida.
 
 ## Tablas
@@ -142,7 +142,24 @@ Historial de reconciliaciones del dinero líquido: el usuario declara su líquid
 | date | date NOT NULL | |
 | declared_amount_ars | numeric(14,2) NOT NULL | CHECK >= 0; el líquido real declarado |
 | adjustment_transaction_id | uuid FK → transactions | nullable; la transaction de ajuste generada (null si no hubo diferencia) |
+| account_id | uuid FK → liquid_accounts | nullable (migración 0032). Desde la 0032 la reconciliación es POR CUENTA: el usuario declara cuánto hay en cada una (no un total a repartir — repartir es justo lo que la app no puede saber) y se graba **una fila por cuenta declarada**, cada una con su monto y su propio ajuste. Una cuenta que se deja vacía no se reconcilia. Las filas anteriores a la 0032 quedan con null y se leen como lo que son: reconciliaciones del disponible entero, cuando no había cuentas — no se backfillean a "Efectivo" (mismo criterio que empties_asset en ADR-011). El null también es el camino vigente si el usuario se queda sin ninguna cuenta |
 | created_at | timestamptz default now() | |
+
+### liquid_accounts (migración 0032)
+Subdivisiones del dinero disponible: DÓNDE está físicamente esa plata (efectivo, Mercado Pago, Cuenta DNI). Tabla raíz, RLS "own rows". No es "de quién es" ni "para qué es" la plata (billeteras/cajas): eso es otro eje y no está implementado.
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | uuid PK | default gen_random_uuid() |
+| user_id | uuid FK → auth.users | NOT NULL, default auth.uid() |
+| name | text NOT NULL | libre, editable; renombrar no afecta ningún cálculo (nada depende del nombre, solo del id) |
+| position | int NOT NULL default 0 | orden manual, 0-based dentro del usuario; mismo patrón que categories.position. Sin unique — un empate lo desempata el nombre. La PRIMERA por position es la que los formularios preseleccionan |
+| created_at | timestamptz default now() | |
+
+`transactions`, `contributions` y `debt_payments` llevan `account_id` (FK → liquid_accounts, **nullable**, sin `on delete cascade`). Null = **sin cuenta**: cuenta para el total del disponible pero no se muestra como una cuenta real. Una operación que no toca el disponible (`affects_liquid = false`: aporte "de afuera", pata de transferencia, pago con dólares propios) nunca lleva cuenta — se fuerza null al escribir, no solo escondiendo el campo del formulario.
+
+Borrar una cuenta con movimientos no está permitido por la FK (23503, mismo mecanismo que `transactions.category_id`). A diferencia de una categoría, una cuenta NO se puede ocultar —su plata tiene que seguir estando en algún lado—, así que `deleteAccount` (`lib/liquidAccounts.js`) devuelve `{ deleted: false }` y la pantalla ofrece reasignar los movimientos a otra cuenta antes de borrar (`reassignAndDeleteAccount`).
+
+El desglose por cuenta lo calcula `computeLiquidByAccount` (`lib/liquid.js`), y el total se define como la suma de ese desglose: total y partes no pueden divergir. El total suma TODOS los baldes, incluidos los de un `account_id` huérfano, y "sin cuenta" se define como la resta (total − cuentas conocidas), así que las líneas que se muestran siempre dan el total de arriba.
 
 ### settings
 Una fila por usuario (la crea el trigger de sembrado al registrarse).
@@ -205,7 +222,7 @@ RLS de instruments e instrument_prices: SELECT para authenticated, **ninguna pol
 
 - Objetivo FIRE (USD) = desired_monthly_income_usd × 12 / safe_withdrawal_rate.
 - Valor del portafolio = SUM(valor actual de cada activo activo). Valor actual: última valuación (activos manuales), SUM(quantity) × precio del instrumento (activos de valuación automática), o lo aportado (efectivo). El precio del instrumento sale EN VIVO cuando la fuente cotiza desde el navegador (cripto, vía Binance/CoinGecko, que ya cotizan en USD) y del último cierre cuando no (BYMA). Los cierres se leen de la vista `instrument_prices_usd`, que ya los devuelve en dólares — la app no convierte nada (ver ADR-008). No existe un "patrimonio total" que sume líquido + portafolio: son magnitudes separadas (ver FUNCTIONAL.md).
-- Dinero líquido (ARS) = SUM(ingresos) − SUM(gastos) − SUM(aportes con affects_liquid × su mep_rate) − SUM(pagos de deuda con affects_liquid y mep_rate × su mep_rate). Acumulado general, no mensual; los ajustes de reconciliación son transactions comunes, así que ya están incluidos en la suma.
+- Dinero líquido (ARS) = SUM(ingresos) − SUM(gastos) − SUM(aportes con affects_liquid × su mep_rate) − SUM(pagos de deuda con affects_liquid y mep_rate × su mep_rate). Acumulado general, no mensual; los ajustes de reconciliación son transactions comunes, así que ya están incluidos en la suma. Desde la migración 0032 la misma fórmula se aplica agrupando por `account_id`: el desglose por cuenta, cuya suma ES el total.
 - Ganancia por activo = valor actual − SUM(contributions del activo). % = ganancia / aportado.
 - Tasa de ahorro (mes) = (ingresos − gastos) / ingresos [todo ARS, de transactions].
 - % invertido (mes) = SUM(amount_usd × mep_rate de cada aporte del mes) / ingresos ARS del mes.
@@ -217,8 +234,8 @@ RLS de instruments e instrument_prices: SELECT para authenticated, **ninguna pol
 - Credenciales de Supabase en .env (nunca en el repo).
 - Datos reales solo en Supabase. El repo no contiene datos financieros.
 - Multiusuario con Supabase Auth (email + contraseña). Registro semi-cerrado: las cuentas las crea el administrador; no hay signup público.
-- RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009, asset_types en la 0014): "own rows" en las tablas raíz (user_id = auth.uid()) y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
-- Trigger handle_new_user (migración 0007, redefinido en 0010, 0012, 0014 y 0015): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas las del sistema "Ajuste de saldo" (expense e income, con is_system = true), que usa la reconciliación del líquido —, sus 5 bolsas de activos default (asset_types, sin valuation_mode desde la 0015) y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql; para usuarios anteriores a la 0014, el backfill de asset_types va incluido en esa misma migración (idempotente).
+- RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009, asset_types en la 0014): "own rows" en las tablas raíz (user_id = auth.uid()); liquid_accounts nace con la suya en la 0032 y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
+- Trigger handle_new_user (migración 0007, redefinido en 0010, 0012, 0014 y 0015): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas las del sistema "Ajuste de saldo" (expense e income, con is_system = true), que usa la reconciliación del líquido —, sus 5 bolsas de activos default (asset_types, sin valuation_mode desde la 0015), su cuenta inicial del disponible "Efectivo" (liquid_accounts, migración 0032) y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql; para usuarios anteriores a la 0014, el backfill de asset_types va incluido en esa misma migración (idempotente).
 - Catálogo de precios compartido (migración 0018): instruments e instrument_prices NO llevan user_id y tienen solo policy de SELECT para authenticated (anon no lee). No hay policy de escritura: el único escritor es la Edge Function refresh_prices con la service_role key, que bypassa RLS. El cron (pg_cron a las 12:00 UTC = 09:00 ART) la llama vía pg_net; la URL y el secreto de autorización viven en Supabase Vault, no en el repo. Ver ADR-006 y supabase/functions/refresh_prices/README.md.
 - Función create_transfer (migración 0017): transferencia atómica entre activos. Inserta las dos patas (retiro 'out' + aporte 'in', mismo transfer_id) en una sola transacción, evitando el retiro huérfano que dejaba la doble escritura del cliente si la segunda fallaba. SECURITY INVOKER — RLS ("own via asset") sigue aplicando; además valida explícitamente, antes de insertar, que ambos activos pertenezcan a auth.uid() (rechaza sin escribir nada). El realized_gain del retiro se calcula en el cliente (lib/portfolio.js) y se pasa como parámetro; la función no reimplementa esa lógica. Solo authenticated puede ejecutarla. La misma migración crea el índice contributions(asset_id), que sirve a todas las consultas por activo del portafolio y del detalle.
 
@@ -235,3 +252,4 @@ RLS de instruments e instrument_prices: SELECT para authenticated, **ninguna pol
 - ADR-009: el grupo de un activo (asset_type_id) es opcional; sin grupo, el activo se muestra suelto en Portafolio.
 - ADR-010: una posición está cerrada según el aportado neto acumulado, no según la cantidad.
 - ADR-011: empties_asset se guarda en la fila del retiro (es un insumo del realized_gain); los retiros anteriores no se backfillean ni se infieren.
+- ADR-012: el disponible se subdivide en cuentas (dónde está la plata), y la reconciliación se declara por cuenta, no como un total repartido.
