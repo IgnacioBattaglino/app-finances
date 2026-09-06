@@ -131,6 +131,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
           pantallas para lo mismo se desincronizan; una sola, no. */}
       <Link
         to={`/ajustes/grupos/${assetType.id}`}
+        state={{ from: 'portfolio' }}
         className={`block px-4 py-3 transition active:opacity-90 ${color ? 'group-tint' : 'bg-mist'}`}
       >
         <div className="flex items-baseline justify-between gap-3">

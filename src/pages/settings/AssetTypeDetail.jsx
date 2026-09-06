@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   getAssetType,
   getAssetTypes,
@@ -120,6 +120,7 @@ function assetsLabel({ active, archived }) {
 function AssetTypeDetail() {
   const { assetTypeId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const [assetType, setAssetType] = useState(null)
   const [counts, setCounts] = useState(null)
   // La lista activa completa: hace falta para saber en qué posición está este
@@ -130,6 +131,17 @@ function AssetTypeDetail() {
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [error, setError] = useState(null)
+
+  // Esta pantalla se entra desde dos lugares: la lista de Ajustes → Grupos, y
+  // tocando el encabezado de un grupo en Portafolio (ver AssetGroup.jsx, que
+  // linkea con este state). El botón de atrás tiene que volver a donde el
+  // usuario estaba, no a un destino fijo — así Portafolio recupera su scroll
+  // y su orden (useScrollRestoration solo restaura en un volver atrás de
+  // verdad, no en un push a una ruta fija).
+  const fromPortfolio = location.state?.from === 'portfolio'
+  const backProps = fromPortfolio
+    ? { onBack: () => navigate(-1), backLabel: 'Portafolio' }
+    : { backTo: '/ajustes/grupos', backLabel: 'Grupos de activos' }
 
   // Los activos del grupo con su valor salen del MISMO lugar que Portafolio
   // (usePortfolio), no de una consulta propia: el valor de un activo depende
@@ -227,7 +239,10 @@ function AssetTypeDetail() {
     setError(null)
     try {
       await action()
-      navigate('/ajustes/grupos')
+      // El grupo ya no existe: no hay a dónde "volver" en el historial, así
+      // que se navega al lugar que corresponde según el origen (mismo
+      // criterio que el botón de atrás de arriba).
+      navigate(fromPortfolio ? '/portafolio' : '/ajustes/grupos')
     } catch (e) {
       setError({ message, detail: e.message })
       setBusy(false)
@@ -236,7 +251,7 @@ function AssetTypeDetail() {
 
   if (loading) {
     return (
-      <SettingsPage title="Grupo" backTo="/ajustes/grupos" backLabel="Grupos de activos">
+      <SettingsPage title="Grupo" {...backProps}>
         <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
       </SettingsPage>
     )
@@ -244,7 +259,7 @@ function AssetTypeDetail() {
 
   if (!assetType) {
     return (
-      <SettingsPage title="Grupo" backTo="/ajustes/grupos" backLabel="Grupos de activos">
+      <SettingsPage title="Grupo" {...backProps}>
         <FormError message={error?.message} detail={error?.detail} />
       </SettingsPage>
     )
@@ -260,11 +275,7 @@ function AssetTypeDetail() {
   const canMove = !assetType.is_archived && position !== -1 && siblings.length > 1
 
   return (
-    <SettingsPage
-      title={assetType.name}
-      backTo="/ajustes/grupos"
-      backLabel="Grupos de activos"
-    >
+    <SettingsPage title={assetType.name} {...backProps}>
       <FormError message={error?.message} detail={error?.detail} />
 
       <form onSubmit={handleRename}>

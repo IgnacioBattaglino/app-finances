@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   getAccounts,
-  createAccount,
   deleteAccount,
   reassignAndDeleteAccount,
   countMovementsForAccount,
@@ -11,37 +10,14 @@ import {
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
+import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
 import { ReorderableRows, GripIcon } from '../../components/settings/ReorderableRows.jsx'
 
 // Alta al pie de la lista, escondida hasta que se la pide: mismo patrón que
-// "Nueva categoría".
+// "Nueva categoría" (y el mismo formulario de alta que usa AccountField en
+// los selectores de carga — ver AccountCreateForm).
 function NewAccountRow({ onCreated }) {
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
-
-  function close() {
-    setOpen(false)
-    setName('')
-    setError(null)
-  }
-
-  async function handleCreate(event) {
-    event.preventDefault()
-    const trimmed = name.trim()
-    if (!trimmed || busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      onCreated(await createAccount(trimmed))
-      close()
-    } catch (e) {
-      setError({ message: 'No se pudo crear la cuenta.', detail: e.message })
-    } finally {
-      setBusy(false)
-    }
-  }
 
   if (!open) {
     return (
@@ -56,30 +32,15 @@ function NewAccountRow({ onCreated }) {
   }
 
   return (
-    <form onSubmit={handleCreate} className="space-y-2.5 px-4 py-3">
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => e.key === 'Escape' && close()}
-        placeholder="ej: Mercado Pago, Cuenta DNI"
-        autoFocus
-        disabled={busy}
-        className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none placeholder:text-ink-faint"
+    <div className="px-4 py-3">
+      <AccountCreateForm
+        onCreated={(created) => {
+          onCreated(created)
+          setOpen(false)
+        }}
+        onCancel={() => setOpen(false)}
       />
-      <FormError message={error?.message} detail={error?.detail} />
-      <div className="flex items-center justify-end gap-4 text-[15px]">
-        <button type="button" onClick={close} disabled={busy} className="text-ink-soft">
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={busy || !name.trim()}
-          className="font-semibold text-accent-ink disabled:opacity-50"
-        >
-          Guardar
-        </button>
-      </div>
-    </form>
+    </div>
   )
 }
 
