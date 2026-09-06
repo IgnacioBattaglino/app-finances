@@ -48,6 +48,14 @@ export function lastReconciliationByAccount(rows) {
 // + retiros que acreditan − pagos de deuda. Los ajustes de reconciliación son
 // transactions normales, así que ya están incluidos, cada uno en la cuenta que
 // ajustó. Pura y testeable: recibe las colecciones ya consultadas, no hace I/O.
+//
+// LA APP YA NO PASA POR ACÁ: desde la migración 0033 la suma la hace Postgres
+// (get_liquid_by_account), porque traer las tres tablas enteras para sumarlas
+// en el navegador chocaba contra el corte silencioso de PostgREST en 1000
+// filas. Esta función se queda como la DEFINICIÓN ejecutable de la regla:
+// src/lib/liquidSql.test.js corre la función SQL contra ella con un dataset de
+// cientos de filas y exige que den lo mismo. Si algún día cambia la regla, se
+// cambia acá y allá, y el test avisa si una de las dos se olvidó.
 export function computeLiquidByAccount({ transactions, contributions, debtPayments }) {
   const byAccount = new Map()
   const add = (accountId, delta) => {
@@ -85,44 +93,33 @@ export function computeLiquidFromCollections(collections) {
 
 // El estado completo del disponible: el total (igual que siempre), el desglose
 // por cuenta, y la última reconciliación de cada una.
+//
+// El desglose lo suma la base (get_liquid_by_account, migración 0033) y vuelve
+// como una fila por cuenta, no como los miles de movimientos que la componen:
+// una agregación no puede toparse con el corte de PostgREST en 1000 filas
+// porque nunca devuelve tantas. La regla que aplica es la misma que
+// computeLiquidByAccount, y hay un test que lo verifica contra datos.
 export async function computeCurrentLiquid() {
-  const [reconciliations, accountRows, transactions, contributions, debtPayments] =
-    await Promise.all([
-      getReconciliations(),
-      supabase
-        .from('liquid_accounts')
-        .select('*')
-        .order('position')
-        .order('name')
-        .then(({ data, error }) => {
-          if (error) throw error
-          return data
-        }),
-      supabase
-        .from('transactions')
-        .select('kind, amount_ars, account_id')
-        .then(({ data, error }) => {
-          if (error) throw error
-          return data
-        }),
-      supabase
-        .from('contributions')
-        .select('amount_usd, mep_rate, direction, affects_liquid, account_id')
-        .eq('affects_liquid', true) // cargas iniciales / tenencias previas y transferencias no tocan el líquido
-        .then(({ data, error }) => {
-          if (error) throw error
-          return data
-        }),
-      supabase
-        .from('debt_payments')
-        .select('amount_usd, mep_rate, affects_liquid, account_id')
-        .then(({ data, error }) => {
-          if (error) throw error
-          return data
-        }),
-    ])
+  const [reconciliations, accountRows, buckets] = await Promise.all([
+    getReconciliations(),
+    supabase
+      .from('liquid_accounts')
+      .select('*')
+      .order('position')
+      .order('name')
+      .then(({ data, error }) => {
+        if (error) throw error
+        return data
+      }),
+    supabase.rpc('get_liquid_by_account').then(({ data, error }) => {
+      if (error) throw error
+      return data
+    }),
+  ])
 
-  const byAccount = computeLiquidByAccount({ transactions, contributions, debtPayments })
+  // Mismo Map que devolvía computeLiquidByAccount: account_id → monto, con el
+  // null como balde "sin cuenta". De acá para abajo nada cambió.
+  const byAccount = new Map(buckets.map((row) => [row.account_id ?? null, Number(row.amount)]))
   const lastByAccount = lastReconciliationByAccount(reconciliations)
 
   const accounts = accountRows.map((account) => ({

@@ -43,7 +43,30 @@ const h = vi.hoisted(() => {
   return { state, from }
 })
 
-vi.mock('./supabase.js', () => ({ supabase: { from: (...args) => h.from(...args) } }))
+// El desglose por cuenta lo suma la base desde la migración 0033, así que el
+// mock también tiene que responder el RPC. Lo resuelve con la función JS de
+// referencia (computeLiquidByAccount) sobre las mismas tablas sembradas: acá se
+// prueba qué hace reconcile() con el desglose, y que la función SQL calcule ese
+// desglose igual que la de referencia lo verifica liquidSql.test.js contra un
+// Postgres de verdad.
+vi.mock('./supabase.js', () => ({
+  supabase: {
+    from: (...args) => h.from(...args),
+    rpc: async (name) => {
+      if (name !== 'get_liquid_by_account') throw new Error(`RPC no esperado: ${name}`)
+      const { computeLiquidByAccount } = await import('./liquid.js')
+      const byAccount = computeLiquidByAccount({
+        transactions: h.state.tables.transactions ?? [],
+        contributions: h.state.tables.contributions ?? [],
+        debtPayments: h.state.tables.debt_payments ?? [],
+      })
+      return {
+        data: [...byAccount].map(([account_id, amount]) => ({ account_id, amount })),
+        error: null,
+      }
+    },
+  },
+}))
 
 import { reconcile, computeCurrentLiquid } from './liquid.js'
 
