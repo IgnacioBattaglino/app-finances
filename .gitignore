@@ -24,6 +24,10 @@ npm-debug.log*
 # Datos locales / sensibles
 *.sqlite
 
+# Capturas de auditoría de UI: son pantallas de la app con datos
+# financieros reales adentro. Se generan para mirar y se tiran.
+auditoria-capturas/
+
 # Artefactos de Playwright MCP (snapshots, logs de consola de pruebas manuales)
 .playwright-mcp/
 
