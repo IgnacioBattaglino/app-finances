@@ -1,11 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-// Mock de supabase con forma de base: cada tabla tiene filas, los .eq() se
-// aplican de verdad como filtro, y los insert se registran devolviendo la fila
-// escrita con un id. Sin esto no se puede afirmar lo único que importa acá —
-// QUÉ filas termina escribiendo reconcile() y con qué account_id.
+// Qué se prueba acá: el DESGLOSE que arma computeCurrentLiquid() a partir de
+// lo que devuelve la base, y que reconcile() haga UNA sola llamada RPC con
+// todas las cuentas declaradas.
+//
+// Lo que reconcile() ESCRIBE ya no se prueba acá, porque ya no lo escribe el
+// cliente: desde la migración 0034 los ajustes y las filas de reconciliación
+// los inserta reconcile_liquid dentro de una transacción. Eso se verifica
+// contra un Postgres de verdad en src/lib/reconcileSql.test.js — incluida la
+// atomicidad, que es justamente lo que un mock no puede simular.
+//
+// Mock de supabase con forma de base: cada tabla tiene filas y los .eq() se
+// aplican de verdad como filtro.
 const h = vi.hoisted(() => {
-  const state = { tables: {}, inserts: [], seq: 0 }
+  const state = { tables: {}, inserts: [], rpcCalls: [], seq: 0 }
 
   function resolve(ctx) {
     if (ctx.op === 'insert') {
@@ -52,7 +60,21 @@ const h = vi.hoisted(() => {
 vi.mock('./supabase.js', () => ({
   supabase: {
     from: (...args) => h.from(...args),
-    rpc: async (name) => {
+    rpc: async (name, params) => {
+      if (name === 'reconcile_liquid') {
+        h.state.rpcCalls.push({ name, params })
+        // Lo que devolvería la función: una fila por cuenta declarada. Su
+        // contenido real lo prueba reconcileSql.test.js contra Postgres.
+        return {
+          data: params.p_declarations.map((d, i) => ({
+            account_id: d.account_id,
+            reconciliation_id: `rec-${i}`,
+            adjustment_transaction_id: d.declared_amount === 0 ? null : `tx-${i}`,
+            difference: d.declared_amount,
+          })),
+          error: null,
+        }
+      }
       if (name !== 'get_liquid_by_account') throw new Error(`RPC no esperado: ${name}`)
       const { computeLiquidByAccount } = await import('./liquid.js')
       const byAccount = computeLiquidByAccount({
@@ -103,6 +125,7 @@ const insertsInto = (table) => h.state.inserts.filter((i) => i.table === table).
 
 beforeEach(() => {
   h.state.inserts = []
+  h.state.rpcCalls = []
   h.state.seq = 0
   seedTwoAccounts()
 })
@@ -146,29 +169,8 @@ describe('el desglose que ve la pantalla', () => {
   })
 })
 
-describe('reconcile por cuenta', () => {
-  it('la cuenta con diferencia genera su ajuste, con su account_id; la que coincide no genera nada', async () => {
-    await reconcile({
-      date: '2026-09-05',
-      declarations: [
-        { accountId: EFECTIVO, declaredAmount: 12000 }, // +2000
-        { accountId: MERCADO_PAGO, declaredAmount: 5000 }, // sin diferencia
-      ],
-    })
-
-    const adjustments = insertsInto('transactions')
-    expect(adjustments).toHaveLength(1)
-    expect(adjustments[0]).toMatchObject({
-      kind: 'income',
-      amount_ars: 2000,
-      account_id: EFECTIVO,
-      category_id: 'cat-ajuste-income',
-      date: '2026-09-05',
-      description: 'Reconciliación de disponible',
-    })
-  })
-
-  it('cada cuenta declarada graba su fila, tenga o no ajuste', async () => {
+describe('reconcile: una sola llamada, con todo adentro', () => {
+  it('manda TODAS las cuentas declaradas en una única llamada RPC', async () => {
     await reconcile({
       date: '2026-09-05',
       declarations: [
@@ -177,107 +179,69 @@ describe('reconcile por cuenta', () => {
       ],
     })
 
-    const rows = insertsInto('liquid_reconciliations')
-    expect(rows).toHaveLength(2)
-    expect(rows[0]).toMatchObject({ account_id: EFECTIVO, declared_amount_ars: 12000 })
-    expect(rows[0].adjustment_transaction_id).toBe('transactions-1')
-    expect(rows[1]).toMatchObject({
-      account_id: MERCADO_PAGO,
-      declared_amount_ars: 5000,
-      adjustment_transaction_id: null,
-    })
-  })
-
-  it('dos cuentas con diferencia generan DOS ajustes, cada uno en la suya y con su signo', async () => {
-    const { adjusted } = await reconcile({
-      date: '2026-09-05',
-      declarations: [
-        { accountId: EFECTIVO, declaredAmount: 9000 }, // −1000 → gasto
-        { accountId: MERCADO_PAGO, declaredAmount: 6500 }, // +1500 → ingreso
+    // Una sola llamada es una sola transacción: es TODO el punto del cambio.
+    // Si algún día alguien vuelve a iterar acá, este test se cae.
+    expect(h.state.rpcCalls).toHaveLength(1)
+    expect(h.state.rpcCalls[0].params).toEqual({
+      p_date: '2026-09-05',
+      p_declarations: [
+        { account_id: EFECTIVO, declared_amount: 12000 },
+        { account_id: MERCADO_PAGO, declared_amount: 5000 },
       ],
     })
-
-    expect(adjusted).toBe(2)
-    const adjustments = insertsInto('transactions')
-    expect(adjustments).toHaveLength(2)
-    expect(adjustments[0]).toMatchObject({
-      kind: 'expense',
-      amount_ars: 1000,
-      account_id: EFECTIVO,
-      category_id: 'cat-ajuste-expense',
-    })
-    expect(adjustments[1]).toMatchObject({
-      kind: 'income',
-      amount_ars: 1500,
-      account_id: MERCADO_PAGO,
-      category_id: 'cat-ajuste-income',
-    })
   })
 
-  it('una cuenta nunca reconciliada llama a su primer ajuste "Saldo inicial"; una ya reconciliada, no', async () => {
-    await reconcile({
-      date: '2026-09-05',
-      declarations: [
-        { accountId: EFECTIVO, declaredAmount: 12000 },
-        { accountId: MERCADO_PAGO, declaredAmount: 6000 },
-      ],
-    })
-
-    const [efectivo, mercadoPago] = insertsInto('transactions')
-    // Efectivo ya tenía una reconciliación (rec-vieja): no es su saldo inicial.
-    expect(efectivo.description).toBe('Reconciliación de disponible')
-    expect(mercadoPago.description).toBe('Saldo inicial')
-  })
-
-  it('declarar una sola cuenta no toca la otra: ni ajuste ni fila de reconciliación', async () => {
-    await reconcile({
-      date: '2026-09-05',
-      declarations: [{ accountId: MERCADO_PAGO, declaredAmount: 4000 }],
-    })
-
-    expect(insertsInto('transactions')).toHaveLength(1)
-    expect(insertsInto('transactions')[0].account_id).toBe(MERCADO_PAGO)
-    const rows = insertsInto('liquid_reconciliations')
-    expect(rows).toHaveLength(1)
-    expect(rows[0].account_id).toBe(MERCADO_PAGO)
-  })
-
-  it('el ajuste deja la cuenta cuadrada en lo declarado (y solo esa cuenta)', async () => {
+  it('el cliente ya no escribe nada por su cuenta', async () => {
     await reconcile({
       date: '2026-09-05',
       declarations: [{ accountId: EFECTIVO, declaredAmount: 12000 }],
     })
 
-    // El ajuste es una transaction normal: se suma al estado como cualquiera.
-    const [adjustment] = insertsInto('transactions')
-    h.state.tables.transactions.push({
-      kind: adjustment.kind,
-      amount_ars: adjustment.amount_ars,
-      account_id: adjustment.account_id,
-    })
-
-    const { accounts, current } = await computeCurrentLiquid()
-    expect(accounts.find((a) => a.id === EFECTIVO).amount).toBe(12000)
-    expect(accounts.find((a) => a.id === MERCADO_PAGO).amount).toBe(5000)
-    expect(current).toBe(17000)
+    expect(insertsInto('transactions')).toHaveLength(0)
+    expect(insertsInto('liquid_reconciliations')).toHaveLength(0)
   })
 
-  it('sin ninguna cuenta cargada se reconcilia el disponible entero, como antes de la 0032', async () => {
+  it('una declaración sin cuenta viaja como account_id null', async () => {
     h.state.tables.liquid_accounts = []
     h.state.tables.liquid_reconciliations = []
 
     await reconcile({
       date: '2026-09-05',
-      declarations: [{ accountId: null, declaredAmount: 16000 }], // +1000 sobre 15000
+      declarations: [{ accountId: null, declaredAmount: 16000 }],
     })
 
-    const [adjustment] = insertsInto('transactions')
-    expect(adjustment).toMatchObject({
-      kind: 'income',
-      amount_ars: 1000,
-      account_id: null,
-      description: 'Saldo inicial',
+    expect(h.state.rpcCalls[0].params.p_declarations).toEqual([
+      { account_id: null, declared_amount: 16000 },
+    ])
+  })
+
+  it('devuelve una fila por cuenta y cuenta cuántas terminaron con ajuste', async () => {
+    const { results, adjusted } = await reconcile({
+      date: '2026-09-05',
+      declarations: [
+        { accountId: EFECTIVO, declaredAmount: 12000 },
+        { accountId: MERCADO_PAGO, declaredAmount: 0 }, // sin ajuste en el mock
+      ],
     })
-    expect(insertsInto('liquid_reconciliations')[0].account_id).toBe(null)
+
+    expect(results.map((r) => r.accountId)).toEqual([EFECTIVO, MERCADO_PAGO])
+    expect(results[0].adjustmentId).toBe('tx-0')
+    expect(results[1].adjustmentId).toBe(null)
+    expect(adjusted).toBe(1)
+  })
+
+  it('un error de la base se propaga y no se traga', async () => {
+    const { supabase } = await import('./supabase.js')
+    const original = supabase.rpc
+    supabase.rpc = async (name, params) =>
+      name === 'reconcile_liquid'
+        ? { data: null, error: new Error('Cuenta inexistente o de otro usuario') }
+        : original(name, params)
+
+    await expect(
+      reconcile({ date: '2026-09-05', declarations: [{ accountId: EFECTIVO, declaredAmount: 1 }] }),
+    ).rejects.toThrow('Cuenta inexistente o de otro usuario')
+
+    supabase.rpc = original
   })
 })

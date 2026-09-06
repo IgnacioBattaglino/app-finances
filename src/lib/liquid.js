@@ -1,8 +1,6 @@
 import { supabase } from './supabase.js'
 import { round } from './money.js'
 
-const ADJUSTMENT_CATEGORY = 'Ajuste de saldo'
-
 // Todas las reconciliaciones, de la más nueva a la más vieja. La tabla crece
 // de a una fila por cuenta declarada, así que traerla entera es barato y
 // evita una consulta por cuenta.
@@ -155,26 +153,6 @@ export function decideAdjustment(current, declaredAmount) {
   return { kind: difference > 0 ? 'income' : 'expense', amount: Math.abs(difference) }
 }
 
-// La categoría del sistema se busca por su flag, no por el nombre visible: un
-// rename (por fuera de la UI, que lo bloquea) no rompe la reconciliación.
-async function findAdjustmentCategory(kind) {
-  const { data: category, error } = await supabase
-    .from('categories')
-    .select('id')
-    .eq('is_system', true)
-    .eq('kind', kind)
-    .eq('is_archived', false)
-    .limit(1)
-    .maybeSingle()
-  if (error) throw error
-  if (!category) {
-    throw new Error(
-      `Falta la categoría del sistema "${ADJUSTMENT_CATEGORY}" (${kind === 'income' ? 'ingreso' : 'gasto'}). Corré el seed de categorías de ajuste.`,
-    )
-  }
-  return category
-}
-
 // Declara cuánto hay REALMENTE en cada cuenta. Recibe una declaración por
 // cuenta —no un total a repartir— porque repartir un total entre cuentas es
 // justo lo que la app no puede saber: si contás $50.000 en el bolsillo y la
@@ -183,62 +161,37 @@ async function findAdjustmentCategory(kind) {
 //
 // Cada cuenta se compara contra SU disponible calculado y, si difieren,
 // genera su propio ajuste: una transaction con la categoría del sistema
-// "Ajuste de saldo" (que no cambia) y el account_id de esa cuenta. Y cada
-// cuenta declarada graba su propia fila de liquid_reconciliations, incluso sin
-// diferencia: la fila registra "declaré esto en esta fecha", que es lo que
-// después permite saber hasta cuándo está conciliada cada cuenta.
+// "Ajuste de saldo" y el account_id de esa cuenta. Y cada cuenta declarada
+// graba su propia fila de liquid_reconciliations, incluso sin diferencia: la
+// fila registra "declaré esto en esta fecha", que es lo que después permite
+// saber hasta cuándo está conciliada cada cuenta.
+//
+// TODO ESO PASA EN LA BASE, en una sola llamada (reconcile_liquid, migración
+// 0034), y por eso esta función es tan corta. Antes iteraba acá y hacía hasta
+// tres escrituras sueltas por cuenta; como el cliente de Supabase no puede
+// abrir una transacción, un fallo a mitad de camino dejaba las cuentas
+// anteriores ya guardadas mientras la pantalla decía que no se había guardado
+// nada — y el reintento las duplicaba. Una llamada RPC es una transacción:
+// entra todo o no entra nada.
 //
 // declarations: [{ accountId, declaredAmount }]. Un accountId null declara el
 // disponible entero sin cuentas — el camino de antes de la 0032, que sigue
 // funcionando si el usuario se quedó sin ninguna cuenta.
 export async function reconcile({ date, declarations }) {
-  const state = await computeCurrentLiquid()
-  const categories = new Map()
+  const { data, error } = await supabase.rpc('reconcile_liquid', {
+    p_date: date,
+    p_declarations: declarations.map(({ accountId, declaredAmount }) => ({
+      account_id: accountId ?? null,
+      declared_amount: declaredAmount,
+    })),
+  })
+  if (error) throw error
 
-  const results = []
-  for (const { accountId, declaredAmount } of declarations) {
-    const account = accountId == null ? null : state.accounts.find((a) => a.id === accountId)
-    // Sin cuentas, el disponible de "la cuenta null" es el disponible entero.
-    const current = account ? account.amount : state.current
-    const isFirst = account ? !account.last : state.isFirst
-    const difference = round(declaredAmount - current)
-    const decision = decideAdjustment(current, declaredAmount)
-
-    let adjustment = null
-    if (decision) {
-      const { kind, amount } = decision
-      if (!categories.has(kind)) categories.set(kind, await findAdjustmentCategory(kind))
-
-      const { data: tx, error: txError } = await supabase
-        .from('transactions')
-        .insert({
-          date,
-          kind,
-          category_id: categories.get(kind).id,
-          description: isFirst ? 'Saldo inicial' : 'Reconciliación de disponible',
-          amount_ars: amount,
-          account_id: accountId ?? null,
-        })
-        .select()
-        .single()
-      if (txError) throw txError
-      adjustment = tx
-    }
-
-    const { data: reconciliation, error } = await supabase
-      .from('liquid_reconciliations')
-      .insert({
-        date,
-        declared_amount_ars: declaredAmount,
-        adjustment_transaction_id: adjustment?.id ?? null,
-        account_id: accountId ?? null,
-      })
-      .select()
-      .single()
-    if (error) throw error
-
-    results.push({ accountId: accountId ?? null, reconciliation, adjustment, difference })
-  }
-
-  return { results, adjusted: results.filter((r) => r.adjustment).length }
+  const results = (data ?? []).map((row) => ({
+    accountId: row.account_id ?? null,
+    reconciliationId: row.reconciliation_id,
+    adjustmentId: row.adjustment_transaction_id ?? null,
+    difference: Number(row.difference),
+  }))
+  return { results, adjusted: results.filter((r) => r.adjustmentId).length }
 }
