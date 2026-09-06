@@ -11,14 +11,11 @@ import FormError from '../form/FormError.jsx'
 import MissingHint from '../form/MissingHint.jsx'
 import ExchangeRateField from './ExchangeRateField.jsx'
 import AccountField from '../form/AccountField.jsx'
+import { OUTSIDE_EXIT_HELP } from './copy.js'
 
 const DESTINATION_OPTIONS = [
   { value: 'liquid', label: 'A mi disponible', help: 'Entra a tu dinero disponible y lo sube.' },
-  {
-    value: 'outside',
-    label: 'Afuera',
-    help: 'Plata que no estaba en la app (un sueldo, un regalo). No toca tu dinero disponible.',
-  },
+  { value: 'outside', label: 'Afuera', help: OUTSIDE_EXIT_HELP },
 ]
 
 // Confirmación, no formulario de carga: calcula y muestra las consecuencias
