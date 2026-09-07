@@ -161,9 +161,15 @@
     letter-spacing: -0.018em;
   }
 
+  /* !important a propósito: esta regla vive en @layer base, y las utilities
+     de Tailwind (incluida outline-none, usada 41 veces en la app para sacar
+     el foco cuadrado del navegador) viven en @layer utilities -- una capa
+     POSTERIOR que gana sobre cualquier regla de base sin importar
+     especificidad ni orden en el archivo. Sin el !important, outline-none
+     pisaba esto siempre y el foco por teclado quedaba invisible. */
   :focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
+    outline: 2px solid var(--color-accent) !important;
+    outline-offset: 2px !important;
   }
 
   /* El resaltado azul del tap en iOS delata la web adentro de la app. Los
