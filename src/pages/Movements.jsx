@@ -85,7 +85,7 @@ function TransactionRow({ tx, onEdit }) {
 function InvestmentRow({ contribution: c }) {
   const isOut = c.direction === 'out'
   return (
-    <Link to={`/portafolio/${c.asset?.id}`} className={ROW_CLASS}>
+    <Link to={`/portafolio/${c.asset?.id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
       <div className="min-w-0">
         <p className="flex items-center gap-1.5 truncate text-[17px]">
           <span className="truncate">

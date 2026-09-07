@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate, Navigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { getAssets } from '../lib/assets.js'
 import { getAssetTypes } from '../lib/assetTypes.js'
 import { getContributions, splitPage } from '../lib/contributions.js'
@@ -44,6 +44,16 @@ const METRIC_EXPLANATIONS = {
 function AssetDetail() {
   const { assetId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Esta pantalla se entra desde dos lugares: el encabezado de un grupo en
+  // Portafolio (default, sin state) y una fila de inversión en Movimientos
+  // (que linkea con state.from, ver Movements.jsx). El botón de atrás tiene
+  // que volver a donde el usuario estaba, no a un destino fijo -- mismo
+  // mecanismo que AssetTypeDetail con Ajustes/Portafolio.
+  const fromMovements = location.state?.from === 'movements'
+  const backLabel = fromMovements ? 'Movimientos' : 'Portafolio'
+  const goBack = () => (fromMovements ? navigate(-1) : navigate('/portafolio'))
 
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
@@ -216,7 +226,7 @@ function AssetDetail() {
           flecha. */}
       <button
         type="button"
-        onClick={() => navigate('/portafolio')}
+        onClick={goBack}
         className="-ml-1 mb-3 inline-flex items-center gap-0.5 text-[17px] text-accent-ink"
       >
         <svg
@@ -231,7 +241,7 @@ function AssetDetail() {
         >
           <path d="m15 5-7 7 7 7" />
         </svg>
-        Portafolio
+        {backLabel}
       </button>
 
       <div className="mb-5 flex items-start justify-between gap-4 md:mb-7">
@@ -492,7 +502,7 @@ function AssetDetail() {
         onAssetTypesChanged={async () => setAssetTypes(await getAssetTypes())}
         onClose={closeModals}
         onSaved={refresh}
-        onArchived={() => navigate('/portafolio')}
+        onArchived={goBack}
       />
     </div>
   )
