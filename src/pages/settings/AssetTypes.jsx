@@ -69,7 +69,7 @@ function AssetTypes() {
   return (
     <SettingsPage
       title="Grupos de activos"
-      description="Cómo se agrupa tu portafolio: cada activo vive en un grupo."
+      description="Cómo se agrupa tu portafolio: un activo puede estar en un grupo, o quedar suelto."
     >
       {error && (
         <div className="notice space-y-2">
