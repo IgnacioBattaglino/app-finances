@@ -1,5 +1,44 @@
-import { describe, it, expect } from 'vitest'
-import { toCsv, csvDate, csvNumber, transactionsCsv, portfolioCsv } from './export.js'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// Mock de supabase: un query builder encadenable que registra cada llamada
+// (para afirmar los range pedidos) y resuelve con la página que le toca de
+// una cola -- getTransactionsForExport/getPortfolioOperationsForExport piden
+// una página por vez, así que cada await consume el siguiente resultado.
+const h = vi.hoisted(() => {
+  const state = { pages: [], calls: [] }
+  const query = new Proxy(
+    {},
+    {
+      get(_t, prop) {
+        if (prop === 'then') return (resolve) => resolve(state.pages.shift())
+        return (...args) => {
+          state.calls.push([prop, args])
+          return query
+        }
+      },
+    },
+  )
+  return { state, query }
+})
+
+vi.mock('./supabase.js', () => ({
+  supabase: {
+    from: (...args) => {
+      h.state.calls.push(['from', args])
+      return h.query
+    },
+  },
+}))
+
+const {
+  toCsv,
+  csvDate,
+  csvNumber,
+  transactionsCsv,
+  portfolioCsv,
+  getTransactionsForExport,
+  getPortfolioOperationsForExport,
+} = await import('./export.js')
 
 describe('csvDate', () => {
   it('pasa la fecha de la base a dd/mm/aaaa', () => {
@@ -84,6 +123,53 @@ describe('transactionsCsv', () => {
       { date: '2026-08-18', kind: 'expense', description: '', amount_ars: 10, category: null },
     ])
     expect(csv.split('\r\n')[1]).toBe('18/08/2026;Gasto;;;10')
+  })
+})
+
+describe('getTransactionsForExport / getPortfolioOperationsForExport (paginación)', () => {
+  beforeEach(() => {
+    h.state.calls = []
+    h.state.pages = []
+  })
+
+  it('con menos de una página no pide una segunda', async () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({ id: i }))
+    h.state.pages = [{ data: rows, error: null }]
+    const data = await getTransactionsForExport()
+    expect(data).toEqual(rows)
+    expect(h.state.calls.filter(([m]) => m === 'range')).toEqual([['range', [0, 999]]])
+  })
+
+  it('con una página exacta (1000 filas) pide una segunda para confirmar que no hay más', async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, i) => ({ id: i }))
+    const secondPage = []
+    h.state.pages = [
+      { data: firstPage, error: null },
+      { data: secondPage, error: null },
+    ]
+    const data = await getTransactionsForExport()
+    expect(data).toHaveLength(1000)
+    expect(h.state.calls.filter(([m]) => m === 'range')).toEqual([
+      ['range', [0, 999]],
+      ['range', [1000, 1999]],
+    ])
+  })
+
+  it('trae TODAS las filas de más de una página, sin truncar en 1000', async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, i) => ({ id: i }))
+    const secondPage = Array.from({ length: 5 }, (_, i) => ({ id: 1000 + i }))
+    h.state.pages = [
+      { data: firstPage, error: null },
+      { data: secondPage, error: null },
+    ]
+    const data = await getPortfolioOperationsForExport()
+    expect(data).toHaveLength(1005)
+    expect(data[1004]).toEqual({ id: 1004 })
+  })
+
+  it('propaga el error de cualquier página', async () => {
+    h.state.pages = [{ data: null, error: new Error('caído') }]
+    await expect(getTransactionsForExport()).rejects.toThrow('caído')
   })
 })
 

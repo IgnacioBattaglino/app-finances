@@ -16,6 +16,29 @@ import { todayISO } from './format.js'
 
 const DELIMITER = ';'
 
+// PostgREST corta cualquier consulta en 1000 filas sin avisar. Una
+// exportación es, por definición, todo el historial -- así que en vez de
+// pedir todo de una, se pagina con `.range()` hasta que una página vuelve con
+// menos de PAGE_SIZE filas (la señal de que ya no queda nada más).
+//
+// `buildQuery` recibe el (from, to) de la página y devuelve la consulta ya
+// armada, ordenada de forma ESTABLE (con un desempate único, como `id`): sin
+// eso, dos filas con el mismo valor en las columnas de orden podrían caer las
+// dos en una página y ninguna en la otra, o repetirse en las dos.
+const PAGE_SIZE = 1000
+
+async function fetchAllPages(buildQuery) {
+  const rows = []
+  let from = 0
+  while (true) {
+    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1)
+    if (error) throw error
+    rows.push(...data)
+    if (data.length < PAGE_SIZE) return rows
+    from += PAGE_SIZE
+  }
+}
+
 function escapeCell(value) {
   if (value === null || value === undefined) return ''
   const text = String(value)
@@ -46,13 +69,15 @@ export function csvNumber(value) {
 }
 
 export async function getTransactionsForExport() {
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('date, kind, description, amount_ars, category:categories(name)')
-    .order('date', { ascending: true })
-    .order('created_at', { ascending: true })
-  if (error) throw error
-  return data
+  return fetchAllPages((from, to) =>
+    supabase
+      .from('transactions')
+      .select('date, kind, description, amount_ars, category:categories(name)')
+      .order('date', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
 }
 
 export function transactionsCsv(transactions) {
@@ -69,15 +94,17 @@ export function transactionsCsv(transactions) {
 }
 
 export async function getPortfolioOperationsForExport() {
-  const { data, error } = await supabase
-    .from('contributions')
-    .select(
-      'date, direction, amount_usd, quantity, mep_rate, affects_liquid, realized_gain, transfer_id, asset:assets(name, asset_type:asset_types(name))',
-    )
-    .order('date', { ascending: true })
-    .order('created_at', { ascending: true })
-  if (error) throw error
-  return data
+  return fetchAllPages((from, to) =>
+    supabase
+      .from('contributions')
+      .select(
+        'date, direction, amount_usd, quantity, mep_rate, affects_liquid, realized_gain, transfer_id, asset:assets(name, asset_type:asset_types(name))',
+      )
+      .order('date', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
 }
 
 export function portfolioCsv(operations) {
