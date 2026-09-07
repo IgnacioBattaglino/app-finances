@@ -10,7 +10,9 @@ vi.mock('./supabase.js', () => {
     const chain = {
       select: () => chain,
       eq: () => chain,
-      order: () => Promise.resolve({ data: state.prices, error: null }),
+      gte: () => chain,
+      order: () => chain,
+      limit: () => Promise.resolve({ data: state.prices, error: null }),
     }
     return chain
   }
@@ -42,9 +44,11 @@ describe('localCurrencyToUsd — caché de cotizaciones', () => {
     resetRatesCache()
     instrumentQueries = 0
     state.failInstrument = false
+    // Tal como la devolvería la consulta real (orden descendente, ver
+    // loadRates en localCurrency.js): la más nueva primero.
     state.prices = [
-      { date: '2026-08-01', price: 1000 },
       { date: '2026-08-20', price: 1500 },
+      { date: '2026-08-01', price: 1000 },
     ]
   })
 

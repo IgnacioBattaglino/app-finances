@@ -98,11 +98,14 @@ export function countMonthsWithData(expenses, months) {
 // pese a la inflación. Meses sin gastos quedan en 0, no se saltean.
 export async function monthlyUsdTotals(expenses, months) {
   const totals = new Map(months.map((m) => [monthKey(m), 0]))
+  // El primer día del mes más viejo de la ventana: acota la consulta de
+  // cotizaciones a lo que esta serie realmente necesita (ver localCurrency.js).
+  const from = `${monthKey(months[0])}-01`
   await Promise.all(
     expenses.map(async (t) => {
       const key = dateMonthKey(t.date)
       if (!totals.has(key)) return
-      const usd = await localCurrencyToUsd(Number(t.amount_ars), t.date)
+      const usd = await localCurrencyToUsd(Number(t.amount_ars), t.date, from)
       totals.set(key, totals.get(key) + usd)
     }),
   )
