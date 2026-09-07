@@ -1,0 +1,26 @@
+-- 0035: ocultar una cuenta en vez de reasignar sus movimientos.
+--
+-- deleteAccount (lib/liquidAccounts.js, 0032) ofrecía, cuando la FK rechazaba
+-- el delete, mudar todo lo que apuntaba a la cuenta hacia otra
+-- (reassignAndDeleteAccount). El problema: entre lo que mueve también estaban
+-- las filas de liquid_reconciliations, que no son un movimiento de plata sino
+-- un TESTIMONIO histórico -- "declaré tanto en esta cuenta tal día". Mudarlas
+-- a otra cuenta las deja afirmando algo que nunca pasó.
+--
+-- La solución es la misma que ya existe para categories (0028): is_archived
+-- pasa a significar OCULTA, sin UI propia de archivar/restaurar. deleteAccount
+-- intenta el DELETE real; si la FK lo rechaza (23503) porque hay
+-- transactions, contributions, debt_payments o liquid_reconciliations que la
+-- referencian, la cuenta se oculta en vez de borrarse. Nada se reasigna ni se
+-- mueve: todo lo que la referenciaba se queda apuntándole tal cual.
+--
+-- Una cuenta oculta sale de los selectores (formularios de carga y
+-- reconciliación) pero los movimientos viejos la siguen mostrando por nombre.
+-- Crear una cuenta con el mismo nombre (case-insensitive) de una oculta la
+-- revive, igual que createCategory con las categorías ocultas.
+--
+-- RLS: no hace falta ninguna policy nueva. La "own rows" de la 0032 es
+-- `for all to authenticated using (user_id = auth.uid())`, y `for all` ya
+-- cubre el update que oculta la fila.
+
+alter table liquid_accounts add column is_archived boolean not null default false;

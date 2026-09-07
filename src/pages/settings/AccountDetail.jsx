@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getAccount, renameAccount, countMovementsForAccount } from '../../lib/liquidAccounts.js'
+import { getAccount, renameAccount } from '../../lib/liquidAccounts.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
-import { SettingsGroup, SettingsValueRow } from '../../components/settings/SettingsList.jsx'
+import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 
 // Detalle de una cuenta: renombrar. Mismo esqueleto que CategoryDetail — el
@@ -14,7 +14,6 @@ function AccountDetail() {
   const { accountId } = useParams()
   const [account, setAccount] = useState(null)
   const [name, setName] = useState('')
-  const [movements, setMovements] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -34,11 +33,6 @@ function AccountDetail() {
       .finally(() => {
         if (active) setLoading(false)
       })
-    // Cuántos movimientos la usan: dato informativo, y su fallo no rompe la
-    // pantalla (el nombre se sigue pudiendo editar sin él).
-    countMovementsForAccount(accountId)
-      .then((count) => active && setMovements(count))
-      .catch(() => {})
     return () => {
       active = false
     }
@@ -94,9 +88,6 @@ function AccountDetail() {
               className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none"
             />
           </div>
-          {movements != null && (
-            <SettingsValueRow label="Movimientos" value={String(movements)} />
-          )}
           {dirty && (
             <button
               type="submit"

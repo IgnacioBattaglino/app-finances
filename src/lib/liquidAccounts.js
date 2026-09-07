@@ -9,10 +9,15 @@ import { supabase } from './supabase.js'
 // como desempate — mismo patrón exacto que getCategories (lib/categories.js).
 // El orden manda también en el selector de los formularios de carga, y la
 // primera de la lista es la que viene preseleccionada.
+//
+// `is_archived` significa OCULTA (migración 0035, mismo criterio que
+// categories.is_archived desde la 0028): una cuenta que ya no se ofrece pero
+// cuya fila sigue existiendo porque algo la referencia.
 export async function getAccounts() {
   const { data, error } = await supabase
     .from('liquid_accounts')
     .select('*')
+    .eq('is_archived', false)
     .order('position')
     .order('name')
   if (error) throw error
@@ -43,20 +48,36 @@ async function nextPosition() {
   return (data[0]?.position ?? -1) + 1
 }
 
-// A diferencia de las categorías, acá no existe el estado "oculta": una cuenta
-// o se borra de verdad o sus movimientos se reasignan y después se borra
-// (deleteAccount). Así que no hay nada que revivir — un nombre repetido sería
-// simplemente dos cuentas iguales en el desglose, imposibles de distinguir.
+// Si ya existe una cuenta oculta con el mismo nombre, la revive en vez de
+// insertar una duplicada -- y con eso lo que la referenciaba vuelve a quedar
+// bajo la misma fila, que es el punto: mismo patrón que createCategory
+// (lib/categories.js) con las categorías ocultas. Si existe una activa,
+// rechaza.
 export async function createAccount(name) {
   const pattern = name.replace(/[%_]/g, '\\$&')
   const { data: existing, error: findError } = await supabase
     .from('liquid_accounts')
-    .select('id, name')
+    .select('*')
     .ilike('name', pattern)
   if (findError) throw findError
-  if (existing.length > 0) throw new Error(`Ya existe la cuenta "${existing[0].name}".`)
 
+  const active = existing.find((account) => !account.is_archived)
+  if (active) throw new Error(`Ya existe la cuenta "${active.name}".`)
+
+  const hidden = existing.find((account) => account.is_archived)
   const position = await nextPosition()
+
+  if (hidden) {
+    const { data, error } = await supabase
+      .from('liquid_accounts')
+      .update({ is_archived: false, position })
+      .eq('id', hidden.id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  }
+
   const { data, error } = await supabase
     .from('liquid_accounts')
     .insert({ name, position })
@@ -96,68 +117,31 @@ export async function reorderAccounts(ordered) {
   return ordered.map((account, i) => ({ ...account, position: i }))
 }
 
-// Las cuatro tablas que apuntan a una cuenta (migración 0032). Se listan una
-// sola vez acá porque tanto el conteo como la reasignación tienen que
-// recorrerlas TODAS: si se olvida una, el delete posterior sigue fallando con
-// 23503 y el usuario no entiende por qué.
-const REFERRING_TABLES = ['transactions', 'contributions', 'debt_payments', 'liquid_reconciliations']
-
-// Cuántos movimientos quedarían huérfanos si se borrara la cuenta. Solo para
-// el copy de la confirmación ("tiene 143 movimientos"): la decisión de si se
-// puede borrar o no la sigue tomando la base, no este número.
-export async function countMovementsForAccount(id) {
-  const results = await Promise.all(
-    REFERRING_TABLES.map((table) =>
-      supabase.from(table).select('id', { count: 'exact', head: true }).eq('account_id', id),
-    ),
-  )
-  let total = 0
-  for (const { error, count } of results) {
-    if (error) throw error
-    total += count ?? 0
-  }
-  return total
-}
-
-// Borra la cuenta si puede. Mismo mecanismo que deleteCategory: no se pregunta
-// antes si tiene movimientos —sería una consulta de más y una carrera—, se
-// intenta el delete y se deja que la base conteste. La FK no lleva
-// `on delete cascade` (a propósito, migración 0032), así que si algo la
-// referencia el delete falla con 23503.
+// Borra la cuenta, o la oculta si no se puede borrar. Mismo mecanismo que
+// deleteCategory: no se pregunta antes si tiene movimientos —sería una
+// consulta de más y una carrera—, se intenta el delete y se deja que la base
+// conteste. La FK no lleva `on delete cascade` (a propósito, migración 0032),
+// así que si algo la referencia (transactions, contributions, debt_payments
+// o liquid_reconciliations) el delete falla con 23503 y ahí se cae a
+// ocultarla.
 //
-// La diferencia con las categorías es qué se hace con ese rechazo: una
-// categoría se oculta (sus movimientos la siguen NOMBRANDO, y sin ella
-// quedarían sin etiqueta), pero una cuenta no se puede ocultar — su plata
-// tiene que seguir estando en algún lado. Por eso acá el rechazo no es el
-// final del camino: devuelve { deleted: false } y la pantalla ofrece
-// reasignar los movimientos a otra cuenta.
+// A diferencia de una categoría, nada se reasigna: las filas que la
+// referenciaban se quedan apuntándole tal cual, incluidas las reconciliaciones
+// -- que no son un movimiento de plata sino un testimonio histórico ("declaré
+// tanto en esta cuenta tal día") y mudarlas las dejaría afirmando algo que
+// nunca pasó.
+//
+// Devuelve { deleted: true } si la fila se fue, { deleted: false } si quedó
+// oculta: la pantalla dice una cosa distinta en cada caso.
 export async function deleteAccount(id) {
   const { error } = await supabase.from('liquid_accounts').delete().eq('id', id)
   if (!error) return { deleted: true }
   if (error.code !== '23503') throw error
+
+  const { error: hideError } = await supabase
+    .from('liquid_accounts')
+    .update({ is_archived: true })
+    .eq('id', id)
+  if (hideError) throw hideError
   return { deleted: false }
-}
-
-// Mueve todo lo que apunta a una cuenta hacia otra y recién ahí la borra.
-//
-// No es atómico: son cinco escrituras desde el cliente, sin transacción (mismo
-// patrón que reorderCategories/moveAssetType, que también escriben de a una).
-// Si se corta en el medio, el peor caso es una cuenta con parte de sus
-// movimientos ya mudados — visible en el desglose y arreglable repitiendo la
-// operación, nunca plata perdida: el TOTAL del disponible no depende de a qué
-// cuenta apunte cada fila. Por eso no se justifica una función de Postgres
-// como create_transfer (0017), donde el corte sí dejaba un retiro huérfano.
-export async function reassignAndDeleteAccount(id, targetId) {
-  if (targetId === id) throw new Error('Elegí una cuenta distinta.')
-
-  for (const table of REFERRING_TABLES) {
-    const { error } = await supabase
-      .from(table)
-      .update({ account_id: targetId })
-      .eq('account_id', id)
-    if (error) throw error
-  }
-
-  const { error } = await supabase.from('liquid_accounts').delete().eq('id', id)
-  if (error) throw error
 }

@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  getAccounts,
-  deleteAccount,
-  reassignAndDeleteAccount,
-  countMovementsForAccount,
-  reorderAccounts,
-} from '../../lib/liquidAccounts.js'
+import { getAccounts, deleteAccount, reorderAccounts } from '../../lib/liquidAccounts.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
@@ -45,115 +39,26 @@ function NewAccountRow({ onCreated }) {
 }
 
 // Eliminar una cuenta tiene dos finales posibles, y cuál toca lo decide la
-// base, no un conteo previo (mismo criterio que deleteCategory):
-//
-//   sin movimientos → se borra y listo.
-//   con movimientos → la FK la rechaza, y acá se abre el segundo paso: a qué
-//                     otra cuenta se mudan. Una cuenta no se puede "ocultar"
-//                     como una categoría — su plata tiene que seguir estando
-//                     en algún lado, así que la única salida es reasignarla.
-//
-// Si es la ÚNICA cuenta y tiene movimientos no hay a dónde mudarlos: se dice
-// eso, en vez de ofrecer un selector vacío.
-function AccountRow({ account, others, dragHandlers, onDeleted, onError }) {
-  const [step, setStep] = useState(null) // null | 'confirm' | 'reassign'
-  const [targetId, setTargetId] = useState('')
-  const [movements, setMovements] = useState(null)
+// base, no un conteo previo (mismo criterio que deleteCategory): sin nada que
+// la referencie se borra y listo; si algo la referencia la FK rechaza el
+// delete y la cuenta se oculta en vez de eliminarse. Nada se reasigna.
+function AccountRow({ account, dragHandlers, onDeleted, onError }) {
+  const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
 
   async function handleDelete() {
     setBusy(true)
     try {
       const { deleted } = await deleteAccount(account.id)
-      if (deleted) {
-        onDeleted(account.id)
-        return
-      }
-      // Tiene movimientos: se pasa a elegir a dónde van.
-      setMovements(await countMovementsForAccount(account.id).catch(() => null))
-      setTargetId(others[0]?.id ?? '')
-      setStep('reassign')
+      onDeleted(account.id, deleted)
     } catch (e) {
       onError({ message: 'No se pudo eliminar la cuenta.', detail: e.message })
-      setStep(null)
-    } finally {
       setBusy(false)
+      setConfirming(false)
     }
   }
 
-  async function handleReassign() {
-    if (!targetId || busy) return
-    setBusy(true)
-    try {
-      await reassignAndDeleteAccount(account.id, targetId)
-      onDeleted(account.id)
-    } catch (e) {
-      onError({ message: 'No se pudieron mover los movimientos.', detail: e.message })
-      setBusy(false)
-    }
-  }
-
-  if (step === 'reassign') {
-    const target = others.find((a) => a.id === targetId)
-    return (
-      <div className="space-y-2.5 px-4 py-3">
-        <p className="text-[15px]">
-          «{account.name}» tiene {movements != null ? `${movements} movimientos` : 'movimientos'}
-          {others.length > 0 ? '. ¿A qué cuenta los pasamos?' : '.'}
-        </p>
-        {others.length === 0 ? (
-          <>
-            <p className="text-[13px] text-ink-soft">
-              Es tu única cuenta, así que no hay a dónde moverlos. Creá otra cuenta primero.
-            </p>
-            <div className="flex justify-end text-[15px]">
-              <button type="button" onClick={() => setStep(null)} className="text-ink-soft">
-                Entendido
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <select
-              value={targetId}
-              onChange={(e) => setTargetId(e.target.value)}
-              className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none"
-            >
-              {others.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-[13px] text-ink-soft">
-              Tu dinero disponible total no cambia: los movimientos pasan a contar en «
-              {target?.name}» y «{account.name}» se elimina.
-            </p>
-            <div className="flex items-center justify-end gap-4 text-[15px]">
-              <button
-                type="button"
-                onClick={() => setStep(null)}
-                disabled={busy}
-                className="text-ink-soft"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleReassign}
-                disabled={busy || !targetId}
-                className="font-semibold text-clay disabled:opacity-50"
-              >
-                {busy ? 'Moviendo…' : 'Mover y eliminar'}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    )
-  }
-
-  if (step === 'confirm') {
+  if (confirming) {
     return (
       <div className="space-y-1.5 px-4 py-3">
         <div className="flex items-center justify-between gap-3 text-[15px]">
@@ -161,7 +66,7 @@ function AccountRow({ account, others, dragHandlers, onDeleted, onError }) {
           <div className="flex shrink-0 items-center gap-4">
             <button
               type="button"
-              onClick={() => setStep(null)}
+              onClick={() => setConfirming(false)}
               disabled={busy}
               className="text-ink-soft"
             >
@@ -178,7 +83,7 @@ function AccountRow({ account, others, dragHandlers, onDeleted, onError }) {
           </div>
         </div>
         <p className="text-[13px] text-ink-soft">
-          Si tiene movimientos, te preguntamos a qué cuenta pasarlos.
+          Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.
         </p>
       </div>
     )
@@ -202,7 +107,7 @@ function AccountRow({ account, others, dragHandlers, onDeleted, onError }) {
       </Link>
       <button
         type="button"
-        onClick={() => setStep('confirm')}
+        onClick={() => setConfirming(true)}
         aria-label={`Eliminar ${account.name}`}
         className="shrink-0 px-2.5 py-3 text-[15px] font-medium text-clay transition active:opacity-60"
       >
@@ -216,6 +121,7 @@ function Accounts() {
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [note, setNote] = useState(null)
 
   async function load() {
     setLoading(true)
@@ -232,6 +138,15 @@ function Accounts() {
   useEffect(() => {
     load()
   }, [])
+
+  function handleDeleted(id, deleted) {
+    setAccounts((prev) => prev.filter((a) => a.id !== id))
+    setNote(
+      deleted
+        ? null
+        : 'La cuenta tenía movimientos: dejó de ofrecerse, y esos movimientos la siguen mostrando.',
+    )
+  }
 
   async function commitOrder(ordered) {
     setAccounts(ordered.map((account, i) => ({ ...account, position: i })))
@@ -261,6 +176,8 @@ function Accounts() {
         </div>
       )}
 
+      {note && <p className="notice text-[15px]">{note}</p>}
+
       {loading ? (
         <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
       ) : (
@@ -269,9 +186,8 @@ function Accounts() {
             {(account, dragHandlers) => (
               <AccountRow
                 account={account}
-                others={accounts.filter((a) => a.id !== account.id)}
                 dragHandlers={dragHandlers}
-                onDeleted={(id) => setAccounts((prev) => prev.filter((a) => a.id !== id))}
+                onDeleted={handleDeleted}
                 onError={setError}
               />
             )}
