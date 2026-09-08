@@ -97,6 +97,15 @@ export function computeLiquidFromCollections(collections) {
 // El estado completo del disponible: el total (igual que siempre), el desglose
 // por cuenta, y la última reconciliación de cada una.
 //
+// LAS CUENTAS DE AHORRO QUEDAN AFUERA del total y del desglose (migración
+// 0037, cuando aparecieron las primeras). "Disponible" es la plata del día a
+// día; el ahorro es plata guardada, y sumarlos daría un número que no responde
+// ninguna pregunta. Además son cuentas en otra moneda: meterlas en `current`
+// sumaría dólares con pesos como si fueran la misma unidad.
+//
+// Vuelven aparte, en `savings`, sin convertir y con su moneda — el insumo de
+// los cuatro números de Inicio, que todavía no los muestra nadie.
+//
 // El desglose lo suma la base (get_liquid_by_account, migración 0033) y vuelve
 // como una fila por cuenta, no como los miles de movimientos que la componen:
 // una agregación no puede toparse con el corte de PostgREST en 1000 filas
@@ -121,27 +130,31 @@ export async function computeCurrentLiquid() {
   ])
 
   // Mismo Map que devolvía computeLiquidByAccount: account_id → monto, con el
-  // null como balde "sin cuenta". De acá para abajo nada cambió.
-  //
-  // Desde la 0036 el RPC trae además `currency` e `is_savings` de cada balde.
-  // No se leen acá: las cuentas ya llegan con esas dos columnas en su propia
-  // fila (el select de arriba es `*`), y el balde sin cuenta no tiene ninguna
-  // pantalla que las mire todavía.
+  // null como balde "sin cuenta".
   const byAccount = new Map(buckets.map((row) => [row.account_id ?? null, Number(row.amount)]))
   const lastByAccount = lastReconciliationByAccount(reconciliations)
 
-  const accounts = accountRows.map((account) => ({
+  const withAmount = (account) => ({
     ...account,
     amount: round(byAccount.get(account.id) ?? 0),
     last: lastByAccount.get(account.id) ?? null,
-  }))
+  })
 
-  // El total sale de TODOS los baldes, no solo de los que tienen una cuenta en
-  // la lista: si una fila apunta a una cuenta que ya no está (se borró entre
-  // las dos consultas), su plata tiene que seguir contando. Sumar solo las
-  // cuentas conocidas la haría desaparecer del disponible en silencio, que es
-  // el peor error posible acá.
-  const current = round([...byAccount.values()].reduce((sum, amount) => sum + amount, 0))
+  const accounts = accountRows.filter((a) => !a.is_savings).map(withAmount)
+  const savings = accountRows.filter((a) => a.is_savings).map(withAmount)
+
+  // El total sale de TODOS los baldes del día a día, no solo de los que tienen
+  // una cuenta en la lista: si una fila apunta a una cuenta que ya no está (se
+  // borró entre las dos consultas), su plata tiene que seguir contando. Sumar
+  // solo las cuentas conocidas la haría desaparecer del disponible en
+  // silencio, que es el peor error posible acá.
+  //
+  // `is_savings` se lee del balde y no de la lista de cuentas por esa misma
+  // razón: un balde huérfano no tiene fila que consultar, y el RPC ya lo
+  // devuelve como no-ahorro (migración 0036), que es lo que corresponde.
+  const current = round(
+    buckets.reduce((sum, row) => (row.is_savings ? sum : sum + Number(row.amount)), 0),
+  )
 
   // Y lo "sin cuenta" es, por definición, todo lo que el desglose no explica:
   // el balde null más cualquier huérfano. Definido como resta, las líneas que
@@ -151,7 +164,7 @@ export async function computeCurrentLiquid() {
   const unassigned = round(current - accounts.reduce((sum, a) => sum + a.amount, 0))
 
   const last = reconciliations[0] ?? null
-  return { current, isFirst: !last, last, accounts, unassigned }
+  return { current, isFirst: !last, last, accounts, unassigned, savings }
 }
 
 // Ajuste que corresponde para que el líquido pase de `current` a

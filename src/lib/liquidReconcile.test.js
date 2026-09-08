@@ -178,6 +178,48 @@ describe('el desglose que ve la pantalla', () => {
   })
 })
 
+describe('las cuentas de ahorro no son el disponible', () => {
+  const AHORRO = 'acc-ahorro'
+
+  // Una cuenta de ahorro en dólares, con 220 adentro, encima del escenario de
+  // siempre (Efectivo 10.000 + Mercado Pago 5.000).
+  beforeEach(() => {
+    h.state.tables.liquid_accounts.push({
+      id: AHORRO,
+      name: 'Dólares',
+      position: 2,
+      currency: 'USD',
+      is_savings: true,
+    })
+    h.state.tables.transactions.push({ kind: 'income', amount: 220, account_id: AHORRO })
+  })
+
+  it('no entran en el total: sumarlas mezclaría dólares con pesos', async () => {
+    // Si entraran, `current` daría 15.220 — doscientos veinte dólares sumados
+    // a quince mil pesos como si fueran la misma unidad.
+    const { current } = await computeCurrentLiquid()
+    expect(current).toBe(15000)
+  })
+
+  it('no aparecen en el desglose que se reconcilia', async () => {
+    const { accounts } = await computeCurrentLiquid()
+    expect(accounts.map((a) => a.name)).toEqual(['Efectivo', 'Mercado Pago'])
+  })
+
+  it('vuelven aparte, con su moneda y su monto sin convertir', async () => {
+    const { savings } = await computeCurrentLiquid()
+    expect(savings).toHaveLength(1)
+    expect(savings[0]).toMatchObject({ name: 'Dólares', currency: 'USD', amount: 220 })
+  })
+
+  it('no ensucian el balde "sin cuenta", que se define por resta', async () => {
+    h.state.tables.transactions.push({ kind: 'income', amount: 700, account_id: null })
+    const state = await computeCurrentLiquid()
+    expect(state.unassigned).toBe(700)
+    expect(state.current).toBe(15700)
+  })
+})
+
 describe('reconcile: una sola llamada, con todo adentro', () => {
   it('manda TODAS las cuentas declaradas en una única llamada RPC', async () => {
     await reconcile({

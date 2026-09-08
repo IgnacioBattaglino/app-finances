@@ -1,7 +1,9 @@
 import { supabase } from './supabase.js'
 
-// El join implícito trae el nombre de la categoría en la misma query
-const SELECT = '*, category:categories(name)'
+// El join implícito trae el nombre de la categoría en la misma query. Y desde
+// la migración 0037, si la cuenta del movimiento es de ahorro — el único dato
+// que hace falta de ella para decidir si la fila se muestra (ver getTransactions).
+const SELECT = '*, category:categories(name), account:liquid_accounts(is_savings)'
 
 function toRow({ date, kind, categoryId, description, amount, accountId }) {
   return {
@@ -38,7 +40,15 @@ export async function getTransactions({ month, year } = {}) {
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
   if (error) throw error
-  return data
+
+  // Los movimientos de una cuenta de AHORRO no son gastos ni ingresos del día
+  // a día: son plata que cambió de lugar. Movimientos no los lista, y por eso
+  // tampoco entran en los totales del mes (monthTotals recibe justo esto).
+  //
+  // Se filtra acá y no en la consulta porque el filtro sobre una tabla
+  // embebida obliga a un inner join, y eso se comería las filas con
+  // `account_id` null — el balde "sin cuenta", que sí tiene que aparecer.
+  return data.filter((t) => !t.account?.is_savings)
 }
 
 // Gastos "reales" en un rango de fechas: excluye las categorías de sistema

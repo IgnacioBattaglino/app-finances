@@ -11,6 +11,11 @@ import { getAccounts } from '../lib/liquidAccounts.js'
 // Un fallo cargándolas NO se propaga como error de la pantalla: las cuentas son
 // un dato accesorio del formulario, y quedarse sin poder cargar un gasto porque
 // no se pudo leer la lista de cuentas es peor que cargarlo sin cuenta.
+//
+// Las cuentas de AHORRO quedan afuera (migración 0036): un gasto o un aporte
+// no sale de la plata guardada, y todavía no existe la forma de mover plata
+// entre cuentas — eso llega con las transferencias entre cuentas. Ofrecerlas
+// en el selector sería ofrecer una operación que la app no sabe registrar.
 export function useAccounts() {
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -18,7 +23,7 @@ export function useAccounts() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      setAccounts(await getAccounts())
+      setAccounts((await getAccounts()).filter((account) => !account.is_savings))
     } catch {
       setAccounts([])
     } finally {

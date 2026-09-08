@@ -37,11 +37,19 @@ export async function getAssets() {
   return data
 }
 
+// Los archivados, que Portafolio muestra aparte y ofrece restaurar.
+//
+// Un activo con `savings_account_id` NO entra: la migración 0037 lo archivó,
+// pero no es un activo archivado — es uno que dejó de ser un activo y se
+// convirtió en una cuenta de ahorro. Si apareciera acá, restaurarlo lo
+// devolvería al portafolio mientras su plata ya está contada en la cuenta:
+// el mismo dinero, dos veces.
 export async function getArchivedAssets() {
   const { data, error } = await supabase
     .from('assets')
     .select(ASSET_SELECT)
     .eq('is_archived', true)
+    .is('savings_account_id', null)
     .order('name')
   if (error) throw error
   return data

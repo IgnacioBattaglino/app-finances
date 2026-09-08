@@ -101,6 +101,7 @@ describe('transactionsCsv', () => {
         kind: 'expense',
         description: 'Café',
         amount: 3500.5,
+        currency: 'ARS',
         category: { name: 'Salidas' },
       },
       {
@@ -108,21 +109,37 @@ describe('transactionsCsv', () => {
         kind: 'income',
         description: null,
         amount: 900000,
+        currency: 'ARS',
         category: { name: 'Sueldo' },
       },
     ])
     expect(csv.split('\r\n')).toEqual([
-      'Fecha;Tipo;Categoría;Descripción;Monto ARS',
-      '18/08/2026;Gasto;Salidas;Café;3500,5',
-      '01/08/2026;Ingreso;Sueldo;;900000',
+      'Fecha;Tipo;Categoría;Descripción;Monto;Moneda',
+      '18/08/2026;Gasto;Salidas;Café;3500,5;ARS',
+      '01/08/2026;Ingreso;Sueldo;;900000;ARS',
     ])
+  })
+
+  it('un movimiento en otra moneda la declara en su columna', () => {
+    const csv = transactionsCsv([
+      {
+        date: '2026-07-08',
+        kind: 'income',
+        description: null,
+        amount: 195.87,
+        currency: 'USD',
+        category: { name: 'Movimiento de ahorro' },
+      },
+    ])
+    expect(csv.split('\r\n')[1]).toBe('08/07/2026;Ingreso;Movimiento de ahorro;;195,87;USD')
   })
 
   it('una categoría borrada del join no rompe la fila', () => {
     const csv = transactionsCsv([
       { date: '2026-08-18', kind: 'expense', description: '', amount: 10, category: null },
     ])
-    expect(csv.split('\r\n')[1]).toBe('18/08/2026;Gasto;;;10')
+    // Sin `currency` en la fila cae a ARS: es lo que era todo antes de la 0036.
+    expect(csv.split('\r\n')[1]).toBe('18/08/2026;Gasto;;;10;ARS')
   })
 })
 

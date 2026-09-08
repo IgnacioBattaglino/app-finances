@@ -72,7 +72,7 @@ export async function getTransactionsForExport() {
   return fetchAllPages((from, to) =>
     supabase
       .from('transactions')
-      .select('date, kind, description, amount, category:categories(name)')
+      .select('date, kind, description, amount, currency, category:categories(name)')
       .order('date', { ascending: true })
       .order('created_at', { ascending: true })
       .order('id', { ascending: true })
@@ -80,15 +80,22 @@ export async function getTransactionsForExport() {
   )
 }
 
+// La columna se llamaba "Monto ARS" y ahora es "Monto" + "Moneda": desde que
+// existen cuentas en otra moneda (migraciones 0036 y 0037) un encabezado fijo
+// en pesos sería mentira sobre las filas en dólares. A diferencia de
+// Movimientos, la exportación NO esconde los movimientos de las cuentas de
+// ahorro: es un volcado de tus datos, y esconder filas de un volcado es peor
+// que agregarle una columna.
 export function transactionsCsv(transactions) {
   return toCsv(
-    ['Fecha', 'Tipo', 'Categoría', 'Descripción', 'Monto ARS'],
+    ['Fecha', 'Tipo', 'Categoría', 'Descripción', 'Monto', 'Moneda'],
     transactions.map((tx) => [
       csvDate(tx.date),
       tx.kind === 'expense' ? 'Gasto' : 'Ingreso',
       tx.category?.name ?? '',
       tx.description ?? '',
       csvNumber(tx.amount),
+      tx.currency ?? 'ARS',
     ]),
   )
 }

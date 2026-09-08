@@ -76,6 +76,9 @@ const AJENA = '99999999-9999-4999-8999-999999999999' // no existe (o es de otro 
 const SCHEMA = `
 create table categories (
   id uuid primary key default gen_random_uuid(),
+  -- user_id lo necesita el índice único de la 0037, que es lo que garantiza
+  -- que no pueda haber dos categorías del sistema con la misma llave.
+  user_id uuid,
   name text not null,
   kind text not null check (kind in ('expense','income')),
   is_system boolean not null default false,
@@ -131,10 +134,16 @@ end $$;
 // leer los dos en paralelo.
 const SEED = `
 truncate liquid_reconciliations, transactions, contributions, debt_payments, liquid_accounts, categories cascade;
-insert into categories (id, name, kind, is_system) values
-  ('aaaaaaaa-0000-4000-8000-000000000001', 'Ajuste de saldo', 'income', true),
-  ('aaaaaaaa-0000-4000-8000-000000000002', 'Ajuste de saldo', 'expense', true),
-  ('aaaaaaaa-0000-4000-8000-000000000003', 'Comida', 'expense', false);
+insert into categories (id, name, kind, is_system, system_key) values
+  ('aaaaaaaa-0000-4000-8000-000000000001', 'Ajuste de saldo', 'income', true, 'balance_adjustment'),
+  ('aaaaaaaa-0000-4000-8000-000000000002', 'Ajuste de saldo', 'expense', true, 'balance_adjustment'),
+  -- La segunda categoría del sistema, la que la 0037 vino a desambiguar: si
+  -- reconcile_liquid volviera a buscar por is_system + kind, el ajuste podría
+  -- salir categorizado como movimiento de ahorro y los tests de más abajo
+  -- --que exigen la categoría correcta-- se caerían.
+  ('aaaaaaaa-0000-4000-8000-000000000004', 'Movimiento de ahorro', 'income', true, 'savings_movement'),
+  ('aaaaaaaa-0000-4000-8000-000000000005', 'Movimiento de ahorro', 'expense', true, 'savings_movement'),
+  ('aaaaaaaa-0000-4000-8000-000000000003', 'Comida', 'expense', false, null);
 insert into liquid_accounts (id, name, position) values
   ('${EFECTIVO}', 'Efectivo', 0),
   ('${MERCADO_PAGO}', 'Mercado Pago', 1);
@@ -176,9 +185,12 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
     psql(SCHEMA)
     psql(readFileSync('supabase/migrations/0033_liquid_by_account.sql', 'utf8'))
     psql(readFileSync('supabase/migrations/0034_reconcile_liquid.sql', 'utf8'))
-    // Y encima la 0036, en el mismo orden que la base real: renombra los dos
-    // montos y reemplaza las dos funciones.
+    // Y encima la 0036 y la 0037, en el mismo orden que la base real: la 0036
+    // renombra los dos montos y reemplaza las dos funciones; la 0037 hace que
+    // reconcile_liquid busque su categoría por llave y no por is_system, que
+    // desde la 0038 ya no alcanza para distinguirla.
     psql(readFileSync('supabase/migrations/0036_account_currency_and_savings.sql', 'utf8'))
+    psql(readFileSync('supabase/migrations/0037_categories_system_key.sql', 'utf8'))
   })
 
   afterAll(() => {
@@ -241,6 +253,20 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
       )
       expect(Number(byAccount.get(EFECTIVO))).toBe(12000)
       expect(Number(byAccount.get(MERCADO_PAGO))).toBe(5000)
+    })
+
+    it('el ajuste usa "Ajuste de saldo", no la otra categoría del sistema', () => {
+      // Es lo único que prueba la 0037: con dos categorías del sistema por
+      // kind, buscar por `is_system + kind limit 1` elegiría cualquiera de las
+      // dos. La llave las distingue. Sin este test, el bug entraría en silencio
+      // -- el ajuste seguiría teniendo el kind correcto y solo estaría mal
+      // categorizado.
+      reconcile('2026-09-05', [[EFECTIVO, 12000]])
+
+      expect(
+        one(`select c.name from transactions t join categories c on c.id = t.category_id
+             where t.description is not null;`),
+      ).toEqual(['Ajuste de saldo'])
     })
 
     it('el ajuste hereda la moneda de la cuenta que se reconcilió', () => {
