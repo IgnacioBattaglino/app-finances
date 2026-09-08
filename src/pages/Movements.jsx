@@ -72,7 +72,7 @@ function TransactionRow({ tx, onEdit }) {
         }`}
       >
         {tx.kind === 'expense' ? '−' : '+'}
-        {formatARS(tx.amount_ars)}
+        {formatARS(tx.amount)}
       </span>
     </button>
   )

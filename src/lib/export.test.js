@@ -100,14 +100,14 @@ describe('transactionsCsv', () => {
         date: '2026-08-18',
         kind: 'expense',
         description: 'Café',
-        amount_ars: 3500.5,
+        amount: 3500.5,
         category: { name: 'Salidas' },
       },
       {
         date: '2026-08-01',
         kind: 'income',
         description: null,
-        amount_ars: 900000,
+        amount: 900000,
         category: { name: 'Sueldo' },
       },
     ])
@@ -120,7 +120,7 @@ describe('transactionsCsv', () => {
 
   it('una categoría borrada del join no rompe la fila', () => {
     const csv = transactionsCsv([
-      { date: '2026-08-18', kind: 'expense', description: '', amount_ars: 10, category: null },
+      { date: '2026-08-18', kind: 'expense', description: '', amount: 10, category: null },
     ])
     expect(csv.split('\r\n')[1]).toBe('18/08/2026;Gasto;;;10')
   })

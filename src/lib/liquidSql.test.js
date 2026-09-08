@@ -73,7 +73,7 @@ function buildDataset() {
   for (let i = 0; i < 400; i++) {
     transactions.push({
       kind: rnd() < 0.3 ? 'income' : 'expense',
-      amount_ars: cents(rnd, 500000),
+      amount: cents(rnd, 500000),
       account_id: bucket(),
     })
   }
@@ -113,7 +113,7 @@ function insertScript({ transactions, contributions, debtPayments }) {
   const lines = []
   for (const t of transactions) {
     lines.push(
-      `insert into transactions (kind, amount_ars, account_id) values ('${t.kind}', ${num(t.amount_ars)}, ${uuid(t.account_id)});`,
+      `insert into transactions (kind, amount, account_id) values ('${t.kind}', ${num(t.amount)}, ${uuid(t.account_id)});`,
     )
   }
   for (const c of contributions) {
@@ -129,9 +129,15 @@ function insertScript({ transactions, contributions, debtPayments }) {
   return lines.join('\n')
 }
 
-// Esquema mínimo: solo las columnas que lee la función, con los MISMOS tipos y
-// escalas que la base real (0001/0009/0032). Las escalas importan — son las que
-// definen con cuántos decimales se guarda cada monto.
+// Esquema mínimo: solo las columnas que tocan las funciones, con los MISMOS
+// tipos y escalas que la base real (0001/0009/0032). Las escalas importan — son
+// las que definen con cuántos decimales se guarda cada monto.
+//
+// Es el esquema ANTES de la 0036, a propósito: la columna se llama amount_ars y
+// la renombra la migración, que se aplica más abajo tal cual. Así el test no
+// solo compara los dos cálculos, también prueba que el archivo que va a correr
+// Nacho se aplica limpio — incluido el rename de los CHECK, que dependen de
+// cómo los nombró Postgres al crearlos inline.
 const SCHEMA = `
 create table transactions (
   id uuid primary key default gen_random_uuid(),
@@ -154,6 +160,21 @@ create table debt_payments (
   affects_liquid boolean not null default true,
   account_id uuid
 );
+-- Las dos tablas que la 0036 altera. account_id no lleva FK a propósito: el
+-- dataset incluye un balde huérfano (plata apuntando a una cuenta que ya no
+-- está), que es uno de los casos que el cálculo tiene que respetar.
+create table liquid_accounts (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  position int not null default 0
+);
+create table liquid_reconciliations (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  declared_amount_ars numeric(14,2) not null check (declared_amount_ars >= 0),
+  adjustment_transaction_id uuid,
+  account_id uuid
+);
 -- El rol de Supabase no existe en un Postgres local, y la migración le hace un
 -- grant. Se crea acá para poder correr el archivo sin tocarlo.
 do $$ begin
@@ -162,6 +183,23 @@ do $$ begin
   end if;
 end $$;
 `
+
+// Las cuatro cuentas del dataset. Dos salen de los defaults (pesos, no ahorro)
+// y dos NO, justamente para que el test distinga entre "la función lee la fila
+// de la cuenta" y "la función devuelve el default y parece que funciona".
+// Ninguna de las dos columnas entra en la suma, así que esto no puede mover un
+// solo centavo — que es lo que el resto del archivo verifica.
+const ACCOUNT_ROWS = [
+  { id: ACCOUNTS[0], name: 'Efectivo', currency: 'ARS', is_savings: false },
+  { id: ACCOUNTS[1], name: 'Mercado Pago', currency: 'ARS', is_savings: false },
+  { id: ACCOUNTS[2], name: 'Caja de ahorro', currency: 'ARS', is_savings: true },
+  { id: ACCOUNTS[3], name: 'Dólares', currency: 'USD', is_savings: true },
+]
+
+const accountsScript = ACCOUNT_ROWS.map(
+  (a, i) =>
+    `insert into liquid_accounts (id, name, position, currency, is_savings) values ('${a.id}', '${a.name}', ${i}, '${a.currency}', ${a.is_savings});`,
+).join('\n')
 
 const available = hasPostgres()
 const dataset = buildDataset()
@@ -173,15 +211,25 @@ describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccou
     execFileSync('createdb', [DB])
     psql(SCHEMA)
     psql(readFileSync('supabase/migrations/0033_liquid_by_account.sql', 'utf8'))
+    // La 0036 se aplica ENCIMA de la 0033, en el mismo orden en que las va a
+    // correr la base real: renombra la columna y reemplaza la función.
+    psql(readFileSync('supabase/migrations/0036_account_currency_and_savings.sql', 'utf8'))
+    psql(accountsScript)
     psql(insertScript(dataset))
-    const out = psql('select coalesce(account_id::text, $$null$$), amount from get_liquid_by_account();')
+    const out = psql(
+      `select coalesce(account_id::text, $$null$$), currency, is_savings, amount
+       from get_liquid_by_account();`,
+    )
     fromSql = new Map(
       out
         .split('\n')
         .filter(Boolean)
         .map((line) => {
-          const [key, amount] = line.split('\t')
-          return [key === 'null' ? null : key, Number(amount)]
+          const [key, currency, isSavings, amount] = line.split('\t')
+          return [
+            key === 'null' ? null : key,
+            { currency, isSavings: isSavings === 't', amount: Number(amount) },
+          ]
         }),
     )
   })
@@ -209,12 +257,12 @@ describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccou
   it('mismo monto en cada cuenta, al centavo', () => {
     const fromJs = computeLiquidByAccount(dataset)
     for (const [key, amount] of fromJs) {
-      expect(round(fromSql.get(key))).toBe(round(amount))
+      expect(round(fromSql.get(key).amount)).toBe(round(amount))
     }
   })
 
   it('mismo total', () => {
-    const total = [...fromSql.values()].reduce((sum, amount) => sum + amount, 0)
+    const total = [...fromSql.values()].reduce((sum, b) => sum + b.amount, 0)
     expect(round(total)).toBe(round(computeLiquidFromCollections(dataset)))
   })
 
@@ -223,7 +271,27 @@ describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccou
     // son las mismas, lo único que puede separarlos es el error de redondeo
     // binario acumulado, muy por debajo del centavo. Cualquier diferencia de
     // criterio (un filtro, un signo) daría un salto mucho mayor.
-    const total = [...fromSql.values()].reduce((sum, amount) => sum + amount, 0)
+    const total = [...fromSql.values()].reduce((sum, b) => sum + b.amount, 0)
     expect(Math.abs(total - computeLiquidFromCollections(dataset))).toBeLessThan(1e-6)
+  })
+
+  // ── Lo que agrega la 0036 ────────────────────────────────────────────────
+  it('cada balde trae la moneda y la marca de ahorro de SU cuenta', () => {
+    for (const account of ACCOUNT_ROWS) {
+      expect(fromSql.get(account.id)).toMatchObject({
+        currency: account.currency,
+        isSavings: account.is_savings,
+      })
+    }
+  })
+
+  it('lo que no tiene cuenta se lee como pesos y no-ahorro, no como null', () => {
+    // El balde "sin cuenta" y el que apunta a una cuenta borrada no tienen de
+    // dónde leer la moneda. Son movimientos en pesos que nadie asignó, así que
+    // eso es lo que dicen ser — un null obligaría a cada lector a inventar un
+    // default por su cuenta, que es como se terminan inventando dos distintos.
+    for (const key of [null, ORPHAN]) {
+      expect(fromSql.get(key)).toMatchObject({ currency: 'ARS', isSavings: false })
+    }
   })
 })

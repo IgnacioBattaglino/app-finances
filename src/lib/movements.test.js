@@ -5,8 +5,8 @@ import { contributionArs, contributionLabel, mergeMovements, monthTotals } from 
 // ingreso, un aporte que salió del disponible y un retiro que volvió a él.
 // Los montos están elegidos para que ningún total coincida con otro por
 // casualidad — si el aporte se contara como gasto, el número cambiaría.
-const expense = { id: 't1', date: '2026-07-05', kind: 'expense', amount_ars: 30000, created_at: '2026-07-05T10:00:00Z' }
-const income = { id: 't2', date: '2026-07-01', kind: 'income', amount_ars: 500000, created_at: '2026-07-01T10:00:00Z' }
+const expense = { id: 't1', date: '2026-07-05', kind: 'expense', amount: 30000, created_at: '2026-07-05T10:00:00Z' }
+const income = { id: 't2', date: '2026-07-01', kind: 'income', amount: 500000, created_at: '2026-07-01T10:00:00Z' }
 // 100 USD a 1200 = 120.000 ARS
 const contribution = {
   id: 'c1',

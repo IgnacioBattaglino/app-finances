@@ -46,7 +46,7 @@ export function fullMonthName({ year, month }) {
 }
 
 export function sumAmount(expenses) {
-  return round(expenses.reduce((sum, t) => sum + Number(t.amount_ars), 0))
+  return round(expenses.reduce((sum, t) => sum + Number(t.amount), 0))
 }
 
 export function expensesInMonth(expenses, month) {
@@ -79,7 +79,7 @@ export function groupByCategory(expenses) {
   const totals = new Map()
   for (const t of expenses) {
     const name = t.category?.name ?? 'Sin categoría'
-    totals.set(name, (totals.get(name) ?? 0) + Number(t.amount_ars))
+    totals.set(name, (totals.get(name) ?? 0) + Number(t.amount))
   }
   return [...totals.entries()]
     .map(([name, total]) => ({ name, total: round(total) }))
@@ -105,7 +105,7 @@ export async function monthlyUsdTotals(expenses, months) {
     expenses.map(async (t) => {
       const key = dateMonthKey(t.date)
       if (!totals.has(key)) return
-      const usd = await localCurrencyToUsd(Number(t.amount_ars), t.date, from)
+      const usd = await localCurrencyToUsd(Number(t.amount), t.date, from)
       totals.set(key, totals.get(key) + usd)
     }),
   )

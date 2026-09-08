@@ -39,8 +39,8 @@ export function monthTotals({ transactions, contributions }) {
   let invested = 0
 
   for (const t of transactions) {
-    if (t.kind === 'income') incomes += Number(t.amount_ars)
-    else expenses += Number(t.amount_ars)
+    if (t.kind === 'income') incomes += Number(t.amount)
+    else expenses += Number(t.amount)
   }
   for (const c of contributions) {
     const ars = contributionArs(c)

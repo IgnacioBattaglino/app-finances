@@ -37,9 +37,14 @@ export function lastReconciliationByAccount(rows) {
   return byAccount
 }
 
-// El disponible desglosado por cuenta: un Map de account_id → monto en ARS.
+// El disponible desglosado por cuenta: un Map de account_id → monto.
 // La clave `null` es el balde "sin cuenta" — filas que ninguna migración
 // alcanzó a asignar. Cuenta para el total, pero no es una cuenta.
+//
+// El monto está en la moneda de la cuenta, que desde la migración 0036 es un
+// dato de la fila (liquid_accounts.currency) y hoy es ARS en todas. Acá no se
+// convierte nada: la conversión a dólares vive en un solo lugar del cliente
+// (lib/localCurrency.js) y la hace quien muestra, no quien suma (ADR-013).
 //
 // Mismas tres fuentes y mismas reglas de siempre (ver la fórmula en
 // ARCHITECTURE.md): + ingresos − gastos − aportes (USD × su MEP congelado)
@@ -62,7 +67,7 @@ export function computeLiquidByAccount({ transactions, contributions, debtPaymen
   }
 
   for (const t of transactions) {
-    add(t.account_id, t.kind === 'income' ? Number(t.amount_ars) : -Number(t.amount_ars))
+    add(t.account_id, t.kind === 'income' ? Number(t.amount) : -Number(t.amount))
   }
   for (const c of contributions) {
     if (!c.affects_liquid) continue // cargas iniciales / tenencias previas y transferencias no tocan el líquido
@@ -117,6 +122,11 @@ export async function computeCurrentLiquid() {
 
   // Mismo Map que devolvía computeLiquidByAccount: account_id → monto, con el
   // null como balde "sin cuenta". De acá para abajo nada cambió.
+  //
+  // Desde la 0036 el RPC trae además `currency` e `is_savings` de cada balde.
+  // No se leen acá: las cuentas ya llegan con esas dos columnas en su propia
+  // fila (el select de arriba es `*`), y el balde sin cuenta no tiene ninguna
+  // pantalla que las mire todavía.
   const byAccount = new Map(buckets.map((row) => [row.account_id ?? null, Number(row.amount)]))
   const lastByAccount = lastReconciliationByAccount(reconciliations)
 

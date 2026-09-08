@@ -82,8 +82,17 @@ vi.mock('./supabase.js', () => ({
         contributions: h.state.tables.contributions ?? [],
         debtPayments: h.state.tables.debt_payments ?? [],
       })
+      // Desde la 0036 la función devuelve además la moneda y la marca de ahorro
+      // de cada balde. Se copian de la cuenta, con ARS/false para lo que no
+      // tiene cuenta, igual que el coalesce del SQL.
+      const accounts = new Map((h.state.tables.liquid_accounts ?? []).map((a) => [a.id, a]))
       return {
-        data: [...byAccount].map(([account_id, amount]) => ({ account_id, amount })),
+        data: [...byAccount].map(([account_id, amount]) => ({
+          account_id,
+          currency: accounts.get(account_id)?.currency ?? 'ARS',
+          is_savings: accounts.get(account_id)?.is_savings ?? false,
+          amount,
+        })),
         error: null,
       }
     },
@@ -105,15 +114,15 @@ const SYSTEM_CATEGORIES = [
 function seedTwoAccounts() {
   h.state.tables = {
     liquid_accounts: [
-      { id: EFECTIVO, name: 'Efectivo', position: 0 },
-      { id: MERCADO_PAGO, name: 'Mercado Pago', position: 1 },
+      { id: EFECTIVO, name: 'Efectivo', position: 0, currency: 'ARS', is_savings: false },
+      { id: MERCADO_PAGO, name: 'Mercado Pago', position: 1, currency: 'ARS', is_savings: false },
     ],
     liquid_reconciliations: [
-      { id: 'rec-vieja', account_id: EFECTIVO, date: '2026-01-01', declared_amount_ars: 10000 },
+      { id: 'rec-vieja', account_id: EFECTIVO, date: '2026-01-01', declared_amount: 10000 },
     ],
     transactions: [
-      { kind: 'income', amount_ars: 10000, account_id: EFECTIVO },
-      { kind: 'income', amount_ars: 5000, account_id: MERCADO_PAGO },
+      { kind: 'income', amount: 10000, account_id: EFECTIVO },
+      { kind: 'income', amount: 5000, account_id: MERCADO_PAGO },
     ],
     contributions: [],
     debt_payments: [],
@@ -151,7 +160,7 @@ describe('el desglose que ve la pantalla', () => {
     // Carrera real: la cuenta se borró entre la consulta de cuentas y la de
     // movimientos. Sumar solo las cuentas conocidas la haría desaparecer del
     // disponible en silencio.
-    h.state.tables.transactions.push({ kind: 'income', amount_ars: 900, account_id: 'acc-borrada' })
+    h.state.tables.transactions.push({ kind: 'income', amount: 900, account_id: 'acc-borrada' })
     const state = await computeCurrentLiquid()
     expect(state.current).toBe(15900)
     expect(state.unassigned).toBe(900)
@@ -161,7 +170,7 @@ describe('el desglose que ve la pantalla', () => {
   })
 
   it('lo que quedó sin cuenta va a su propio balde y suma al total', async () => {
-    h.state.tables.transactions.push({ kind: 'income', amount_ars: 700, account_id: null })
+    h.state.tables.transactions.push({ kind: 'income', amount: 700, account_id: null })
     const state = await computeCurrentLiquid()
     expect(state.unassigned).toBe(700)
     expect(state.current).toBe(15700)

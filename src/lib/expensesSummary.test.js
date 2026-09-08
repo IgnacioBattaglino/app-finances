@@ -52,16 +52,16 @@ describe('expensesInMonth', () => {
 describe('previousMonthToDate', () => {
   it('corta el mes anterior al mismo día', () => {
     const expenses = [
-      { date: '2026-07-05', amount_ars: 100 },
-      { date: '2026-07-20', amount_ars: 500 }, // después del corte, no cuenta
-      { date: '2026-08-05', amount_ars: 999 }, // mes en curso, no es "anterior"
+      { date: '2026-07-05', amount: 100 },
+      { date: '2026-07-20', amount: 500 }, // después del corte, no cuenta
+      { date: '2026-08-05', amount: 999 }, // mes en curso, no es "anterior"
     ]
     const result = previousMonthToDate(expenses, '2026-08-05')
-    expect(result).toEqual([{ date: '2026-07-05', amount_ars: 100 }])
+    expect(result).toEqual([{ date: '2026-07-05', amount: 100 }])
   })
 
   it('cruza el año: enero compara contra diciembre', () => {
-    const expenses = [{ date: '2025-12-03', amount_ars: 50 }]
+    const expenses = [{ date: '2025-12-03', amount: 50 }]
     expect(previousMonthToDate(expenses, '2026-01-10')).toHaveLength(1)
   })
 })
@@ -80,9 +80,9 @@ describe('monthOverMonthPct', () => {
 describe('groupByCategory', () => {
   it('agrupa y ordena de mayor a menor', () => {
     const expenses = [
-      { amount_ars: 100, category: { name: 'Comida' } },
-      { amount_ars: 300, category: { name: 'Alquiler' } },
-      { amount_ars: 50, category: { name: 'Comida' } },
+      { amount: 100, category: { name: 'Comida' } },
+      { amount: 300, category: { name: 'Alquiler' } },
+      { amount: 50, category: { name: 'Comida' } },
     ]
     expect(groupByCategory(expenses)).toEqual([
       { name: 'Alquiler', total: 300 },
@@ -91,7 +91,7 @@ describe('groupByCategory', () => {
   })
 
   it('sin categoría cae en "Sin categoría"', () => {
-    const expenses = [{ amount_ars: 10, category: null }]
+    const expenses = [{ amount: 10, category: null }]
     expect(groupByCategory(expenses)).toEqual([{ name: 'Sin categoría', total: 10 }])
   })
 })
@@ -115,9 +115,9 @@ describe('monthlyUsdTotals', () => {
       { year: 2026, month: 8 },
     ]
     const expenses = [
-      { date: '2026-07-10', amount_ars: 200 }, // 100 USD
-      { date: '2026-07-20', amount_ars: 100 }, // 50 USD
-      { date: '2026-08-01', amount_ars: 40 }, // 20 USD
+      { date: '2026-07-10', amount: 200 }, // 100 USD
+      { date: '2026-07-20', amount: 100 }, // 50 USD
+      { date: '2026-08-01', amount: 40 }, // 20 USD
     ]
     const result = await monthlyUsdTotals(expenses, months)
     expect(result).toEqual([
@@ -141,6 +141,6 @@ describe('monthlyUsdTotals', () => {
 
 describe('sumAmount', () => {
   it('suma y redondea', () => {
-    expect(sumAmount([{ amount_ars: 10.005 }, { amount_ars: 5 }])).toBeCloseTo(15.01, 2)
+    expect(sumAmount([{ amount: 10.005 }, { amount: 5 }])).toBeCloseTo(15.01, 2)
   })
 })

@@ -51,7 +51,7 @@ function TransactionFormModal({
     setKind(initial?.kind ?? defaultKind)
     setCategoryId(initial?.category_id ?? '')
     setDescription(initial?.description ?? '')
-    setAmount(initial ? toDecimalInput(Number(initial.amount_ars)) : '')
+    setAmount(initial ? toDecimalInput(Number(initial.amount)) : '')
     // Editando manda lo que tiene la fila, incluso si es null: guardar sin
     // tocar nada tiene que dejar el movimiento idéntico, no mudarlo a la
     // cuenta por defecto. Creando, la cuenta por defecto ya viene elegida.
@@ -116,7 +116,7 @@ function TransactionFormModal({
     if (!valid || busy) return
     setBusy(true)
     setError(null)
-    const fields = { date, kind, categoryId, description, amountArs: amountValue, accountId }
+    const fields = { date, kind, categoryId, description, amount: amountValue, accountId }
     try {
       const saved = editing
         ? await updateTransaction(initial.id, fields)

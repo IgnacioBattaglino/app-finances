@@ -65,6 +65,11 @@ const AJENA = '99999999-9999-4999-8999-999999999999' // no existe (o es de otro 
 // CHECKs que la base real (0001 / 0009 / 0032). Los CHECKs importan: uno de
 // ellos es el que dispara el fallo a mitad de camino del test de atomicidad.
 //
+// Es el esquema ANTES de la 0036: los montos todavía se llaman amount_ars y
+// declared_amount_ars, y la migración —que se aplica más abajo tal cual— los
+// renombra. El seed y las consultas de más abajo ya usan los nombres nuevos,
+// porque corren con la migración puesta.
+//
 // Sin user_id ni RLS: acá no se prueba el aislamiento (eso es verify:rls), se
 // prueba la lógica y la transacción. La función nunca escribe user_id — lo
 // completa el default auth.uid() en la base real.
@@ -133,10 +138,10 @@ insert into categories (id, name, kind, is_system) values
 insert into liquid_accounts (id, name, position) values
   ('${EFECTIVO}', 'Efectivo', 0),
   ('${MERCADO_PAGO}', 'Mercado Pago', 1);
-insert into transactions (date, kind, category_id, amount_ars, account_id) values
+insert into transactions (date, kind, category_id, amount, account_id) values
   ('2026-01-01', 'income', 'aaaaaaaa-0000-4000-8000-000000000001', 10000, '${EFECTIVO}'),
   ('2026-01-01', 'income', 'aaaaaaaa-0000-4000-8000-000000000001', 5000, '${MERCADO_PAGO}');
-insert into liquid_reconciliations (date, declared_amount_ars, account_id) values
+insert into liquid_reconciliations (date, declared_amount, account_id) values
   ('2026-01-01', 10000, '${EFECTIVO}');
 `
 
@@ -154,12 +159,12 @@ const reconcile = (date, declarations) => psql(reconcileSql(date, declarations))
 // Los ajustes escritos, en el orden en que se insertaron (los dos sembrados no
 // tienen descripción, así que se los distingue por eso).
 const adjustments = () =>
-  rows(`select kind, amount_ars, coalesce(account_id::text, 'null'), description,
+  rows(`select kind, amount, coalesce(account_id::text, 'null'), description,
                (select c.kind from categories c where c.id = t.category_id)
         from transactions t where description is not null order by ctid;`)
 
 const reconciliations = () =>
-  rows(`select coalesce(account_id::text, 'null'), declared_amount_ars,
+  rows(`select coalesce(account_id::text, 'null'), declared_amount,
                coalesce(adjustment_transaction_id::text, 'null')
         from liquid_reconciliations where date = '2026-09-05' order by ctid;`)
 
@@ -171,6 +176,9 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
     psql(SCHEMA)
     psql(readFileSync('supabase/migrations/0033_liquid_by_account.sql', 'utf8'))
     psql(readFileSync('supabase/migrations/0034_reconcile_liquid.sql', 'utf8'))
+    // Y encima la 0036, en el mismo orden que la base real: renombra los dos
+    // montos y reemplaza las dos funciones.
+    psql(readFileSync('supabase/migrations/0036_account_currency_and_savings.sql', 'utf8'))
   })
 
   afterAll(() => {
@@ -235,6 +243,27 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
       expect(Number(byAccount.get(MERCADO_PAGO))).toBe(5000)
     })
 
+    it('el ajuste hereda la moneda de la cuenta que se reconcilió', () => {
+      // Hoy todas las cuentas son ARS y esto no mueve ningún número. Pero la
+      // regla tiene que estar puesta ANTES de que exista la primera cuenta en
+      // dólares: un ajuste en una moneda distinta a la de su cuenta sería plata
+      // que no está en ningún lado.
+      psql(`update liquid_accounts set currency = 'USD' where id = '${MERCADO_PAGO}';`)
+
+      reconcile('2026-09-05', [
+        [EFECTIVO, 12000], // +2000
+        [MERCADO_PAGO, 6500], // +1500
+      ])
+
+      expect(
+        rows(`select coalesce(account_id::text, 'null'), currency from transactions
+              where description is not null order by ctid;`),
+      ).toEqual([
+        [EFECTIVO, 'ARS'],
+        [MERCADO_PAGO, 'USD'],
+      ])
+    })
+
     it('una diferencia por debajo del centavo no genera ajuste, pero sí la fila', () => {
       reconcile('2026-09-05', [[EFECTIVO, 10000.004]])
       expect(adjustments()).toHaveLength(0)
@@ -252,6 +281,9 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
 
       expect(adjustments()).toEqual([['income', '1000.00', 'null', 'Saldo inicial', 'income']])
       expect(reconciliations()).toEqual([['null', '16000.00', adjustmentId()]])
+      // Sin cuenta de la cual heredarla, el ajuste va en pesos: es el mismo
+      // criterio con el que get_liquid_by_account lee el balde sin cuenta.
+      expect(one(`select currency from transactions where description is not null;`)).toEqual(['ARS'])
     })
 
     it('devuelve una fila por cuenta declarada, con su diferencia', () => {
@@ -295,7 +327,7 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
         ]),
       )
 
-      expect(error).toMatch(/declared_amount_ars|liquid_reconciliations/)
+      expect(error).toMatch(/declared_amount|liquid_reconciliations/)
       untouched()
     })
 

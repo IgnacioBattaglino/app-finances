@@ -16,8 +16,8 @@ describe('computeLiquidFromCollections', () => {
 
   it('solo transacciones: income suma, expense resta', () => {
     const transactions = [
-      { kind: 'income', amount_ars: 1000 },
-      { kind: 'expense', amount_ars: 200 },
+      { kind: 'income', amount: 1000 },
+      { kind: 'expense', amount: 200 },
     ]
     expect(
       computeLiquidFromCollections({ transactions, contributions: [], debtPayments: [] }),
@@ -82,7 +82,7 @@ describe('computeLiquidFromCollections', () => {
   it('una transacción de ajuste (categoría de sistema) cuenta igual que cualquier otra: es lo que hace que el líquido dé el valor declarado', () => {
     // La función no distingue por category_id: un ajuste es una transaction
     // normal, así que entra en la suma sin tratamiento especial.
-    const transactions = [{ kind: 'income', amount_ars: 500, category_id: 'ajuste-de-saldo' }]
+    const transactions = [{ kind: 'income', amount: 500, category_id: 'ajuste-de-saldo' }]
     expect(
       computeLiquidFromCollections({ transactions, contributions: [], debtPayments: [] }),
     ).toBe(500)
@@ -90,8 +90,8 @@ describe('computeLiquidFromCollections', () => {
 
   it('mezcla de las tres fuentes a la vez → total correcto', () => {
     const transactions = [
-      { kind: 'income', amount_ars: 1000 },
-      { kind: 'expense', amount_ars: 200 },
+      { kind: 'income', amount: 1000 },
+      { kind: 'expense', amount: 200 },
     ]
     const contributions = [{ amount_usd: 10, mep_rate: 100, direction: 'in', affects_liquid: true }]
     const debtPayments = [{ amount_usd: 5, mep_rate: 100 }]
@@ -101,8 +101,8 @@ describe('computeLiquidFromCollections', () => {
 
   it('montos con decimales: no arrastra error de punto flotante más allá del centavo', () => {
     const transactions = [
-      { kind: 'income', amount_ars: 1234.56 },
-      { kind: 'expense', amount_ars: 234.11 },
+      { kind: 'income', amount: 1234.56 },
+      { kind: 'expense', amount: 234.11 },
     ]
     const result = computeLiquidFromCollections({
       transactions,
@@ -116,7 +116,7 @@ describe('computeLiquidFromCollections', () => {
   })
 
   it('numeric de Supabase como string: suma, no concatena', () => {
-    const transactions = [{ kind: 'income', amount_ars: '100.50' }]
+    const transactions = [{ kind: 'income', amount: '100.50' }]
     const contributions = [
       { amount_usd: '10', mep_rate: '100', direction: 'in', affects_liquid: true },
     ]
@@ -134,7 +134,7 @@ describe('decideAdjustment', () => {
     expect(decideAdjustment(1000, 800)).toEqual({ kind: 'expense', amount: 200 })
   })
 
-  it('declarado igual al actual → no genera ajuste (evita insertar amount_ars=0, que violaría el CHECK > 0)', () => {
+  it('declarado igual al actual → no genera ajuste (evita insertar amount=0, que violaría el CHECK > 0)', () => {
     expect(decideAdjustment(1000, 1000)).toBe(null)
   })
 })
@@ -154,9 +154,9 @@ describe('computeLiquidByAccount', () => {
 
   it('separa las transacciones por cuenta', () => {
     const transactions = [
-      { kind: 'income', amount_ars: 1000, account_id: accountA },
-      { kind: 'expense', amount_ars: 200, account_id: accountA },
-      { kind: 'income', amount_ars: 500, account_id: accountB },
+      { kind: 'income', amount: 1000, account_id: accountA },
+      { kind: 'expense', amount: 200, account_id: accountA },
+      { kind: 'income', amount: 500, account_id: accountB },
     ]
     const byAccount = computeLiquidByAccount({ transactions, contributions: [], debtPayments: [] })
     expect(byAccount.get(accountA)).toBe(800)
@@ -164,7 +164,7 @@ describe('computeLiquidByAccount', () => {
   })
 
   it('las tres fuentes caen en la cuenta de cada fila', () => {
-    const transactions = [{ kind: 'income', amount_ars: 10000, account_id: accountA }]
+    const transactions = [{ kind: 'income', amount: 10000, account_id: accountA }]
     const contributions = [
       { amount_usd: 5, mep_rate: 100, direction: 'in', affects_liquid: true, account_id: accountA },
       { amount_usd: 2, mep_rate: 100, direction: 'out', affects_liquid: true, account_id: accountB },
@@ -177,8 +177,8 @@ describe('computeLiquidByAccount', () => {
 
   it('account_id null/ausente cae en el balde "sin cuenta" (clave null)', () => {
     const transactions = [
-      { kind: 'income', amount_ars: 300, account_id: null },
-      { kind: 'income', amount_ars: 200 }, // fila anterior a la migración 0032
+      { kind: 'income', amount: 300, account_id: null },
+      { kind: 'income', amount: 200 }, // fila anterior a la migración 0032
     ]
     const byAccount = computeLiquidByAccount({ transactions, contributions: [], debtPayments: [] })
     expect(byAccount.get(null)).toBe(500)
@@ -201,8 +201,8 @@ describe('computeLiquidByAccount', () => {
   it('el total sigue siendo la suma de las cuentas: desglose y total no pueden divergir', () => {
     const collections = {
       transactions: [
-        { kind: 'income', amount_ars: 1000, account_id: accountA },
-        { kind: 'expense', amount_ars: 250, account_id: accountB },
+        { kind: 'income', amount: 1000, account_id: accountA },
+        { kind: 'expense', amount: 250, account_id: accountB },
       ],
       contributions: [
         { amount_usd: 1, mep_rate: 100, direction: 'in', affects_liquid: true, account_id: accountB },
@@ -224,9 +224,9 @@ describe('la migración de datos existentes (0032): todo a "Efectivo", sin perde
 
   const before = {
     transactions: [
-      { kind: 'income', amount_ars: 500000 },
-      { kind: 'expense', amount_ars: 120000 },
-      { kind: 'expense', amount_ars: 33333.33 },
+      { kind: 'income', amount: 500000 },
+      { kind: 'expense', amount: 120000 },
+      { kind: 'expense', amount: 33333.33 },
     ],
     contributions: [
       { amount_usd: 100, mep_rate: 1200, direction: 'in', affects_liquid: true },

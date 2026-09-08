@@ -72,7 +72,7 @@ export async function getTransactionsForExport() {
   return fetchAllPages((from, to) =>
     supabase
       .from('transactions')
-      .select('date, kind, description, amount_ars, category:categories(name)')
+      .select('date, kind, description, amount, category:categories(name)')
       .order('date', { ascending: true })
       .order('created_at', { ascending: true })
       .order('id', { ascending: true })
@@ -88,7 +88,7 @@ export function transactionsCsv(transactions) {
       tx.kind === 'expense' ? 'Gasto' : 'Ingreso',
       tx.category?.name ?? '',
       tx.description ?? '',
-      csvNumber(tx.amount_ars),
+      csvNumber(tx.amount),
     ]),
   )
 }
