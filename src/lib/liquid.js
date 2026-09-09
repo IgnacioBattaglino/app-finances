@@ -167,6 +167,51 @@ export async function computeCurrentLiquid() {
   return { current, isFirst: !last, last, accounts, unassigned, savings }
 }
 
+// Cuánto hay por moneda dentro de un conjunto de cuentas (disponible o
+// ahorro): un Map moneda → suma. Hoy cada tarjeta de Inicio siempre da UNA
+// sola moneda (todo el disponible es ARS, todo el ahorro es USD), pero el día
+// que una cuenta nueva rompa esa uniformidad, el tamaño de este Map es la
+// señal de que hace falta convertir para mostrar un solo número (ver
+// localCurrency.toUsd). Pura y testeable.
+export function totalsByCurrency(accounts) {
+  const totals = new Map()
+  for (const a of accounts) totals.set(a.currency, (totals.get(a.currency) ?? 0) + a.amount)
+  return totals
+}
+
+// Con una sola cuenta, el desglose de una tarjeta de Inicio no se muestra:
+// repetir el total de arriba con el nombre al lado no dice nada nuevo. Mismo
+// criterio para el disponible y para el ahorro.
+export function visibleBreakdown(rows) {
+  return rows.length > 1 ? rows : null
+}
+
+// Qué muestra la tarjeta "Dinero ahorrado": si aparece, en qué moneda y con
+// qué monto. Con una sola moneda entre las cuentas de ahorro se usa tal cual,
+// sin pasar por el MEP; con más de una hace falta el total ya convertido
+// (`usdTotal`, resuelto aparte con localCurrency.toUsd) — mientras no llegó
+// (undefined) la tarjeta se trata como no resuelta, nunca como "en cero".
+// Con saldo 0 (o negativo por algún ajuste) no se muestra: un "US$ 0" fijo
+// sería ruido, igual que "Deudas" sin deudas.
+export function summarizeSavingsCard(accounts, usdTotal) {
+  const totals = totalsByCurrency(accounts)
+  const mixed = totals.size > 1
+  const nativeTotal = accounts.reduce((sum, a) => sum + a.amount, 0)
+  const currency = mixed ? 'USD' : ([...totals.keys()][0] ?? 'USD')
+  const amount = mixed ? usdTotal : nativeTotal
+  return { show: amount !== undefined && amount > 0.005, currency, amount }
+}
+
+// Suma a dólares un Map moneda → monto, con `convert` como el único punto de
+// E/S (en la app, localCurrency.toUsd contra el MEP de hoy). Separarlo así
+// deja probar la SUMA (el Total de Inicio: disponible + ahorrado + invertido)
+// sin depender de una cotización real.
+export async function sumToUsd(totals, convert) {
+  let sum = 0
+  for (const [currency, amount] of totals) sum += await convert(amount, currency)
+  return sum
+}
+
 // Ajuste que corresponde para que el líquido pase de `current` a
 // `declaredAmount`: null si la diferencia es despreciable (< 1 centavo), no
 // hace falta insertar nada. Pura y testeable.

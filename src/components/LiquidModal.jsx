@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react'
 import { computeCurrentLiquid, reconcile, decideAdjustment } from '../lib/liquid.js'
-import { formatARS, todayISO, formatDayYear } from '../lib/format.js'
+import { formatARS, formatUSD, todayISO, formatDayYear } from '../lib/format.js'
 import FormSheet from './FormSheet.jsx'
 import FormError from './form/FormError.jsx'
 import AccountCreateForm from './form/AccountCreateForm.jsx'
+
+// Cada cuenta se declara en SU moneda — hoy el disponible es ARS y el ahorro
+// es USD, pero el criterio no asume cuál: lee account.currency, igual que ya
+// hace get_liquid_by_account (migración 0036).
+function formatByCurrency(currency, value) {
+  return currency === 'USD' ? formatUSD(value) : formatARS(value)
+}
 
 // Una fila por cuenta: lo que la app calculó, y al lado el campo para declarar
 // lo que hay de verdad.
@@ -13,6 +20,7 @@ import AccountCreateForm from './form/AccountCreateForm.jsx'
 // contar la plata del bolsillo un martes y la de Mercado Pago otro día, que es
 // como se cuenta la plata en la vida real. Cero se escribe escribiendo 0.
 function AccountRow({ account, value, onChange }) {
+  const currency = account.currency ?? 'ARS'
   const declaredValue = Number(String(value).replace(',', '.'))
   const filled = value !== '' && Number.isFinite(declaredValue) && declaredValue >= 0
   const decision = filled ? decideAdjustment(account.amount, declaredValue) : null
@@ -24,11 +32,11 @@ function AccountRow({ account, value, onChange }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[17px]">{account.name}</span>
           <span className="block text-[13px] text-ink-soft">
-            Según la app: <span className="font-money">{formatARS(account.amount)}</span>
+            Según la app: <span className="font-money">{formatByCurrency(currency, account.amount)}</span>
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
-          <span className="text-[15px] text-ink-soft">$</span>
+          <span className="text-[15px] text-ink-soft">{currency === 'USD' ? 'US$' : '$'}</span>
           <input
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -42,8 +50,8 @@ function AccountRow({ account, value, onChange }) {
       {decision && (
         <p className={`mt-1.5 text-[13px] ${difference > 0 ? 'text-accent-ink' : 'text-clay'}`}>
           {difference > 0 ? '+' : '−'}
-          <span className="font-money">{formatARS(Math.abs(difference))}</span> → se registra un{' '}
-          {decision.kind === 'income' ? 'ingreso' : 'gasto'} de ajuste
+          <span className="font-money">{formatByCurrency(currency, Math.abs(difference))}</span> → se
+          registra un {decision.kind === 'income' ? 'ingreso' : 'gasto'} de ajuste
           {account.last ? '' : ' como saldo inicial'}.
         </p>
       )}
@@ -97,11 +105,21 @@ function LiquidModal({ open, onClose, onSaved }) {
   // Sin ninguna cuenta cargada, se declara el disponible entero: es el camino
   // de antes de la migración 0032, y el que queda si el usuario borra todas
   // sus cuentas. La clave '__none__' representa esa declaración sin cuenta.
-  const rows = state
+  const liquidRows = state
     ? accounts.length > 0
       ? accounts.map((a) => ({ ...a, key: a.id, accountId: a.id }))
       : [{ key: '__none__', accountId: null, name: 'Dinero disponible', amount: state.current, last: state.last }]
     : []
+
+  // Las cuentas de ahorro también se cuentan: guardaste esa plata aparte, pero
+  // sigue siendo plata real y hay que poder decir "esto tiene tanto" como con
+  // cualquier otra (ver Dashboard, "Dinero ahorrado"). A diferencia del
+  // disponible, sin ninguna cuenta de ahorro no hay nada que declarar por
+  // separado — no existe un "ahorro sin cuenta" equivalente al de antes de la
+  // 0032.
+  const savingsRows = (state?.savings ?? []).map((a) => ({ ...a, key: a.id, accountId: a.id }))
+
+  const rows = [...liquidRows, ...savingsRows]
 
   const declarations = rows
     .map((row) => ({ row, raw: declared[row.key] ?? '' }))
@@ -158,7 +176,7 @@ function LiquidModal({ open, onClose, onSaved }) {
             </p>
 
             <div className="list">
-              {rows.map((row) => (
+              {liquidRows.map((row) => (
                 <AccountRow
                   key={row.key}
                   account={row}
@@ -199,6 +217,27 @@ function LiquidModal({ open, onClose, onSaved }) {
                 movimientos sin cuenta asignada. Suman a tu total, pero no se reconcilian acá:
                 asignales una cuenta desde el movimiento.
               </p>
+            )}
+
+            {/* Cuentas de ahorro: plata real, aparte del disponible de arriba
+                (ver ADR-014). Sección propia porque no comparten el "total"
+                de la frase de arriba, que es solo del día a día — mezclar
+                filas de las dos en una sola lista haría parecer que sí lo
+                comparten. Sin cuentas de ahorro, la sección no existe. */}
+            {savingsRows.length > 0 && (
+              <>
+                <h2 className="eyebrow mb-2 px-1">Ahorro</h2>
+                <div className="list">
+                  {savingsRows.map((row) => (
+                    <AccountRow
+                      key={row.key}
+                      account={row}
+                      value={declared[row.key] ?? ''}
+                      onChange={(next) => setDeclared((prev) => ({ ...prev, [row.key]: next }))}
+                    />
+                  ))}
+                </div>
+              </>
             )}
 
             <p className="px-1 text-[13px] text-ink-soft">

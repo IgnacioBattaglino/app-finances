@@ -1,9 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   computeLiquidFromCollections,
   computeLiquidByAccount,
   lastReconciliationByAccount,
   decideAdjustment,
+  totalsByCurrency,
+  visibleBreakdown,
+  summarizeSavingsCard,
+  sumToUsd,
 } from './liquid.js'
 import { round } from './money.js'
 
@@ -311,5 +315,122 @@ describe('lastReconciliationByAccount', () => {
     const byAccount = lastReconciliationByAccount(rows)
     expect(byAccount.get(null).id).toBe('vieja')
     expect(byAccount.get('cuenta-efectivo')).toBeUndefined()
+  })
+})
+
+describe('totalsByCurrency', () => {
+  it('sin cuentas → mapa vacío', () => {
+    expect(totalsByCurrency([]).size).toBe(0)
+  })
+
+  it('todas la misma moneda → una sola entrada con la suma', () => {
+    const totals = totalsByCurrency([
+      { amount: 1000, currency: 'ARS' },
+      { amount: 500, currency: 'ARS' },
+    ])
+    expect(totals.size).toBe(1)
+    expect(totals.get('ARS')).toBe(1500)
+  })
+
+  it('monedas distintas → una entrada por moneda, sin mezclarlas', () => {
+    const totals = totalsByCurrency([
+      { amount: 1000, currency: 'ARS' },
+      { amount: 200, currency: 'USD' },
+      { amount: 50, currency: 'USD' },
+    ])
+    expect(totals.get('ARS')).toBe(1000)
+    expect(totals.get('USD')).toBe(250)
+  })
+})
+
+describe('visibleBreakdown', () => {
+  it('sin cuentas → no se muestra', () => {
+    expect(visibleBreakdown([])).toBeNull()
+  })
+
+  it('una sola cuenta → no se muestra: repetiría el total con otro nombre', () => {
+    expect(visibleBreakdown([{ key: 'a', name: 'Efectivo', amount: 100 }])).toBeNull()
+  })
+
+  it('más de una cuenta → se muestran, en el mismo orden', () => {
+    const rows = [
+      { key: 'a', name: 'Efectivo', amount: 100 },
+      { key: 'b', name: 'Mercado Pago', amount: 200 },
+    ]
+    expect(visibleBreakdown(rows)).toBe(rows)
+  })
+})
+
+describe('summarizeSavingsCard', () => {
+  it('sin cuentas de ahorro → no se muestra', () => {
+    expect(summarizeSavingsCard([], undefined)).toEqual({ show: false, currency: 'USD', amount: 0 })
+  })
+
+  it('con saldo 0 (una sola cuenta, vacía) → no se muestra', () => {
+    const result = summarizeSavingsCard([{ amount: 0, currency: 'USD' }], undefined)
+    expect(result.show).toBe(false)
+  })
+
+  it('una sola moneda con saldo > 0 → se muestra tal cual, sin convertir', () => {
+    const accounts = [
+      { amount: 500, currency: 'USD' },
+      { amount: 287.19, currency: 'USD' },
+    ]
+    expect(summarizeSavingsCard(accounts, undefined)).toEqual({
+      show: true,
+      currency: 'USD',
+      amount: 787.19,
+    })
+  })
+
+  it('monedas mixtas sin el total convertido todavía → no resuelta, no "en cero"', () => {
+    const accounts = [
+      { amount: 500, currency: 'USD' },
+      { amount: 10000, currency: 'ARS' },
+    ]
+    expect(summarizeSavingsCard(accounts, undefined).show).toBe(false)
+  })
+
+  it('monedas mixtas con el total convertido → se muestra en dólares', () => {
+    const accounts = [
+      { amount: 500, currency: 'USD' },
+      { amount: 10000, currency: 'ARS' },
+    ]
+    expect(summarizeSavingsCard(accounts, 506.55)).toEqual({
+      show: true,
+      currency: 'USD',
+      amount: 506.55,
+    })
+  })
+})
+
+describe('sumToUsd', () => {
+  it('sin monedas → 0, sin llamar a convert', async () => {
+    const convert = vi.fn()
+    expect(await sumToUsd(new Map(), convert)).toBe(0)
+    expect(convert).not.toHaveBeenCalled()
+  })
+
+  it('USD no pasa por convert (lo hace toUsd), pero acá igual se llama: la suma es de lo que convert devuelva', async () => {
+    const convert = vi.fn(async (amount, currency) => (currency === 'USD' ? amount : amount / 1000))
+    const total = await sumToUsd(
+      new Map([
+        ['ARS', 500000],
+        ['USD', 100],
+      ]),
+      convert,
+    )
+    expect(total).toBe(600) // 500000/1000 + 100
+    expect(convert).toHaveBeenCalledTimes(2)
+  })
+
+  it('es el total de Inicio: disponible (ARS) + ahorrado (USD) + invertido, ya en dólares', async () => {
+    // Mismo caso que se ve en la app: $506.213,43 a un MEP de ~1524,5 dan
+    // ~US$ 332,07; sumado a lo ya en dólares da el Total de la pantalla.
+    const convert = vi.fn(async (amount, currency) => (currency === 'ARS' ? amount / 1524.5 : amount))
+    const disponibleUsd = await sumToUsd(new Map([['ARS', 506213.43]]), convert)
+    const ahorradoUsd = await sumToUsd(new Map([['USD', 787.19]]), convert)
+    const total = disponibleUsd + ahorradoUsd + 340.9
+    expect(total).toBeCloseTo(1460.16, 1)
   })
 })

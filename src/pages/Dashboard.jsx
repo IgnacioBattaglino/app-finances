@@ -8,10 +8,17 @@ import FormSheet from '../components/FormSheet.jsx'
 import FormError from '../components/form/FormError.jsx'
 import InfoButton from '../components/InfoButton.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
-import { computeCurrentLiquid } from '../lib/liquid.js'
+import {
+  computeCurrentLiquid,
+  totalsByCurrency,
+  visibleBreakdown,
+  summarizeSavingsCard,
+  sumToUsd,
+} from '../lib/liquid.js'
+import { toUsd } from '../lib/localCurrency.js'
 import { getCategories } from '../lib/categories.js'
 import { getDebts, summarizeDebts } from '../lib/debts.js'
-import { formatARS } from '../lib/format.js'
+import { formatARS, formatUSD, todayISO } from '../lib/format.js'
 import { useAccounts } from '../hooks/useAccounts.js'
 
 // Recharts pesa bastante: se carga solo cuando hace falta (hay al menos un
@@ -45,6 +52,26 @@ function Chevron() {
       aria-hidden="true"
     >
       <path d="m9 5 7 7-7 7" />
+    </svg>
+  )
+}
+
+// Mismo trazo que Chevron, apuntando abajo: abre/cierra el detalle del
+// resumen de Total. Gira 180° cuando está abierto, en vez de tener un ícono
+// para cada estado.
+function ChevronDown({ open }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`h-4 w-4 shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`}
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
     </svg>
   )
 }
@@ -140,13 +167,17 @@ function SummaryCard({
         <Chevron />
       </button>
       {/* Desglose por cuenta: nombre y monto por línea, nada más. No compite
-          con el monto grande de arriba — lo explica. */}
+          con el monto grande de arriba — lo explica. Cada fila en su propia
+          moneda nativa (ver punto 4: el número grande de la tarjeta puede
+          convertir, pero una cuenta puntual siempre se muestra tal cual es). */}
       {breakdown && breakdown.length > 0 && (
         <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
           {breakdown.map((row) => (
             <li key={row.key} className="flex items-baseline justify-between gap-3 text-[13px]">
               <span className="min-w-0 truncate text-ink-soft">{row.name}</span>
-              <span className="font-money shrink-0 text-ink">{formatARS(row.amount)}</span>
+              <span className="font-money shrink-0 text-ink">
+                {(row.currency ?? 'ARS') === 'ARS' ? formatARS(row.amount) : formatUSD(row.amount)}
+              </span>
             </li>
           ))}
         </ul>
@@ -155,6 +186,64 @@ function SummaryCard({
         <p className="mt-3 rounded-[14px] bg-mist px-3.5 py-2.5 text-left text-[13px] leading-relaxed text-ink-soft">
           {info}
         </p>
+      )}
+    </div>
+  )
+}
+
+// Resumen de los tres mundos convertidos a una sola unidad — a propósito NO
+// es una cuarta tarjeta del mismo peso: es más chico y va debajo, como la
+// fila de un total al pie de una planilla. Disponible, ahorrado e invertido
+// nunca se suman en ningún otro lado de la app (son magnitudes de naturaleza
+// distinta, ver FUNCTIONAL.md); esto es la única excepción, y por eso se
+// distingue tanto — para que no se lea como que ahora sí existe un
+// "patrimonio total" que compite con los tres de arriba.
+//
+// El detalle por moneda queda oculto por default (el mismo criterio que
+// InfoButton): un número ya convertido sin decirlo de dónde sale es una caja
+// negra, pero mostrarlo siempre competiría con el monto grande.
+function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onToggle }) {
+  if (error) {
+    return (
+      <div className="notice mt-3 space-y-2">
+        <span className="eyebrow">Total</span>
+        <FormError message={error.message} detail={error.detail} />
+        <button type="button" onClick={onRetry} className="text-[15px] font-semibold text-clay underline">
+          Reintentar
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="surface mt-3 px-5 py-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={loading}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <span className="eyebrow">Total</span>
+        <span className="flex items-center gap-2">
+          {loading ? (
+            <span className="text-[15px] text-ink-soft">Calculando…</span>
+          ) : (
+            <Money value={totalUsd} className="text-[22px] font-semibold" />
+          )}
+          {!loading && <ChevronDown open={open} />}
+        </span>
+      </button>
+      {open && breakdown && breakdown.length > 0 && (
+        <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
+          {breakdown.map((row) => (
+            <li key={row.currency} className="flex items-baseline justify-between gap-3 text-[13px]">
+              <span className="text-ink-soft">{row.currency === 'ARS' ? 'En pesos' : 'En dólares'}</span>
+              <span className="font-money text-ink">
+                {row.currency === 'ARS' ? formatARS(row.amount) : formatUSD(row.amount)}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
@@ -203,6 +292,13 @@ function Dashboard() {
   // misma pantalla— seguía mostrando los números viejos.
   const [expensesVersion, setExpensesVersion] = useState(0)
 
+  // El total convertido (ver más abajo) y si su detalle por moneda está
+  // desplegado. Arranca cerrado: el número ya convertido es lo que se lee de
+  // entrada, el desglose es para quien quiere entender de dónde sale.
+  const [usdTotals, setUsdTotals] = useState(null)
+  const [usdTotalsError, setUsdTotalsError] = useState(null)
+  const [totalOpen, setTotalOpen] = useState(false)
+
   const loadLiquid = useCallback(async () => {
     setLiquidLoading(true)
     setLiquidError(null)
@@ -232,6 +328,56 @@ function Dashboard() {
     loadDebts()
   }, [loadLiquid, loadDebts])
 
+  // El Total (disponible + ahorrado + invertido, todo a dólares de hoy) es la
+  // única cuenta de la pantalla que mezcla monedas — todo lo demás se
+  // convierte para MOSTRAR, nunca para sumar (ver ADR-013). La conversión usa
+  // el mismo mecanismo que expensesSummary.js (lib/localCurrency.js): el MEP
+  // del día leído de instrument_prices, no una cotización en vivo aparte.
+  //
+  // Se recalcula cuando cambian el disponible o el valor invertido — no hace
+  // falta esperar a que las deudas carguen, que no entran en esta cuenta.
+  useEffect(() => {
+    if (liquidError || portfolioError) {
+      setUsdTotals(null)
+      // No es un fallo propio: el Total no puede calcularse porque le falta
+      // uno de sus insumos, que ya tiene su propio "Reintentar" en su
+      // tarjeta. Reintentar acá reintenta los dos.
+      setUsdTotalsError({ message: 'Depende de un número que no se pudo calcular arriba.' })
+      return
+    }
+    if (!liquid || portfolioLoading) return
+    let cancelled = false
+    const today = todayISO()
+    const convert = (amount, currency) => toUsd(amount, currency, today)
+
+    const disponibleAccounts = [
+      ...liquid.accounts.map((a) => ({ amount: a.amount, currency: a.currency })),
+      ...(Math.abs(liquid.unassigned) >= 0.01 ? [{ amount: liquid.unassigned, currency: 'ARS' }] : []),
+    ]
+    const savingsAccounts = liquid.savings.map((a) => ({ amount: a.amount, currency: a.currency }))
+
+    Promise.all([
+      sumToUsd(totalsByCurrency(disponibleAccounts), convert),
+      sumToUsd(totalsByCurrency(savingsAccounts), convert),
+    ])
+      .then(([disponibleUsd, ahorradoUsd]) => {
+        if (cancelled) return
+        setUsdTotalsError(null)
+        setUsdTotals({
+          disponible: disponibleUsd,
+          ahorrado: ahorradoUsd,
+          invertido: totalValue,
+          total: disponibleUsd + ahorradoUsd + totalValue,
+        })
+      })
+      .catch((e) => {
+        if (!cancelled) setUsdTotalsError({ message: 'No se pudo calcular el total.', detail: e.message })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [liquid, liquidError, totalValue, portfolioLoading, portfolioError])
+
   function loadCategories() {
     setCategoriesError(null)
     getCategories()
@@ -257,21 +403,64 @@ function Dashboard() {
     setExpensesVersion((v) => v + 1)
   }
 
-  // Desglose del disponible por cuenta, para la tarjeta. Con una sola cuenta
-  // no se muestra: repetir el total abajo con un nombre al lado no dice nada.
-  // El balde "sin cuenta" entra como una línea más solo si tiene algo — cuenta
-  // para el total, así que sin él la suma de las líneas no daría.
+  // Desglose del disponible por cuenta, para la tarjeta. El balde "sin
+  // cuenta" entra como una línea más solo si tiene algo — cuenta para el
+  // total, así que sin él la suma de las líneas no daría.
   const liquidRows = liquid
     ? [
-        ...liquid.accounts.map((a) => ({ key: a.id, name: a.name, amount: a.amount })),
+        ...liquid.accounts.map((a) => ({ key: a.id, name: a.name, amount: a.amount, currency: a.currency })),
         ...(Math.abs(liquid.unassigned) >= 0.01
-          ? [{ key: '__none__', name: 'Sin cuenta', amount: liquid.unassigned }]
+          ? [{ key: '__none__', name: 'Sin cuenta', amount: liquid.unassigned, currency: 'ARS' }]
           : []),
       ]
     : []
-  const liquidBreakdown = liquidRows.length > 1 ? liquidRows : null
+  const liquidBreakdown = visibleBreakdown(liquidRows)
+
+  // Ver summarizeSavingsCard (lib/liquid.js): decide moneda y monto, y si la
+  // tarjeta se muestra — mientras haga falta el Total convertido (moneda
+  // mixta) y todavía no llegó, se trata como no resuelta, nunca como "en
+  // cero".
+  const savingsRows = (liquid?.savings ?? []).map((a) => ({
+    key: a.id,
+    name: a.name,
+    amount: a.amount,
+    currency: a.currency,
+  }))
+  const savingsBreakdown = visibleBreakdown(savingsRows)
+  const { show: hasSavings, currency: savingsCurrency, amount: savingsAmount } = summarizeSavingsCard(
+    savingsRows,
+    usdTotals?.ahorrado,
+  )
 
   const hasDebts = debtsError || debts.length > 0
+
+  // Cuántas tarjetas principales entran esta vez decide cuántas columnas usa
+  // la grilla en desktop — mismo criterio que ya aplicaba con "Deudas": cada
+  // tarjeta ausente (sin ahorro, sin deudas) le devuelve su lugar a las que
+  // quedan en vez de dejar un hueco.
+  const cardCount = 2 + (hasSavings ? 1 : 0) + (hasDebts ? 1 : 0)
+  // Con cuatro tarjetas, "Dinero disponible" (la etiqueta más larga) no entra
+  // en una sola línea dentro de una columna de 1024–1536px — el ancho típico
+  // de una laptop. Por eso las cuatro se quedan de a dos filas hasta 2xl, en
+  // vez de forzar una sola fila de cuatro que se ve apretada.
+  const gridColsClass =
+    cardCount >= 4
+      ? 'sm:grid-cols-2 2xl:grid-cols-4'
+      : cardCount === 3
+        ? 'sm:grid-cols-2 lg:grid-cols-3'
+        : 'sm:grid-cols-2'
+
+  // El detalle del Total, agrupado por moneda NATIVA (no por tarjeta): a
+  // "Disponible" y "Ahorrado" les puede tocar la misma moneda que a
+  // "Invertido", y lo que responde el detalle es "cuánto tenés en pesos" y
+  // "cuánto en dólares", no "cuánto tiene cada tarjeta".
+  const totalBreakdown = usdTotals
+    ? [...totalsByCurrency([
+        ...liquidRows.map((r) => ({ amount: r.amount, currency: r.currency })),
+        ...savingsRows.map((r) => ({ amount: r.amount, currency: r.currency })),
+        { amount: totalValue, currency: 'USD' },
+      ])].map(([currency, amount]) => ({ currency, amount }))
+    : null
 
   return (
     <div className="page">
@@ -284,15 +473,17 @@ function Dashboard() {
         }
       />
 
-      {/* Los tres mundos, uno al lado del otro y del mismo tamaño. Nunca se
-          suman ni se apilan en jerarquía: son magnitudes separadas. */}
+      {/* Los mundos, uno al lado del otro y del mismo tamaño. Nunca se suman
+          ni se apilan en jerarquía entre sí: son magnitudes separadas. El
+          Total de abajo es la única excepción, y por eso vive fuera de esta
+          grilla, más chico. */}
       {/* `grid-cols-1` es la columna del celular y tiene que estar declarada:
           sin ella la grilla cae en una columna implícita de `auto`, que no
           puede achicarse por debajo de su min-content. Acá ese min-content es
           el monto de la tarjeta, que en `Money` es un inline-flex y por lo
           tanto no corta nunca — con un número grande la grilla se pasa del
           ancho del teléfono. Mismo motivo que en Movimientos. */}
-      <div className={`grid grid-cols-1 gap-3 ${hasDebts ? 'lg:grid-cols-3' : 'sm:grid-cols-2'}`}>
+      <div className={`grid grid-cols-1 gap-3 ${gridColsClass}`}>
         <SummaryCard
           label="Dinero disponible"
           currency="ARS"
@@ -305,6 +496,23 @@ function Dashboard() {
           onRetry={loadLiquid}
           onClick={() => setLiquidModalOpen(true)}
         />
+
+        {/* Plata guardada aparte, fuera del día a día — ver ADR-014. Solo
+            aparece con saldo: sin cuentas de ahorro (o con saldo 0) no hay
+            nada que este número le sume a la pantalla. El chevron abre el
+            mismo modal que "Dinero disponible": es donde ya se declara y
+            reconcilia, cuenta por cuenta. */}
+        {hasSavings && (
+          <SummaryCard
+            label="Dinero ahorrado"
+            currency={savingsCurrency}
+            amount={<Money value={savingsAmount} currency={savingsCurrency.toLowerCase()} />}
+            breakdown={savingsBreakdown}
+            info="Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento."
+            onClick={() => setLiquidModalOpen(true)}
+          />
+        )}
+
         <SummaryCard
           label="Dinero invertido"
           currency="USD"
@@ -316,9 +524,9 @@ function Dashboard() {
           onClick={() => navigate('/portafolio')}
         />
 
-        {/* El tercer mundo. Solo aparece si hay deudas cargadas — sin ninguna,
-            un "US$ 0" permanente es ruido; la sección sigue estando en la
-            barra de navegación. */}
+        {/* Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0"
+            permanente es ruido; la sección sigue estando en la barra de
+            navegación. */}
         {hasDebts && (
           <SummaryCard
             label="Deudas"
@@ -332,6 +540,19 @@ function Dashboard() {
           />
         )}
       </div>
+
+      <TotalSummary
+        loading={usdTotals === null && !usdTotalsError}
+        error={usdTotalsError}
+        onRetry={() => {
+          loadLiquid()
+          reloadPortfolio()
+        }}
+        totalUsd={usdTotals?.total}
+        breakdown={totalBreakdown}
+        open={totalOpen}
+        onToggle={() => setTotalOpen((v) => !v)}
+      />
 
       {/* En desktop la curva y los gastos conviven a lo ancho; en el celular
           van uno abajo del otro, que es el único orden posible. */}

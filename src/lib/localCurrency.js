@@ -95,3 +95,12 @@ export async function localCurrencyToUsd(amountLocal, date, from) {
   }
   return amountLocal / rate
 }
+
+// Como localCurrencyToUsd, pero para un monto que puede ya estar en dólares:
+// 'USD' vuelve tal cual (no pisa el MEP contra sí mismo), cualquier otra
+// moneda pasa por la conversión de arriba. Para sumar montos de distinta
+// moneda a un mismo total (ver Dashboard: disponible en ARS + ahorro que
+// podría estar en cualquier moneda + invertido, que ya está en USD).
+export async function toUsd(amountLocal, currency, date, from) {
+  return currency === 'USD' ? amountLocal : localCurrencyToUsd(amountLocal, date, from)
+}
