@@ -53,7 +53,13 @@ async function nextPosition() {
 // bajo la misma fila, que es el punto: mismo patrón que createCategory
 // (lib/categories.js) con las categorías ocultas. Si existe una activa,
 // rechaza.
-export async function createAccount(name) {
+//
+// `currency` e `isSavings` solo se aplican al INSERT. Una cuenta oculta que
+// se revive ya tiene movimientos —es la única forma de llegar a oculta—, así
+// que su moneda queda como estaba: aplicar la elegida ahora la cambiaría por
+// abajo del usuario, exactamente lo que el candado de moneda en el detalle
+// existe para evitar.
+export async function createAccount(name, { currency = 'ARS', isSavings = false } = {}) {
   const pattern = name.replace(/[%_]/g, '\\$&')
   const { data: existing, error: findError } = await supabase
     .from('liquid_accounts')
@@ -80,7 +86,7 @@ export async function createAccount(name) {
 
   const { data, error } = await supabase
     .from('liquid_accounts')
-    .insert({ name, position })
+    .insert({ name, position, currency, is_savings: isSavings })
     .select()
     .single()
   if (error) throw error
@@ -91,6 +97,31 @@ export async function renameAccount(id, name) {
   const { data, error } = await supabase
     .from('liquid_accounts')
     .update({ name })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// Se puede cambiar libremente mientras la cuenta no tiene ningún movimiento
+// (la pantalla de detalle decide cuándo ofrecerlo, mirando get_liquid_by_account);
+// esta función no reimplementa esa guarda, solo escribe lo que le piden.
+export async function setAccountCurrency(id, currency) {
+  const { data, error } = await supabase
+    .from('liquid_accounts')
+    .update({ currency })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function setAccountSavings(id, isSavings) {
+  const { data, error } = await supabase
+    .from('liquid_accounts')
+    .update({ is_savings: isSavings })
     .eq('id', id)
     .select()
     .single()

@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getAccounts, deleteAccount, reorderAccounts } from '../../lib/liquidAccounts.js'
+import { getAccountBalances } from '../../lib/liquid.js'
+import { formatByCurrency } from '../../lib/format.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
-import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
+import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
 import { ReorderableRows, GripIcon } from '../../components/settings/ReorderableRows.jsx'
+import LiquidModal from '../../components/LiquidModal.jsx'
 
 // Alta al pie de la lista, escondida hasta que se la pide: mismo patrón que
-// "Nueva categoría" (y el mismo formulario de alta que usa AccountField en
-// los selectores de carga — ver AccountCreateForm).
+// "Nueva categoría". `extended` le agrega moneda y tipo — acá, y solo acá, se
+// eligen libremente (ver AccountCreateForm).
 function NewAccountRow({ onCreated }) {
   const [open, setOpen] = useState(false)
 
@@ -28,6 +31,7 @@ function NewAccountRow({ onCreated }) {
   return (
     <div className="px-4 py-3">
       <AccountCreateForm
+        extended
         onCreated={(created) => {
           onCreated(created)
           setOpen(false)
@@ -101,9 +105,12 @@ function AccountRow({ account, dragHandlers, onDeleted, onError }) {
       </button>
       <Link
         to={`/ajustes/cuentas/${account.id}`}
-        className="min-w-0 flex-1 truncate py-3 text-[17px] transition active:opacity-60"
+        className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 transition active:opacity-60"
       >
-        {account.name}
+        <span className="min-w-0 truncate text-[17px]">{account.name}</span>
+        <span className="font-money shrink-0 text-[15px] text-ink-soft">
+          {formatByCurrency(account.currency, account.amount)}
+        </span>
       </Link>
       <button
         type="button"
@@ -122,12 +129,15 @@ function Accounts() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [note, setNote] = useState(null)
+  const [reconcileOpen, setReconcileOpen] = useState(false)
 
   async function load() {
     setLoading(true)
     setError(null)
     try {
-      setAccounts(await getAccounts())
+      const [accountRows, balances] = await Promise.all([getAccounts(), getAccountBalances()])
+      const byId = new Map(balances.map((b) => [b.account_id, Number(b.amount)]))
+      setAccounts(accountRows.map((a) => ({ ...a, amount: byId.get(a.id) ?? 0 })))
     } catch (e) {
       setError({ message: 'No se pudieron cargar las cuentas.', detail: e.message })
     } finally {
@@ -148,15 +158,29 @@ function Accounts() {
     )
   }
 
-  async function commitOrder(ordered) {
-    setAccounts(ordered.map((account, i) => ({ ...account, position: i })))
+  // Reordena SOLO el subconjunto que se arrastró (uso diario o ahorro): cada
+  // grupo se ordena por separado y el resultado se mezcla de vuelta en la
+  // lista completa, sin pisar al otro grupo.
+  async function commitOrder(orderedSubset) {
+    const positioned = new Map(orderedSubset.map((a, i) => [a.id, i]))
+    setAccounts((prev) =>
+      prev.map((a) => (positioned.has(a.id) ? { ...a, position: positioned.get(a.id) } : a)),
+    )
     try {
-      await reorderAccounts(ordered)
+      await reorderAccounts(orderedSubset)
     } catch (e) {
       setError({ message: 'No se pudo guardar el orden.', detail: e.message })
       load()
     }
   }
+
+  function afterReconciled() {
+    setReconcileOpen(false)
+    load()
+  }
+
+  const dailyAccounts = accounts.filter((a) => !a.is_savings)
+  const savingsAccounts = accounts.filter((a) => a.is_savings)
 
   return (
     <SettingsPage
@@ -181,20 +205,46 @@ function Accounts() {
       {loading ? (
         <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
       ) : (
-        <SettingsGroup footer="La primera de la lista es la que viene elegida al cargar un movimiento — arrastrá con la manija para cambiar el orden. Tu dinero disponible total no depende de cómo las repartas.">
-          <ReorderableRows items={accounts} onCommit={commitOrder}>
-            {(account, dragHandlers) => (
-              <AccountRow
-                account={account}
-                dragHandlers={dragHandlers}
-                onDeleted={handleDeleted}
-                onError={setError}
-              />
-            )}
-          </ReorderableRows>
-          <NewAccountRow onCreated={(created) => setAccounts((prev) => [...prev, created])} />
-        </SettingsGroup>
+        <>
+          <SettingsGroup footer="Compará lo que la app calculó con lo que tenés de verdad, cuenta por cuenta.">
+            <SettingsButtonRow label="Contar mi plata" onClick={() => setReconcileOpen(true)} />
+          </SettingsGroup>
+
+          <SettingsGroup footer="La primera de la lista es la que viene elegida al cargar un movimiento — arrastrá con la manija para cambiar el orden. Tu dinero disponible total no depende de cómo las repartas.">
+            <ReorderableRows items={dailyAccounts} onCommit={commitOrder}>
+              {(account, dragHandlers) => (
+                <AccountRow
+                  account={account}
+                  dragHandlers={dragHandlers}
+                  onDeleted={handleDeleted}
+                  onError={setError}
+                />
+              )}
+            </ReorderableRows>
+          </SettingsGroup>
+
+          {savingsAccounts.length > 0 && (
+            <SettingsGroup title="Ahorro">
+              <ReorderableRows items={savingsAccounts} onCommit={commitOrder}>
+                {(account, dragHandlers) => (
+                  <AccountRow
+                    account={account}
+                    dragHandlers={dragHandlers}
+                    onDeleted={handleDeleted}
+                    onError={setError}
+                  />
+                )}
+              </ReorderableRows>
+            </SettingsGroup>
+          )}
+
+          <SettingsGroup>
+            <NewAccountRow onCreated={(created) => setAccounts((prev) => [...prev, { ...created, amount: 0 }])} />
+          </SettingsGroup>
+        </>
       )}
+
+      <LiquidModal open={reconcileOpen} onClose={() => setReconcileOpen(false)} onSaved={afterReconciled} />
     </SettingsPage>
   )
 }

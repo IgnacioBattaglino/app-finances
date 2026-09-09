@@ -20,6 +20,13 @@ export function formatUSD(value) {
   return usd.format(value)
 }
 
+// Un monto en la moneda de su propia cuenta: hoy siempre ARS o USD (las dos
+// que usa la app), formateado con la función que corresponde. Centraliza el
+// criterio que ya usaba el modal de reconciliación.
+export function formatByCurrency(currency, value) {
+  return currency === 'USD' ? formatUSD(value) : formatARS(value)
+}
+
 const quantity = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 8 })
 
 // Cantidades de activos (unidades: 0,015 BTC). Mismo idioma numérico que el

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import Money from '../components/Money.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
-import LiquidModal from '../components/LiquidModal.jsx'
 import FormSheet from '../components/FormSheet.jsx'
 import FormError from '../components/form/FormError.jsx'
 import InfoButton from '../components/InfoButton.jsx'
@@ -284,7 +283,6 @@ function Dashboard() {
   const [debtsError, setDebtsError] = useState(null)
 
   const [expenseModalOpen, setExpenseModalOpen] = useState(false)
-  const [liquidModalOpen, setLiquidModalOpen] = useState(false)
   const [categories, setCategories] = useState(null) // null = todavía no se pidieron
   const [categoriesError, setCategoriesError] = useState(null)
   // Se incrementa al guardar un movimiento, para que el bloque de gastos se
@@ -398,7 +396,6 @@ function Dashboard() {
   // cualquier otra.
   function afterLiquidChanged() {
     setExpenseModalOpen(false)
-    setLiquidModalOpen(false)
     loadLiquid()
     setExpensesVersion((v) => v + 1)
   }
@@ -488,20 +485,20 @@ function Dashboard() {
           label="Dinero disponible"
           currency="ARS"
           amount={liquid ? <Money value={liquid.current} currency="ars" /> : null}
-          hint={liquid?.isFirst ? 'Declarar mi saldo' : null}
+          hint={liquid?.isFirst ? 'Configurar mis cuentas' : null}
           breakdown={liquidBreakdown}
           info="La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones."
           loading={liquidLoading}
           error={liquidError}
           onRetry={loadLiquid}
-          onClick={() => setLiquidModalOpen(true)}
+          onClick={() => navigate('/ajustes/cuentas')}
         />
 
         {/* Plata guardada aparte, fuera del día a día — ver ADR-014. Solo
             aparece con saldo: sin cuentas de ahorro (o con saldo 0) no hay
-            nada que este número le sume a la pantalla. El chevron abre el
-            mismo modal que "Dinero disponible": es donde ya se declara y
-            reconcilia, cuenta por cuenta. */}
+            nada que este número le sume a la pantalla. El chevron lleva al
+            mismo lugar que "Dinero disponible": Ajustes → Cuentas, donde
+            viven las dos y desde donde se reconcilia. */}
         {hasSavings && (
           <SummaryCard
             label="Dinero ahorrado"
@@ -509,7 +506,7 @@ function Dashboard() {
             amount={<Money value={savingsAmount} currency={savingsCurrency.toLowerCase()} />}
             breakdown={savingsBreakdown}
             info="Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento."
-            onClick={() => setLiquidModalOpen(true)}
+            onClick={() => navigate('/ajustes/cuentas')}
           />
         )}
 
@@ -634,11 +631,6 @@ function Dashboard() {
           onSaved={afterLiquidChanged}
         />
       )}
-      <LiquidModal
-        open={liquidModalOpen}
-        onClose={() => setLiquidModalOpen(false)}
-        onSaved={afterLiquidChanged}
-      />
     </div>
   )
 }

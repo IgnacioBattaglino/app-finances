@@ -111,6 +111,17 @@ export function computeLiquidFromCollections(collections) {
 // una agregación no puede toparse con el corte de PostgREST en 1000 filas
 // porque nunca devuelve tantas. La regla que aplica es la misma que
 // computeLiquidByAccount, y hay un test que lo verifica contra datos.
+// El desglose por cuenta tal cual lo devuelve la base: una fila por cuenta con
+// su moneda, su marca de ahorro y su saldo (get_liquid_by_account, migración
+// 0036). Para Ajustes → Cuentas, que solo necesita el saldo de cada cuenta —
+// sin el total, lo sin asignar ni la última reconciliación que arma
+// computeCurrentLiquid.
+export async function getAccountBalances() {
+  const { data, error } = await supabase.rpc('get_liquid_by_account')
+  if (error) throw error
+  return data
+}
+
 export async function computeCurrentLiquid() {
   const [reconciliations, accountRows, buckets] = await Promise.all([
     getReconciliations(),

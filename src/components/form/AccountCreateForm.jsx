@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { createAccount } from '../../lib/liquidAccounts.js'
 import FormError from './FormError.jsx'
+import BinaryChoice from './BinaryChoice.jsx'
+import Switch from './Switch.jsx'
 
 // El formulario de alta al vuelo de una cuenta: nombre, Crear/Cancelar. Es el
 // mismo bloque en los tres lugares que ofrecen crear una cuenta sin ir a
@@ -13,8 +15,22 @@ import FormError from './FormError.jsx'
 // dentro de otro <form> es HTML inválido. Por eso Enter y Escape se manejan a
 // mano con onKeyDown en vez de onSubmit — funciona igual en los dos lugares
 // donde no hay anidamiento.
-function AccountCreateForm({ onCreated, onCancel, placeholder = 'ej: Mercado Pago, Cuenta DNI' }) {
+//
+// `extended`: solo Ajustes → Cuentas lo pasa. Ahí, y únicamente ahí, la
+// cuenta nace eligiendo moneda y tipo — es el único momento en que la moneda
+// se elige libremente (ver AccountDetail: una vez que la cuenta tiene
+// movimientos, queda fija). El alta al vuelo de un formulario de carga o de
+// la reconciliación no lo necesita: esas cuentas nacen en pesos y de uso
+// diario, que es lo que esos flujos siempre cargan.
+function AccountCreateForm({
+  onCreated,
+  onCancel,
+  placeholder = 'ej: Mercado Pago, Cuenta DNI',
+  extended = false,
+}) {
   const [name, setName] = useState('')
+  const [currency, setCurrency] = useState('ARS')
+  const [isSavings, setIsSavings] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -26,7 +42,7 @@ function AccountCreateForm({ onCreated, onCancel, placeholder = 'ej: Mercado Pag
     setBusy(true)
     setError(null)
     try {
-      onCreated(await createAccount(trimmed))
+      onCreated(await createAccount(trimmed, extended ? { currency, isSavings } : undefined))
     } catch (e) {
       setError({ message: 'No se pudo crear la cuenta.', detail: e.message })
       setBusy(false)
@@ -52,6 +68,29 @@ function AccountCreateForm({ onCreated, onCancel, placeholder = 'ej: Mercado Pag
         disabled={busy}
         className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none placeholder:text-ink-faint"
       />
+
+      {extended && (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[15px] text-ink-soft">Moneda</span>
+            <div className="w-40">
+              <BinaryChoice
+                options={[
+                  { value: 'ARS', label: 'Pesos' },
+                  { value: 'USD', label: 'Dólares' },
+                ]}
+                value={currency}
+                onChange={setCurrency}
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[15px] text-ink-soft">Cuenta de ahorro</span>
+            <Switch checked={isSavings} onChange={setIsSavings} label="Cuenta de ahorro" disabled={busy} />
+          </div>
+        </>
+      )}
+
       <FormError message={error?.message} detail={error?.detail} />
       <div className="flex items-center justify-end gap-4 text-[15px]">
         <button type="button" onClick={onCancel} disabled={busy} className="text-ink-soft">

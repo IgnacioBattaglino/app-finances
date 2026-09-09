@@ -1,16 +1,8 @@
 import { useEffect, useState } from 'react'
 import { computeCurrentLiquid, reconcile, decideAdjustment } from '../lib/liquid.js'
-import { formatARS, formatUSD, todayISO, formatDayYear } from '../lib/format.js'
+import { formatARS, formatByCurrency, todayISO, formatDayYear } from '../lib/format.js'
 import FormSheet from './FormSheet.jsx'
 import FormError from './form/FormError.jsx'
-import AccountCreateForm from './form/AccountCreateForm.jsx'
-
-// Cada cuenta se declara en SU moneda — hoy el disponible es ARS y el ahorro
-// es USD, pero el criterio no asume cuál: lee account.currency, igual que ya
-// hace get_liquid_by_account (migración 0036).
-function formatByCurrency(currency, value) {
-  return currency === 'USD' ? formatUSD(value) : formatARS(value)
-}
 
 // Una fila por cuenta: lo que la app calculó, y al lado el campo para declarar
 // lo que hay de verdad.
@@ -72,7 +64,6 @@ function LiquidModal({ open, onClose, onSaved }) {
   const [declared, setDeclared] = useState({}) // accountId (o '__none__') → texto
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [creatingAccount, setCreatingAccount] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -80,7 +71,6 @@ function LiquidModal({ open, onClose, onSaved }) {
     setDeclared({})
     setError(null)
     setBusy(false)
-    setCreatingAccount(false)
     computeCurrentLiquid()
       .then(setState)
       .catch((e) =>
@@ -89,17 +79,6 @@ function LiquidModal({ open, onClose, onSaved }) {
   }, [open])
 
   if (!open) return null
-
-  // La cuenta nace sin ningún movimiento (recién se crea acá): amount 0 y sin
-  // reconciliación previa. No dispara un reload de computeCurrentLiquid —
-  // insertarla a mano en el estado ya cargado alcanza, y evita perder lo que
-  // el usuario ya tecleó en las demás filas.
-  function handleAccountCreated(created) {
-    setState((prev) =>
-      prev ? { ...prev, accounts: [...prev.accounts, { ...created, amount: 0, last: null }] } : prev,
-    )
-    setCreatingAccount(false)
-  }
 
   const accounts = state?.accounts ?? []
   // Sin ninguna cuenta cargada, se declara el disponible entero: es el camino
@@ -147,7 +126,7 @@ function LiquidModal({ open, onClose, onSaved }) {
 
   return (
     <FormSheet
-      title="Dinero disponible"
+      title="Contar mi plata"
       onClose={onClose}
       action={
         <button
@@ -168,11 +147,13 @@ function LiquidModal({ open, onClose, onSaved }) {
         ) : (
           <>
             {/* El total, informativo: no es un campo, es el número que va a
-                quedar cuadrado cuenta por cuenta. */}
+                quedar cuadrado cuenta por cuenta. Explica, en una línea, qué
+                hace esta pantalla: la app calcula sola a partir de lo que se
+                fue cargando, y acá se corrige contra la plata real. */}
             <p className="surface px-4 py-3 text-[15px] text-ink-soft">
-              Según la app tenés{' '}
+              Según lo que fuiste cargando, la app calcula que tenés{' '}
               <span className="font-money text-ink">{formatARS(state.current)}</span> en total.
-              Contá cada cuenta y escribí cuánto hay de verdad.
+              Contá cada cuenta y escribí cuánto hay de verdad: la diferencia se corrige sola.
             </p>
 
             <div className="list">
@@ -184,27 +165,6 @@ function LiquidModal({ open, onClose, onSaved }) {
                   onChange={(next) => setDeclared((prev) => ({ ...prev, [row.key]: next }))}
                 />
               ))}
-
-              {/* Alta al pie de la lista, mismo patrón que "Nueva categoría"
-                  y el mismo formulario que ofrece AccountField en los
-                  selectores de carga: la cuenta nueva aparece en la lista con
-                  su campo de declarar vacío, lista para completar. */}
-              {creatingAccount ? (
-                <div className="px-4 py-3">
-                  <AccountCreateForm
-                    onCreated={handleAccountCreated}
-                    onCancel={() => setCreatingAccount(false)}
-                  />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setCreatingAccount(true)}
-                  className="w-full px-4 py-3 text-left text-[17px] font-medium text-accent-ink transition active:bg-mist"
-                >
-                  Nueva cuenta
-                </button>
-              )}
             </div>
 
             {/* El balde de lo que quedó sin cuenta: se muestra porque suma al

@@ -1,31 +1,63 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { getAccount, renameAccount } from '../../lib/liquidAccounts.js'
+import { useNavigate, useParams } from 'react-router-dom'
+import {
+  getAccount,
+  renameAccount,
+  setAccountCurrency,
+  setAccountSavings,
+  deleteAccount,
+} from '../../lib/liquidAccounts.js'
+import { getAccountBalances } from '../../lib/liquid.js'
+import { formatByCurrency } from '../../lib/format.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
-import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
+import {
+  SettingsGroup,
+  SettingsValueRow,
+  SettingsSwitchRow,
+  SettingsButtonRow,
+} from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
+import BinaryChoice from '../../components/form/BinaryChoice.jsx'
 
-// Detalle de una cuenta: renombrar. Mismo esqueleto que CategoryDetail — el
-// botón Guardar aparece solo cuando hay algo distinto que guardar.
+const CURRENCY_LABELS = { ARS: 'Pesos (ARS)', USD: 'Dólares (USD)' }
+const CURRENCY_OPTIONS = [
+  { value: 'ARS', label: 'Pesos' },
+  { value: 'USD', label: 'Dólares' },
+]
+
+// Detalle de una cuenta: nombre, moneda, tipo, saldo y eliminar.
 //
 // Renombrar es libre y no afecta nada: ningún cálculo depende del nombre de la
 // cuenta, solo de su id (mismo criterio que los grupos de activos).
+//
+// La moneda solo se puede tocar mientras la cuenta no tiene ningún movimiento
+// (ver ARCHITECTURE.md, migración 0036): una vez que algo la referencia,
+// cambiarla mezclaría dos monedas bajo el mismo saldo. `hasMovements` sale de
+// si la cuenta aparece en get_liquid_by_account — esa función agrupa por
+// cuenta las tres tablas que pueden llevar account_id (transactions,
+// contributions, debt_payments), así que su ausencia es "nunca tuvo un
+// movimiento", con saldo en 0 o no.
 function AccountDetail() {
   const { accountId } = useParams()
+  const navigate = useNavigate()
   const [account, setAccount] = useState(null)
+  const [balance, setBalance] = useState(null) // { amount, hasMovements } | null mientras carga
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   useEffect(() => {
     let active = true
     setLoading(true)
-    getAccount(accountId)
-      .then((data) => {
+    Promise.all([getAccount(accountId), getAccountBalances()])
+      .then(([accountData, balances]) => {
         if (!active) return
-        setAccount(data)
-        setName(data.name)
+        const bucket = balances.find((b) => b.account_id === accountId)
+        setAccount(accountData)
+        setName(accountData.name)
+        setBalance({ amount: Number(bucket?.amount ?? 0), hasMovements: Boolean(bucket) })
       })
       .catch((e) => {
         if (active) setError({ message: 'No se pudo cargar la cuenta.', detail: e.message })
@@ -50,6 +82,44 @@ function AccountDetail() {
       setError({ message: 'No se pudo renombrar la cuenta.', detail: e.message })
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function handleCurrency(next) {
+    if (next === account.currency || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      setAccount(await setAccountCurrency(account.id, next))
+    } catch (e) {
+      setError({ message: 'No se pudo cambiar la moneda.', detail: e.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleSavings(next) {
+    setBusy(true)
+    setError(null)
+    try {
+      setAccount(await setAccountSavings(account.id, next))
+    } catch (e) {
+      setError({ message: 'No se pudo cambiar el tipo de cuenta.', detail: e.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDelete() {
+    setBusy(true)
+    setError(null)
+    try {
+      await deleteAccount(account.id)
+      navigate('/ajustes/cuentas')
+    } catch (e) {
+      setError({ message: 'No se pudo eliminar la cuenta.', detail: e.message })
+      setBusy(false)
+      setConfirmingDelete(false)
     }
   }
 
@@ -99,6 +169,78 @@ function AccountDetail() {
           )}
         </SettingsGroup>
       </form>
+
+      {balance?.hasMovements ? (
+        <SettingsGroup
+          title="Moneda"
+          footer="Ya tiene movimientos, así que la moneda queda fija: cambiarla dejaría la cuenta con dos monedas mezcladas y un saldo sin significado."
+        >
+          <SettingsValueRow label="Moneda" value={CURRENCY_LABELS[account.currency] ?? account.currency} />
+        </SettingsGroup>
+      ) : (
+        <SettingsGroup
+          title="Moneda"
+          footer="Se elige libre hasta el primer movimiento; después queda fija."
+        >
+          <div className="p-4">
+            <BinaryChoice options={CURRENCY_OPTIONS} value={account.currency} onChange={handleCurrency} />
+          </div>
+        </SettingsGroup>
+      )}
+
+      <SettingsGroup footer="El ahorro no cuenta como plata disponible para el día a día, pero sí suma al total.">
+        <SettingsSwitchRow
+          label="Cuenta de ahorro"
+          checked={account.is_savings === true}
+          onChange={handleSavings}
+          disabled={busy}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title="Saldo">
+        <SettingsValueRow
+          label="Actual"
+          value={formatByCurrency(account.currency, balance?.amount ?? 0)}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup>
+        {confirmingDelete ? (
+          <div className="space-y-1.5 px-4 py-3">
+            <div className="flex items-center justify-between gap-3 text-[15px]">
+              <span className="min-w-0 truncate">¿Eliminar «{account.name}»?</span>
+              <div className="flex shrink-0 items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={busy}
+                  className="text-ink-soft"
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={busy}
+                  className="font-semibold text-clay disabled:opacity-50"
+                >
+                  Sí, eliminar
+                </button>
+              </div>
+            </div>
+            <p className="text-[13px] text-ink-soft">
+              Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.
+            </p>
+          </div>
+        ) : (
+          <SettingsButtonRow
+            onClick={() => setConfirmingDelete(true)}
+            label="Eliminar cuenta"
+            tone="danger"
+            disabled={busy}
+          />
+        )}
+      </SettingsGroup>
     </SettingsPage>
   )
 }
