@@ -1,21 +1,40 @@
-import { round } from './money.js'
+import { LOCAL_CURRENCY, currencyLines, amountInCurrency } from './currencyTotals.js'
 
-// Movimientos = lo que pasó por el bolsillo en pesos. Son dos tablas: los
-// gastos e ingresos viven en transactions, y las inversiones que salen del
-// disponible (o vuelven a él) viven en contributions. Este módulo es el único
-// lugar que las junta, y es puro: recibe las filas ya consultadas.
+// Movimientos = lo que pasó por el bolsillo. Son dos tablas: los gastos e
+// ingresos viven en transactions, y las inversiones que salen del disponible (o
+// vuelven a él) viven en contributions. Este módulo es el único lugar que las
+// junta, y es puro: recibe las filas ya consultadas.
 //
-// La regla de signo es la MISMA que la del disponible (lib/liquid.js:30-35) y
-// tiene que seguir siéndolo: un aporte ('in') saca pesos del bolsillo, un
-// retiro ('out') los devuelve. Si acá se invirtiera el signo, la pantalla
-// contaría una cosa y el "Dinero disponible" de Inicio otra.
+// La regla de signo es la MISMA que la del disponible (computeLiquidByAccount
+// en lib/liquid.js) y tiene que seguir siéndolo: un aporte ('in') saca plata
+// del bolsillo, un retiro ('out') la devuelve. Si acá se invirtiera el signo,
+// la pantalla contaría una cosa y el "Dinero disponible" de Inicio otra.
+//
+// Y LA REGLA DE MONEDA TAMBIÉN ES LA MISMA: cada monto se cuenta en la moneda
+// de la cuenta por la que pasó, sin sumar pesos con dólares. Un mes con gastos
+// solo en pesos —el caso normal— devuelve exactamente una línea en pesos por
+// cada total, que es lo que la pantalla venía mostrando.
 
-// Los pesos de una inversión: su monto en dólares al MEP que congeló el día
-// de la operación, igual que en el cálculo del disponible. Una fila sin
-// mep_rate (posible desde la 0024) da 0, exactamente como ahí — no se
+// La moneda de una inversión: la de la cuenta de la que salió la plata. Sin
+// cuenta, la local — mismo criterio que el balde null del disponible.
+export function contributionCurrency(c) {
+  return c.account?.currency ?? LOCAL_CURRENCY
+}
+
+// Cuánto movió del bolsillo, en la moneda de esa cuenta. Desde una cuenta en
+// pesos es su monto en dólares al MEP que congeló el día de la operación;
+// desde una cuenta en dólares es el monto tal cual, porque no hubo conversión
+// (ver amountInCurrency). Una fila sin mep_rate (posible desde la 0024) da 0
+// en el primer caso, exactamente como en el cálculo del disponible — no se
 // inventa una cotización de hoy para una operación de hace meses.
-export function contributionArs(c) {
-  return Number(c.amount_usd) * Number(c.mep_rate)
+export function contributionAmount(c) {
+  return amountInCurrency(Number(c.amount_usd), Number(c.mep_rate), contributionCurrency(c))
+}
+
+// La moneda de un gasto o ingreso: la que quedó copiada en su fila al
+// escribirla (migración 0036). Las filas anteriores no la tienen y son pesos.
+export function transactionCurrencyOf(t) {
+  return t.currency ?? LOCAL_CURRENCY
 }
 
 // "Inversión" o "Retiro": lo que la fila hizo con el disponible, no cómo se
@@ -27,34 +46,50 @@ export function contributionLabel(c) {
   return c.direction === 'out' ? 'Retiro' : 'Inversión'
 }
 
-// Los tres números del mes. Se calculan sobre el mes COMPLETO, no sobre lo
-// que haya quedado visible con los filtros de la lista — describen el mes
-// navegado, mismo criterio que ya tenían Gastos e Ingresos.
+function addTo(map, currency, delta) {
+  map.set(currency, (map.get(currency) ?? 0) + delta)
+}
+
+// Los cuatro números del mes, cada uno como una lista de líneas (una por
+// moneda con saldo, la local primero — ver currencyLines). Se calculan sobre
+// el mes COMPLETO, no sobre lo que haya quedado visible con los filtros de la
+// lista: describen el mes navegado.
 //
 // "Invertido" puede dar negativo: un mes en el que se retiró más de lo que se
 // aportó devolvió plata al bolsillo, y el balance lo refleja sumándola.
 export function monthTotals({ transactions, contributions }) {
-  let expenses = 0
-  let incomes = 0
-  let invested = 0
+  const expenses = new Map()
+  const incomes = new Map()
+  const invested = new Map()
 
   for (const t of transactions) {
-    if (t.kind === 'income') incomes += Number(t.amount)
-    else expenses += Number(t.amount)
+    const currency = transactionCurrencyOf(t)
+    addTo(t.kind === 'income' ? incomes : expenses, currency, Number(t.amount))
   }
   for (const c of contributions) {
-    const ars = contributionArs(c)
-    invested += c.direction === 'out' ? -ars : ars
+    const amount = contributionAmount(c)
+    addTo(invested, contributionCurrency(c), c.direction === 'out' ? -amount : amount)
+  }
+
+  // Lo que quedó del mes, moneda por moneda: lo que entró, menos lo que se
+  // gastó, menos lo que se fue a inversión. Invertir no es gastar, pero sale
+  // del mismo bolsillo y por eso resta acá. Un balance mezclado no existe: si
+  // cobraste en pesos y gastaste en dólares, son dos saldos distintos y la
+  // pantalla muestra los dos.
+  const balance = new Map()
+  for (const currency of new Set([...incomes.keys(), ...expenses.keys(), ...invested.keys()])) {
+    addTo(
+      balance,
+      currency,
+      (incomes.get(currency) ?? 0) - (expenses.get(currency) ?? 0) - (invested.get(currency) ?? 0),
+    )
   }
 
   return {
-    expenses: round(expenses),
-    incomes: round(incomes),
-    invested: round(invested),
-    // Lo que quedó del mes: lo que entró, menos lo que se gastó, menos lo que
-    // se fue a inversión. Invertir no es gastar, pero sale del mismo bolsillo
-    // y por eso resta acá.
-    balance: round(incomes - expenses - invested),
+    expenses: currencyLines(expenses),
+    incomes: currencyLines(incomes),
+    invested: currencyLines(invested),
+    balance: currencyLines(balance),
   }
 }
 

@@ -8,9 +8,16 @@ import EditIcon from '../components/EditIcon.jsx'
 import FormError from '../components/form/FormError.jsx'
 import { getTransactions, groupExpensesByCategory } from '../lib/transactions.js'
 import { getLiquidContributions } from '../lib/contributions.js'
-import { contributionArs, contributionLabel, mergeMovements, monthTotals } from '../lib/movements.js'
+import {
+  contributionAmount,
+  contributionCurrency,
+  contributionLabel,
+  transactionCurrencyOf,
+  mergeMovements,
+  monthTotals,
+} from '../lib/movements.js'
 import { getCategories } from '../lib/categories.js'
-import { formatARS, formatMonthYear, formatDay } from '../lib/format.js'
+import { formatByCurrency, formatMonthYear, formatDay } from '../lib/format.js'
 
 const now = new Date()
 
@@ -72,7 +79,7 @@ function TransactionRow({ tx, onEdit }) {
         }`}
       >
         {tx.kind === 'expense' ? '−' : '+'}
-        {formatARS(tx.amount)}
+        {formatByCurrency(transactionCurrencyOf(tx), tx.amount)}
       </span>
     </button>
   )
@@ -80,8 +87,9 @@ function TransactionRow({ tx, onEdit }) {
 
 // Inversión o retiro: acá es de solo lectura y lleva al detalle del activo,
 // que es donde se edita (de ahí el chevron en vez del lápiz). El monto va en
-// pesos, como el resto de la lista, y sin color: no es una pérdida ni una
-// ganancia, es plata que cambió de lugar. El signo dice para qué lado.
+// la moneda de la cuenta por la que pasó la plata —igual que el resto de la
+// lista— y sin color: no es una pérdida ni una ganancia, es plata que cambió
+// de lugar. El signo dice para qué lado.
 function InvestmentRow({ contribution: c }) {
   const isOut = c.direction === 'out'
   return (
@@ -100,9 +108,31 @@ function InvestmentRow({ contribution: c }) {
       </div>
       <span className="font-money shrink-0 text-[17px] font-medium">
         {isOut ? '+' : '−'}
-        {formatARS(contributionArs(c))}
+        {formatByCurrency(contributionCurrency(c), contributionAmount(c))}
       </span>
     </Link>
+  )
+}
+
+// Uno de los cuatro números del mes. El monto de la derecha es una COLUMNA:
+// una línea por moneda con saldo (ver monthTotals / currencyLines), del mismo
+// tamaño y con el mismo color, porque son dos hechos del mismo rango — el
+// gasto en pesos no es más importante que el gasto en dólares, es otro.
+//
+// Con gastos en una sola moneda —el caso normal— la columna tiene una línea
+// sola y la fila es idéntica a la de siempre.
+function TotalRow({ label, lines, labelClass = 'text-[15px] text-ink-soft', amountClass = '' }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 px-4 py-3">
+      <span className={labelClass}>{label}</span>
+      <span className="shrink-0 text-right">
+        {lines.map((line) => (
+          <span key={line.currency} className={`font-money block text-[17px] font-semibold ${amountClass}`}>
+            {formatByCurrency(line.currency, line.amount)}
+          </span>
+        ))}
+      </span>
+    </div>
   )
 }
 
@@ -306,46 +336,42 @@ function Movements() {
                   —es plata que cambió de lugar—, y el balance tampoco, porque
                   es una resta y su signo ya lo dice. */}
               <div className="surface divide-y divide-line">
-                <div className="flex items-baseline justify-between px-4 py-3">
-                  <span className="text-[15px] text-ink-soft">Gastos</span>
-                  <span className="font-money text-[17px] font-semibold text-clay">
-                    {formatARS(expenses)}
-                  </span>
-                </div>
-                <div className="flex items-baseline justify-between px-4 py-3">
-                  <span className="text-[15px] text-ink-soft">Ingresos</span>
-                  <span className="font-money text-[17px] font-semibold text-gain">
-                    {formatARS(incomes)}
-                  </span>
-                </div>
-                <div className="flex items-baseline justify-between px-4 py-3">
-                  <span className="text-[15px] text-ink-soft">Invertido</span>
-                  <span className="font-money text-[17px] font-semibold">
-                    {formatARS(invested)}
-                  </span>
-                </div>
-                <div className="flex items-baseline justify-between px-4 py-3">
-                  <span className="text-[15px] font-medium">Balance</span>
-                  <span className="font-money text-[17px] font-semibold">
-                    {formatARS(balance)}
-                  </span>
-                </div>
+                <TotalRow label="Gastos" lines={expenses} amountClass="text-clay" />
+                <TotalRow label="Ingresos" lines={incomes} amountClass="text-gain" />
+                <TotalRow label="Invertido" lines={invested} />
+                <TotalRow label="Balance" lines={balance} labelClass="text-[15px] font-medium" />
               </div>
 
+              {/* Una lista por moneda (ver groupExpensesByCategory): con gastos
+                  en una sola —el caso normal— es exactamente la lista de
+                  siempre, sin nada que la anuncie. Recién cuando hay una
+                  segunda moneda aparece el encabezado que dice cuál es cada
+                  una, porque ahí sí hace falta. */}
               {categoryBreakdown.length > 0 && (
-                <div>
-                  <h2 className="eyebrow mb-2 px-1">En qué se fue</h2>
-                  <div className="list">
-                    {categoryBreakdown.map((cat) => (
-                      <div
-                        key={cat.name}
-                        className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-[15px]"
-                      >
-                        <span className="truncate text-ink-soft">{cat.name}</span>
-                        <span className="font-money shrink-0">{formatARS(cat.total)}</span>
+                <div className="space-y-3">
+                  <h2 className="eyebrow px-1">En qué se fue</h2>
+                  {categoryBreakdown.map((group) => (
+                    <div key={group.currency}>
+                      {categoryBreakdown.length > 1 && (
+                        <p className="mb-1.5 px-1 text-[13px] text-ink-faint">
+                          {group.currency === 'ARS' ? 'En pesos' : 'En dólares'}
+                        </p>
+                      )}
+                      <div className="list">
+                        {group.categories.map((cat) => (
+                          <div
+                            key={cat.name}
+                            className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-[15px]"
+                          >
+                            <span className="truncate text-ink-soft">{cat.name}</span>
+                            <span className="font-money shrink-0">
+                              {formatByCurrency(group.currency, cat.total)}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </>

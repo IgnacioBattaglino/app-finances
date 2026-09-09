@@ -77,10 +77,16 @@ vi.mock('./supabase.js', () => ({
       }
       if (name !== 'get_liquid_by_account') throw new Error(`RPC no esperado: ${name}`)
       const { computeLiquidByAccount } = await import('./liquid.js')
+      // `accounts` va con las tablas y no es un detalle: desde la migración
+      // 0039 la moneda de la cuenta decide si un aporte se multiplica por su
+      // MEP congelado o entra tal cual. Sin pasarlo, el mock convertiría
+      // siempre y dejaría de parecerse a la función SQL justo en el caso que
+      // esta tanda vino a arreglar.
       const byAccount = computeLiquidByAccount({
         transactions: h.state.tables.transactions ?? [],
         contributions: h.state.tables.contributions ?? [],
         debtPayments: h.state.tables.debt_payments ?? [],
+        accounts: h.state.tables.liquid_accounts ?? [],
       })
       // Desde la 0036 la función devuelve además la moneda y la marca de ahorro
       // de cada balde. Se copian de la cuenta, con ARS/false para lo que no
@@ -132,6 +138,17 @@ function seedTwoAccounts() {
 
 const insertsInto = (table) => h.state.inserts.filter((i) => i.table === table).map((i) => i.row)
 
+// El disponible ya no es UN número: es una línea por moneda (ver
+// computeCurrentLiquid). Con todas las cuentas en pesos —el escenario de casi
+// todo este archivo— es siempre una sola línea en ARS, y `localTotal` la lee;
+// `onlyLocal` además exige que no haya ninguna otra, que es la garantía que
+// más importa: con datos solo en pesos, nada cambió.
+const localTotal = (state) => state.totals.find((l) => l.currency === 'ARS')?.amount ?? 0
+const onlyLocal = (state) => {
+  expect(state.totals.map((l) => l.currency)).toEqual(['ARS'])
+  return localTotal(state)
+}
+
 beforeEach(() => {
   h.state.inserts = []
   h.state.rpcCalls = []
@@ -142,7 +159,7 @@ beforeEach(() => {
 describe('el desglose que ve la pantalla', () => {
   it('reparte el disponible por cuenta y el total sigue siendo la suma', async () => {
     const state = await computeCurrentLiquid()
-    expect(state.current).toBe(15000)
+    expect(onlyLocal(state)).toBe(15000)
     expect(state.accounts.map((a) => [a.name, a.amount])).toEqual([
       ['Efectivo', 10000],
       ['Mercado Pago', 5000],
@@ -162,18 +179,18 @@ describe('el desglose que ve la pantalla', () => {
     // disponible en silencio.
     h.state.tables.transactions.push({ kind: 'income', amount: 900, account_id: 'acc-borrada' })
     const state = await computeCurrentLiquid()
-    expect(state.current).toBe(15900)
+    expect(onlyLocal(state)).toBe(15900)
     expect(state.unassigned).toBe(900)
     // Y el desglose que se muestra sigue sumando exactamente el total.
     const shown = state.accounts.reduce((s, a) => s + a.amount, 0) + state.unassigned
-    expect(shown).toBe(state.current)
+    expect(shown).toBe(localTotal(state))
   })
 
   it('lo que quedó sin cuenta va a su propio balde y suma al total', async () => {
     h.state.tables.transactions.push({ kind: 'income', amount: 700, account_id: null })
     const state = await computeCurrentLiquid()
     expect(state.unassigned).toBe(700)
-    expect(state.current).toBe(15700)
+    expect(onlyLocal(state)).toBe(15700)
     expect(state.accounts.every((a) => a.amount !== 700)).toBe(true)
   })
 })
@@ -195,10 +212,10 @@ describe('las cuentas de ahorro no son el disponible', () => {
   })
 
   it('no entran en el total: sumarlas mezclaría dólares con pesos', async () => {
-    // Si entraran, `current` daría 15.220 — doscientos veinte dólares sumados
-    // a quince mil pesos como si fueran la misma unidad.
-    const { current } = await computeCurrentLiquid()
-    expect(current).toBe(15000)
+    // Si entraran, el disponible traería una línea en dólares que no le
+    // corresponde — o peor, 15.220 con los 220 dólares sumados a los pesos.
+    const state = await computeCurrentLiquid()
+    expect(onlyLocal(state)).toBe(15000)
   })
 
   it('no aparecen en el desglose que se reconcilia', async () => {
@@ -216,7 +233,81 @@ describe('las cuentas de ahorro no son el disponible', () => {
     h.state.tables.transactions.push({ kind: 'income', amount: 700, account_id: null })
     const state = await computeCurrentLiquid()
     expect(state.unassigned).toBe(700)
-    expect(state.current).toBe(15700)
+    expect(onlyLocal(state)).toBe(15700)
+  })
+})
+
+// El bug que arregla la migración 0039, visto desde la pantalla: una cuenta en
+// dólares que NO es de ahorro. Antes su saldo se sumaba al total en pesos como
+// si 100 dólares fueran 100 pesos.
+describe('una cuenta en dólares del día a día', () => {
+  const USD_DIARIA = 'acc-usd-diaria'
+
+  beforeEach(() => {
+    h.state.tables.liquid_accounts.push({
+      id: USD_DIARIA,
+      name: 'Dólares del día a día',
+      position: 3,
+      currency: 'USD',
+      is_savings: false,
+    })
+    h.state.tables.transactions.push({ kind: 'income', amount: 100, account_id: USD_DIARIA })
+  })
+
+  it('no engorda el total en pesos: es una línea aparte', () => {
+    return computeCurrentLiquid().then((state) => {
+      expect(state.totals).toEqual([
+        { currency: 'ARS', amount: 15000 },
+        { currency: 'USD', amount: 100 },
+      ])
+    })
+  })
+
+  it('sí aparece en el desglose por cuenta, en su moneda', async () => {
+    const { accounts } = await computeCurrentLiquid()
+    expect(accounts.find((a) => a.id === USD_DIARIA)).toMatchObject({
+      currency: 'USD',
+      amount: 100,
+    })
+  })
+
+  it('un aporte pagado desde ella no se multiplica por el MEP', async () => {
+    // US$ 40 aportados desde la cuenta en dólares: salen 40 dólares, no
+    // 40 × 1200 pesos. Antes de la 0039 el balde en dólares quedaba en
+    // 100 − 48.000.
+    h.state.tables.contributions.push({
+      amount_usd: 40,
+      mep_rate: 1200,
+      direction: 'in',
+      affects_liquid: true,
+      account_id: USD_DIARIA,
+    })
+    const state = await computeCurrentLiquid()
+    expect(state.totals).toEqual([
+      { currency: 'ARS', amount: 15000 },
+      { currency: 'USD', amount: 60 },
+    ])
+  })
+
+  it('un aporte pagado desde una cuenta en pesos SÍ se convierte, como siempre', async () => {
+    h.state.tables.contributions.push({
+      amount_usd: 5,
+      mep_rate: 1200,
+      direction: 'in',
+      affects_liquid: true,
+      account_id: EFECTIVO,
+    })
+    const state = await computeCurrentLiquid()
+    // 15.000 − 6.000: la regla vieja, intacta donde corresponde.
+    expect(state.totals.find((l) => l.currency === 'ARS').amount).toBe(9000)
+  })
+
+  it('lo "sin cuenta" se calcula dentro de los pesos, sin restarle los dólares', async () => {
+    h.state.tables.transactions.push({ kind: 'income', amount: 700, account_id: null })
+    const state = await computeCurrentLiquid()
+    // 15.700 pesos − (10.000 + 5.000) de las cuentas en pesos. Si los 100
+    // dólares entraran en esta resta, daría 600.
+    expect(state.unassigned).toBe(700)
   })
 })
 

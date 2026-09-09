@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { round } from './money.js'
+import { LOCAL_CURRENCY, currencyLines, hasAmount, amountInCurrency } from './currencyTotals.js'
 
 // Todas las reconciliaciones, de la más nueva a la más vieja. La tabla crece
 // de a una fila por cuenta declarada, así que traerla entera es barato y
@@ -41,16 +42,19 @@ export function lastReconciliationByAccount(rows) {
 // La clave `null` es el balde "sin cuenta" — filas que ninguna migración
 // alcanzó a asignar. Cuenta para el total, pero no es una cuenta.
 //
-// El monto está en la moneda de la cuenta, que desde la migración 0036 es un
-// dato de la fila (liquid_accounts.currency) y hoy es ARS en todas. Acá no se
-// convierte nada: la conversión a dólares vive en un solo lugar del cliente
-// (lib/localCurrency.js) y la hace quien muestra, no quien suma (ADR-013).
+// EL MONTO DE CADA BALDE ESTÁ EN LA MONEDA DE SU CUENTA
+// (liquid_accounts.currency, migración 0036), y por eso hace falta `accounts`:
+// la moneda decide si un aporte hay que convertirlo o no. Acá no se convierte
+// NADA a dólares para mostrar — eso vive en un solo lugar del cliente
+// (lib/localCurrency.js) y lo hace quien muestra, no quien suma (ADR-013). Lo
+// que sí ocurre acá es la conversión que YA OCURRIÓ EN LA REALIDAD, con la
+// tasa que quedó congelada en la fila.
 //
 // Mismas tres fuentes y mismas reglas de siempre (ver la fórmula en
-// ARCHITECTURE.md): + ingresos − gastos − aportes (USD × su MEP congelado)
-// + retiros que acreditan − pagos de deuda. Los ajustes de reconciliación son
-// transactions normales, así que ya están incluidos, cada uno en la cuenta que
-// ajustó. Pura y testeable: recibe las colecciones ya consultadas, no hace I/O.
+// ARCHITECTURE.md): + ingresos − gastos − aportes + retiros que acreditan
+// − pagos de deuda. Los ajustes de reconciliación son transactions normales,
+// así que ya están incluidos, cada uno en la cuenta que ajustó. Pura y
+// testeable: recibe las colecciones ya consultadas, no hace I/O.
 //
 // LA APP YA NO PASA POR ACÁ: desde la migración 0033 la suma la hace Postgres
 // (get_liquid_by_account), porque traer las tres tablas enteras para sumarlas
@@ -59,35 +63,57 @@ export function lastReconciliationByAccount(rows) {
 // src/lib/liquidSql.test.js corre la función SQL contra ella con un dataset de
 // cientos de filas y exige que den lo mismo. Si algún día cambia la regla, se
 // cambia acá y allá, y el test avisa si una de las dos se olvidó.
-export function computeLiquidByAccount({ transactions, contributions, debtPayments }) {
+export function computeLiquidByAccount({ transactions, contributions, debtPayments, accounts = [] }) {
   const byAccount = new Map()
   const add = (accountId, delta) => {
     const key = accountId ?? null
     byAccount.set(key, (byAccount.get(key) ?? 0) + delta)
   }
 
+  // La moneda del balde. Sin cuenta (el balde null) y con una cuenta que ya no
+  // está (huérfano) se lee como la local: es lo que esas filas son —
+  // movimientos que nadie asignó— y es lo mismo que devuelve el
+  // `coalesce(la.currency, 'ARS')` de get_liquid_by_account.
+  const currencies = new Map(accounts.map((a) => [a.id, a.currency ?? LOCAL_CURRENCY]))
+  const currencyOf = (accountId) => currencies.get(accountId) ?? LOCAL_CURRENCY
+
+  // Un monto en dólares, expresado en la moneda del balde al que va a caer
+  // (ver amountInCurrency: es la regla que también replica la función SQL).
+  const inAccountCurrency = (amountUsd, mepRate, accountId) =>
+    amountInCurrency(amountUsd, mepRate, currencyOf(accountId))
+
   for (const t of transactions) {
+    // Ya está en la moneda de su fila, que es la de su cuenta porque el
+    // frontend la copia al escribir (transactionCurrency en lib/transactions.js).
     add(t.account_id, t.kind === 'income' ? Number(t.amount) : -Number(t.amount))
   }
   for (const c of contributions) {
     if (!c.affects_liquid) continue // cargas iniciales / tenencias previas y transferencias no tocan el líquido
-    const delta = Number(c.amount_usd) * Number(c.mep_rate)
+    const delta = inAccountCurrency(Number(c.amount_usd), Number(c.mep_rate), c.account_id)
     add(c.account_id, c.direction === 'out' ? delta : -delta)
   }
   for (const p of debtPayments) {
     // Pagado con dólares que ya tenías: baja la deuda pero nunca pasó por el
-    // líquido en pesos (espejo de affects_liquid en aportes, migración 0023).
+    // disponible (espejo de affects_liquid en aportes, migración 0023).
     // Solo un false explícito excluye: una fila sin el campo es un pago normal.
     if (p.affects_liquid === false) continue
     // Pagos sin MEP congelado (anteriores a la migración 0010) quedan fuera
-    if (p.mep_rate) add(p.account_id, -Number(p.amount_usd) * Number(p.mep_rate))
+    if (p.mep_rate) {
+      add(p.account_id, -inAccountCurrency(Number(p.amount_usd), Number(p.mep_rate), p.account_id))
+    }
   }
   return byAccount
 }
 
-// El disponible total. Se define como la suma del desglose, no como un cálculo
-// paralelo: así el total y las partes no pueden divergir nunca — si mañana
-// alguien cambia una regla, la cambia en un solo lugar.
+// El disponible total, en la moneda local. Se define como la suma del
+// desglose, no como un cálculo paralelo: así el total y las partes no pueden
+// divergir nunca — si mañana alguien cambia una regla, la cambia en un solo
+// lugar.
+//
+// Suma baldes de cualquier moneda sin distinguirlas, así que solo dice la
+// verdad mientras todas las cuentas compartan moneda. La usa el test de
+// paridad con la función SQL, que es exactamente ese caso; la app usa
+// computeCurrentLiquid, que separa por moneda.
 export function computeLiquidFromCollections(collections) {
   let total = 0
   for (const amount of computeLiquidByAccount(collections).values()) total += amount
@@ -160,30 +186,43 @@ export async function computeCurrentLiquid() {
   // solo las cuentas conocidas la haría desaparecer del disponible en
   // silencio, que es el peor error posible acá.
   //
-  // `is_savings` se lee del balde y no de la lista de cuentas por esa misma
-  // razón: un balde huérfano no tiene fila que consultar, y el RPC ya lo
-  // devuelve como no-ahorro (migración 0036), que es lo que corresponde.
-  const current = round(
-    buckets.reduce((sum, row) => (row.is_savings ? sum : sum + Number(row.amount)), 0),
-  )
+  // `is_savings` y `currency` se leen del balde y no de la lista de cuentas
+  // por esa misma razón: un balde huérfano no tiene fila que consultar, y el
+  // RPC ya lo devuelve como no-ahorro y en la moneda local (migración 0036),
+  // que es lo que corresponde.
+  //
+  // Y SEPARADO POR MONEDA, no sumado: dólares y pesos no se suman ni acá ni en
+  // pantalla. La app tiene un solo lugar donde mezcla monedas —el Total
+  // convertido de Inicio— y se arma aparte, a la cotización de hoy.
+  const byCurrency = new Map()
+  for (const row of buckets) {
+    if (row.is_savings) continue
+    const currency = row.currency ?? LOCAL_CURRENCY
+    byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + Number(row.amount))
+  }
+  const totals = currencyLines(byCurrency)
 
   // Y lo "sin cuenta" es, por definición, todo lo que el desglose no explica:
   // el balde null más cualquier huérfano. Definido como resta, las líneas que
   // se muestran en pantalla siempre suman exactamente el total de arriba —
   // redondear cada parte por su lado dejaría diferencias de un centavo que en
   // una pantalla de plata se leen como un error.
-  const unassigned = round(current - accounts.reduce((sum, a) => sum + a.amount, 0))
+  //
+  // Está siempre en la moneda LOCAL y por eso es un número y no una lista: los
+  // dos baldes que lo componen son los dos que el RPC devuelve como locales.
+  const localTotal = byCurrency.get(LOCAL_CURRENCY) ?? 0
+  const localAccounts = accounts.filter((a) => (a.currency ?? LOCAL_CURRENCY) === LOCAL_CURRENCY)
+  const unassigned = round(localTotal - localAccounts.reduce((sum, a) => sum + a.amount, 0))
 
   const last = reconciliations[0] ?? null
-  return { current, isFirst: !last, last, accounts, unassigned, savings }
+  return { totals, isFirst: !last, last, accounts, unassigned, savings }
 }
 
 // Cuánto hay por moneda dentro de un conjunto de cuentas (disponible o
-// ahorro): un Map moneda → suma. Hoy cada tarjeta de Inicio siempre da UNA
-// sola moneda (todo el disponible es ARS, todo el ahorro es USD), pero el día
-// que una cuenta nueva rompa esa uniformidad, el tamaño de este Map es la
-// señal de que hace falta convertir para mostrar un solo número (ver
-// localCurrency.toUsd). Pura y testeable.
+// ahorro): un Map moneda → suma, sin convertir nada. Es el insumo de
+// currencyLines, que lo ordena y decide qué líneas se muestran, y también el
+// de sumToUsd, que es el único camino que sí mezcla monedas (el Total de
+// Inicio). Pura y testeable.
 export function totalsByCurrency(accounts) {
   const totals = new Map()
   for (const a of accounts) totals.set(a.currency, (totals.get(a.currency) ?? 0) + a.amount)
@@ -197,20 +236,19 @@ export function visibleBreakdown(rows) {
   return rows.length > 1 ? rows : null
 }
 
-// Qué muestra la tarjeta "Dinero ahorrado": si aparece, en qué moneda y con
-// qué monto. Con una sola moneda entre las cuentas de ahorro se usa tal cual,
-// sin pasar por el MEP; con más de una hace falta el total ya convertido
-// (`usdTotal`, resuelto aparte con localCurrency.toUsd) — mientras no llegó
-// (undefined) la tarjeta se trata como no resuelta, nunca como "en cero".
-// Con saldo 0 (o negativo por algún ajuste) no se muestra: un "US$ 0" fijo
-// sería ruido, igual que "Deudas" sin deudas.
-export function summarizeSavingsCard(accounts, usdTotal) {
-  const totals = totalsByCurrency(accounts)
-  const mixed = totals.size > 1
-  const nativeTotal = accounts.reduce((sum, a) => sum + a.amount, 0)
-  const currency = mixed ? 'USD' : ([...totals.keys()][0] ?? 'USD')
-  const amount = mixed ? usdTotal : nativeTotal
-  return { show: amount !== undefined && amount > 0.005, currency, amount }
+// Qué muestra la tarjeta "Dinero ahorrado": si aparece, y con qué líneas.
+//
+// Una línea por moneda, sin convertir — el ahorro se muestra tal cual es. Con
+// varias monedas ya no hace falta esperar al Total convertido de Inicio para
+// saber qué poner (antes la tarjeta dependía de esa conversión y, mientras no
+// llegaba, no se sabía si mostrarla): ahora la respuesta sale del mismo dato
+// que las líneas.
+//
+// Sin saldo no se muestra: un "US$ 0" fijo sería ruido, igual que "Deudas" sin
+// deudas.
+export function summarizeSavingsCard(accounts) {
+  const lines = currencyLines(totalsByCurrency(accounts))
+  return { show: hasAmount(lines), lines }
 }
 
 // Suma a dólares un Map moneda → monto, con `convert` como el único punto de

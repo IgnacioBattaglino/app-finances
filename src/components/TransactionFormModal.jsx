@@ -3,6 +3,7 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
+  transactionCurrency,
 } from '../lib/transactions.js'
 import { createCategory } from '../lib/categories.js'
 import { todayISO, toDecimalInput } from '../lib/format.js'
@@ -72,6 +73,13 @@ function TransactionFormModal({
   // esto solo afecta qué se puede ELEGIR de nuevo.
   const kindCategories = categories.filter((cat) => cat.kind === kind && !cat.is_system)
   const amountValue = Number(amount.replace(',', '.'))
+  // La moneda sale de la cuenta elegida y se guarda en la fila (ver
+  // transactionCurrency). Acá además se muestra: el símbolo del campo de monto
+  // es lo que le dice al usuario en qué está cargando, sin agregar un selector
+  // de moneda que sería una segunda forma de decir lo mismo — y que dejaría
+  // elegir una moneda distinta de la de la cuenta, que no es una operación que
+  // la app sepa registrar.
+  const currency = transactionCurrency({ initial, accountId, accounts })
   const missing = []
   if (!(amountValue > 0)) missing.push('monto')
   if (!categoryId) missing.push('categoría')
@@ -116,7 +124,7 @@ function TransactionFormModal({
     if (!valid || busy) return
     setBusy(true)
     setError(null)
-    const fields = { date, kind, categoryId, description, amount: amountValue, accountId }
+    const fields = { date, kind, categoryId, description, amount: amountValue, currency, accountId }
     try {
       const saved = editing
         ? await updateTransaction(initial.id, fields)
@@ -170,7 +178,7 @@ function TransactionFormModal({
             <label className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="text-[17px]">Monto</span>
               <div className="flex items-center gap-1">
-                <span className="text-[15px] text-ink-soft">$</span>
+                <span className="text-[15px] text-ink-soft">{currency === 'USD' ? 'US$' : '$'}</span>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}

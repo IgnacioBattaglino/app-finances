@@ -1,5 +1,6 @@
 import { round } from './money.js'
-import { localCurrencyToUsd } from './localCurrency.js'
+import { toUsd } from './localCurrency.js'
+import { LOCAL_CURRENCY } from './currencyTotals.js'
 
 function dateMonthKey(date) {
   return date.slice(0, 7)
@@ -45,8 +46,23 @@ export function fullMonthName({ year, month }) {
   return new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(year, month - 1, 1))
 }
 
-export function sumAmount(expenses) {
-  return round(expenses.reduce((sum, t) => sum + Number(t.amount), 0))
+// Cuánto se gastó, por moneda: un Map moneda → suma, sin mezclar. Las filas
+// anteriores a la migración 0036 no tienen `currency` y son pesos.
+export function sumByCurrency(expenses) {
+  const totals = new Map()
+  for (const t of expenses) {
+    const currency = t.currency ?? LOCAL_CURRENCY
+    totals.set(currency, round((totals.get(currency) ?? 0) + Number(t.amount)))
+  }
+  return totals
+}
+
+// Lo gastado en la moneda del día a día. Es la vara de la comparación contra
+// el mes anterior: un solo porcentaje no puede describir dos monedas a la vez,
+// y el mes se compara en la unidad en la que se vive (ver ExpensesBlock, que
+// lo dice en pantalla cuando además hubo gastos en otra).
+export function localAmount(totals) {
+  return totals.get(LOCAL_CURRENCY) ?? 0
 }
 
 export function expensesInMonth(expenses, month) {
@@ -73,17 +89,34 @@ export function monthOverMonthPct(currentTotal, previousTotal) {
   return ((currentTotal - previousTotal) / previousTotal) * 100
 }
 
-// Desglose por categoría, mayor a menor. Los gastos ya vienen sin categorías
-// de sistema (se filtran al leerlos, ver getExpenses en transactions.js).
+// Desglose por categoría, mayor a menor, DENTRO DE CADA MONEDA: una lista por
+// moneda, la local primero. Los gastos ya vienen sin categorías de sistema (se
+// filtran al leerlos, ver getExpenses en transactions.js).
+//
+// No es una lista sola con dos montos por fila, y no es un capricho: el
+// desglose se lee por la proporción entre sus filas —la barra de cada
+// categoría se dibuja contra la más grande— y una proporción entre pesos y
+// dólares no significa nada. Cada moneda se compara consigo misma o no se
+// compara. Con gastos en una sola moneda esto devuelve una sola lista, idéntica
+// a la de antes.
 export function groupByCategory(expenses) {
-  const totals = new Map()
+  const byCurrency = new Map()
   for (const t of expenses) {
+    const currency = t.currency ?? LOCAL_CURRENCY
     const name = t.category?.name ?? 'Sin categoría'
+    if (!byCurrency.has(currency)) byCurrency.set(currency, new Map())
+    const totals = byCurrency.get(currency)
     totals.set(name, (totals.get(name) ?? 0) + Number(t.amount))
   }
-  return [...totals.entries()]
-    .map(([name, total]) => ({ name, total: round(total) }))
-    .sort((a, b) => b.total - a.total)
+
+  return [...byCurrency.entries()]
+    .map(([currency, totals]) => ({
+      currency,
+      categories: [...totals.entries()]
+        .map(([name, total]) => ({ name, total: round(total) }))
+        .sort((a, b) => b.total - a.total),
+    }))
+    .sort((a, b) => (a.currency === LOCAL_CURRENCY ? -1 : b.currency === LOCAL_CURRENCY ? 1 : a.currency < b.currency ? -1 : 1))
 }
 
 // Cuántos de `months` tienen al menos un gasto. Determina si hay suficiente
@@ -96,6 +129,16 @@ export function countMonthsWithData(expenses, months) {
 // Total en USD de cada mes, convirtiendo CADA gasto a la cotización de SU
 // propio día (nunca la de hoy): es lo que hace comparables meses lejanos
 // pese a la inflación. Meses sin gastos quedan en 0, no se saltean.
+//
+// ACÁ SÍ SE UNIFICA TODO A DÓLARES, a diferencia del total del mes y del
+// desglose de arriba, que muestran cada moneda por su lado. Es deliberado:
+// "cuánto tengo" se muestra tal cual es, pero "cuánto gasté comparado con
+// antes" necesita UNA sola vara o los meses no se pueden comparar.
+//
+// La conversión pasa por toUsd y no por localCurrencyToUsd: un gasto que YA
+// está en dólares vuelve tal cual, en vez de dividirse por el MEP una segunda
+// vez. Para un gasto en pesos las dos son la misma función, así que esto no
+// mueve ni un centavo de lo que la serie venía mostrando.
 export async function monthlyUsdTotals(expenses, months) {
   const totals = new Map(months.map((m) => [monthKey(m), 0]))
   // El primer día del mes más viejo de la ventana: acota la consulta de
@@ -105,7 +148,7 @@ export async function monthlyUsdTotals(expenses, months) {
     expenses.map(async (t) => {
       const key = dateMonthKey(t.date)
       if (!totals.has(key)) return
-      const usd = await localCurrencyToUsd(Number(t.amount), t.date, from)
+      const usd = await toUsd(Number(t.amount), t.currency ?? LOCAL_CURRENCY, t.date, from)
       totals.set(key, totals.get(key) + usd)
     }),
   )

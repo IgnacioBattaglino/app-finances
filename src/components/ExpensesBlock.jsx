@@ -3,14 +3,15 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useTheme } from '../hooks/useTheme.jsx'
 import { readChartColors } from '../lib/chartColors.js'
 import FormError from './form/FormError.jsx'
-import Money from './Money.jsx'
+import MoneyStack from './MoneyStack.jsx'
 import { getExpenses } from '../lib/transactions.js'
 import {
   lastMonths,
   monthKey,
   monthLabel,
   fullMonthName,
-  sumAmount,
+  sumByCurrency,
+  localAmount,
   expensesInMonth,
   previousMonthToDate,
   monthOverMonthPct,
@@ -18,7 +19,8 @@ import {
   countMonthsWithData,
   monthlyUsdTotals,
 } from '../lib/expensesSummary.js'
-import { formatARS, formatUSD, formatPercent, formatCompactNumber, todayISO } from '../lib/format.js'
+import { formatByCurrency, formatUSD, formatPercent, formatCompactNumber, todayISO } from '../lib/format.js'
+import { currencyLines } from '../lib/currencyTotals.js'
 
 // Los colores del gráfico salen de las variables CSS del tema, igual que en
 // la curva del portafolio (ver lib/chartColors.js).
@@ -145,47 +147,63 @@ function ExpensesBlock({ reloadToken = 0 }) {
   const currentMonth = months.at(-1)
   const previousMonth = months.at(-2)
   const currentMonthExpenses = expensesInMonth(expenses, currentMonth)
-  const currentTotal = sumAmount(currentMonthExpenses)
-  const previousTotal = sumAmount(previousMonthToDate(expenses, today))
-  const pct = monthOverMonthPct(currentTotal, previousTotal)
+  const currentTotals = sumByCurrency(currentMonthExpenses)
+  const totalLines = currencyLines(currentTotals)
+  // La comparación con el mes anterior se hace en la moneda del día a día: un
+  // solo porcentaje no puede describir dos monedas, y dos porcentajes en una
+  // línea de 13px no se leen. Cuando además hubo gastos en otra moneda, la
+  // frase lo aclara — una palabra de más, y solo en el caso raro.
+  const previousTotals = sumByCurrency(previousMonthToDate(expenses, today))
+  const pct = monthOverMonthPct(localAmount(currentTotals), localAmount(previousTotals))
+  const mixed = totalLines.length > 1
   const breakdown = groupByCategory(currentMonthExpenses)
-  const maxCategoryTotal = breakdown[0]?.total ?? 0
 
   return (
     <div className="surface px-5 py-4">
       <span className="eyebrow">Gastos del mes</span>
-      <p className="mt-2 text-[32px] leading-none font-semibold text-clay">
-        <Money value={currentTotal} currency="ars" />
-      </p>
+      <MoneyStack lines={totalLines} className="mt-2 text-clay" />
       {pct !== null && (
         <p className="mt-2 text-[13px] text-ink-soft">
           {formatPercent(Math.abs(pct), 0)} {pct >= 0 ? 'más' : 'menos'} que en{' '}
-          {fullMonthName(previousMonth)} a esta altura
+          {fullMonthName(previousMonth)} a esta altura{mixed ? ', en pesos' : ''}
         </p>
       )}
 
       {/* Desglose por categoría */}
+      {/* Una lista por moneda (ver groupByCategory). La barra de cada categoría
+          se mide contra la más grande DE SU MONEDA: una barra que compara pesos
+          con dólares no dice nada. Con gastos en una sola moneda es exactamente
+          el desglose de siempre, sin encabezado que lo anuncie. */}
       {breakdown.length === 0 ? (
         <p className="mt-4 border-t border-line pt-3.5 text-[15px] text-ink-soft">
           Sin gastos este mes.
         </p>
       ) : (
-        <div className="mt-4 space-y-2.5 border-t border-line pt-3.5">
-          {breakdown.map((cat) => (
-            <div key={cat.name}>
-              <div className="flex items-baseline justify-between gap-2 text-[13px]">
-                <span className="truncate text-ink-soft">{cat.name}</span>
-                <span className="font-money shrink-0 font-medium">{formatARS(cat.total)}</span>
+        breakdown.map((group) => (
+          <div key={group.currency} className="mt-4 space-y-2.5 border-t border-line pt-3.5">
+            {breakdown.length > 1 && (
+              <p className="text-[13px] text-ink-faint">
+                {group.currency === 'ARS' ? 'En pesos' : 'En dólares'}
+              </p>
+            )}
+            {group.categories.map((cat) => (
+              <div key={cat.name}>
+                <div className="flex items-baseline justify-between gap-2 text-[13px]">
+                  <span className="truncate text-ink-soft">{cat.name}</span>
+                  <span className="font-money shrink-0 font-medium">
+                    {formatByCurrency(group.currency, cat.total)}
+                  </span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-clay/15">
+                  <div
+                    className="h-full rounded-full bg-clay"
+                    style={{ width: `${(cat.total / group.categories[0].total) * 100}%` }}
+                  />
+                </div>
               </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-clay/15">
-                <div
-                  className="h-full rounded-full bg-clay"
-                  style={{ width: `${(cat.total / maxCategoryTotal) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ))
       )}
 
       {/* Serie de 12 meses en dólares. Falla sola: el total del mes y el

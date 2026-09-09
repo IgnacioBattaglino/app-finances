@@ -18,6 +18,7 @@ import { computeLiquidByAccount, computeLiquidFromCollections } from './liquid.j
 import { round } from './money.js'
 
 const DB = `app_finances_liquid_parity_${process.pid}`
+const DB_ARS = `app_finances_liquid_ars_${process.pid}`
 
 function hasPostgres() {
   try {
@@ -44,6 +45,7 @@ const ACCOUNTS = [
   '22222222-2222-4222-8222-222222222222',
   '33333333-3333-4333-8333-333333333333',
   '44444444-4444-4444-8444-444444444444',
+  '55555555-5555-4555-8555-555555555555',
 ]
 const ORPHAN = '99999999-9999-4999-8999-999999999999'
 
@@ -194,6 +196,11 @@ const ACCOUNT_ROWS = [
   { id: ACCOUNTS[1], name: 'Mercado Pago', currency: 'ARS', is_savings: false },
   { id: ACCOUNTS[2], name: 'Caja de ahorro', currency: 'ARS', is_savings: true },
   { id: ACCOUNTS[3], name: 'Dólares', currency: 'USD', is_savings: true },
+  // La cuenta que hace falta desde la 0039: en dólares y NO de ahorro. Es el
+  // caso que antes sumaba dólares como si fueran pesos, y el único que
+  // ejercita la rama nueva de la función — sin ella el test pasaría igual con
+  // la versión vieja.
+  { id: ACCOUNTS[4], name: 'Dólares del día a día', currency: 'USD', is_savings: false },
 ]
 
 const accountsScript = ACCOUNT_ROWS.map(
@@ -203,6 +210,9 @@ const accountsScript = ACCOUNT_ROWS.map(
 
 const available = hasPostgres()
 const dataset = buildDataset()
+// La función JS necesita las cuentas para saber la moneda de cada balde
+// (migración 0039). Es el mismo dataset: las cuentas son contexto, no filas.
+const datasetWithAccounts = { ...dataset, accounts: ACCOUNT_ROWS }
 
 describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccount (JS)', () => {
   let fromSql
@@ -212,8 +222,10 @@ describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccou
     psql(SCHEMA)
     psql(readFileSync('supabase/migrations/0033_liquid_by_account.sql', 'utf8'))
     // La 0036 se aplica ENCIMA de la 0033, en el mismo orden en que las va a
-    // correr la base real: renombra la columna y reemplaza la función.
+    // correr la base real: renombra la columna y reemplaza la función. Y la
+    // 0039 encima de las dos, que es la que enseña la regla de moneda.
     psql(readFileSync('supabase/migrations/0036_account_currency_and_savings.sql', 'utf8'))
+    psql(readFileSync('supabase/migrations/0039_liquid_by_account_currency.sql', 'utf8'))
     psql(accountsScript)
     psql(insertScript(dataset))
     const out = psql(
@@ -242,20 +254,20 @@ describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccou
     const rows =
       dataset.transactions.length + dataset.contributions.length + dataset.debtPayments.length
     expect(rows).toBeGreaterThan(600)
-    const fromJs = computeLiquidByAccount(dataset)
+    const fromJs = computeLiquidByAccount(datasetWithAccounts)
     expect(fromJs.has(null)).toBe(true)
     expect(fromJs.has(ORPHAN)).toBe(true)
     expect(fromJs.size).toBe(ACCOUNTS.length + 2)
   })
 
   it('mismos baldes: ni una cuenta de más ni una de menos', () => {
-    const fromJs = computeLiquidByAccount(dataset)
+    const fromJs = computeLiquidByAccount(datasetWithAccounts)
     const keys = (map) => [...map.keys()].map(String).sort()
     expect(keys(fromSql)).toEqual(keys(fromJs))
   })
 
   it('mismo monto en cada cuenta, al centavo', () => {
-    const fromJs = computeLiquidByAccount(dataset)
+    const fromJs = computeLiquidByAccount(datasetWithAccounts)
     for (const [key, amount] of fromJs) {
       expect(round(fromSql.get(key).amount)).toBe(round(amount))
     }
@@ -263,7 +275,7 @@ describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccou
 
   it('mismo total', () => {
     const total = [...fromSql.values()].reduce((sum, b) => sum + b.amount, 0)
-    expect(round(total)).toBe(round(computeLiquidFromCollections(dataset)))
+    expect(round(total)).toBe(round(computeLiquidFromCollections(datasetWithAccounts)))
   })
 
   it('y la diferencia cruda es ruido de punto flotante, no una regla distinta', () => {
@@ -272,7 +284,7 @@ describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccou
     // binario acumulado, muy por debajo del centavo. Cualquier diferencia de
     // criterio (un filtro, un signo) daría un salto mucho mayor.
     const total = [...fromSql.values()].reduce((sum, b) => sum + b.amount, 0)
-    expect(Math.abs(total - computeLiquidFromCollections(dataset))).toBeLessThan(1e-6)
+    expect(Math.abs(total - computeLiquidFromCollections(datasetWithAccounts))).toBeLessThan(1e-6)
   })
 
   // ── Lo que agrega la 0036 ────────────────────────────────────────────────
@@ -285,6 +297,46 @@ describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccou
     }
   })
 
+  // ── Lo que agrega la 0039 ────────────────────────────────────────────────
+  it('el balde de la cuenta en dólares NO está multiplicado por ningún MEP', () => {
+    // Verificación independiente de la función JS: se recalcula el balde a
+    // mano, en dólares, directamente desde el dataset. Si la función SQL
+    // convirtiera (el bug), este número no tendría nada que ver — sería unas
+    // mil veces más grande y negativo.
+    const account = ACCOUNTS[4]
+    let expected = 0
+    for (const t of dataset.transactions) {
+      if (t.account_id === account) expected += t.kind === 'income' ? t.amount : -t.amount
+    }
+    for (const c of dataset.contributions) {
+      if (c.account_id !== account || !c.affects_liquid || c.mep_rate === null) continue
+      expected += c.direction === 'out' ? c.amount_usd : -c.amount_usd
+    }
+    for (const p of dataset.debtPayments) {
+      if (p.account_id !== account || p.affects_liquid === false || p.mep_rate === null) continue
+      expected -= p.amount_usd
+    }
+    expect(round(fromSql.get(account).amount)).toBe(round(expected))
+  })
+
+  it('el balde de una cuenta en pesos SÍ sigue convirtiendo con su tasa congelada', () => {
+    const account = ACCOUNTS[0]
+    let expected = 0
+    for (const t of dataset.transactions) {
+      if (t.account_id === account) expected += t.kind === 'income' ? t.amount : -t.amount
+    }
+    for (const c of dataset.contributions) {
+      if (c.account_id !== account || !c.affects_liquid || c.mep_rate === null) continue
+      const ars = c.amount_usd * c.mep_rate
+      expected += c.direction === 'out' ? ars : -ars
+    }
+    for (const p of dataset.debtPayments) {
+      if (p.account_id !== account || p.affects_liquid === false || p.mep_rate === null) continue
+      expected -= p.amount_usd * p.mep_rate
+    }
+    expect(round(fromSql.get(account).amount)).toBe(round(expected))
+  })
+
   it('lo que no tiene cuenta se lee como pesos y no-ahorro, no como null', () => {
     // El balde "sin cuenta" y el que apunta a una cuenta borrada no tienen de
     // dónde leer la moneda. Son movimientos en pesos que nadie asignó, así que
@@ -293,5 +345,89 @@ describe.skipIf(!available)('get_liquid_by_account (SQL) vs computeLiquidByAccou
     for (const key of [null, ORPHAN]) {
       expect(fromSql.get(key)).toMatchObject({ currency: 'ARS', isSavings: false })
     }
+  })
+})
+
+// ── El requisito central de la tanda ─────────────────────────────────────────
+// Con TODAS las cuentas en pesos --el estado real de hoy-- la migración 0039
+// no puede mover un solo centavo. No se verifica leyendo el SQL ni comparando
+// contra un número escrito a mano: se corre la función VIEJA (la de la 0036) y
+// la NUEVA sobre exactamente los mismos datos, en la misma base, y se exige que
+// devuelvan lo mismo balde por balde.
+//
+// El dataset es el mismo de arriba, de cientos de filas, con aportes de afuera,
+// patas de transferencia, pagos con dólares propios, pagos sin tasa, el balde
+// "sin cuenta" y una cuenta huérfana. Lo único que cambia es que acá todas las
+// cuentas son ARS.
+describe.skipIf(!available)('con todas las cuentas en pesos, la 0039 no mueve nada', () => {
+  let before
+  let after
+
+  const readBuckets = () => {
+    const out = psql(
+      `select coalesce(account_id::text, $$null$$), currency, is_savings, amount
+       from get_liquid_by_account() order by 1;`,
+      DB_ARS,
+    )
+    return out
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => line.split('\t'))
+  }
+
+  beforeAll(() => {
+    execFileSync('createdb', [DB_ARS])
+    psql(SCHEMA, DB_ARS)
+    psql(readFileSync('supabase/migrations/0033_liquid_by_account.sql', 'utf8'), DB_ARS)
+    psql(readFileSync('supabase/migrations/0036_account_currency_and_savings.sql', 'utf8'), DB_ARS)
+
+    // Las mismas cuentas, todas en pesos: es la única diferencia con el
+    // escenario de arriba.
+    psql(
+      ACCOUNT_ROWS.map(
+        (a, i) =>
+          `insert into liquid_accounts (id, name, position, currency, is_savings) values ('${a.id}', '${a.name}', ${i}, 'ARS', ${a.is_savings});`,
+      ).join('\n'),
+      DB_ARS,
+    )
+    psql(insertScript(dataset), DB_ARS)
+
+    // La foto de la función VIEJA...
+    before = readBuckets()
+    // ...y la de la nueva, sobre los mismos datos, sin tocar una sola fila.
+    psql(readFileSync('supabase/migrations/0039_liquid_by_account_currency.sql', 'utf8'), DB_ARS)
+    after = readBuckets()
+  })
+
+  afterAll(() => {
+    if (available) execFileSync('dropdb', ['--if-exists', DB_ARS])
+  })
+
+  it('la migración no escribe ninguna fila: es solo una función', () => {
+    const counts = psql(
+      `select (select count(*) from transactions), (select count(*) from contributions),
+              (select count(*) from debt_payments), (select count(*) from liquid_accounts);`,
+      DB_ARS,
+    ).trim()
+    expect(counts).toBe(
+      [
+        dataset.transactions.length,
+        dataset.contributions.length,
+        dataset.debtPayments.length,
+        ACCOUNT_ROWS.length,
+      ].join('\t'),
+    )
+  })
+
+  it('los mismos baldes, con los mismos montos, carácter por carácter', () => {
+    // Comparación sobre el texto que devuelve Postgres, no sobre números ya
+    // parseados: así ni siquiera un cambio de escala o de redondeo pasaría
+    // desapercibido.
+    expect(after).toEqual(before)
+  })
+
+  it('y el total tampoco', () => {
+    const total = (rows) => rows.reduce((sum, r) => sum + Number(r[3]), 0)
+    expect(round(total(after))).toBe(round(total(before)))
   })
 })

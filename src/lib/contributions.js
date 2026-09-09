@@ -84,7 +84,14 @@ export async function getLiquidContributions({ month, year }) {
 
   const { data, error } = await supabase
     .from('contributions')
-    .select('id, date, direction, amount_usd, mep_rate, created_at, asset:assets(id, name)')
+    // La moneda de la cuenta viaja con la fila, igual que en getTransactions:
+    // decide si el monto en dólares hay que convertirlo para mostrarlo (ver
+    // contributionAmount). Se lee de la cuenta y no de una lista en el cliente
+    // porque los selectores no ofrecen las cuentas de ahorro ni las ocultas, y
+    // una inversión vieja puede apuntar a cualquiera de las dos.
+    .select(
+      'id, date, direction, amount_usd, mep_rate, created_at, account_id, account:liquid_accounts(currency), asset:assets(id, name)',
+    )
     .eq('affects_liquid', true)
     .gte('date', start)
     .lt('date', next)

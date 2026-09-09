@@ -1,5 +1,23 @@
 import { describe, it, expect } from 'vitest'
-import { contributionArs, contributionLabel, mergeMovements, monthTotals } from './movements.js'
+import {
+  contributionAmount,
+  contributionCurrency,
+  contributionLabel,
+  mergeMovements,
+  monthTotals,
+} from './movements.js'
+
+// Cada total es una LISTA de líneas (una por moneda). Con datos solo en pesos
+// —el caso normal, y el que este archivo verifica renglón por renglón— es
+// siempre una sola línea en ARS: estos dos helpers dejan escribir eso sin
+// repetir la forma en cada aserción, y `line` falla si aparece una segunda
+// moneda donde no debería haberla.
+const line = (lines) => {
+  expect(lines).toHaveLength(1)
+  expect(lines[0].currency).toBe('ARS')
+  return lines[0].amount
+}
+const usdLine = (lines, currency) => lines.find((l) => l.currency === currency)?.amount
 
 // Un mes con las cuatro cosas que pueden pasar por el bolsillo: un gasto, un
 // ingreso, un aporte que salió del disponible y un retiro que volvió a él.
@@ -34,50 +52,96 @@ describe('monthTotals', () => {
   it('los tres renglones y el balance de un mes completo', () => {
     const totals = monthTotals(month)
 
-    expect(totals.expenses).toBe(30000)
-    expect(totals.incomes).toBe(500000)
+    expect(line(totals.expenses)).toBe(30000)
+    expect(line(totals.incomes)).toBe(500000)
     // Invertido = aportes − retiros: 120.000 − 25.000
-    expect(totals.invested).toBe(95000)
+    expect(line(totals.invested)).toBe(95000)
     // Balance = ingresos − gastos − invertido: 500.000 − 30.000 − 95.000
-    expect(totals.balance).toBe(375000)
+    expect(line(totals.balance)).toBe(375000)
   })
 
   it('el aporte NO se cuenta como gasto', () => {
     const soloGastoEIngreso = monthTotals({ transactions: month.transactions, contributions: [] })
     // Agregar las inversiones no puede mover el renglón de gastos: son
     // tablas distintas y una inversión no es un gasto.
-    expect(monthTotals(month).expenses).toBe(soloGastoEIngreso.expenses)
-    expect(monthTotals(month).incomes).toBe(soloGastoEIngreso.incomes)
+    expect(monthTotals(month).expenses).toEqual(soloGastoEIngreso.expenses)
+    expect(monthTotals(month).incomes).toEqual(soloGastoEIngreso.incomes)
   })
 
   it('un mes en el que se retiró más de lo que se aportó da invertido negativo', () => {
     const totals = monthTotals({ transactions: [], contributions: [withdrawal] })
-    expect(totals.invested).toBe(-25000)
+    expect(line(totals.invested)).toBe(-25000)
     // Esa plata volvió al bolsillo, así que el balance la suma
-    expect(totals.balance).toBe(25000)
+    expect(line(totals.balance)).toBe(25000)
   })
 
   it('una inversión sin tipo de cambio guardado vale 0, igual que en el disponible', () => {
-    // Mismo criterio que computeLiquidFromCollections (lib/liquid.js): no se
+    // Mismo criterio que computeLiquidByAccount (lib/liquid.js): no se
     // inventa la cotización de hoy para una operación vieja.
     const sinTasa = { ...contribution, mep_rate: null }
-    expect(monthTotals({ transactions: [], contributions: [sinTasa] }).invested).toBe(0)
+    expect(line(monthTotals({ transactions: [], contributions: [sinTasa] }).invested)).toBe(0)
   })
 
-  it('sin nada, todo en cero', () => {
+  it('sin nada, todo en cero — y en una sola línea, en pesos', () => {
     expect(monthTotals({ transactions: [], contributions: [] })).toEqual({
-      expenses: 0,
-      incomes: 0,
-      invested: 0,
-      balance: 0,
+      expenses: [{ currency: 'ARS', amount: 0 }],
+      incomes: [{ currency: 'ARS', amount: 0 }],
+      invested: [{ currency: 'ARS', amount: 0 }],
+      balance: [{ currency: 'ARS', amount: 0 }],
     })
+  })
+
+  // ── Multi-moneda ─────────────────────────────────────────────────────────
+  it('un gasto en dólares no se suma a los pesos: son dos líneas', () => {
+    const gastoUsd = {
+      id: 't9',
+      date: '2026-07-08',
+      kind: 'expense',
+      amount: 40,
+      currency: 'USD',
+      created_at: '2026-07-08T10:00:00Z',
+    }
+    const totals = monthTotals({ transactions: [expense, gastoUsd], contributions: [] })
+
+    expect(totals.expenses).toEqual([
+      { currency: 'ARS', amount: 30000 },
+      { currency: 'USD', amount: 40 },
+    ])
+    // Y el balance también se parte: 40 dólares gastados no son pesos menos.
+    expect(usdLine(totals.balance, 'USD')).toBe(-40)
+    expect(usdLine(totals.balance, 'ARS')).toBe(-30000)
+  })
+
+  it('un aporte desde una cuenta en dólares NO se multiplica por el MEP', () => {
+    // El bug que arregla la migración 0039, del lado de Movimientos: la plata
+    // salió de una cuenta en dólares, así que no convirtió nada.
+    const desdeUsd = { ...contribution, account: { currency: 'USD' } }
+    const totals = monthTotals({ transactions: [], contributions: [desdeUsd] })
+
+    expect(totals.invested).toEqual([{ currency: 'USD', amount: 100 }])
+    // Y NO 120.000, que es lo que daba antes.
+    expect(usdLine(totals.invested, 'ARS')).toBeUndefined()
+  })
+
+  it('la moneda extranjera en cero no genera una línea', () => {
+    // El caso normal: dólares se compran para guardar, no para gastarlos. Una
+    // cuenta en dólares que este mes no se movió no ensucia ningún renglón.
+    const totals = monthTotals(month)
+    expect(totals.expenses.every((l) => l.currency === 'ARS')).toBe(true)
   })
 })
 
-describe('contributionArs', () => {
-  it('es el monto en dólares por el MEP congelado de la operación', () => {
-    expect(contributionArs(contribution)).toBe(120000)
-    expect(contributionArs(withdrawal)).toBe(25000)
+describe('contributionAmount', () => {
+  it('desde una cuenta en pesos, es el monto en dólares por el MEP congelado', () => {
+    expect(contributionAmount(contribution)).toBe(120000)
+    expect(contributionAmount(withdrawal)).toBe(25000)
+    expect(contributionCurrency(contribution)).toBe('ARS')
+  })
+
+  it('desde una cuenta en dólares, es el monto tal cual: no hubo conversión', () => {
+    const desdeUsd = { ...contribution, account: { currency: 'USD' } }
+    expect(contributionAmount(desdeUsd)).toBe(100)
+    expect(contributionCurrency(desdeUsd)).toBe('USD')
   })
 })
 

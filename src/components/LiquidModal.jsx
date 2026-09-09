@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { computeCurrentLiquid, reconcile, decideAdjustment } from '../lib/liquid.js'
 import { formatARS, formatByCurrency, todayISO, formatDayYear } from '../lib/format.js'
+import { LOCAL_CURRENCY } from '../lib/currencyTotals.js'
 import FormSheet from './FormSheet.jsx'
 import FormError from './form/FormError.jsx'
 
@@ -81,13 +82,22 @@ function LiquidModal({ open, onClose, onSaved }) {
   if (!open) return null
 
   const accounts = state?.accounts ?? []
+  // Cuánto calculó la app, moneda por moneda. Con una sola —el caso normal—
+  // es una frase igual a la de antes; con dos, las dos, unidas por "y".
+  const totals = state?.totals ?? []
+  const totalsText = totals
+    .map((line) => formatByCurrency(line.currency, line.amount))
+    .join(' y ')
   // Sin ninguna cuenta cargada, se declara el disponible entero: es el camino
   // de antes de la migración 0032, y el que queda si el usuario borra todas
   // sus cuentas. La clave '__none__' representa esa declaración sin cuenta.
+  // Sin cuentas no hay ninguna moneda que no sea la local (los baldes null y
+  // huérfano se leen así), por eso alcanza con esa línea.
+  const localTotal = totals.find((line) => line.currency === LOCAL_CURRENCY)?.amount ?? 0
   const liquidRows = state
     ? accounts.length > 0
       ? accounts.map((a) => ({ ...a, key: a.id, accountId: a.id }))
-      : [{ key: '__none__', accountId: null, name: 'Dinero disponible', amount: state.current, last: state.last }]
+      : [{ key: '__none__', accountId: null, name: 'Dinero disponible', amount: localTotal, last: state.last }]
     : []
 
   // Las cuentas de ahorro también se cuentan: guardaste esa plata aparte, pero
@@ -152,8 +162,8 @@ function LiquidModal({ open, onClose, onSaved }) {
                 fue cargando, y acá se corrige contra la plata real. */}
             <p className="surface px-4 py-3 text-[15px] text-ink-soft">
               Según lo que fuiste cargando, la app calcula que tenés{' '}
-              <span className="font-money text-ink">{formatARS(state.current)}</span> en total.
-              Contá cada cuenta y escribí cuánto hay de verdad: la diferencia se corrige sola.
+              <span className="font-money text-ink">{totalsText}</span> en total. Contá cada cuenta
+              y escribí cuánto hay de verdad: la diferencia se corrige sola.
             </p>
 
             <div className="list">

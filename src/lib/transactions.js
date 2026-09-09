@@ -1,21 +1,41 @@
 import { supabase } from './supabase.js'
+import { LOCAL_CURRENCY } from './currencyTotals.js'
 
 // El join implícito trae el nombre de la categoría en la misma query. Y desde
 // la migración 0037, si la cuenta del movimiento es de ahorro — el único dato
 // que hace falta de ella para decidir si la fila se muestra (ver getTransactions).
 const SELECT = '*, category:categories(name), account:liquid_accounts(is_savings)'
 
-function toRow({ date, kind, categoryId, description, amount, accountId }) {
+// La moneda del movimiento: la de la cuenta de la que sale (o a la que entra),
+// COPIADA en la fila al escribir y no derivada al leer (ADR-013). Pura y
+// testeable porque es la decisión que antes no existía: hasta acá el frontend
+// no mandaba `currency` y la base completaba 'ARS' por default, así que un
+// gasto cargado desde una cuenta en dólares quedaba escrito como pesos.
+//
+// Sin cuenta ('sin cuenta', account_id null) es ARS: es la misma lectura que
+// hace get_liquid_by_account del balde null.
+//
+// EDITANDO, si la cuenta no cambió, manda la moneda QUE YA TIENE LA FILA, no
+// la de la cuenta hoy. Es la regla de "guardar sin tocar nada deja la fila
+// idéntica" y el mismo criterio que empties_asset (ADR-011): el insumo de un
+// hecho pasado se lee de la fila, no se vuelve a deducir. Cambiar la cuenta sí
+// cambia la moneda — la plata pasó a estar en otro lado, es otro hecho.
+export function transactionCurrency({ initial, accountId, accounts }) {
+  if (initial && (initial.account_id ?? null) === (accountId ?? null)) {
+    return initial.currency ?? 'ARS'
+  }
+  return accounts.find((a) => a.id === accountId)?.currency ?? 'ARS'
+}
+
+function toRow({ date, kind, categoryId, description, amount, currency, accountId }) {
   return {
     date,
     kind,
     category_id: categoryId,
     description: description?.trim() || null,
-    // El monto, en la moneda de su cuenta. `currency` no se manda: hasta que
-    // exista una cuenta que no sea en pesos, el formulario no tiene qué
-    // elegir, y la base completa 'ARS' por default (migración 0036) — mismo
-    // criterio que user_id, que tampoco viaja desde el frontend.
+    // El monto, en la moneda de su cuenta (ver transactionCurrency).
     amount,
+    currency: currency ?? 'ARS',
     // De qué cuenta del disponible salió (o a cuál entró). Nullable: null es
     // "sin cuenta", el balde que no se muestra como cuenta pero suma al total
     // (migración 0032). `?? null` y no un default: el formulario ya elige la
@@ -59,7 +79,7 @@ export async function getTransactions({ month, year } = {}) {
 export async function getExpenses({ from, to } = {}) {
   let query = supabase
     .from('transactions')
-    .select('date, amount, category:categories(name, is_system)')
+    .select('date, amount, currency, category:categories(name, is_system)')
     .eq('kind', 'expense')
   if (from) query = query.gte('date', from)
   if (to) query = query.lte('date', to)
@@ -69,18 +89,35 @@ export async function getExpenses({ from, to } = {}) {
   return data.filter((t) => !t.category?.is_system)
 }
 
-// Desglose de gastos por categoría, ordenado de mayor a menor. Los ajustes de
-// reconciliación cuentan igual que cualquier categoría (no se excluyen).
+// Desglose de gastos por categoría, mayor a menor, DENTRO DE CADA MONEDA: una
+// lista por moneda, la local primero. Mismo criterio y mismo motivo que
+// groupByCategory en lib/expensesSummary.js — un desglose se lee comparando
+// sus filas entre sí, y pesos contra dólares no se comparan. Con gastos en una
+// sola moneda devuelve una sola lista, idéntica a la de antes.
+//
+// Los ajustes de reconciliación cuentan igual que cualquier categoría (no se
+// excluyen), a diferencia del bloque de Inicio.
 export function groupExpensesByCategory(transactions) {
-  const totals = new Map()
+  const byCurrency = new Map()
   for (const t of transactions) {
     if (t.kind !== 'expense') continue
+    const currency = t.currency ?? LOCAL_CURRENCY
     const name = t.category?.name ?? 'Sin categoría'
+    if (!byCurrency.has(currency)) byCurrency.set(currency, new Map())
+    const totals = byCurrency.get(currency)
     totals.set(name, (totals.get(name) ?? 0) + Number(t.amount))
   }
-  return [...totals.entries()]
-    .map(([name, total]) => ({ name, total }))
-    .sort((a, b) => b.total - a.total)
+
+  return [...byCurrency.entries()]
+    .map(([currency, totals]) => ({
+      currency,
+      categories: [...totals.entries()]
+        .map(([name, total]) => ({ name, total }))
+        .sort((a, b) => b.total - a.total),
+    }))
+    .sort((a, b) =>
+      a.currency === LOCAL_CURRENCY ? -1 : b.currency === LOCAL_CURRENCY ? 1 : a.currency < b.currency ? -1 : 1,
+    )
 }
 
 export async function createTransaction(fields) {

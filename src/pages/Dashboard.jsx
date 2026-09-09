@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import Money from '../components/Money.jsx'
+import MoneyStack from '../components/MoneyStack.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import FormSheet from '../components/FormSheet.jsx'
 import FormError from '../components/form/FormError.jsx'
@@ -99,6 +100,11 @@ function PlusIcon() {
 // unidad es cada una, que es la razón concreta por la que sumarlas no
 // significaría nada.
 //
+// LA MARQUITA SOLO APARECE CON UNA MONEDA. Cuando la tarjeta muestra dos
+// montos, cada uno ya trae su símbolo ($ y US$) y el chip pasaría a nombrar
+// una sola de las dos: sería la etiqueta equivocada, no una de más. Es el
+// accesorio que se saca al salir.
+//
 // En error la tarjeta deja de ser un botón y pasa a ser un div con su propio
 // "Reintentar": un botón adentro de otro botón no es HTML válido, y tocar la
 // tarjeta abriría algo que todavía no tiene datos.
@@ -108,8 +114,7 @@ function PlusIcon() {
 // anidados tampoco es HTML válido.
 function SummaryCard({
   label,
-  currency,
-  amount,
+  lines,
   hint,
   note,
   breakdown,
@@ -125,9 +130,11 @@ function SummaryCard({
   const heading = (
     <span className="flex items-center gap-1.5">
       <span className="eyebrow">{label}</span>
-      <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">
-        {currency}
-      </span>
+      {lines?.length === 1 && (
+        <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">
+          {lines[0].currency}
+        </span>
+      )}
       {info && <InfoButton label={label} active={infoOpen} onToggle={() => setInfoOpen((v) => !v)} />}
     </span>
   )
@@ -153,13 +160,11 @@ function SummaryCard({
         className="mt-2 flex w-full items-center justify-between gap-3 text-left transition active:opacity-60"
       >
         <span className="min-w-0">
-          <span className="block text-[32px] leading-none font-semibold">
-            {loading ? (
-              <span className="text-[17px] font-normal text-ink-soft">Calculando…</span>
-            ) : (
-              amount
-            )}
-          </span>
+          {loading || !lines ? (
+            <span className="block text-[17px] text-ink-soft">Calculando…</span>
+          ) : (
+            <MoneyStack lines={lines} />
+          )}
           {note && <span className="mt-2 block text-[13px] text-ink-soft">{note}</span>}
           {hint && <span className="mt-2 block text-[13px] font-medium text-accent-ink">{hint}</span>}
         </span>
@@ -167,8 +172,8 @@ function SummaryCard({
       </button>
       {/* Desglose por cuenta: nombre y monto por línea, nada más. No compite
           con el monto grande de arriba — lo explica. Cada fila en su propia
-          moneda nativa (ver punto 4: el número grande de la tarjeta puede
-          convertir, pero una cuenta puntual siempre se muestra tal cual es). */}
+          moneda, igual que los montos de arriba: acá no se convierte nada. La
+          suma de las filas de una moneda da exactamente la línea de esa moneda. */}
       {breakdown && breakdown.length > 0 && (
         <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
           {breakdown.map((row) => (
@@ -413,10 +418,9 @@ function Dashboard() {
     : []
   const liquidBreakdown = visibleBreakdown(liquidRows)
 
-  // Ver summarizeSavingsCard (lib/liquid.js): decide moneda y monto, y si la
-  // tarjeta se muestra — mientras haga falta el Total convertido (moneda
-  // mixta) y todavía no llegó, se trata como no resuelta, nunca como "en
-  // cero".
+  // Ver summarizeSavingsCard (lib/liquid.js): una línea por moneda, sin
+  // convertir, y si la tarjeta se muestra. Ya no depende del Total convertido
+  // de abajo: mostrar el ahorro tal cual es no necesita ninguna cotización.
   const savingsRows = (liquid?.savings ?? []).map((a) => ({
     key: a.id,
     name: a.name,
@@ -424,10 +428,7 @@ function Dashboard() {
     currency: a.currency,
   }))
   const savingsBreakdown = visibleBreakdown(savingsRows)
-  const { show: hasSavings, currency: savingsCurrency, amount: savingsAmount } = summarizeSavingsCard(
-    savingsRows,
-    usdTotals?.ahorrado,
-  )
+  const { show: hasSavings, lines: savingsLines } = summarizeSavingsCard(savingsRows)
 
   const hasDebts = debtsError || debts.length > 0
 
@@ -483,8 +484,7 @@ function Dashboard() {
       <div className={`grid grid-cols-1 gap-3 ${gridColsClass}`}>
         <SummaryCard
           label="Dinero disponible"
-          currency="ARS"
-          amount={liquid ? <Money value={liquid.current} currency="ars" /> : null}
+          lines={liquid?.totals}
           hint={liquid?.isFirst ? 'Configurar mis cuentas' : null}
           breakdown={liquidBreakdown}
           info="La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones."
@@ -502,8 +502,7 @@ function Dashboard() {
         {hasSavings && (
           <SummaryCard
             label="Dinero ahorrado"
-            currency={savingsCurrency}
-            amount={<Money value={savingsAmount} currency={savingsCurrency.toLowerCase()} />}
+            lines={savingsLines}
             breakdown={savingsBreakdown}
             info="Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento."
             onClick={() => navigate('/ajustes/cuentas', { state: { from: 'dashboard' } })}
@@ -512,8 +511,7 @@ function Dashboard() {
 
         <SummaryCard
           label="Dinero invertido"
-          currency="USD"
-          amount={<Money value={totalValue} />}
+          lines={[{ currency: 'USD', amount: totalValue }]}
           info="Lo que valen hoy tus inversiones, según el último precio o la última valuación que cargaste."
           loading={portfolioLoading}
           error={portfolioError}
@@ -527,8 +525,7 @@ function Dashboard() {
         {hasDebts && (
           <SummaryCard
             label="Deudas"
-            currency="USD"
-            amount={<Money value={summarizeDebts(debts).totalBalance} />}
+            lines={[{ currency: 'USD', amount: summarizeDebts(debts).totalBalance }]}
             note="Te queda por pagar"
             loading={debtsLoading}
             error={debtsError}
