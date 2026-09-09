@@ -491,7 +491,7 @@ function Dashboard() {
           loading={liquidLoading}
           error={liquidError}
           onRetry={loadLiquid}
-          onClick={() => navigate('/ajustes/cuentas')}
+          onClick={() => navigate('/ajustes/cuentas', { state: { from: 'dashboard' } })}
         />
 
         {/* Plata guardada aparte, fuera del día a día — ver ADR-014. Solo
@@ -506,7 +506,7 @@ function Dashboard() {
             amount={<Money value={savingsAmount} currency={savingsCurrency.toLowerCase()} />}
             breakdown={savingsBreakdown}
             info="Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento."
-            onClick={() => navigate('/ajustes/cuentas')}
+            onClick={() => navigate('/ajustes/cuentas', { state: { from: 'dashboard' } })}
           />
         )}
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { getAccounts, deleteAccount, reorderAccounts } from '../../lib/liquidAccounts.js'
 import { getAccountBalances } from '../../lib/liquid.js'
 import { formatByCurrency } from '../../lib/format.js'
@@ -125,6 +125,18 @@ function AccountRow({ account, dragHandlers, onDeleted, onError }) {
 }
 
 function Accounts() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  // Se entra desde Ajustes (backTo fijo, de siempre) o tocando "Dinero
+  // disponible"/"Dinero ahorrado" en Inicio (Dashboard manda state.from):
+  // ahí "atrás" tiene que volver a Inicio de verdad, no a Ajustes, que ni
+  // siquiera es de donde vino. Mismo patrón que AssetTypeDetail con
+  // fromPortfolio.
+  const fromDashboard = location.state?.from === 'dashboard'
+  const backProps = fromDashboard
+    ? { onBack: () => navigate(-1), backLabel: 'Inicio' }
+    : { backTo: '/ajustes', backLabel: 'Ajustes' }
+
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -186,6 +198,7 @@ function Accounts() {
     <SettingsPage
       title="Cuentas"
       description="Dónde está la plata que contás como disponible: efectivo, billeteras, cuentas del banco."
+      {...backProps}
     >
       {error && (
         <div className="notice space-y-2">
