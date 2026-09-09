@@ -28,11 +28,9 @@ function Portfolio() {
     latestValuations,
     valuations,
     totalValue,
+    totalContributed,
     valuedContributed,
     totalGain,
-    yieldingValue,
-    notYieldingValue,
-    yieldingOutdated,
     pricesFailed,
     loading,
     error,
@@ -175,15 +173,10 @@ function Portfolio() {
           {/* Resumen: mismo nombre que la tarjeta de Inicio, "Dinero
               invertido" — es el mismo número (usePortfolio). */}
           <div className="surface overflow-hidden">
-            {/* En desktop el desglose se corre a la derecha, a la altura del
-                total: hay ancho de sobra y así se leen los números de una
-                sola pasada horizontal. En el celular va abajo, que es la
-                única forma que entra.
-
-                Ya no se muestra el aportado: lo mostraba pegado a un % que se
-                calcula sobre OTRO conjunto (solo lo que rinde), así que los
-                dos números juntos no cerraban. El aportado sigue estando
-                donde sí cierra, en cada grupo y en cada activo. */}
+            {/* En desktop el aportado y el rendimiento se corren a la derecha,
+                a la altura del total: hay ancho de sobra y así se leen los
+                tres números de una sola pasada horizontal. En el celular van
+                abajo, que es la única forma que entra. */}
             <div className="px-5 pt-5 pb-4 md:flex md:items-end md:justify-between md:gap-8">
               <div>
                 <span className="eyebrow">Dinero invertido</span>
@@ -191,30 +184,15 @@ function Portfolio() {
                   <Money value={totalValue} />
                 </p>
               </div>
-              {/* Los dos baldes que suman ese total (ver splitPortfolioByYield).
-                  Cada uno aparece solo si tiene plata: una cuenta sin efectivo
-                  no necesita un renglón "no rinde US$ 0". */}
-              <div className="mt-4 space-y-1 text-[13px] md:mt-0">
-                {yieldingValue > 0 && (
-                  <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 md:justify-end">
-                    <span className="text-ink-soft">Dinero que rinde</span>
-                    <span className="font-money font-medium text-ink">{formatUSD(yieldingValue)}</span>
-                    {/* Con una valuación vieja el % no es impreciso, es falso
-                        (compara un valor viejo contra un aportado de hoy): el
-                        monto se muestra igual y el % se reemplaza por el aviso,
-                        el mismo criterio que la fila de un activo (AssetGroup). */}
-                    {yieldingOutdated ? (
-                      <span className="text-clay">Valuación desactualizada</span>
-                    ) : (
-                      <Gain value={totalGain} base={valuedContributed} className="text-[13px]" />
-                    )}
-                  </p>
-                )}
-                {notYieldingValue > 0 && (
-                  <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 md:justify-end">
-                    <span className="text-ink-soft">Dinero que no rinde</span>
-                    <span className="font-money font-medium text-ink">{formatUSD(notYieldingValue)}</span>
-                  </p>
+              <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 text-[13px] md:mt-0 md:justify-end">
+                <span className="text-ink-soft">
+                  Aportado{' '}
+                  <span className="font-money font-medium text-ink">{formatUSD(totalContributed)}</span>
+                </span>
+                {valuedContributed > 0 && (
+                  <span className="text-ink-soft">
+                    Rendimiento <Gain value={totalGain} base={valuedContributed} className="text-[13px]" />
+                  </span>
                 )}
               </div>
             </div>

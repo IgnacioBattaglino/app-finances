@@ -8,7 +8,6 @@ import Switch from './form/Switch.jsx'
 import InstrumentPicker from './asset/InstrumentPicker.jsx'
 
 const VALUATION_MODES = [
-  ['contributed', 'Vale lo que pusiste', 'Vale exactamente lo que aportaste. Para efectivo y reservas que no cambian de valor.'],
   ['manual', 'Valuación manual', 'Vos cargás cada tanto cuánto vale en total.'],
   ['live', 'Valuación automática', 'Elegís el activo de mercado y su precio se actualiza solo.'],
 ]

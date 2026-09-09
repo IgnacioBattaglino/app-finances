@@ -9,7 +9,6 @@ import {
   computePortfolioValue,
   computePortfolioContributed,
   computePortfolioGain,
-  splitPortfolioByYield,
   totalableAssets,
 } from '../lib/portfolio.js'
 
@@ -99,16 +98,6 @@ export function usePortfolio() {
     valuations,
   )
 
-  // Los dos baldes que suman totalValue. A diferencia de la ganancia, acá el
-  // activo con la valuación vieja SÍ suma su valor: es viejo pero verdadero
-  // (ver splitPortfolioByYield). `yieldingOutdated` es lo que le dice a la
-  // cabecera que en ese caso el % no se puede mostrar.
-  const {
-    yielding: yieldingValue,
-    notYielding: notYieldingValue,
-    outdated: yieldingOutdated,
-  } = splitPortfolioByYield(assets, valuations)
-
   return {
     assets,
     assetTypes,
@@ -119,9 +108,6 @@ export function usePortfolio() {
     totalContributed: computePortfolioContributed(assets, valuations),
     valuedContributed,
     totalGain,
-    yieldingValue,
-    notYieldingValue,
-    yieldingOutdated,
     pricesFailed,
     loading,
     error,
