@@ -9,6 +9,7 @@ import FormError from '../../components/form/FormError.jsx'
 import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
 import { ReorderableRows, GripIcon } from '../../components/settings/ReorderableRows.jsx'
 import LiquidModal from '../../components/LiquidModal.jsx'
+import AccountTransferModal from '../../components/account/AccountTransferModal.jsx'
 
 // Alta al pie de la lista, escondida hasta que se la pide: mismo patrón que
 // "Nueva categoría". `extended` le agrega moneda y tipo — acá, y solo acá, se
@@ -142,6 +143,7 @@ function Accounts() {
   const [error, setError] = useState(null)
   const [note, setNote] = useState(null)
   const [reconcileOpen, setReconcileOpen] = useState(false)
+  const [transferOpen, setTransferOpen] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -191,6 +193,11 @@ function Accounts() {
     load()
   }
 
+  function afterTransferred() {
+    setTransferOpen(false)
+    load()
+  }
+
   const dailyAccounts = accounts.filter((a) => !a.is_savings)
   const savingsAccounts = accounts.filter((a) => a.is_savings)
 
@@ -221,6 +228,10 @@ function Accounts() {
         <>
           <SettingsGroup footer="Compará lo que la app calculó con lo que tenés de verdad, cuenta por cuenta.">
             <SettingsButtonRow label="Contar mi plata" onClick={() => setReconcileOpen(true)} />
+          </SettingsGroup>
+
+          <SettingsGroup footer="Mové plata de una cuenta a otra, sin cargar un gasto y un ingreso por separado.">
+            <SettingsButtonRow label="Transferir entre cuentas" onClick={() => setTransferOpen(true)} />
           </SettingsGroup>
 
           <SettingsGroup footer="La primera de la lista es la que viene elegida al cargar un movimiento — arrastrá con la manija para cambiar el orden. Tu dinero disponible total no depende de cómo las repartas.">
@@ -258,6 +269,12 @@ function Accounts() {
       )}
 
       <LiquidModal open={reconcileOpen} onClose={() => setReconcileOpen(false)} onSaved={afterReconciled} />
+      <AccountTransferModal
+        open={transferOpen}
+        accounts={accounts}
+        onClose={() => setTransferOpen(false)}
+        onSaved={afterTransferred}
+      />
     </SettingsPage>
   )
 }

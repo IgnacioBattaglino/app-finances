@@ -68,6 +68,15 @@ describe('monthTotals', () => {
     expect(monthTotals(month).incomes).toEqual(soloGastoEIngreso.incomes)
   })
 
+  it('una transferencia entre cuentas ("Movimiento de ahorro") no se cuenta como gasto ni ingreso', () => {
+    // A diferencia de "Ajuste de saldo" (una corrección real de lo que pasó
+    // este mes), un Movimiento de ahorro es plata que cambió de cuenta:
+    // migración 0040.
+    const transferLeg = { ...expense, id: 't9', category: { system_key: 'savings_movement' } }
+    const conTransferencia = monthTotals({ transactions: [...month.transactions, transferLeg], contributions: month.contributions })
+    expect(conTransferencia.expenses).toEqual(monthTotals(month).expenses)
+  })
+
   it('un mes en el que se retiró más de lo que se aportó da invertido negativo', () => {
     const totals = monthTotals({ transactions: [], contributions: [withdrawal] })
     expect(line(totals.invested)).toBe(-25000)

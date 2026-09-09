@@ -63,6 +63,14 @@ export function monthTotals({ transactions, contributions }) {
   const invested = new Map()
 
   for (const t of transactions) {
+    // Un "Movimiento de ahorro" (transferencia entre cuentas, migración 0040)
+    // no es un gasto ni un ingreso real: es plata que cambió de cuenta, igual
+    // que un aporte a un activo no cuenta acá sino en `invested`. Se excluye
+    // por la LLAVE, nunca por el nombre visible — mismo criterio que
+    // getExpenses y create_account_transfer. "Ajuste de saldo" SÍ sigue
+    // contando: a diferencia de una transferencia, es una corrección real de
+    // lo que pasó este mes.
+    if (t.category?.system_key === 'savings_movement') continue
     const currency = transactionCurrencyOf(t)
     addTo(t.kind === 'income' ? incomes : expenses, currency, Number(t.amount))
   }

@@ -1,10 +1,15 @@
 import { supabase } from './supabase.js'
 import { LOCAL_CURRENCY } from './currencyTotals.js'
 
-// El join implícito trae el nombre de la categoría en la misma query. Y desde
-// la migración 0037, si la cuenta del movimiento es de ahorro — el único dato
-// que hace falta de ella para decidir si la fila se muestra (ver getTransactions).
-const SELECT = '*, category:categories(name), account:liquid_accounts(is_savings)'
+// El join implícito trae el nombre y la llave de la categoría en la misma
+// query — la llave es lo que permite excluir "Movimiento de ahorro" de los
+// totales del mes sin depender del nombre visible (ver monthTotals). De la
+// cuenta hace falta si es de ahorro (para decidir si la fila se muestra, ver
+// getTransactions) y su nombre (para el mensaje de "parte de una
+// transferencia con..." de la pata hermana, ver accountTransfers.js).
+// Exportado porque accountTransfers.js arma su propia consulta sobre esta
+// misma tabla y necesita la misma forma.
+export const SELECT = '*, category:categories(name, system_key), account:liquid_accounts(name, is_savings)'
 
 // La moneda del movimiento: la de la cuenta de la que sale (o a la que entra),
 // COPIADA en la fila al escribir y no derivada al leer (ADR-013). Pura y

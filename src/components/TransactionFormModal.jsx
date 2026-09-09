@@ -5,8 +5,9 @@ import {
   deleteTransaction,
   transactionCurrency,
 } from '../lib/transactions.js'
+import { getAccountTransferPair, deleteAccountTransfer } from '../lib/accountTransfers.js'
 import { createCategory } from '../lib/categories.js'
-import { todayISO, toDecimalInput } from '../lib/format.js'
+import { todayISO, toDecimalInput, formatByCurrency, formatDayYear } from '../lib/format.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
@@ -43,8 +44,13 @@ function TransactionFormModal({
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryBusy, setCategoryBusy] = useState(false)
   const [categoryError, setCategoryError] = useState(null)
+  // Nombre de la otra cuenta de la transferencia (para el mensaje de
+  // borrado); null mientras carga o si no se pudo resolver.
+  const [transferSibling, setTransferSibling] = useState(null)
+  const [confirmDeleteTransfer, setConfirmDeleteTransfer] = useState(false)
 
   const editing = Boolean(initial?.id)
+  const isTransferPart = Boolean(initial?.transfer_id)
 
   useEffect(() => {
     if (!open) return
@@ -63,9 +69,115 @@ function TransactionFormModal({
     setCreatingCategory(false)
     setNewCategoryName('')
     setCategoryError(null)
+    setTransferSibling(null)
+    setConfirmDeleteTransfer(false)
   }, [open, initial, defaultKind, defaultAccountId])
 
+  // Una pata de transferencia (migración 0040) no se edita sola: solo hace
+  // falta el nombre de la otra cuenta, para el mensaje de la confirmación de
+  // borrado. Mismo patrón que ContributionFormModal con getTransferPair.
+  useEffect(() => {
+    if (!open || !initial?.transfer_id) return
+    let cancelled = false
+    getAccountTransferPair(initial.transfer_id).then((rows) => {
+      if (cancelled) return
+      const sibling = rows.find((r) => r.id !== initial.id)
+      if (sibling?.account?.name) setTransferSibling(sibling.account.name)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, initial])
+
   if (!open) return null
+
+  async function handleDeleteTransfer() {
+    setBusy(true)
+    setError(null)
+    try {
+      await deleteAccountTransfer(initial.transfer_id)
+      onDeleted?.(initial.id)
+    } catch (e) {
+      setError({ message: 'No se pudo eliminar la transferencia.', detail: e.message })
+      setBusy(false)
+    }
+  }
+
+  // Una pata de transferencia entre cuentas se muestra de solo lectura:
+  // editarla por separado descuadraría la otra mitad (el monto de cada lado
+  // es el que efectivamente entró o salió, y las dos van juntas). Para
+  // corregirla hay que borrar la transferencia entera (las dos patas,
+  // atómico) y volver a cargarla. Mismo criterio que ContributionFormModal
+  // con isTransferPart.
+  if (isTransferPart) {
+    return (
+      <FormSheet
+        title={initial.kind === 'expense' ? 'Transferencia enviada' : 'Transferencia recibida'}
+        onClose={onClose}
+      >
+        <div className="space-y-3">
+          <div className="list">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-[15px] text-ink-soft">Monto</span>
+              <span className="font-money text-[15px]">
+                {formatByCurrency(initial.currency, Number(initial.amount))}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-[15px] text-ink-soft">Fecha</span>
+              <span className="text-[17px]">{formatDayYear(initial.date)}</span>
+            </div>
+          </div>
+
+          <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+            {transferSibling
+              ? `Parte de una transferencia con «${transferSibling}». `
+              : 'Parte de una transferencia. '}
+            No se puede editar: para corregirla, borrala y volvé a cargarla.
+          </p>
+
+          <FormError message={error?.message} detail={error?.detail} />
+
+          {confirmDeleteTransfer ? (
+            <div className="flex items-center justify-between notice text-[15px]">
+              <span className="text-clay">
+                ¿Eliminar esta transferencia? Se borran las dos partes
+                {transferSibling ? `: esta operación y la de «${transferSibling}»` : ''}. Es
+                permanente.
+              </span>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteTransfer(false)}
+                  disabled={busy}
+                  className="text-ink-soft"
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteTransfer}
+                  disabled={busy}
+                  className="font-semibold text-clay disabled:opacity-50"
+                >
+                  Sí, eliminar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteTransfer(true)}
+              disabled={busy}
+              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
+            >
+              Eliminar transferencia
+            </button>
+          )}
+        </div>
+      </FormSheet>
+    )
+  }
 
   // La categoría del sistema ("Ajuste de saldo") no se ofrece acá: solo la usa
   // la reconciliación del líquido. Un movimiento que ya la tenga asignada
