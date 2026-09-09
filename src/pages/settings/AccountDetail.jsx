@@ -9,6 +9,7 @@ import {
 } from '../../lib/liquidAccounts.js'
 import { getAccountBalances } from '../../lib/liquid.js'
 import { formatByCurrency } from '../../lib/format.js'
+import { useAccounts } from '../../hooks/useAccounts.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
   SettingsGroup,
@@ -18,6 +19,7 @@ import {
 } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 import BinaryChoice from '../../components/form/BinaryChoice.jsx'
+import SavingsMovementModal from '../../components/account/SavingsMovementModal.jsx'
 
 const CURRENCY_LABELS = { ARS: 'Pesos (ARS)', USD: 'Dólares (USD)' }
 const CURRENCY_OPTIONS = [
@@ -47,18 +49,21 @@ function AccountDetail() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [movement, setMovement] = useState(null) // 'contribution' | 'withdrawal' | null
+  const { accounts: dailyAccounts, defaultAccountId, addAccount } = useAccounts()
+
+  async function reload() {
+    const [accountData, balances] = await Promise.all([getAccount(accountId), getAccountBalances()])
+    const bucket = balances.find((b) => b.account_id === accountId)
+    setAccount(accountData)
+    setName(accountData.name)
+    setBalance({ amount: Number(bucket?.amount ?? 0), hasMovements: Boolean(bucket) })
+  }
 
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([getAccount(accountId), getAccountBalances()])
-      .then(([accountData, balances]) => {
-        if (!active) return
-        const bucket = balances.find((b) => b.account_id === accountId)
-        setAccount(accountData)
-        setName(accountData.name)
-        setBalance({ amount: Number(bucket?.amount ?? 0), hasMovements: Boolean(bucket) })
-      })
+    reload()
       .catch((e) => {
         if (active) setError({ message: 'No se pudo cargar la cuenta.', detail: e.message })
       })
@@ -68,7 +73,13 @@ function AccountDetail() {
     return () => {
       active = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId])
+
+  function afterMovement() {
+    setMovement(null)
+    reload()
+  }
 
   async function handleRename(event) {
     event.preventDefault()
@@ -204,6 +215,18 @@ function AccountDetail() {
         />
       </SettingsGroup>
 
+      {/* Solo para cuentas de ahorro: el mismo patrón de aportar/retirar que
+          ya tienen los activos de inversión, pero moviendo plata entre esta
+          cuenta y una de uso diario (o de/hacia afuera de la app). Una cuenta
+          de uso diario no lo necesita: para el día a día ya está la carga
+          rápida de gasto/ingreso. */}
+      {account.is_savings && (
+        <SettingsGroup footer="Aportar y retirar mueven la plata entre esta cuenta y una de tu disponible, o de/hacia afuera de la app.">
+          <SettingsButtonRow label="Aportar" onClick={() => setMovement('contribution')} />
+          <SettingsButtonRow label="Retirar" onClick={() => setMovement('withdrawal')} />
+        </SettingsGroup>
+      )}
+
       <SettingsGroup>
         {confirmingDelete ? (
           <div className="space-y-1.5 px-4 py-3">
@@ -241,6 +264,17 @@ function AccountDetail() {
           />
         )}
       </SettingsGroup>
+
+      <SavingsMovementModal
+        open={movement != null}
+        account={account}
+        operation={movement}
+        dailyAccounts={dailyAccounts}
+        defaultAccountId={defaultAccountId}
+        onAccountCreated={addAccount}
+        onClose={() => setMovement(null)}
+        onSaved={afterMovement}
+      />
     </SettingsPage>
   )
 }

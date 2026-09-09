@@ -27,6 +27,25 @@ export async function getCategory(id) {
   return data
 }
 
+// La categoría del sistema por su llave (migración 0037), nunca por nombre ni
+// por is_system a secas — mismo criterio que reconcile_liquid y
+// create_account_transfer. La usa el aporte/retiro "de afuera" de una cuenta
+// de ahorro: una sola fila, sin la atomicidad de una transferencia, así que
+// no pasa por una función de Postgres y resuelve la categoría acá.
+export async function getSystemCategory(kind, systemKey) {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('kind', kind)
+    .eq('system_key', systemKey)
+    .eq('is_archived', false)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error(`Falta la categoría del sistema "${systemKey}" (${kind}).`)
+  return data.id
+}
+
 // Al final de su grupo: una categoría nueva no se mete entre las que el
 // usuario ya ordenó. Las del sistema quedan fuera del cálculo -- viven en una
 // position alta (100) para no competir por los números bajos que reasigna la
