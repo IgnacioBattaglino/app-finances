@@ -24,6 +24,7 @@ import AssetFormModal from '../components/AssetFormModal.jsx'
 import FormError from '../components/form/FormError.jsx'
 import ContributionFormModal from '../components/ContributionFormModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
+import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
 import TransferFormModal from '../components/contribution/TransferFormModal.jsx'
 import LiquidatePositionModal from '../components/contribution/LiquidatePositionModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
@@ -58,6 +59,7 @@ function AssetDetail() {
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
   const { accounts, defaultAccountId, addAccount } = useAccounts()
+  const lastReconciliations = useLastReconciliations()
 
   const [assets, setAssets] = useState([])
   const [assetTypes, setAssetTypes] = useState([])
@@ -461,6 +463,7 @@ function AssetDetail() {
         prices={prices}
         accounts={accounts}
         defaultAccountId={defaultAccountId}
+        lastReconciliations={lastReconciliations}
         onAccountCreated={addAccount}
         onClose={closeModals}
         onSaved={refresh}

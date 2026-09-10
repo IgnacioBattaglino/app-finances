@@ -13,6 +13,7 @@ import { splitPage } from '../../lib/contributions.js'
 import { getCategories } from '../../lib/categories.js'
 import { formatByCurrency } from '../../lib/format.js'
 import { useAccounts } from '../../hooks/useAccounts.js'
+import { useLastReconciliations } from '../../hooks/useLastReconciliations.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
   SettingsGroup,
@@ -64,6 +65,7 @@ function AccountDetail() {
   const [categories, setCategories] = useState([])
   const [txModal, setTxModal] = useState({ open: false, editing: null })
   const { accounts: dailyAccounts, defaultAccountId, addAccount } = useAccounts()
+  const lastReconciliations = useLastReconciliations()
 
   async function reload() {
     const [accountData, balances, firstPage] = await Promise.all([
@@ -348,6 +350,7 @@ function AccountDetail() {
         categories={categories}
         accounts={[account, ...dailyAccounts]}
         defaultAccountId={account.id}
+        lastReconciliations={lastReconciliations}
         onCategoryCreated={(created) => setCategories((prev) => [...prev, created])}
         onAccountCreated={addAccount}
         onClose={() => setTxModal({ open: false, editing: null })}

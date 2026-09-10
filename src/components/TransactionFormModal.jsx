@@ -7,6 +7,7 @@ import {
 } from '../lib/transactions.js'
 import { getAccountTransferPair, deleteAccountTransfer } from '../lib/accountTransfers.js'
 import { createCategory } from '../lib/categories.js'
+import { retroactiveReconciliation } from '../lib/liquid.js'
 import { todayISO, toDecimalInput, formatByCurrency, formatDayYear } from '../lib/format.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
@@ -22,6 +23,7 @@ function TransactionFormModal({
   categories = [],
   accounts = [],
   defaultAccountId = null,
+  lastReconciliations = new Map(),
   onClose,
   onSaved,
   onDeleted,
@@ -91,6 +93,22 @@ function TransactionFormModal({
 
   if (!open) return null
 
+  // Aviso no bloqueante: esta fila cae en o antes de la última vez que se
+  // contó SU cuenta. Se calcula acá (antes del branch de transferencia) para
+  // que valga en los dos renders — editar o borrar un movimiento corre el
+  // saldo igual, sea una pata de transferencia o no.
+  const retro = editing
+    ? retroactiveReconciliation(lastReconciliations, accountId, date)
+    : null
+  const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
+  const retroNotice = retro && (
+    <p className="notice text-[13px]">
+      Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
+      {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta — te
+      conviene volver a contarla después de guardar.
+    </p>
+  )
+
   async function handleDeleteTransfer() {
     setBusy(true)
     setError(null)
@@ -139,29 +157,32 @@ function TransactionFormModal({
           <FormError message={error?.message} detail={error?.detail} />
 
           {confirmDeleteTransfer ? (
-            <div className="flex items-center justify-between notice text-[15px]">
-              <span className="text-clay">
-                ¿Eliminar esta transferencia? Se borran las dos partes
-                {transferSibling ? `: esta operación y la de «${transferSibling}»` : ''}. Es
-                permanente.
-              </span>
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteTransfer(false)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteTransfer}
-                  disabled={busy}
-                  className="font-semibold text-clay disabled:opacity-50"
-                >
-                  Sí, eliminar
-                </button>
+            <div className="space-y-2">
+              {retroNotice}
+              <div className="flex items-center justify-between notice text-[15px]">
+                <span className="text-clay">
+                  ¿Eliminar esta transferencia? Se borran las dos partes
+                  {transferSibling ? `: esta operación y la de «${transferSibling}»` : ''}. Es
+                  permanente.
+                </span>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteTransfer(false)}
+                    disabled={busy}
+                    className="text-ink-soft"
+                  >
+                    No
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteTransfer}
+                    disabled={busy}
+                    className="font-semibold text-clay disabled:opacity-50"
+                  >
+                    Sí, eliminar
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -410,30 +431,36 @@ function TransactionFormModal({
             </div>
           </div>
 
+          {/* Mismo aviso arriba (mientras se edita) y dentro de la
+              confirmación de borrado — nunca los dos a la vez. */}
+          {!confirmDelete && retroNotice}
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />
 
           {editing &&
             (confirmDelete ? (
-              <div className="flex items-center justify-between notice text-[15px]">
-                <span className="text-clay">¿Eliminar este movimiento? Es permanente.</span>
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDelete(false)}
-                    disabled={busy}
-                    className="text-ink-soft"
-                  >
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={busy}
-                    className="font-semibold text-clay disabled:opacity-50"
-                  >
-                    Sí, eliminar
-                  </button>
+              <div className="space-y-2">
+                {retroNotice}
+                <div className="flex items-center justify-between notice text-[15px]">
+                  <span className="text-clay">¿Eliminar este movimiento? Es permanente.</span>
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={busy}
+                      className="text-ink-soft"
+                    >
+                      No
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={busy}
+                      className="font-semibold text-clay disabled:opacity-50"
+                    >
+                      Sí, eliminar
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (

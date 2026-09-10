@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPayment, updatePayment, deletePayment, debtBalance } from '../lib/debts.js'
-import { todayISO, formatUSD, toDecimalInput } from '../lib/format.js'
+import { retroactiveReconciliation } from '../lib/liquid.js'
+import { todayISO, formatUSD, formatDayYear, toDecimalInput } from '../lib/format.js'
 import { round } from '../lib/money.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
@@ -34,6 +35,7 @@ function DebtPaymentModal({
   initial,
   accounts = [],
   defaultAccountId = null,
+  lastReconciliations = new Map(),
   onClose,
   onSaved,
   onDeleted,
@@ -75,6 +77,22 @@ function DebtPaymentModal({
 
   const amount = editing ? Number(amountUsd.replace(',', '.')) : railAmountUsd
   const affectsLiquid = origin === 'liquid'
+
+  // Aviso no bloqueante: este pago cae en o antes de la última vez que se
+  // contó SU cuenta. Solo aplica si el pago tocó el disponible — pagado con
+  // dólares que ya tenías nunca tuvo cuenta.
+  const retro =
+    editing && affectsLiquid
+      ? retroactiveReconciliation(lastReconciliations, accountId, date)
+      : null
+  const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
+  const retroNotice = retro && (
+    <p className="notice text-[13px]">
+      Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
+      {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta — te
+      conviene volver a contarla después de guardar.
+    </p>
+  )
 
   const missing = []
   if (!(amount > 0)) missing.push('monto')
@@ -208,30 +226,36 @@ function DebtPaymentModal({
           </p>
         )}
 
+        {/* Mismo aviso arriba (mientras se edita) y dentro de la
+            confirmación de borrado — nunca los dos a la vez. */}
+        {!confirmDelete && retroNotice}
         <FormError message={error?.message} detail={error?.detail} />
         <MissingHint missing={missing} />
 
         {editing &&
           (confirmDelete ? (
-            <div className="flex items-center justify-between notice text-[15px]">
-              <span className="text-clay">¿Eliminar este pago? Es permanente.</span>
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(false)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={busy}
-                  className="font-semibold text-clay disabled:opacity-50"
-                >
-                  Sí, eliminar
-                </button>
+            <div className="space-y-2">
+              {retroNotice}
+              <div className="flex items-center justify-between notice text-[15px]">
+                <span className="text-clay">¿Eliminar este pago? Es permanente.</span>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={busy}
+                    className="text-ink-soft"
+                  >
+                    No
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={busy}
+                    className="font-semibold text-clay disabled:opacity-50"
+                  >
+                    Sí, eliminar
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

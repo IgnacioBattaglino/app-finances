@@ -3,6 +3,7 @@ import {
   computeLiquidFromCollections,
   computeLiquidByAccount,
   lastReconciliationByAccount,
+  retroactiveReconciliation,
   decideAdjustment,
   totalsByCurrency,
   visibleBreakdown,
@@ -315,6 +316,43 @@ describe('lastReconciliationByAccount', () => {
     const byAccount = lastReconciliationByAccount(rows)
     expect(byAccount.get(null).id).toBe('vieja')
     expect(byAccount.get('cuenta-efectivo')).toBeUndefined()
+  })
+})
+
+describe('retroactiveReconciliation', () => {
+  const lastByAccount = new Map([
+    ['cuenta-a', { id: 'r-a', account_id: 'cuenta-a', date: '2026-08-15' }],
+    ['cuenta-b', { id: 'r-b', account_id: 'cuenta-b', date: '2026-05-01' }],
+  ])
+
+  it('una fecha posterior a la reconciliación de su cuenta no avisa', () => {
+    expect(retroactiveReconciliation(lastByAccount, 'cuenta-a', '2026-08-16')).toBeNull()
+  })
+
+  it('una fecha anterior o igual a la reconciliación de su cuenta avisa (devuelve esa reconciliación)', () => {
+    expect(retroactiveReconciliation(lastByAccount, 'cuenta-a', '2026-08-14')?.id).toBe('r-a')
+    expect(retroactiveReconciliation(lastByAccount, 'cuenta-a', '2026-08-15')?.id).toBe('r-a')
+  })
+
+  it('una cuenta sin reconciliaciones nunca avisa', () => {
+    expect(retroactiveReconciliation(lastByAccount, 'cuenta-sin-reconciliar', '2020-01-01')).toBeNull()
+  })
+
+  it('la comparación es por cuenta, no global', () => {
+    // 2026-06-15 cae DESPUÉS de la reconciliación de "cuenta-b" (2026-05-01)
+    // pero ANTES de la de "cuenta-a" (2026-08-15): editar un movimiento de
+    // "cuenta-a" tiene que avisar igual, sin que la reconciliación de
+    // "cuenta-b" lo tape ni lo dispare.
+    expect(retroactiveReconciliation(lastByAccount, 'cuenta-a', '2026-06-15')?.id).toBe('r-a')
+    expect(retroactiveReconciliation(lastByAccount, 'cuenta-b', '2026-06-15')).toBeNull()
+  })
+
+  it('sin cuenta (null) no avisa: no hay "su cuenta" contra la cual compararse', () => {
+    expect(retroactiveReconciliation(lastByAccount, null, '2020-01-01')).toBeNull()
+  })
+
+  it('sin fecha no avisa', () => {
+    expect(retroactiveReconciliation(lastByAccount, 'cuenta-a', '')).toBeNull()
   })
 })
 

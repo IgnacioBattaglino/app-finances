@@ -38,6 +38,29 @@ export function lastReconciliationByAccount(rows) {
   return byAccount
 }
 
+// La última reconciliación de cada cuenta, lista para los formularios de
+// edición (ver retroactiveReconciliation): una sola consulta liviana a
+// liquid_reconciliations, sin pasar por get_liquid_by_account ni por
+// liquid_accounts — esos formularios no necesitan el desglose completo, solo
+// esta tabla chica.
+export async function getLastReconciliationByAccount() {
+  return lastReconciliationByAccount(await getReconciliations())
+}
+
+// Si esta fecha cae en o antes de la última reconciliación DE SU CUENTA, hay
+// que avisar (nunca bloquear): editar o borrar la fila puede correr un saldo
+// que el usuario ya dio por contado. Devuelve esa reconciliación (para el
+// mensaje) o null si no aplica — sin cuenta, cuenta que nunca se reconcilió,
+// o fecha posterior a la última reconciliación. `lastByAccount` es el Map que
+// arma lastReconciliationByAccount / getLastReconciliationByAccount. Pura y
+// testeable.
+export function retroactiveReconciliation(lastByAccount, accountId, date) {
+  if (accountId == null || !date) return null
+  const last = lastByAccount.get(accountId)
+  if (!last || date > last.date) return null
+  return last
+}
+
 // El disponible desglosado por cuenta: un Map de account_id → monto.
 // La clave `null` es el balde "sin cuenta" — filas que ninguna migración
 // alcanzó a asignar. Cuenta para el total, pero no es una cuenta.
