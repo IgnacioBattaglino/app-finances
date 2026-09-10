@@ -71,7 +71,10 @@ function TransactionRow({ tx, onEdit }) {
           </span>
           <EditIcon />
         </p>
-        <p className="mt-0.5 text-[13px] text-ink-soft">{formatDay(tx.date)}</p>
+        <p className="mt-0.5 truncate text-[13px] text-ink-soft">
+          {formatDay(tx.date)}
+          {tx.account?.name && ` · ${tx.account.name}`}
+        </p>
       </div>
       <span
         className={`font-money shrink-0 text-[17px] font-medium ${

@@ -72,7 +72,7 @@ export async function getTransactionsForExport() {
   return fetchAllPages((from, to) =>
     supabase
       .from('transactions')
-      .select('date, kind, description, amount, currency, category:categories(name)')
+      .select('date, kind, description, amount, currency, category:categories(name), account:liquid_accounts(name)')
       .order('date', { ascending: true })
       .order('created_at', { ascending: true })
       .order('id', { ascending: true })
@@ -88,7 +88,7 @@ export async function getTransactionsForExport() {
 // que agregarle una columna.
 export function transactionsCsv(transactions) {
   return toCsv(
-    ['Fecha', 'Tipo', 'Categoría', 'Descripción', 'Monto', 'Moneda'],
+    ['Fecha', 'Tipo', 'Categoría', 'Descripción', 'Monto', 'Moneda', 'Cuenta'],
     transactions.map((tx) => [
       csvDate(tx.date),
       tx.kind === 'expense' ? 'Gasto' : 'Ingreso',
@@ -96,6 +96,7 @@ export function transactionsCsv(transactions) {
       tx.description ?? '',
       csvNumber(tx.amount),
       tx.currency ?? 'ARS',
+      tx.account?.name ?? '',
     ]),
   )
 }

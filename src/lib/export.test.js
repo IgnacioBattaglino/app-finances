@@ -94,7 +94,7 @@ describe('toCsv', () => {
 })
 
 describe('transactionsCsv', () => {
-  it('traduce el tipo y usa el nombre de la categoría, no su id', () => {
+  it('traduce el tipo y usa el nombre de la categoría y de la cuenta, no sus id', () => {
     const csv = transactionsCsv([
       {
         date: '2026-08-18',
@@ -103,6 +103,7 @@ describe('transactionsCsv', () => {
         amount: 3500.5,
         currency: 'ARS',
         category: { name: 'Salidas' },
+        account: { name: 'Efectivo' },
       },
       {
         date: '2026-08-01',
@@ -111,12 +112,13 @@ describe('transactionsCsv', () => {
         amount: 900000,
         currency: 'ARS',
         category: { name: 'Sueldo' },
+        account: { name: 'Cuenta DNI' },
       },
     ])
     expect(csv.split('\r\n')).toEqual([
-      'Fecha;Tipo;Categoría;Descripción;Monto;Moneda',
-      '18/08/2026;Gasto;Salidas;Café;3500,5;ARS',
-      '01/08/2026;Ingreso;Sueldo;;900000;ARS',
+      'Fecha;Tipo;Categoría;Descripción;Monto;Moneda;Cuenta',
+      '18/08/2026;Gasto;Salidas;Café;3500,5;ARS;Efectivo',
+      '01/08/2026;Ingreso;Sueldo;;900000;ARS;Cuenta DNI',
     ])
   })
 
@@ -129,17 +131,18 @@ describe('transactionsCsv', () => {
         amount: 195.87,
         currency: 'USD',
         category: { name: 'Movimiento de ahorro' },
+        account: { name: 'Dólares' },
       },
     ])
-    expect(csv.split('\r\n')[1]).toBe('08/07/2026;Ingreso;Movimiento de ahorro;;195,87;USD')
+    expect(csv.split('\r\n')[1]).toBe('08/07/2026;Ingreso;Movimiento de ahorro;;195,87;USD;Dólares')
   })
 
-  it('una categoría borrada del join no rompe la fila', () => {
+  it('una categoría o cuenta borrada del join no rompe la fila', () => {
     const csv = transactionsCsv([
-      { date: '2026-08-18', kind: 'expense', description: '', amount: 10, category: null },
+      { date: '2026-08-18', kind: 'expense', description: '', amount: 10, category: null, account: null },
     ])
     // Sin `currency` en la fila cae a ARS: es lo que era todo antes de la 0036.
-    expect(csv.split('\r\n')[1]).toBe('18/08/2026;Gasto;;;10;ARS')
+    expect(csv.split('\r\n')[1]).toBe('18/08/2026;Gasto;;;10;ARS;')
   })
 })
 
