@@ -76,6 +76,25 @@ export async function getTransactions({ month, year } = {}) {
   return data.filter((t) => !t.account?.is_savings)
 }
 
+// Movimientos de UNA cuenta puntual, paginados: el historial del detalle de
+// una cuenta (Ajustes → Cuentas → detalle). A diferencia de getTransactions,
+// NO excluye las cuentas de ahorro — acá la cuenta es justo el filtro, así
+// que una cuenta de ahorro tiene que poder ver los suyos. Mismo patrón de
+// paginado (limit/offset con range) que getContributions.
+export async function getAccountTransactions({ accountId, limit, offset = 0 } = {}) {
+  let query = supabase
+    .from('transactions')
+    .select(SELECT)
+    .eq('account_id', accountId)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (limit != null) query = query.range(offset, offset + limit - 1)
+
+  const { data, error } = await query
+  if (error) throw error
+  return data
+}
+
 // Gastos "reales" en un rango de fechas: excluye las categorías de sistema
 // (el ajuste de reconciliación no es un gasto que el usuario decidió hacer).
 // A diferencia de getTransactions/groupExpensesByCategory —que Movimientos

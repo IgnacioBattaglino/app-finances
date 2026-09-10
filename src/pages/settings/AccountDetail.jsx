@@ -8,6 +8,9 @@ import {
   deleteAccount,
 } from '../../lib/liquidAccounts.js'
 import { getAccountBalances } from '../../lib/liquid.js'
+import { getAccountTransactions } from '../../lib/transactions.js'
+import { splitPage } from '../../lib/contributions.js'
+import { getCategories } from '../../lib/categories.js'
 import { formatByCurrency } from '../../lib/format.js'
 import { useAccounts } from '../../hooks/useAccounts.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
@@ -20,6 +23,10 @@ import {
 import FormError from '../../components/form/FormError.jsx'
 import BinaryChoice from '../../components/form/BinaryChoice.jsx'
 import SavingsMovementModal from '../../components/account/SavingsMovementModal.jsx'
+import AccountHistory from '../../components/account/AccountHistory.jsx'
+import TransactionFormModal from '../../components/TransactionFormModal.jsx'
+
+const PAGE_SIZE = 20
 
 const CURRENCY_LABELS = { ARS: 'Pesos (ARS)', USD: 'Dólares (USD)' }
 const CURRENCY_OPTIONS = [
@@ -50,14 +57,48 @@ function AccountDetail() {
   const [error, setError] = useState(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [movement, setMovement] = useState(null) // 'contribution' | 'withdrawal' | null
+  const [history, setHistory] = useState([]) // página visible del historial
+  const [hasMoreHistory, setHasMoreHistory] = useState(false)
+  const [loadingMoreHistory, setLoadingMoreHistory] = useState(false)
+  const [loadMoreHistoryError, setLoadMoreHistoryError] = useState(false)
+  const [categories, setCategories] = useState([])
+  const [txModal, setTxModal] = useState({ open: false, editing: null })
   const { accounts: dailyAccounts, defaultAccountId, addAccount } = useAccounts()
 
   async function reload() {
-    const [accountData, balances] = await Promise.all([getAccount(accountId), getAccountBalances()])
+    const [accountData, balances, firstPage] = await Promise.all([
+      getAccount(accountId),
+      getAccountBalances(),
+      getAccountTransactions({ accountId, limit: PAGE_SIZE + 1 }),
+    ])
     const bucket = balances.find((b) => b.account_id === accountId)
     setAccount(accountData)
     setName(accountData.name)
     setBalance({ amount: Number(bucket?.amount ?? 0), hasMovements: Boolean(bucket) })
+    const { items, hasMore } = splitPage(firstPage, PAGE_SIZE)
+    setHistory(items)
+    setHasMoreHistory(hasMore)
+  }
+
+  async function loadMoreHistory() {
+    setLoadingMoreHistory(true)
+    setLoadMoreHistoryError(false)
+    try {
+      const page = await getAccountTransactions({
+        accountId,
+        limit: PAGE_SIZE + 1,
+        offset: history.length,
+      })
+      const { items, hasMore } = splitPage(page, PAGE_SIZE)
+      setHistory((prev) => [...prev, ...items])
+      setHasMoreHistory(hasMore)
+    } catch {
+      // hasMoreHistory no cambia, así que "Ver más" sigue disponible para
+      // reintentar — mismo criterio que AssetDetail.
+      setLoadMoreHistoryError(true)
+    } finally {
+      setLoadingMoreHistory(false)
+    }
   }
 
   useEffect(() => {
@@ -76,8 +117,17 @@ function AccountDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId])
 
+  useEffect(() => {
+    getCategories().then(setCategories).catch(() => {})
+  }, [])
+
   function afterMovement() {
     setMovement(null)
+    reload()
+  }
+
+  function afterTxSaved() {
+    setTxModal({ open: false, editing: null })
     reload()
   }
 
@@ -215,6 +265,18 @@ function AccountDetail() {
         />
       </SettingsGroup>
 
+      <div>
+        <h2 className="eyebrow mb-2 px-1">Historial</h2>
+        <AccountHistory
+          transactions={history}
+          hasMore={hasMoreHistory}
+          loadingMore={loadingMoreHistory}
+          loadMoreError={loadMoreHistoryError}
+          onLoadMore={loadMoreHistory}
+          onEdit={(tx) => setTxModal({ open: true, editing: tx })}
+        />
+      </div>
+
       {/* Solo para cuentas de ahorro: el mismo patrón de aportar/retirar que
           ya tienen los activos de inversión, pero moviendo plata entre esta
           cuenta y una de uso diario (o de/hacia afuera de la app). Una cuenta
@@ -274,6 +336,23 @@ function AccountDetail() {
         onAccountCreated={addAccount}
         onClose={() => setMovement(null)}
         onSaved={afterMovement}
+      />
+
+      {/* Editar un movimiento de esta cuenta: useAccounts() no ofrece las
+          cuentas de ahorro (no se pueden elegir para un gasto/ingreso
+          nuevo), pero esta fila YA está en una — tiene que poder seguir
+          apareciendo elegida en el campo de cuenta, por eso va primero. */}
+      <TransactionFormModal
+        open={txModal.open}
+        initial={txModal.editing}
+        categories={categories}
+        accounts={[account, ...dailyAccounts]}
+        defaultAccountId={account.id}
+        onCategoryCreated={(created) => setCategories((prev) => [...prev, created])}
+        onAccountCreated={addAccount}
+        onClose={() => setTxModal({ open: false, editing: null })}
+        onSaved={afterTxSaved}
+        onDeleted={afterTxSaved}
       />
     </SettingsPage>
   )
