@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getAccounts, deleteAccount, reorderAccounts } from '../../lib/liquidAccounts.js'
+import { getAccounts, reorderAccounts } from '../../lib/liquidAccounts.js'
 import { getAccountBalances } from '../../lib/liquid.js'
 import { getDebts, summarizeDebts } from '../../lib/debts.js'
 import { formatByCurrency, formatUSD } from '../../lib/format.js'
@@ -44,57 +44,12 @@ function NewAccountRow({ onCreated }) {
   )
 }
 
-// Eliminar una cuenta tiene dos finales posibles, y cuál toca lo decide la
-// base, no un conteo previo (mismo criterio que deleteCategory): sin nada que
-// la referencie se borra y listo; si algo la referencia la FK rechaza el
-// delete y la cuenta se oculta en vez de eliminarse. Nada se reasigna.
-function AccountRow({ account, dragHandlers, onDeleted, onError }) {
-  const [confirming, setConfirming] = useState(false)
-  const [busy, setBusy] = useState(false)
-
-  async function handleDelete() {
-    setBusy(true)
-    try {
-      const { deleted } = await deleteAccount(account.id)
-      onDeleted(account.id, deleted)
-    } catch (e) {
-      onError({ message: 'No se pudo eliminar la cuenta.', detail: e.message })
-      setBusy(false)
-      setConfirming(false)
-    }
-  }
-
-  if (confirming) {
-    return (
-      <div className="space-y-1.5 px-4 py-3">
-        <div className="flex items-center justify-between gap-3 text-[15px]">
-          <span className="min-w-0 truncate">¿Eliminar «{account.name}»?</span>
-          <div className="flex shrink-0 items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              disabled={busy}
-              className="text-ink-soft"
-            >
-              No
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={busy}
-              className="font-semibold text-clay disabled:opacity-50"
-            >
-              Sí, eliminar
-            </button>
-          </div>
-        </div>
-        <p className="text-[13px] text-ink-soft">
-          Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.
-        </p>
-      </div>
-    )
-  }
-
+// La fila es solo para leer el saldo y entrar al detalle — eliminar vive
+// únicamente ahí (H9 del informe de arquitectura de información): es donde
+// ya está protegido (una cuenta con saldo se vacía con un ajuste antes de
+// borrarse, ver AccountDetail), y tenerlo repetido acá solo agrega riesgo sin
+// esa guarda.
+function AccountRow({ account, dragHandlers }) {
   return (
     <div className="flex w-full items-center gap-1 pr-2 pl-2">
       <button
@@ -114,14 +69,6 @@ function AccountRow({ account, dragHandlers, onDeleted, onError }) {
           {formatByCurrency(account.currency, account.amount)}
         </span>
       </Link>
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        aria-label={`Eliminar ${account.name}`}
-        className="shrink-0 px-2.5 py-3 text-[15px] font-medium text-clay transition active:opacity-60"
-      >
-        Eliminar
-      </button>
     </div>
   )
 }
@@ -131,7 +78,6 @@ function Accounts() {
   const [debtsBalance, setDebtsBalance] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [note, setNote] = useState(null)
   const [reconcileOpen, setReconcileOpen] = useState(false)
   const [transferOpen, setTransferOpen] = useState(false)
 
@@ -157,15 +103,6 @@ function Accounts() {
   useEffect(() => {
     load()
   }, [])
-
-  function handleDeleted(id, deleted) {
-    setAccounts((prev) => prev.filter((a) => a.id !== id))
-    setNote(
-      deleted
-        ? null
-        : 'La cuenta tenía movimientos: dejó de ofrecerse, y esos movimientos la siguen mostrando.',
-    )
-  }
 
   // Reordena SOLO el subconjunto que se arrastró (uso diario o ahorro): cada
   // grupo se ordena por separado y el resultado se mezcla de vuelta en la
@@ -217,8 +154,6 @@ function Accounts() {
           </div>
         )}
 
-        {note && <p className="notice text-[15px]">{note}</p>}
-
         {loading ? (
           <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
         ) : (
@@ -234,12 +169,7 @@ function Accounts() {
             <SettingsGroup footer="La primera de la lista es la que viene elegida al cargar un movimiento — arrastrá con la manija para cambiar el orden. Tu dinero disponible total no depende de cómo las repartas.">
               <ReorderableRows items={dailyAccounts} onCommit={commitOrder}>
                 {(account, dragHandlers) => (
-                  <AccountRow
-                    account={account}
-                    dragHandlers={dragHandlers}
-                    onDeleted={handleDeleted}
-                    onError={setError}
-                  />
+                  <AccountRow account={account} dragHandlers={dragHandlers} />
                 )}
               </ReorderableRows>
             </SettingsGroup>
@@ -248,12 +178,7 @@ function Accounts() {
               <SettingsGroup title="Ahorro">
                 <ReorderableRows items={savingsAccounts} onCommit={commitOrder}>
                   {(account, dragHandlers) => (
-                    <AccountRow
-                      account={account}
-                      dragHandlers={dragHandlers}
-                      onDeleted={handleDeleted}
-                      onError={setError}
-                    />
+                    <AccountRow account={account} dragHandlers={dragHandlers} />
                   )}
                 </ReorderableRows>
               </SettingsGroup>

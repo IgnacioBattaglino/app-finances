@@ -7,11 +7,11 @@ import {
   setAccountSavings,
   deleteAccount,
 } from '../../lib/liquidAccounts.js'
-import { getAccountBalances } from '../../lib/liquid.js'
+import { getAccountBalances, reconcile } from '../../lib/liquid.js'
 import { getAccountTransactions } from '../../lib/transactions.js'
 import { splitPage } from '../../lib/contributions.js'
 import { getCategories } from '../../lib/categories.js'
-import { formatByCurrency } from '../../lib/format.js'
+import { formatByCurrency, todayISO } from '../../lib/format.js'
 import { useAccounts } from '../../hooks/useAccounts.js'
 import { useLastReconciliations } from '../../hooks/useLastReconciliations.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
@@ -179,6 +179,18 @@ function AccountDetail() {
     setBusy(true)
     setError(null)
     try {
+      // Una cuenta con saldo no se borra con la plata adentro: primero se
+      // vacía con el mismo mecanismo que "Contar mi plata" (reconcile_liquid),
+      // declarando 0 — el saldo real lo recalcula la base, así que no hay
+      // resto por redondeo, y el ajuste sale en la moneda de la cuenta
+      // (ninguna conversión de por medio, ver ARCHITECTURE.md). Recién con la
+      // cuenta en 0 se intenta el delete real.
+      if (hasBalance) {
+        await reconcile({
+          date: todayISO(),
+          declarations: [{ accountId: account.id, declaredAmount: 0 }],
+        })
+      }
       await deleteAccount(account.id)
       navigate('/plata')
     } catch (e) {
@@ -205,6 +217,10 @@ function AccountDetail() {
   }
 
   const dirty = name.trim() !== account.name
+  // Menos de un centavo no es un saldo — mismo umbral que decideAdjustment
+  // (lib/liquid.js): por debajo de eso reconcile_liquid no generaría ningún
+  // ajuste, así que pedirle uno sería un viaje al servidor sin ningún efecto.
+  const hasBalance = Math.abs(balance?.amount ?? 0) >= 0.01
 
   return (
     <SettingsPage title={account.name} backTo="/plata" backLabel="Mi plata">
@@ -316,13 +332,24 @@ function AccountDetail() {
                   disabled={busy}
                   className="font-semibold text-clay disabled:opacity-50"
                 >
-                  Sí, eliminar
+                  {hasBalance ? 'Sí, vaciar y eliminar' : 'Sí, eliminar'}
                 </button>
               </div>
             </div>
-            <p className="text-[13px] text-ink-soft">
-              Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.
-            </p>
+            {/* Con saldo, decir en plata concreta qué va a pasar: no es un
+                gasto, es un ajuste — la misma distinción que hace "Contar mi
+                plata" — y recién con eso en $0 se intenta borrar de verdad. */}
+            {hasBalance ? (
+              <p className="text-[13px] text-ink-soft">
+                Tiene {formatByCurrency(account.currency, balance.amount)}. Antes de eliminarla, ese
+                saldo se registra como un ajuste de saldo (no como un gasto) para dejarla en cero, y
+                recién ahí se elimina — o deja de ofrecerse, si tiene más movimientos.
+              </p>
+            ) : (
+              <p className="text-[13px] text-ink-soft">
+                Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.
+              </p>
+            )}
           </div>
         ) : (
           <SettingsButtonRow
