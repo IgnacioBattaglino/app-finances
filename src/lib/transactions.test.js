@@ -106,7 +106,7 @@ describe('groupExpensesByCategory', () => {
   })
 })
 
-// El desglose "En qué se fue" de Movimientos era la ÚNICA función de la app
+// El desglose por categoría de Movimientos era la ÚNICA función de la app
 // que no excluía ninguna categoría del sistema: el reparto de un conteo y las
 // transferencias entre cuentas aparecían ahí como una categoría de gasto
 // propia, con su monto y su barra.

@@ -272,10 +272,10 @@ function Movements() {
   // salen tanto los totales y el desglose (que describen el mes completo)
   // como la lista filtrada de abajo (filtrada en cliente).
   const [monthItems, setMonthItems] = useState([])
-  // Las inversiones del mismo mes (contributions que mueven el disponible).
-  // Van en su propio estado y no mezcladas en monthItems: el desglose "En qué
-  // se fue" recorre monthItems buscando gastos, y una inversión no es un
-  // gasto — meterlas ahí las metería en el desglose.
+  // Las inversiones del mismo período (contributions que mueven el
+  // disponible). Van en su propio estado y no mezcladas en monthItems: el
+  // desglose "Gastos por categoría" recorre monthItems buscando gastos, y una
+  // inversión no es un gasto — meterlas ahí las metería en el desglose.
   const [monthInvestments, setMonthInvestments] = useState([])
   // Qué conteo escribió cada movimiento (id → batch_id). Es lo que permite
   // aparear los repartos de un mismo conteo entre sí sin mezclar dos conteos
@@ -456,7 +456,14 @@ function Movements() {
               la hoja para elegir otro período. Con "Todo" o un rango a medida
               las flechas desaparecen (no hay un "siguiente" de eso) y el
               nombre ocupa la fila entera; los huecos las reemplazan para que
-              el título no se corra de lugar al cambiar de modo. */}
+              el título no se corra de lugar al cambiar de modo.
+
+              El nombre va RELLENO con el acento, como un chip elegido: un
+              texto que solo se tiñe al pasarle el mouse no se ve tocable en un
+              teléfono, donde no hay hover. Es el mismo tratamiento que el chip
+              activo de FilterChips —relleno de acento con blanco encima, que
+              es para lo que existe ese token— así que los dos controles de
+              esta columna se leen con la misma gramática. */}
           <div className="surface flex items-center justify-between px-2 py-1.5">
             {canShift(range) ? (
               <button
@@ -473,7 +480,7 @@ function Movements() {
             <button
               type="button"
               onClick={() => setRangeOpen(true)}
-              className="min-w-0 truncate rounded-full px-3 py-1 text-[17px] font-semibold transition active:bg-mist md:hover:bg-mist"
+              className="min-w-0 truncate rounded-full bg-accent px-3.5 py-1.5 text-[17px] font-semibold text-white transition active:bg-accent-deep md:hover:bg-accent-deep"
             >
               {rangeLabel(range)}
             </button>
@@ -527,7 +534,7 @@ function Movements() {
                   una, porque ahí sí hace falta. */}
               {categoryBreakdown.length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="eyebrow px-1">En qué se fue</h2>
+                  <h2 className="eyebrow px-1">Gastos por categoría:</h2>
                   {categoryBreakdown.map((group) => (
                     <div key={group.currency}>
                       {categoryBreakdown.length > 1 && (
