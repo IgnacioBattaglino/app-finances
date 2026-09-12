@@ -89,8 +89,13 @@ export async function getLiquidContributions({ month, year }) {
     // contributionAmount). Se lee de la cuenta y no de una lista en el cliente
     // porque los selectores no ofrecen las cuentas de ahorro ni las ocultas, y
     // una inversión vieja puede apuntar a cualquiera de las dos.
+    //
+    // `savings_account_id` del activo dice si esto fue una inversión o un
+    // ahorro: los activos que la migración 0038 convirtió en cuentas de ahorro
+    // lo llevan, y sus aportes no son "Invertido" sino "Ahorrado" (ver
+    // monthTotals).
     .select(
-      'id, date, direction, amount_usd, mep_rate, created_at, account_id, account:liquid_accounts(currency), asset:assets(id, name)',
+      'id, date, direction, amount_usd, mep_rate, created_at, account_id, account:liquid_accounts(currency), asset:assets(id, name, savings_account_id)',
     )
     .eq('affects_liquid', true)
     .gte('date', start)

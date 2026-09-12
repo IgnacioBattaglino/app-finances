@@ -1,13 +1,15 @@
 import { supabase } from './supabase.js'
 import { LOCAL_CURRENCY } from './currencyTotals.js'
-import { isMovedMoney, isBalanceAdjustment } from './systemCategories.js'
+import { isMovedMoney } from './systemCategories.js'
 
 // El join implícito trae el nombre y la llave de la categoría en la misma
 // query — la llave es lo que permite excluir "Movimiento de ahorro" de los
 // totales del mes sin depender del nombre visible (ver monthTotals). De la
-// cuenta hace falta si es de ahorro (para decidir si la fila se muestra, ver
-// getTransactions) y su nombre (para el mensaje de "parte de una
-// transferencia con..." de la pata hermana, ver accountTransfers.js).
+// cuenta hace falta si es de ahorro (para saber qué renglón de la lista le
+// toca y para el cálculo de "Ahorrado", ver monthTotals) y su nombre (para el
+// mensaje de "parte de una transferencia con..." de la pata hermana, ver
+// accountTransfers.js). `transfer_id` viaja en el `*`: es lo que aparea las
+// dos patas de una transferencia.
 // Exportado porque accountTransfers.js arma su propia consulta sobre esta
 // misma tabla y necesita la misma forma.
 export const SELECT = '*, category:categories(name, system_key), account:liquid_accounts(name, is_savings)'
@@ -67,21 +69,18 @@ export async function getTransactions({ month, year } = {}) {
     .order('created_at', { ascending: false })
   if (error) throw error
 
-  // Los movimientos de una cuenta de AHORRO no son gastos ni ingresos del día
-  // a día: son plata que cambió de lugar. Movimientos no los lista, y por eso
-  // tampoco entran en los totales del mes (monthTotals recibe justo esto).
+  // LOS MOVIMIENTOS DE UNA CUENTA DE AHORRO TAMBIÉN SON MOVIMIENTOS.
   //
-  // SALVO EL AJUSTE DE UN CONTEO, que sí es un gasto (o un ingreso) real: si
-  // contaste tu cuenta de ahorro y faltaba plata, esa plata falta de verdad.
-  // La premisa de esconder las cuentas de ahorro es que ahí no hay gastos
-  // reales, y desde el neteo de la migración 0041 el ajuste es exactamente
-  // eso; sin esta excepción, un gasto real quedaría invisible en Movimientos y
-  // en Inicio solo por la cuenta en la que cayó.
+  // Hasta acá se excluían enteros (salvo el ajuste de un conteo, que es un
+  // gasto real aunque caiga ahí): la pestaña se llamaba "Movimientos", no los
+  // tenía, y desde la pantalla no había forma de darse cuenta de que faltaban
+  // — solo aparecían en el historial de su cuenta.
   //
-  // Se filtra acá y no en la consulta porque el filtro sobre una tabla
-  // embebida obliga a un inner join, y eso se comería las filas con
-  // `account_id` null — el balde "sin cuenta", que sí tiene que aparecer.
-  return data.filter((t) => !t.account?.is_savings || isBalanceAdjustment(t.category))
+  // Que aparezcan en la lista no los convierte en gastos ni en ingresos: eso
+  // lo decide la categoría, en un solo lugar (isMovedMoney, ver monthTotals).
+  // Un aporte al ahorro es plata que cambió de lugar, igual que un aporte a un
+  // activo, y el renglón que lo cuenta es "Ahorrado", no "Gastos".
+  return data
 }
 
 // Movimientos de UNA cuenta puntual, paginados: el historial del detalle de

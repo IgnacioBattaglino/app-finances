@@ -175,18 +175,20 @@ describe('getTransactions (la lista de Movimientos)', () => {
     account: { name: 'Cuenta', is_savings: isSavings },
   })
 
-  it('no lista los movimientos de una cuenta de ahorro…', async () => {
-    h.rows = [row('savings_movement', true), row(null, true)]
-    expect(await getTransactions()).toEqual([])
+  it('lista también los movimientos de una cuenta de ahorro', async () => {
+    // Antes se excluían enteros: la pestaña se llama "Movimientos", no los
+    // tenía, y desde la pantalla no había forma de darse cuenta. Que aparezcan
+    // no los convierte en gastos ni en ingresos — eso lo decide la categoría
+    // (ver monthTotals), no la consulta.
+    h.rows = [row('savings_movement', true), row('account_transfer', true), row(null, true)]
+    expect(await getTransactions()).toHaveLength(3)
   })
 
-  it('…salvo el ajuste de un conteo, que es un gasto real aunque caiga ahí', async () => {
-    // Si contaste tu cuenta de ahorro y faltaba plata, esa plata falta de
-    // verdad. Sin esta excepción el gasto quedaría invisible en Movimientos y
-    // en Inicio solo por la cuenta en la que el neteo lo anotó.
-    h.rows = [row('balance_adjustment', true), row('account_transfer', true)]
+  it('no filtra ninguna categoría: la lista muestra lo que pasó', async () => {
+    h.rows = [row('balance_adjustment', true), row(null, false)]
     expect((await getTransactions()).map((t) => t.category.system_key)).toEqual([
       'balance_adjustment',
+      null,
     ])
   })
 

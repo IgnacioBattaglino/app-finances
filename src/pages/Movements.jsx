@@ -118,7 +118,47 @@ function InvestmentRow({ contribution: c }) {
   )
 }
 
-// Uno de los cuatro números del mes. El monto de la derecha es una COLUMNA:
+// Movimiento de una cuenta de AHORRO: un aporte, un retiro, la pata de una
+// transferencia o el ajuste de un conteo que cayó ahí. Mismo patrón que
+// InvestmentRow y por el mismo motivo: acá es de solo lectura y lleva al lugar
+// donde sí se edita —el detalle de la cuenta—, de ahí el chevron en vez del
+// lápiz.
+//
+// No es sólo una decisión de lectura: el formulario de esta pantalla ofrece
+// las cuentas del día a día (useAccounts no lista las de ahorro), así que
+// abrirlo acá con una fila de ahorro podría mudarla de cuenta al guardar. En
+// el detalle de la cuenta el modal sí recibe la suya.
+//
+// Sin color, igual que una inversión: lo que domina acá es plata que cambió de
+// lugar, no una pérdida ni una ganancia. El signo dice para qué lado, y el
+// nombre de la cuenta —debajo, como en cualquier fila— dice dónde.
+function SavingsRow({ tx }) {
+  return (
+    <Link to={`/plata/${tx.account_id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
+      <div className="min-w-0">
+        <p className="flex items-center gap-1.5 truncate text-[17px]">
+          <span className="truncate">
+            {tx.category?.name ?? 'Sin categoría'}
+            {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
+          </span>
+          <span className="shrink-0 text-ink-faint">
+            <Arrow direction="right" />
+          </span>
+        </p>
+        <p className="mt-0.5 truncate text-[13px] text-ink-soft">
+          {formatDay(tx.date)}
+          {tx.account?.name && ` · ${tx.account.name}`}
+        </p>
+      </div>
+      <span className="font-money shrink-0 text-[17px] font-medium">
+        {tx.kind === 'expense' ? '−' : '+'}
+        {formatByCurrency(transactionCurrencyOf(tx), tx.amount)}
+      </span>
+    </Link>
+  )
+}
+
+// Uno de los cinco números del mes. El monto de la derecha es una COLUMNA:
 // una línea por moneda con saldo (ver monthTotals / currencyLines), del mismo
 // tamaño y con el mismo color, porque son dos hechos del mismo rango — el
 // gasto en pesos no es más importante que el gasto en dólares, es otro.
@@ -260,7 +300,7 @@ function Movements() {
   const showInvestments = kind === 'all' && !categoryId
   const items = mergeMovements(filteredTransactions, showInvestments ? monthInvestments : [])
 
-  const { expenses, incomes, invested, balance } = monthTotals({
+  const { expenses, incomes, invested, saved, balance } = monthTotals({
     transactions: monthItems,
     contributions: monthInvestments,
   })
@@ -337,13 +377,16 @@ function Movements() {
           {!error && !loading && (
             <>
               {/* Los números del mes. Gastos e ingresos llevan su color; lo
-                  invertido no, porque no es ni una pérdida ni una ganancia
-                  —es plata que cambió de lugar—, y el balance tampoco, porque
-                  es una resta y su signo ya lo dice. */}
+                  invertido y lo ahorrado no, porque no son ni una pérdida ni
+                  una ganancia —es plata que cambió de lugar—, y el balance
+                  tampoco, porque es una resta y su signo ya lo dice.
+                  "Ahorrado" va pegado a "Invertido" porque se miden igual:
+                  plata que salió del disponible y no se gastó. */}
               <div className="surface divide-y divide-line">
                 <TotalRow label="Gastos" lines={expenses} amountClass="text-clay" />
                 <TotalRow label="Ingresos" lines={incomes} amountClass="text-gain" />
                 <TotalRow label="Invertido" lines={invested} />
+                <TotalRow label="Ahorrado" lines={saved} />
                 <TotalRow label="Balance" lines={balance} labelClass="text-[15px] font-medium" />
               </div>
 
@@ -429,6 +472,8 @@ function Movements() {
                 {items.map(({ source, row }) =>
                   source === 'contribution' ? (
                     <InvestmentRow key={`c-${row.id}`} contribution={row} />
+                  ) : row.account?.is_savings ? (
+                    <SavingsRow key={`t-${row.id}`} tx={row} />
                   ) : (
                     <TransactionRow
                       key={`t-${row.id}`}

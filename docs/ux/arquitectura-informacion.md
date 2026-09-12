@@ -165,6 +165,15 @@ esta pantalla (`getTransactions` los excluye), aunque son gastos e ingresos
 reales con su categoría. La pestaña se llama "Movimientos" y no los tiene, y no
 hay forma de darse cuenta desde la pantalla.
 
+> **Resuelto (C6).** `getTransactions` ya no excluye nada: los movimientos de
+> las cuentas de ahorro aparecen en la lista, con chevrón al detalle de su
+> cuenta (mismo patrón que una inversión, y por el mismo motivo — el formulario
+> de esta pantalla no ofrece cuentas de ahorro, así que editarlos acá podría
+> mudarlos). No cuentan como gasto ni como ingreso: tienen su propio renglón,
+> "Ahorrado", al lado de "Invertido" y con el mismo criterio. Queda abierta la
+> primera mitad del hallazgo: las tres afordancias (lápiz, chevrón a un activo,
+> chevrón a una cuenta) siguen viviendo en filas parecidas.
+
 ### H9 — "Eliminar" está al nivel de la lista, junto al saldo
 
 En Cuentas, cada fila muestra el nombre, el saldo y un "Eliminar" rojo en la

@@ -116,6 +116,7 @@ describe('monthTotals', () => {
       expenses: [{ currency: 'ARS', amount: 0 }],
       incomes: [{ currency: 'ARS', amount: 0 }],
       invested: [{ currency: 'ARS', amount: 0 }],
+      saved: [{ currency: 'ARS', amount: 0 }],
       balance: [{ currency: 'ARS', amount: 0 }],
     })
   })
@@ -204,5 +205,255 @@ describe('mergeMovements', () => {
   it('sin inversiones devuelve solo las transactions, como antes', () => {
     const merged = mergeMovements([expense, income], [])
     expect(merged.map((m) => m.row.id)).toEqual(['t1', 't2'])
+  })
+})
+
+// ── "Ahorrado": la plata que se fue del bolsillo al ahorro ────────────────
+// Aportar al ahorro "de mi disponible" es una transferencia entre cuentas
+// (SavingsMovementModal reusa createAccountTransfer): dos filas con el mismo
+// transfer_id, una en cada cuenta. Estos helpers arman ese par.
+describe('monthTotals → Ahorrado', () => {
+  const transferencia = ({ id, transferId, from, to, fromAmount, toAmount = fromAmount, date = '2026-07-15' }) => [
+    {
+      id: `${id}-out`,
+      date,
+      kind: 'expense',
+      amount: fromAmount,
+      currency: from.currency ?? 'ARS',
+      created_at: `${date}T10:00:00Z`,
+      transfer_id: transferId,
+      category: { name: 'Transferencia de cuenta', system_key: 'account_transfer' },
+      account: from,
+    },
+    {
+      id: `${id}-in`,
+      date,
+      kind: 'income',
+      amount: toAmount,
+      currency: to.currency ?? 'ARS',
+      created_at: `${date}T10:00:00Z`,
+      transfer_id: transferId,
+      category: { name: 'Transferencia de cuenta', system_key: 'account_transfer' },
+      account: to,
+    },
+  ]
+
+  const efectivo = { name: 'Efectivo', is_savings: false, currency: 'ARS' }
+  const mercadoPago = { name: 'Mercado Pago', is_savings: false, currency: 'ARS' }
+  const ahorro = { name: 'Ahorro', is_savings: true, currency: 'ARS' }
+  const ahorroUsd = { name: 'Ahorro USD', is_savings: true, currency: 'USD' }
+
+  const totals = (transactions, contributions = []) => monthTotals({ transactions, contributions })
+
+  it('un aporte al ahorro no mueve Gastos ni Ingresos, y sí Ahorrado', () => {
+    // La pata de salida es un 'expense' y la de entrada un 'income': si
+    // contaran como movimientos reales, el mes mostraría un gasto y un ingreso
+    // de $50.000 que nunca ocurrieron.
+    const t = totals(
+      transferencia({ id: 'ahorro1', transferId: 'tr-1', from: efectivo, to: ahorro, fromAmount: 50000 }),
+    )
+
+    expect(line(t.expenses)).toBe(0)
+    expect(line(t.incomes)).toBe(0)
+    expect(line(t.saved)).toBe(50000)
+  })
+
+  it('un retiro del ahorro lo descuenta', () => {
+    const t = totals([
+      ...transferencia({ id: 'a', transferId: 'tr-1', from: efectivo, to: ahorro, fromAmount: 50000 }),
+      ...transferencia({ id: 'b', transferId: 'tr-2', from: ahorro, to: efectivo, fromAmount: 20000, date: '2026-07-20' }),
+    ])
+
+    expect(line(t.saved)).toBe(30000)
+    expect(line(t.expenses)).toBe(0)
+    expect(line(t.incomes)).toBe(0)
+  })
+
+  it('sacar más de lo que se guardó da Ahorrado negativo, y el balance lo suma', () => {
+    const t = totals([
+      ...transferencia({ id: 'b', transferId: 'tr-2', from: ahorro, to: efectivo, fromAmount: 20000 }),
+    ])
+
+    expect(line(t.saved)).toBe(-20000)
+    // Balance = 0 − 0 − 0 − (−20.000): esa plata volvió al bolsillo.
+    expect(line(t.balance)).toBe(20000)
+  })
+
+  it('el balance resta lo ahorrado, igual que lo invertido', () => {
+    const t = totals(
+      [expense, income, ...transferencia({ id: 'a', transferId: 'tr-1', from: efectivo, to: ahorro, fromAmount: 50000 })],
+      [contribution, withdrawal],
+    )
+
+    // 500.000 − 30.000 − 95.000 − 50.000
+    expect(line(t.balance)).toBe(325000)
+    expect(line(t.saved)).toBe(50000)
+  })
+
+  it('una transferencia entre dos cuentas del día a día no es ahorro', () => {
+    // No cruza a ninguna cuenta de ahorro: la plata sigue en el disponible.
+    const t = totals(
+      transferencia({ id: 'x', transferId: 'tr-9', from: efectivo, to: mercadoPago, fromAmount: 10000 }),
+    )
+
+    expect(line(t.saved)).toBe(0)
+    expect(line(t.expenses)).toBe(0)
+    expect(line(t.incomes)).toBe(0)
+    expect(line(t.balance)).toBe(0)
+  })
+
+  it('mover plata de una cuenta de ahorro a otra no es ahorrar de nuevo', () => {
+    // Cruza dos veces, así que no cruza: las dos patas se cancelan solas.
+    const t = totals(
+      transferencia({ id: 'y', transferId: 'tr-8', from: ahorro, to: { ...ahorro, name: 'Ahorro 2' }, fromAmount: 7000 }),
+    )
+
+    expect(line(t.saved)).toBe(0)
+  })
+
+  it('el reparto de un conteo comparte categoría pero no es una transferencia', () => {
+    // Lo escribe reconcile_liquid y NO lleva transfer_id (migración 0041), así
+    // que queda afuera sin necesitar una regla aparte — aunque caiga en una
+    // cuenta de ahorro.
+    const t = totals([
+      {
+        id: 'r1',
+        date: '2026-07-15',
+        kind: 'income',
+        amount: 4000,
+        currency: 'ARS',
+        transfer_id: null,
+        category: { name: 'Transferencia de cuenta', system_key: 'account_transfer' },
+        account: ahorro,
+      },
+    ])
+
+    expect(line(t.saved)).toBe(0)
+    expect(line(t.incomes)).toBe(0)
+  })
+
+  it('un aporte "de afuera" no cuenta: esa plata nunca salió del bolsillo', () => {
+    // Mismo criterio que "Invertido", que solo mira los aportes con
+    // affects_liquid. Es una sola fila, sin transfer_id, en la cuenta de
+    // ahorro: aparece en la lista, pero no suma acá.
+    const t = totals([
+      {
+        id: 's1',
+        date: '2026-07-15',
+        kind: 'income',
+        amount: 80000,
+        currency: 'ARS',
+        transfer_id: null,
+        category: { name: 'Movimiento de ahorro', system_key: 'savings_movement' },
+        account: ahorro,
+      },
+    ])
+
+    expect(line(t.saved)).toBe(0)
+    expect(line(t.incomes)).toBe(0)
+    expect(line(t.expenses)).toBe(0)
+  })
+
+  it('el ajuste de un conteo en una cuenta de ahorro sigue siendo un gasto real', () => {
+    // No lo toca esta regla: si contaste tu ahorro y faltaba plata, falta de
+    // verdad (ADR-016).
+    const t = totals([
+      {
+        id: 'aj',
+        date: '2026-07-15',
+        kind: 'expense',
+        amount: 1500,
+        currency: 'ARS',
+        transfer_id: null,
+        category: { name: 'Ajuste de saldo', system_key: 'balance_adjustment' },
+        account: ahorro,
+      },
+    ])
+
+    expect(line(t.expenses)).toBe(1500)
+    expect(line(t.saved)).toBe(0)
+  })
+
+  it('con monedas distintas cuenta lo que salió del bolsillo, no lo que entró', () => {
+    // $60.000 salieron del efectivo y entraron US$ 50 al ahorro en dólares:
+    // cada pata guarda su monto en su moneda (migración 0040). Lo ahorrado son
+    // los pesos, que es lo que el balance en pesos tiene que restar.
+    const t = totals(
+      transferencia({
+        id: 'usd',
+        transferId: 'tr-7',
+        from: efectivo,
+        to: ahorroUsd,
+        fromAmount: 60000,
+        toAmount: 50,
+      }),
+    )
+
+    expect(line(t.saved)).toBe(60000)
+    expect(usdLine(t.saved, 'USD')).toBeUndefined()
+  })
+
+  it('una pata suelta, sin su hermana, no inventa un ahorro', () => {
+    const [salida] = transferencia({
+      id: 'sola',
+      transferId: 'tr-6',
+      from: efectivo,
+      to: ahorro,
+      fromAmount: 5000,
+    })
+
+    expect(line(totals([salida]).saved)).toBe(0)
+  })
+
+  it('sin cuentas de ahorro, los totales son exactamente los de antes', () => {
+    const t = totals([expense, income], [contribution, withdrawal])
+
+    expect(line(t.expenses)).toBe(30000)
+    expect(line(t.incomes)).toBe(500000)
+    expect(line(t.invested)).toBe(95000)
+    expect(line(t.balance)).toBe(375000)
+    expect(line(t.saved)).toBe(0)
+  })
+
+  it('un aporte a un activo que hoy es una cuenta de ahorro cuenta como ahorro, no como inversión', () => {
+    // La migración 0038 convirtió los activos que valían exactamente lo
+    // aportado en cuentas de ahorro, pero no tocó sus contributions: el lado en
+    // pesos sigue siendo un aporte. Sin esto, la plata que fue al colchón
+    // aparece bajo "Invertido".
+    const alColchon = {
+      id: 'c9',
+      date: '2026-07-02',
+      direction: 'in',
+      amount_usd: 100,
+      mep_rate: 1200,
+      created_at: '2026-07-02T10:00:00Z',
+      asset: { id: 'a9', name: 'USDs físicos', savings_account_id: 'acc-ahorro' },
+    }
+
+    const t = totals([], [alColchon])
+
+    expect(line(t.saved)).toBe(120000)
+    expect(line(t.invested)).toBe(0)
+    expect(line(t.balance)).toBe(-120000)
+  })
+
+  it('un retiro de ese mismo activo descuenta del ahorro', () => {
+    const delColchon = {
+      id: 'c10',
+      date: '2026-07-20',
+      direction: 'out',
+      amount_usd: 20,
+      mep_rate: 1250,
+      created_at: '2026-07-20T10:00:00Z',
+      asset: { id: 'a9', name: 'USDs físicos', savings_account_id: 'acc-ahorro' },
+    }
+
+    expect(line(totals([], [delColchon]).saved)).toBe(-25000)
+  })
+
+  it('un aporte a un activo de verdad sigue siendo inversión', () => {
+    const t = totals([], [contribution])
+    expect(line(t.invested)).toBe(120000)
+    expect(line(t.saved)).toBe(0)
   })
 })
