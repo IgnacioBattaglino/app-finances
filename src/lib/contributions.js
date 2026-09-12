@@ -97,8 +97,13 @@ export async function getLiquidContributions({ from, to } = {}) {
       // ahorro: los activos que la migración 0038 convirtió en cuentas de
       // ahorro lo llevan, y sus aportes no son "Invertido" sino "Ahorrado"
       // (ver monthTotals).
+      //
+      // `is_archived`: un activo archivado no tiene detalle al que navegar
+      // (getAssets lo filtra, igual que Portafolio no linkea sus filas
+      // archivadas), así que la fila lo necesita para decidir si se puede
+      // tocar (ver InvestmentRow en Movements.jsx).
       .select(
-        'id, date, direction, amount_usd, mep_rate, created_at, account_id, account:liquid_accounts(currency), asset:assets(id, name, savings_account_id)',
+        'id, date, direction, amount_usd, mep_rate, created_at, account_id, account:liquid_accounts(currency), asset:assets(id, name, savings_account_id, is_archived)',
       )
       .eq('affects_liquid', true)
     if (from) query = query.gte('date', from)

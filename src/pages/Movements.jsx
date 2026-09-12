@@ -127,8 +127,38 @@ function TransactionRow({ tx, onEdit }) {
 // la moneda de la cuenta por la que pasó la plata —igual que el resto de la
 // lista— y sin color: no es una pérdida ni una ganancia, es plata que cambió
 // de lugar. El signo dice para qué lado.
-function InvestmentRow({ contribution: c }) {
+//
+// Un activo ARCHIVADO no tiene a dónde ir: getAssets() lo filtra, así que
+// AssetDetail no lo encuentra y redirige a Inversiones sin explicación (era
+// el bug). Portafolio tampoco linkea sus filas archivadas -- acá se sigue el
+// mismo criterio: la fila se ve, pero no se toca, sin chevron y sin el
+// resalte al tacto de una fila interactiva, y con una segunda línea que dice
+// por qué.
+export function InvestmentRow({ contribution: c }) {
   const isOut = c.direction === 'out'
+  const amount = (
+    <span className="font-money shrink-0 text-[17px] font-medium">
+      {isOut ? '+' : '−'}
+      {formatByCurrency(contributionCurrency(c), contributionAmount(c))}
+    </span>
+  )
+
+  if (c.asset?.is_archived) {
+    return (
+      <div className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+        <div className="min-w-0">
+          <p className="truncate text-[17px] text-ink-soft">
+            {contributionLabel(c)} · {c.asset?.name ?? 'Activo'}
+          </p>
+          <p className="mt-0.5 text-[13px] text-ink-faint">
+            {formatDay(c.date)} · Activo archivado
+          </p>
+        </div>
+        {amount}
+      </div>
+    )
+  }
+
   return (
     <Link to={`/inversiones/${c.asset?.id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
       <div className="min-w-0">
@@ -143,10 +173,7 @@ function InvestmentRow({ contribution: c }) {
         </p>
         <p className="mt-0.5 text-[13px] text-ink-soft">{formatDay(c.date)}</p>
       </div>
-      <span className="font-money shrink-0 text-[17px] font-medium">
-        {isOut ? '+' : '−'}
-        {formatByCurrency(contributionCurrency(c), contributionAmount(c))}
-      </span>
+      {amount}
     </Link>
   )
 }
