@@ -25,7 +25,7 @@ function CreateAssetTypeForm({ onCreated, onCancel }) {
       setName('')
       onCreated(created)
     } catch (e) {
-      setError({ message: 'No se pudo crear el grupo.', detail: e.message })
+      setError({ message: 'No se pudo crear el grupo.', detail: e })
     } finally {
       setBusy(false)
     }

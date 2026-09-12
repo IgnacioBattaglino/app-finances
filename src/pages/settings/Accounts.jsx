@@ -94,7 +94,7 @@ function Accounts() {
       setAccounts(accountRows.map((a) => ({ ...a, amount: byId.get(a.id) ?? 0 })))
       setDebtsBalance(summarizeDebts(debts).totalBalance)
     } catch (e) {
-      setError({ message: 'No se pudieron cargar las cuentas.', detail: e.message })
+      setError({ message: 'No se pudieron cargar las cuentas.', detail: e })
     } finally {
       setLoading(false)
     }
@@ -115,7 +115,7 @@ function Accounts() {
     try {
       await reorderAccounts(orderedSubset)
     } catch (e) {
-      setError({ message: 'No se pudo guardar el orden.', detail: e.message })
+      setError({ message: 'No se pudo guardar el orden.', detail: e })
       load()
     }
   }

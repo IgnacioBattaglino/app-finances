@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { UserError } from './errors.js'
 
 // Cuentas del disponible (migración 0032): dónde está FÍSICAMENTE la plata que
 // la app cuenta como disponible — efectivo, Mercado Pago, Cuenta DNI. El total
@@ -68,7 +69,7 @@ export async function createAccount(name, { currency = 'ARS', isSavings = false 
   if (findError) throw findError
 
   const active = existing.find((account) => !account.is_archived)
-  if (active) throw new Error(`Ya existe la cuenta "${active.name}".`)
+  if (active) throw new UserError(`Ya existe la cuenta "${active.name}".`)
 
   const hidden = existing.find((account) => account.is_archived)
   const position = await nextPosition()

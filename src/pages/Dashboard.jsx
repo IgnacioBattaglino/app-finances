@@ -308,7 +308,7 @@ function Dashboard() {
     try {
       setLiquid(await computeCurrentLiquid())
     } catch (e) {
-      setLiquidError({ message: 'No se pudo calcular el disponible.', detail: e.message })
+      setLiquidError({ message: 'No se pudo calcular el disponible.', detail: e })
     } finally {
       setLiquidLoading(false)
     }
@@ -320,7 +320,7 @@ function Dashboard() {
     try {
       setDebts(await getDebts())
     } catch (e) {
-      setDebtsError({ message: 'No se pudieron cargar las deudas.', detail: e.message })
+      setDebtsError({ message: 'No se pudieron cargar las deudas.', detail: e })
     } finally {
       setDebtsLoading(false)
     }
@@ -374,7 +374,7 @@ function Dashboard() {
         })
       })
       .catch((e) => {
-        if (!cancelled) setUsdTotalsError({ message: 'No se pudo calcular el total.', detail: e.message })
+        if (!cancelled) setUsdTotalsError({ message: 'No se pudo calcular el total.', detail: e })
       })
     return () => {
       cancelled = true
@@ -386,7 +386,7 @@ function Dashboard() {
     getCategories()
       .then(setCategories)
       .catch((e) =>
-        setCategoriesError({ message: 'No se pudieron cargar las categorías.', detail: e.message }),
+        setCategoriesError({ message: 'No se pudieron cargar las categorías.', detail: e }),
       )
   }
 

@@ -66,7 +66,7 @@ function Portfolio() {
     try {
       setArchivedAssets(await getArchivedAssets())
     } catch (e) {
-      setArchivedError({ message: 'No se pudieron cargar los activos archivados.', detail: e.message })
+      setArchivedError({ message: 'No se pudieron cargar los activos archivados.', detail: e })
     }
   }
 
@@ -81,7 +81,7 @@ function Portfolio() {
       setArchivedAssets((prev) => prev.filter((a) => a.id !== id))
       load()
     } catch (e) {
-      setArchivedError({ message: 'No se pudo restaurar el activo.', detail: e.message })
+      setArchivedError({ message: 'No se pudo restaurar el activo.', detail: e })
     }
   }
 

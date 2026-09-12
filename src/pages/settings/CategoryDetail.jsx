@@ -26,7 +26,7 @@ function CategoryDetail() {
         setName(data.name)
       })
       .catch((e) => {
-        if (active) setError({ message: 'No se pudo cargar la categoría.', detail: e.message })
+        if (active) setError({ message: 'No se pudo cargar la categoría.', detail: e })
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -45,7 +45,7 @@ function CategoryDetail() {
     try {
       setCategory(await renameCategory(category.id, trimmed))
     } catch (e) {
-      setError({ message: 'No se pudo renombrar la categoría.', detail: e.message })
+      setError({ message: 'No se pudo renombrar la categoría.', detail: e })
     } finally {
       setBusy(false)
     }

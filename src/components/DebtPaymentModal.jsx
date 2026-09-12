@@ -124,7 +124,7 @@ function DebtPaymentModal({
       const saved = editing ? await updatePayment(initial.id, fields) : await createPayment(fields)
       onSaved(saved)
     } catch (e) {
-      setError({ message: 'No se pudo guardar el pago.', detail: e.message })
+      setError({ message: 'No se pudo guardar el pago.', detail: e })
       setBusy(false)
     }
   }
@@ -136,7 +136,7 @@ function DebtPaymentModal({
       await deletePayment(initial.id)
       onDeleted?.(initial.id)
     } catch (e) {
-      setError({ message: 'No se pudo eliminar el pago.', detail: e.message })
+      setError({ message: 'No se pudo eliminar el pago.', detail: e })
       setBusy(false)
     }
   }

@@ -43,7 +43,7 @@ function ResetPassword() {
     if (updateError) {
       setError({
         message: 'No se pudo guardar la contraseña. Probá de nuevo.',
-        detail: updateError.message,
+        detail: updateError,
       })
       return
     }

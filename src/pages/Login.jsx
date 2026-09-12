@@ -41,7 +41,7 @@ function Login() {
           ? { message: 'Email o contraseña incorrectos.' }
           : {
               message: 'No se pudo iniciar sesión. Verificá tus datos o probá de nuevo.',
-              detail: signInError.message,
+              detail: signInError,
             },
       )
     }

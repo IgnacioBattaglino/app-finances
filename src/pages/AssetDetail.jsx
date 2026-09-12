@@ -112,7 +112,7 @@ function AssetDetail() {
       setValuations(valuationsData)
     } catch (e) {
       if (isCancelled()) return
-      setError({ message: 'No se pudo cargar el activo.', detail: e.message })
+      setError({ message: 'No se pudo cargar el activo.', detail: e })
     } finally {
       if (!isCancelled()) setLoading(false)
     }

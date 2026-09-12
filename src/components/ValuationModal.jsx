@@ -62,7 +62,7 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
       }
       onSaved(saved)
     } catch (e) {
-      setError({ message: 'No se pudieron guardar las valuaciones.', detail: e.message })
+      setError({ message: 'No se pudieron guardar las valuaciones.', detail: e })
       setBusy(false)
     }
   }

@@ -128,7 +128,7 @@ function LiquidModal({ open, onClose, onSaved }) {
     computeCurrentLiquid()
       .then(setState)
       .catch((e) =>
-        setError({ message: 'No se pudo calcular el disponible.', detail: e.message }),
+        setError({ message: 'No se pudo calcular el disponible.', detail: e }),
       )
   }, [open])
 
@@ -206,7 +206,7 @@ function LiquidModal({ open, onClose, onSaved }) {
     try {
       onSaved(await reconcile({ date: todayISO(), declarations }))
     } catch (e) {
-      setError({ message: 'No se pudo guardar la reconciliación.', detail: e.message })
+      setError({ message: 'No se pudo guardar la reconciliación.', detail: e })
       setBusy(false)
     }
   }

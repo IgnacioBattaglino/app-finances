@@ -153,7 +153,7 @@ function ContributionFormModal({
       await deleteTransfer(initial.transfer_id)
       onDeleted?.(initial.id)
     } catch (e) {
-      setError({ message: 'No se pudo eliminar la transferencia.', detail: e.message })
+      setError({ message: 'No se pudo eliminar la transferencia.', detail: e })
       setBusy(false)
     }
   }
@@ -356,7 +356,7 @@ function ContributionFormModal({
       }
       onSaved(saved)
     } catch (e) {
-      setError({ message: `No se pudo guardar el ${copy.entity}.`, detail: e.message })
+      setError({ message: `No se pudo guardar el ${copy.entity}.`, detail: e })
       setBusy(false)
     }
   }
@@ -368,7 +368,7 @@ function ContributionFormModal({
       await deleteContribution(initial.id)
       onDeleted?.(initial.id)
     } catch (e) {
-      setError({ message: `No se pudo eliminar el ${copy.entity}.`, detail: e.message })
+      setError({ message: `No se pudo eliminar el ${copy.entity}.`, detail: e })
       setBusy(false)
     }
   }

@@ -110,7 +110,7 @@ function AccountDetail() {
     setLoading(true)
     reload()
       .catch((e) => {
-        if (active) setError({ message: 'No se pudo cargar la cuenta.', detail: e.message })
+        if (active) setError({ message: 'No se pudo cargar la cuenta.', detail: e })
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -144,7 +144,7 @@ function AccountDetail() {
     try {
       setAccount(await renameAccount(account.id, trimmed))
     } catch (e) {
-      setError({ message: 'No se pudo renombrar la cuenta.', detail: e.message })
+      setError({ message: 'No se pudo renombrar la cuenta.', detail: e })
     } finally {
       setBusy(false)
     }
@@ -157,7 +157,7 @@ function AccountDetail() {
     try {
       setAccount(await setAccountCurrency(account.id, next))
     } catch (e) {
-      setError({ message: 'No se pudo cambiar la moneda.', detail: e.message })
+      setError({ message: 'No se pudo cambiar la moneda.', detail: e })
     } finally {
       setBusy(false)
     }
@@ -169,7 +169,7 @@ function AccountDetail() {
     try {
       setAccount(await setAccountSavings(account.id, next))
     } catch (e) {
-      setError({ message: 'No se pudo cambiar el tipo de cuenta.', detail: e.message })
+      setError({ message: 'No se pudo cambiar el tipo de cuenta.', detail: e })
     } finally {
       setBusy(false)
     }
@@ -194,7 +194,7 @@ function AccountDetail() {
       await deleteAccount(account.id)
       navigate('/plata')
     } catch (e) {
-      setError({ message: 'No se pudo eliminar la cuenta.', detail: e.message })
+      setError({ message: 'No se pudo eliminar la cuenta.', detail: e })
       setBusy(false)
       setConfirmingDelete(false)
     }

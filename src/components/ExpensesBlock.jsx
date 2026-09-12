@@ -77,7 +77,7 @@ function ExpensesBlock({ reloadToken = 0 }) {
       const from = `${monthKey(months[0])}-01`
       setExpenses(await getExpenses({ from, to: today }))
     } catch (e) {
-      setError({ message: 'No se pudieron cargar los gastos.', detail: e.message })
+      setError({ message: 'No se pudieron cargar los gastos.', detail: e })
     } finally {
       setLoading(false)
     }

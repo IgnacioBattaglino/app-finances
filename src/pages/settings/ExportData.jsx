@@ -65,7 +65,7 @@ function ExportData() {
       setTransactions(tx)
       setOperations(ops)
     } catch (e) {
-      setError({ message: 'No se pudieron cargar tus datos.', detail: e.message })
+      setError({ message: 'No se pudieron cargar tus datos.', detail: e })
     }
   }
 

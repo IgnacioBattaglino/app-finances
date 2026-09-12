@@ -124,7 +124,7 @@ function LiquidatePositionModal({
       if (archiveAfter) await archiveAsset(asset.id)
       onSaved(saved)
     } catch (e) {
-      setError({ message: 'No se pudo liquidar la posición.', detail: e.message })
+      setError({ message: 'No se pudo liquidar la posición.', detail: e })
       setBusy(false)
     }
   }

@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { round } from './money.js'
+import { UserError } from './errors.js'
 
 // Los pagos vienen en la misma query que la deuda: el saldo no se puede leer
 // sin ellos (es original − pagos, calculado siempre al vuelo, nunca guardado).
@@ -99,7 +100,7 @@ export async function deleteDebt(id) {
     .eq('debt_id', id)
   if (countError) throw countError
   if (count > 0) {
-    throw new Error(
+    throw new UserError(
       `Esta deuda tiene ${count} ${count === 1 ? 'pago registrado' : 'pagos registrados'}. Borrá los pagos primero.`,
     )
   }

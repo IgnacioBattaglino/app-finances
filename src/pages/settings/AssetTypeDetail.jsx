@@ -167,7 +167,7 @@ function AssetTypeDetail() {
         setName(data.name)
       })
       .catch((e) => {
-        if (active) setError({ message: 'No se pudo cargar el grupo.', detail: e.message })
+        if (active) setError({ message: 'No se pudo cargar el grupo.', detail: e })
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -183,7 +183,7 @@ function AssetTypeDetail() {
     try {
       return await action()
     } catch (e) {
-      setError({ message, detail: e.message })
+      setError({ message, detail: e })
       return null
     } finally {
       setBusy(false)
@@ -244,7 +244,7 @@ function AssetTypeDetail() {
       // criterio que el botón de atrás de arriba).
       navigate(fromPortfolio ? '/inversiones' : '/inversiones/grupos')
     } catch (e) {
-      setError({ message, detail: e.message })
+      setError({ message, detail: e })
       setBusy(false)
     }
   }

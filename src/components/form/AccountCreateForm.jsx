@@ -44,7 +44,7 @@ function AccountCreateForm({
     try {
       onCreated(await createAccount(trimmed, extended ? { currency, isSavings } : undefined))
     } catch (e) {
-      setError({ message: 'No se pudo crear la cuenta.', detail: e.message })
+      setError({ message: 'No se pudo crear la cuenta.', detail: e })
       setBusy(false)
     }
   }

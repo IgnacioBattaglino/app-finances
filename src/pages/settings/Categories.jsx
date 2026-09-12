@@ -36,7 +36,7 @@ function NewCategoryRow({ kind, onCreated }) {
       onCreated(await createCategory(trimmed, kind))
       close()
     } catch (e) {
-      setError({ message: 'No se pudo crear la categoría.', detail: e.message })
+      setError({ message: 'No se pudo crear la categoría.', detail: e })
     } finally {
       setBusy(false)
     }
@@ -95,7 +95,7 @@ function CategoryRow({ category, dragHandlers, onDeleted, onError }) {
       const { deleted } = await deleteCategory(category.id)
       onDeleted(category.id, deleted)
     } catch (e) {
-      onError({ message: 'No se pudo eliminar la categoría.', detail: e.message })
+      onError({ message: 'No se pudo eliminar la categoría.', detail: e })
       setBusy(false)
       setConfirming(false)
     }
@@ -185,7 +185,7 @@ function Categories() {
     try {
       setCategories(await getCategories())
     } catch (e) {
-      setError({ message: 'No se pudieron cargar las categorías.', detail: e.message })
+      setError({ message: 'No se pudieron cargar las categorías.', detail: e })
     } finally {
       setLoading(false)
     }
@@ -216,7 +216,7 @@ function Categories() {
     try {
       await reorderCategories(ordered)
     } catch (e) {
-      setError({ message: 'No se pudo guardar el orden.', detail: e.message })
+      setError({ message: 'No se pudo guardar el orden.', detail: e })
       load()
     }
   }

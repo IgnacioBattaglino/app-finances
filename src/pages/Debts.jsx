@@ -150,7 +150,7 @@ function Debts() {
     try {
       setDebts(await getDebts())
     } catch (e) {
-      setError({ message: 'No se pudieron cargar las deudas.', detail: e.message })
+      setError({ message: 'No se pudieron cargar las deudas.', detail: e })
     } finally {
       setLoading(false)
     }

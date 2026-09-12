@@ -57,7 +57,7 @@ function InstrumentPicker({ value, onChange }) {
     getInstruments()
       .then(setCatalog)
       .catch((e) =>
-        setLoadError({ message: 'No se pudo cargar la lista de activos de mercado.', detail: e.message }),
+        setLoadError({ message: 'No se pudo cargar la lista de activos de mercado.', detail: e }),
       )
   }
 

@@ -44,7 +44,7 @@ export function usePortfolio() {
       setContributions(contributionsData)
       setLatestValuations(valuationsData)
     } catch (e) {
-      setError({ message: 'No se pudo cargar el portafolio.', detail: e.message })
+      setError({ message: 'No se pudo cargar el portafolio.', detail: e })
     } finally {
       setLoading(false)
     }

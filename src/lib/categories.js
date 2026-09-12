@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { UserError } from './errors.js'
 
 // Las categorías se ordenan por `position`, que el usuario arrastra en
 // Ajustes: antes salían alfabéticas y no había forma de poner adelante las
@@ -42,7 +43,7 @@ export async function getSystemCategory(kind, systemKey) {
     .limit(1)
     .maybeSingle()
   if (error) throw error
-  if (!data) throw new Error(`Falta la categoría del sistema "${systemKey}" (${kind}).`)
+  if (!data) throw new UserError(`Falta la categoría del sistema "${systemKey}" (${kind}).`)
   return data.id
 }
 
@@ -77,7 +78,7 @@ export async function createCategory(name, kind) {
   if (findError) throw findError
 
   const active = existing.find((cat) => !cat.is_archived)
-  if (active) throw new Error(`Ya existe la categoría "${active.name}".`)
+  if (active) throw new UserError(`Ya existe la categoría "${active.name}".`)
 
   const hidden = existing.find((cat) => cat.is_archived)
   const position = await nextPosition(kind)
@@ -121,7 +122,7 @@ export async function deleteCategory(id) {
     .single()
   if (findError) throw findError
   if (category.is_system) {
-    throw new Error('Es una categoría del sistema: no se puede eliminar.')
+    throw new UserError('Es una categoría del sistema: no se puede eliminar.')
   }
 
   const { error } = await supabase.from('categories').delete().eq('id', id)

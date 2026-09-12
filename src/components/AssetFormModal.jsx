@@ -129,7 +129,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
         : await createAsset(fields)
       onSaved(saved)
     } catch (e) {
-      setError({ message: 'No se pudo guardar el activo.', detail: e.message })
+      setError({ message: 'No se pudo guardar el activo.', detail: e })
       setBusy(false)
     }
   }
@@ -141,7 +141,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
       await archiveAsset(initial.id)
       onArchived?.(initial.id)
     } catch (e) {
-      setError({ message: 'No se pudo archivar el activo.', detail: e.message })
+      setError({ message: 'No se pudo archivar el activo.', detail: e })
       setBusy(false)
     }
   }

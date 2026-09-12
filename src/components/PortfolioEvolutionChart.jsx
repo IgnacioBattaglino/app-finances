@@ -130,7 +130,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
       const data = await getPortfolioSeries(from, today)
       setSeries(trimLeadingZeros(data))
     } catch (e) {
-      setError({ message: 'No se pudo cargar la evolución del portafolio.', detail: e.message })
+      setError({ message: 'No se pudo cargar la evolución del portafolio.', detail: e })
     } finally {
       setLoading(false)
     }

@@ -151,7 +151,7 @@ function SavingsMovementModal({
       }
       onSaved()
     } catch (e) {
-      setError({ message: `No se pudo guardar el ${copy.entity}.`, detail: e.message })
+      setError({ message: `No se pudo guardar el ${copy.entity}.`, detail: e })
       setBusy(false)
     }
   }

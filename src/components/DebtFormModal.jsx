@@ -48,7 +48,7 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
       const saved = editing ? await updateDebt(initial.id, fields) : await createDebt(fields)
       onSaved(saved)
     } catch (e) {
-      setError({ message: 'No se pudo guardar la deuda.', detail: e.message })
+      setError({ message: 'No se pudo guardar la deuda.', detail: e })
       setBusy(false)
     }
   }
@@ -62,7 +62,7 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
       await deleteDebt(initial.id)
       onDeleted?.(initial.id)
     } catch (e) {
-      setError({ message: 'No se pudo eliminar la deuda.', detail: e.message })
+      setError({ message: 'No se pudo eliminar la deuda.', detail: e })
       setBusy(false)
       setConfirmDelete(false)
     }

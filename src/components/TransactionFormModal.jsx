@@ -116,7 +116,7 @@ function TransactionFormModal({
       await deleteAccountTransfer(initial.transfer_id)
       onDeleted?.(initial.id)
     } catch (e) {
-      setError({ message: 'No se pudo eliminar la transferencia.', detail: e.message })
+      setError({ message: 'No se pudo eliminar la transferencia.', detail: e })
       setBusy(false)
     }
   }
@@ -246,7 +246,7 @@ function TransactionFormModal({
       setCreatingCategory(false)
       setNewCategoryName('')
     } catch (e) {
-      setCategoryError({ message: 'No se pudo crear la categoría.', detail: e.message })
+      setCategoryError({ message: 'No se pudo crear la categoría.', detail: e })
     } finally {
       setCategoryBusy(false)
     }
@@ -264,7 +264,7 @@ function TransactionFormModal({
         : await createTransaction(fields)
       onSaved(saved)
     } catch (e) {
-      setError({ message: 'No se pudo guardar el movimiento.', detail: e.message })
+      setError({ message: 'No se pudo guardar el movimiento.', detail: e })
       setBusy(false)
     }
   }
@@ -276,7 +276,7 @@ function TransactionFormModal({
       await deleteTransaction(initial.id)
       onDeleted?.(initial.id)
     } catch (e) {
-      setError({ message: 'No se pudo eliminar el movimiento.', detail: e.message })
+      setError({ message: 'No se pudo eliminar el movimiento.', detail: e })
       setBusy(false)
     }
   }

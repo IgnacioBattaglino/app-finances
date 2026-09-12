@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { UserError } from './errors.js'
 
 // Conversión de moneda local a dólares — el ÚNICO lugar del código que la
 // hace. Hoy la resuelve el dólar MEP (instruments source='mep', symbol='mep',
@@ -49,7 +50,7 @@ async function loadRates(from) {
     .order('date', { ascending: false })
     .limit(1000)
   if (pricesError) throw pricesError
-  if (prices.length === 0) throw new Error('No hay cotizaciones cargadas para convertir a dólares.')
+  if (prices.length === 0) throw new UserError('No hay cotizaciones cargadas para convertir a dólares.')
   return prices.slice().reverse()
 }
 

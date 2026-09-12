@@ -219,7 +219,7 @@ function TransferFormModal({
       })
       onSaved(saved)
     } catch (e) {
-      setError({ message: 'No se pudo guardar la transferencia.', detail: e.message })
+      setError({ message: 'No se pudo guardar la transferencia.', detail: e })
       setBusy(false)
     }
   }

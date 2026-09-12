@@ -50,7 +50,7 @@ function AssetTypes() {
       setAssetTypes(active)
       setArchived(inactive)
     } catch (e) {
-      setError({ message: 'No se pudieron cargar los grupos.', detail: e.message })
+      setError({ message: 'No se pudieron cargar los grupos.', detail: e })
     } finally {
       setLoading(false)
     }

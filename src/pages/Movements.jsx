@@ -179,7 +179,7 @@ function Movements() {
       setMonthItems(transactions)
       setMonthInvestments(investments)
     } catch (e) {
-      setError({ message: 'No se pudieron cargar los movimientos.', detail: e.message })
+      setError({ message: 'No se pudieron cargar los movimientos.', detail: e })
     } finally {
       setLoading(false)
     }

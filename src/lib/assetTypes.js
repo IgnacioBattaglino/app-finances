@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { UserError } from './errors.js'
 
 export async function getAssetTypes() {
   const { data, error } = await supabase
@@ -65,7 +66,7 @@ export async function createAssetType({ name, earnsYield }) {
 export async function moveAssetType(id, direction) {
   const active = await getAssetTypes()
   const index = active.findIndex((at) => at.id === id)
-  if (index === -1) throw new Error('El grupo no está entre los activos.')
+  if (index === -1) throw new UserError('El grupo no está entre los activos.')
 
   const target = direction === 'up' ? index - 1 : index + 1
   if (target < 0 || target >= active.length) return active
