@@ -52,8 +52,15 @@ function TransactionFormModal({
   const [transferSibling, setTransferSibling] = useState(null)
   const [confirmDeleteTransfer, setConfirmDeleteTransfer] = useState(false)
   // El conteo que escribió este movimiento, si lo escribió uno (ver
-  // getReconciliationOf): null mientras carga o si no es parte de ninguno.
-  const [reconciliation, setReconciliation] = useState(null)
+  // getReconciliationOf). Tres estados, no dos: `undefined` mientras no se
+  // sabe todavía (couldBeReconciliation es una sospecha por categoría, más
+  // barata que consultar; ver abajo), el objeto una vez confirmado, y `null`
+  // si se confirmó que NO es parte de ninguno — un movimiento de ahorro "de
+  // afuera" comparte categoría con el reparto de un conteo pero no lo es. La
+  // fila se muestra de solo lectura mientras el valor no sea `null` (ver el
+  // render): así nunca hay una ventana donde se pueda editar un movimiento
+  // que después resulta ser parte de un conteo.
+  const [reconciliation, setReconciliation] = useState(undefined)
 
   const editing = Boolean(initial?.id)
   const isTransferPart = Boolean(initial?.transfer_id)
@@ -84,12 +91,14 @@ function TransactionFormModal({
     setCategoryError(null)
     setTransferSibling(null)
     setConfirmDeleteTransfer(false)
-    setReconciliation(null)
+    setReconciliation(undefined)
   }, [open, initial, defaultKind, defaultAccountId])
 
-  // Un fallo buscándolo no bloquea nada: sin el dato el formulario se comporta
-  // como con cualquier movimiento, y el borrado --que igual pasa por la base--
-  // avisa si no se puede.
+  // Mientras esto no resuelve, la fila se muestra de solo lectura si
+  // `couldBeReconciliation` sospecha que hace falta (ver el render) — así que
+  // acá SÍ hace falta avisar si falla, a diferencia de otros datos
+  // complementarios del formulario: sin resolver, la fila quedaría de solo
+  // lectura para siempre en vez de caer a "no es parte de ninguno".
   useEffect(() => {
     if (!open || !couldBeReconciliation) return
     let cancelled = false
@@ -97,7 +106,9 @@ function TransactionFormModal({
       .then((found) => {
         if (!cancelled) setReconciliation(found)
       })
-      .catch(() => {})
+      .catch((e) => {
+        if (!cancelled) setError({ message: 'No se pudo confirmar si esto es parte de un conteo.', detail: e })
+      })
     return () => {
       cancelled = true
     }
@@ -134,6 +145,22 @@ function TransactionFormModal({
       Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
       {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta — te
       conviene volver a contarla después de guardar.
+    </p>
+  )
+
+  // Lo que este movimiento es en realidad: una de las cosas que escribió un
+  // conteo, y que no se sostienen por separado (ver ADR-016). Se dice antes de
+  // tocar nada. Movida acá arriba (antes vivía después del branch de
+  // transferencia) porque ahora también la usa el branch de solo lectura de
+  // un conteo, más abajo.
+  const reconciliationNotice = reconciliation && (
+    <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+      Esto lo escribió «Contar mi plata» el {formatDayYear(reconciliation.date)}
+      {reconciliation.movements > 1
+        ? `, junto con ${reconciliation.movements - 1} ${
+            reconciliation.movements === 2 ? 'movimiento más' : 'movimientos más'
+          }. Se sostienen entre sí, así que se borran juntos.`
+        : '.'}
     </p>
   )
 
@@ -228,23 +255,96 @@ function TransactionFormModal({
     )
   }
 
-  // La categoría del sistema ("Ajuste de saldo") no se ofrece acá: solo la usa
-  // la reconciliación del líquido. Un movimiento que ya la tenga asignada
-  // (por una reconciliación) se sigue mostrando normal en el historial —
-  // esto solo afecta qué se puede ELEGIR de nuevo.
-  // Lo que este movimiento es en realidad: una de las cosas que escribió un
-  // conteo, y que no se sostienen por separado (ver ADR-016). Se dice antes de
-  // tocar nada, no recién en la confirmación del borrado.
-  const reconciliationNotice = reconciliation && (
-    <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
-      Esto lo escribió «Contar mi plata» el {formatDayYear(reconciliation.date)}
-      {reconciliation.movements > 1
-        ? `, junto con ${reconciliation.movements - 1} ${
-            reconciliation.movements === 2 ? 'movimiento más' : 'movimientos más'
-          }. Se sostienen entre sí, así que se borran juntos.`
-        : '.'}
-    </p>
-  )
+  // Un "Ajuste de saldo" o un "Reparto entre cuentas": lo escribió un conteo
+  // y sus piezas no se sostienen por separado, igual que las dos patas de una
+  // transferencia (ver deleteReconciliation). Se muestra de solo lectura,
+  // mismo patrón que el branch de arriba: se explica qué es y el único camino
+  // es borrar el conteo entero.
+  //
+  // La condición es `!== null` y no la sospecha `couldBeReconciliation` sola:
+  // mientras `reconciliation` no resolvió (`undefined`) ya se entra acá para
+  // no dejar ni un instante en que se vea el formulario editable de siempre
+  // con la categoría vacía y Guardar habilitado (el bug de la sección 5.2).
+  // Si al resolver resulta que NO es parte de ningún conteo (un movimiento de
+  // ahorro "de afuera", que comparte categoría con el reparto pero es una
+  // fila real y editable) se sigue de largo al formulario normal.
+  if (couldBeReconciliation && reconciliation !== null) {
+    const loaded = Boolean(reconciliation)
+    return (
+      <FormSheet
+        title={initial.category?.name ?? (initial.kind === 'expense' ? 'Gasto' : 'Ingreso')}
+        onClose={onClose}
+      >
+        <div className="space-y-3">
+          <div className="list">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-[15px] text-ink-soft">Monto</span>
+              <span className="font-money text-[15px]">
+                {formatByCurrency(initial.currency, Number(initial.amount))}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-[15px] text-ink-soft">Fecha</span>
+              <span className="text-[17px]">{formatDayYear(initial.date)}</span>
+            </div>
+          </div>
+
+          {loaded ? (
+            reconciliationNotice
+          ) : (
+            <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+              Confirmando si es parte de un conteo…
+            </p>
+          )}
+
+          {!confirmDelete && retroNotice}
+          <FormError message={error?.message} detail={error?.detail} />
+
+          {confirmDelete ? (
+            <div className="space-y-2">
+              {retroNotice}
+              <div className="flex items-center justify-between notice text-[15px]">
+                <span className="text-clay">
+                  {`¿Eliminar este conteo? Se ${
+                    reconciliation.movements === 1
+                      ? 'borra el movimiento que escribió'
+                      : `borran los ${reconciliation.movements} movimientos que escribió`
+                  } y el registro de lo que declaraste. Es permanente. Tus saldos vuelven a lo que la app calculaba antes de contar: volvé a contar tu plata para acomodarlos.`}
+                </span>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={busy}
+                    className="text-ink-soft"
+                  >
+                    No
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={busy}
+                    className="font-semibold text-clay disabled:opacity-50"
+                  >
+                    Sí, eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              disabled={busy || !loaded}
+              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist disabled:opacity-50"
+            >
+              Eliminar el conteo
+            </button>
+          )}
+        </div>
+      </FormSheet>
+    )
+  }
 
   const kindCategories = categories.filter((cat) => cat.kind === kind && !cat.is_system)
   const amountValue = Number(amount.replace(',', '.'))
@@ -482,9 +582,11 @@ function TransactionFormModal({
             </div>
           </div>
 
-          {reconciliationNotice}
-          {/* Mismo aviso arriba (mientras se edita) y dentro de la
-              confirmación de borrado — nunca los dos a la vez. */}
+          {/* Acá `reconciliation` nunca llega a valer algo: un movimiento que
+              podía venir de un conteo (couldBeReconciliation) se muestra de
+              solo lectura más arriba mientras eso no se descarta. Si el
+              formulario editable de siempre se está mostrando es porque ya se
+              descartó, o porque nunca hizo falta preguntarlo. */}
           {!confirmDelete && retroNotice}
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />
@@ -494,15 +596,7 @@ function TransactionFormModal({
               <div className="space-y-2">
                 {retroNotice}
                 <div className="flex items-center justify-between notice text-[15px]">
-                  <span className="text-clay">
-                    {reconciliation
-                      ? `¿Eliminar este conteo? Se ${
-                          reconciliation.movements === 1
-                            ? 'borra el movimiento que escribió'
-                            : `borran los ${reconciliation.movements} movimientos que escribió`
-                        } y el registro de lo que declaraste. Es permanente. Tus saldos vuelven a lo que la app calculaba antes de contar: volvé a contar tu plata para acomodarlos.`
-                      : '¿Eliminar este movimiento? Es permanente.'}
-                  </span>
+                  <span className="text-clay">¿Eliminar este movimiento? Es permanente.</span>
                   <div className="flex items-center gap-4">
                     <button
                       type="button"
@@ -530,7 +624,7 @@ function TransactionFormModal({
                 disabled={busy}
                 className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
               >
-                {reconciliation ? 'Eliminar el conteo' : 'Eliminar movimiento'}
+                Eliminar movimiento
               </button>
             ))}
       </form>
