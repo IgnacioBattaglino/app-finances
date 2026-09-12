@@ -343,7 +343,7 @@ function AccountDetail() {
               <p className="text-[13px] text-ink-soft">
                 Tiene {formatByCurrency(account.currency, balance.amount)}. Antes de eliminarla, ese
                 saldo se registra como un ajuste de saldo (no como un gasto) para dejarla en cero, y
-                recién ahí se elimina — o deja de ofrecerse, si tiene más movimientos.
+                recién ahí se elimina.
               </p>
             ) : (
               <p className="text-[13px] text-ink-soft">
