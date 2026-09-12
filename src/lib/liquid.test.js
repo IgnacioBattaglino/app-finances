@@ -5,6 +5,7 @@ import {
   lastReconciliationByAccount,
   retroactiveReconciliation,
   decideAdjustment,
+  planReconciliation,
   totalsByCurrency,
   visibleBreakdown,
   summarizeSavingsCard,
@@ -475,5 +476,204 @@ describe('sumToUsd', () => {
     const ahorradoUsd = await sumToUsd(new Map([['USD', 787.19]]), convert)
     const total = disponibleUsd + ahorradoUsd + 340.9
     expect(total).toBeCloseTo(1460.16, 1)
+  })
+})
+
+// ── El neteo de un conteo (migración 0041) ─────────────────────────────────
+// Un conteo produce DOS hechos distintos: cuánto falta EN TOTAL (el gasto real
+// que no se había cargado) y dónde estaba la plata (el reparto entre cuentas).
+// Hasta la 0041 se escribían sumados en uno solo, y un conteo de varias
+// cuentas inflaba los gastos del mes con plata que nunca se gastó.
+//
+// Esta es la definición ejecutable de la regla; que la función SQL haga lo
+// mismo lo verifica reconcileSql.test.js contra un Postgres de verdad.
+describe('planReconciliation', () => {
+  // Efectivo con $1.000 y Mercado Pago con $500, el ejemplo de siempre.
+  const account = (name, current, declaredAmount, extra = {}) => ({
+    key: name,
+    accountId: name,
+    name,
+    currency: 'ARS',
+    isSavings: false,
+    position: name === 'Efectivo' ? 0 : 1,
+    current,
+    declaredAmount,
+    ...extra,
+  })
+
+  // Lo que se va a escribir, aplanado: [categoría, kind, monto, cuenta].
+  const written = (plan) =>
+    plan.rows.flatMap((row) =>
+      [
+        row.adjustment && ['ajuste', row.adjustment.kind, row.adjustment.amount, row.name],
+        row.remainder && ['reparto', row.remainder.kind, row.remainder.amount, row.name],
+      ].filter(Boolean),
+    )
+
+  it('una sola cuenta con diferencia: un ajuste y nada más', () => {
+    // El caso más frecuente. Su diff ES el neto, así que no queda resto: la
+    // pantalla se ve igual que antes de que el neteo existiera.
+    const plan = planReconciliation([
+      account('Efectivo', 1000, 800),
+      account('Mercado Pago', 500, 500),
+    ])
+
+    expect(written(plan)).toEqual([['ajuste', 'expense', 200, 'Efectivo']])
+    expect(plan.currencies).toEqual([{ currency: 'ARS', net: -200, anchorKey: 'Efectivo' }])
+  })
+
+  it('el total que no cambia no genera ningún gasto, solo reparto', () => {
+    // El bug entero, en un caso: el efectivo baja $300 y Mercado Pago sube
+    // $300. Antes esto escribía un gasto de $300 Y un ingreso de $300.
+    const plan = planReconciliation([
+      account('Efectivo', 1000, 700),
+      account('Mercado Pago', 500, 800),
+    ])
+
+    expect(written(plan)).toEqual([
+      ['reparto', 'expense', 300, 'Efectivo'],
+      ['reparto', 'income', 300, 'Mercado Pago'],
+    ])
+    expect(plan.currencies[0].net).toBe(0)
+  })
+
+  it('una que baja y otra que sube: gasto solo por el neto', () => {
+    // Efectivo −200, Mercado Pago +50: lo único que se fue de verdad son $150.
+    const plan = planReconciliation([
+      account('Efectivo', 1000, 800),
+      account('Mercado Pago', 500, 550),
+    ])
+
+    const adjustments = written(plan).filter(([kind]) => kind === 'ajuste')
+    expect(adjustments).toEqual([['ajuste', 'expense', 150, 'Efectivo']])
+  })
+
+  it('el reparto suma cero: no crea ni destruye plata', () => {
+    const plan = planReconciliation([
+      account('Efectivo', 1000, 800),
+      account('Mercado Pago', 500, 400),
+    ])
+
+    const total = plan.rows.reduce(
+      (sum, r) => sum + (r.remainder ? (r.remainder.kind === 'income' ? 1 : -1) * r.remainder.amount : 0),
+      0,
+    )
+    expect(round(total)).toBe(0)
+  })
+
+  it('cada cuenta queda exacta en lo declarado', () => {
+    // La propiedad que ningún esquema de neteo puede perder, con decimales que
+    // no se reparten redondo.
+    const plan = planReconciliation([
+      account('Efectivo', 1000, 933.33),
+      account('Mercado Pago', 500, 566.67),
+    ])
+
+    for (const row of plan.rows) {
+      const delta = ['adjustment', 'remainder']
+        .map((field) => row[field])
+        .filter(Boolean)
+        .reduce((sum, m) => sum + (m.kind === 'income' ? 1 : -1) * m.amount, 0)
+      expect(round(row.current + delta)).toBe(row.declaredAmount)
+    }
+  })
+
+  it('dos monedas nunca se netean entre sí', () => {
+    // Los pesos bajan $200 y los dólares suben US$ 200. Si se netearan, no
+    // quedaría registrado ni el gasto ni el ingreso.
+    const plan = planReconciliation([
+      account('Efectivo', 1000, 800),
+      account('Dólares', 500, 700, { currency: 'USD' }),
+    ])
+
+    expect(plan.currencies).toEqual([
+      { currency: 'ARS', net: -200, anchorKey: 'Efectivo' },
+      { currency: 'USD', net: 200, anchorKey: 'Dólares' },
+    ])
+    expect(written(plan)).toEqual([
+      ['ajuste', 'expense', 200, 'Efectivo'],
+      ['ajuste', 'income', 200, 'Dólares'],
+    ])
+  })
+
+  it('una cuenta declarada en 0 la vacía, y eso sí es un gasto', () => {
+    const plan = planReconciliation([account('Efectivo', 1000, 0)])
+    expect(written(plan)).toEqual([['ajuste', 'expense', 1000, 'Efectivo']])
+  })
+
+  it('vaciar una cuenta y encontrar esa plata en otra NO es un gasto', () => {
+    const plan = planReconciliation([
+      account('Efectivo', 1000, 0),
+      account('Mercado Pago', 500, 1500),
+    ])
+
+    expect(written(plan).every(([kind]) => kind === 'reparto')).toBe(true)
+  })
+
+  it('sin ninguna diferencia no se escribe nada', () => {
+    const plan = planReconciliation([
+      account('Efectivo', 1000, 1000),
+      account('Mercado Pago', 500, 500),
+    ])
+    expect(written(plan)).toEqual([])
+  })
+
+  it('una diferencia por debajo del centavo no es una diferencia', () => {
+    const plan = planReconciliation([account('Efectivo', 1000, 1000.004)])
+    expect(written(plan)).toEqual([])
+  })
+
+  // ── La regla del ancla, desempate por desempate ──────────────────────────
+  describe('en qué cuenta se anota el neto', () => {
+    it('gana la que deja menos resto, sin importar el orden en que llegue', () => {
+      // Efectivo −200 y Mercado Pago −100 sobre un neto de −300: Efectivo deja
+      // 100 de resto y Mercado Pago 200.
+      const declarations = [account('Efectivo', 1000, 800), account('Mercado Pago', 500, 400)]
+
+      for (const order of [declarations, [...declarations].reverse()]) {
+        const plan = planReconciliation(order)
+        expect(plan.currencies[0].anchorKey).toBe('Efectivo')
+      }
+    })
+
+    it('empatado el resto, gana la del día a día sobre la de ahorro', () => {
+      const plan = planReconciliation([
+        account('Efectivo', 1000, 900, { isSavings: true }),
+        account('Mercado Pago', 500, 400),
+      ])
+      expect(plan.currencies[0].anchorKey).toBe('Mercado Pago')
+    })
+
+    it('empatado todo lo demás, gana la que va primero en la pantalla', () => {
+      const plan = planReconciliation([
+        account('Mercado Pago', 500, 400),
+        account('Efectivo', 1000, 900),
+      ])
+      expect(plan.currencies[0].anchorKey).toBe('Efectivo') // position 0
+    })
+
+    it('empatada hasta la position, desempata el nombre y después la clave', () => {
+      // Nada de esto debería pasar en la app real (position es única por
+      // pantalla), pero la elección no puede quedar librada al orden en que
+      // vengan las filas de la base.
+      const same = { currency: 'ARS', isSavings: false, position: 0, current: 100 }
+      const plan = planReconciliation([
+        { key: 'b', accountId: 'b', name: 'Zeta', declaredAmount: 50, ...same },
+        { key: 'a', accountId: 'a', name: 'Alfa', declaredAmount: 50, ...same },
+      ])
+      expect(plan.currencies[0].anchorKey).toBe('a') // 'Alfa' < 'Zeta'
+    })
+
+    it('una cuenta de ahorro se netea con las del día a día de su moneda', () => {
+      // Plata que pasó del bolsillo al ahorro sin registrarse no es un gasto:
+      // el total en pesos no se movió.
+      const plan = planReconciliation([
+        account('Efectivo', 1000, 600),
+        account('Ahorro', 500, 900, { isSavings: true }),
+      ])
+
+      expect(plan.currencies[0].net).toBe(0)
+      expect(written(plan).every(([kind]) => kind === 'reparto')).toBe(true)
+    })
   })
 })

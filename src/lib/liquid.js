@@ -285,13 +285,145 @@ export async function sumToUsd(totals, convert) {
   return sum
 }
 
-// Ajuste que corresponde para que el líquido pase de `current` a
-// `declaredAmount`: null si la diferencia es despreciable (< 1 centavo), no
-// hace falta insertar nada. Pura y testeable.
+// ── El plan de una reconciliación: qué se escribe y por qué ────────────────
+//
+// Contar la plata produce DOS hechos distintos, y hasta acá la app escribía
+// uno solo. Si tenías $1.000 en efectivo y $500 en Mercado Pago y contás $800
+// y $400, pasaron dos cosas a la vez:
+//
+//   · Faltan $300 EN TOTAL. Eso es un gasto real que no cargaste.
+//   · De esos $300, $200 salieron del bolsillo y $100 de Mercado Pago. Eso es
+//     el reparto: dice DÓNDE estaba la plata, no que hayas gastado de más.
+//
+// Antes se escribía un ajuste por cuenta y los dos hechos quedaban sumados en
+// uno: el mes mostraba $300 de gasto, pero cualquier conteo donde una cuenta
+// bajara y otra subiera inventaba un ingreso que nunca existió (mover plata
+// de una cuenta a otra sin registrarlo se leía como "cobré").
+//
+// Desde acá se escriben por separado:
+//   a) UN movimiento "Ajuste de saldo" por moneda, por el NETO del total. Es
+//      el gasto (o ingreso) que de verdad ocurrió, y cuenta como tal en todas
+//      las pantallas.
+//   b) Un movimiento "Transferencia de cuenta" por cada cuenta a la que le
+//      falte algo para cuadrar. No cuenta en ninguna estadística: es plata que
+//      cambió de lugar, igual que una transferencia entre cuentas.
+//
+// ── LA ARITMÉTICA, QUE ES LO QUE HACE QUE ESTO CIERRE ──────────────────────
+// Cada cuenta declarada tiene que moverse exactamente lo suyo:
+//
+//     diff(cuenta) = declarado − calculado
+//
+// y el neto de una moneda es, por definición, la suma de esos diff: las
+// cuentas que NO se declararon no se tocan, así que entran al total con el
+// saldo que ya tenían y no lo mueven. De ahí sale todo lo demás:
+//
+//     neto(moneda) = Σ diff(cuenta de esa moneda)
+//
+// El movimiento del neto se anota en UNA de las cuentas declaradas (la
+// "ancla", ver pickAnchor). A esa cuenta el ajuste ya la movió `neto`, así que
+// le falta `diff − neto`; a las demás les falta `diff` entero. Eso es el
+// reparto, y la suma de todos los repartos es Σ diff − neto = 0: no crea ni
+// destruye plata, solo la corre de cuenta. Por eso cada cuenta queda EXACTA en
+// lo declarado y el total queda exacto en el total declarado, sin resto.
+//
+// El neteo es POR MONEDA y nunca entre monedas: pesos y dólares no se restan
+// (ver amountInCurrency y ADR-015). Cuentas de ahorro y del día a día sí se
+// netean entre sí cuando comparten moneda — plata que pasó del bolsillo al
+// ahorro sin registrarse es exactamente el reparto que esto no quiere contar
+// como gasto.
+//
+// Pura y testeable, y es la DEFINICIÓN EJECUTABLE de la regla: la misma que
+// aplica reconcile_liquid en la base (migración 0041), contra la que
+// src/lib/reconcileSql.test.js corre la función SQL. La usa además LiquidModal
+// para el preview, así que lo que se ve antes de guardar y lo que se escribe
+// salen del mismo cálculo.
+//
+// declarations: [{ key, accountId, name, currency, isSavings, position,
+// current, declaredAmount }]. Devuelve las mismas filas con su `diff`, su
+// `adjustment` (solo la ancla) y su `remainder`, más una línea por moneda.
+export function planReconciliation(declarations) {
+  const rows = declarations.map((d) => ({ ...d, diff: round(d.declaredAmount - d.current) }))
+
+  const groups = new Map()
+  for (const row of rows) {
+    if (!groups.has(row.currency)) groups.set(row.currency, [])
+    groups.get(row.currency).push(row)
+  }
+
+  const currencies = []
+  const planned = []
+  for (const [currency, group] of groups) {
+    const net = round(group.reduce((sum, r) => sum + r.diff, 0))
+    // Menos de un centavo no es una diferencia: sin ajuste, y entonces a cada
+    // cuenta le falta su diff entero (que sigue sumando cero entre todas).
+    const anchor = Math.abs(net) >= 0.01 ? pickAnchor(group, net) : null
+    currencies.push({ currency, net, anchorKey: anchor?.key ?? null })
+
+    for (const row of group) {
+      const isAnchor = anchor !== null && row.key === anchor.key
+      const remainder = round(row.diff - (isAnchor ? net : 0))
+      planned.push({
+        ...row,
+        isAnchor,
+        adjustment: isAnchor ? movement(net) : null,
+        remainder: movement(remainder),
+      })
+    }
+  }
+
+  return { rows: planned, currencies }
+}
+
+// Un movimiento a partir de un monto con signo: sube = ingreso, baja = gasto,
+// y por debajo del centavo no hay movimiento (medio centavo no es plata, y es
+// el mismo umbral con el que currencyLines decide que una moneda está en
+// cero). Es la única definición de esa regla: decideAdjustment delega acá.
+function movement(amount) {
+  if (Math.abs(amount) < 0.01) return null
+  return { kind: amount > 0 ? 'income' : 'expense', amount: Math.abs(amount) }
+}
+
+// EN QUÉ CUENTA SE ANOTA EL NETO. El neto es un hecho del total, no de una
+// cuenta, pero un movimiento tiene que colgar de algún lado: si colgara de
+// ninguna, los repartos tendrían que sumar `neto` en vez de cero para que las
+// cuentas cuadren, y el total quedaría contando ese neto dos veces.
+//
+// El orden de preferencia es explícito y total — nada acá puede depender del
+// orden en que la base devuelva las cuentas:
+//
+//   1. La cuenta que deja MENOS resto sin explicar (|diff − neto| más chico).
+//      Es la que mejor explica el faltante, y cuando una sola cuenta cambió y
+//      las demás coinciden, su diff ES el neto: el resto da cero y no se
+//      escribe ningún movimiento de reparto. El caso más común queda con un
+//      solo movimiento, igual que antes de que esto existiera.
+//   2. Una cuenta del día a día antes que una de ahorro. Solo desempata: la
+//      visibilidad del gasto ya no depende de esto (Movimientos lista los
+//      ajustes de saldo aunque estén en una cuenta de ahorro), pero un gasto
+//      real se lee mejor en la cuenta con la que se vive.
+//   3. El orden de la pantalla (position), y después el nombre y el id: tres
+//      desempates que hacen la elección determinística hasta el final.
+function pickAnchor(group, net) {
+  return [...group].sort((a, b) => {
+    const restA = Math.abs(round(a.diff - net))
+    const restB = Math.abs(round(b.diff - net))
+    if (restA !== restB) return restA - restB
+    if (a.isSavings !== b.isSavings) return a.isSavings ? 1 : -1
+    if (a.position !== b.position) return a.position - b.position
+    if (a.name !== b.name) return a.name < b.name ? -1 : 1
+    return String(a.key) < String(b.key) ? -1 : 1
+  })[0]
+}
+
+// La diferencia entre lo declarado y lo calculado, como un movimiento con su
+// signo: null si es despreciable (< 1 centavo). La usa el modal para mostrar,
+// fila por fila, cuánto se corrió cada cuenta.
+//
+// OJO CON EL NOMBRE, que quedó de cuando cada cuenta generaba su propio
+// ajuste: desde el neteo de la migración 0041 esta diferencia NO es el gasto
+// que se va a registrar. El gasto es el neto de la moneda, y lo decide
+// planReconciliation; acá vive solo el umbral y el signo. Pura y testeable.
 export function decideAdjustment(current, declaredAmount) {
-  const difference = round(declaredAmount - current)
-  if (Math.abs(difference) < 0.01) return null
-  return { kind: difference > 0 ? 'income' : 'expense', amount: Math.abs(difference) }
+  return movement(round(declaredAmount - current))
 }
 
 // Declara cuánto hay REALMENTE en cada cuenta. Recibe una declaración por

@@ -68,13 +68,33 @@ describe('monthTotals', () => {
     expect(monthTotals(month).incomes).toEqual(soloGastoEIngreso.incomes)
   })
 
-  it('una transferencia entre cuentas ("Movimiento de ahorro") no se cuenta como gasto ni ingreso', () => {
-    // A diferencia de "Ajuste de saldo" (una corrección real de lo que pasó
-    // este mes), un Movimiento de ahorro es plata que cambió de cuenta:
-    // migración 0040.
-    const transferLeg = { ...expense, id: 't9', category: { system_key: 'savings_movement' } }
-    const conTransferencia = monthTotals({ transactions: [...month.transactions, transferLeg], contributions: month.contributions })
-    expect(conTransferencia.expenses).toEqual(monthTotals(month).expenses)
+  it.each(['savings_movement', 'account_transfer'])(
+    'plata que solo cambió de lugar (%s) no se cuenta como gasto ni ingreso',
+    (systemKey) => {
+      // Las dos llaves significan lo mismo para un total: la plata salió de
+      // una cuenta y entró a otra, el patrimonio no se movió. 'account_transfer'
+      // la llevan las transferencias entre cuentas y el REPARTO de un conteo
+      // (migración 0041); 'savings_movement', los aportes y retiros de una
+      // cuenta de ahorro.
+      const moved = { ...expense, id: 't9', category: { system_key: systemKey } }
+      const conMovida = monthTotals({
+        transactions: [...month.transactions, moved],
+        contributions: month.contributions,
+      })
+      expect(conMovida.expenses).toEqual(monthTotals(month).expenses)
+      expect(conMovida.incomes).toEqual(monthTotals(month).incomes)
+    },
+  )
+
+  it('el ajuste de un conteo SÍ se cuenta: es el gasto que no se había cargado', () => {
+    // Desde el neteo de la migración 0041 un "Ajuste de saldo" lleva solo el
+    // NETO del conteo, no el reparto entre cuentas, así que contarlo entero es
+    // contarlo bien. Antes este total se pasaba porque contaba también el
+    // reparto; Inicio, al revés, lo escondía entero.
+    const adjustment = { ...expense, id: 't10', amount: 300, category: { system_key: 'balance_adjustment' } }
+    const conAjuste = monthTotals({ transactions: [...month.transactions, adjustment], contributions: [] })
+    const sinAjuste = monthTotals({ transactions: month.transactions, contributions: [] })
+    expect(line(conAjuste.expenses)).toBe(line(sinAjuste.expenses) + 300)
   })
 
   it('un mes en el que se retiró más de lo que se aportó da invertido negativo', () => {

@@ -1,4 +1,5 @@
 import { LOCAL_CURRENCY, currencyLines, amountInCurrency } from './currencyTotals.js'
+import { isMovedMoney } from './systemCategories.js'
 
 // Movimientos = lo que pasó por el bolsillo. Son dos tablas: los gastos e
 // ingresos viven en transactions, y las inversiones que salen del disponible (o
@@ -63,14 +64,18 @@ export function monthTotals({ transactions, contributions }) {
   const invested = new Map()
 
   for (const t of transactions) {
-    // Un "Movimiento de ahorro" (transferencia entre cuentas, migración 0040)
-    // no es un gasto ni un ingreso real: es plata que cambió de cuenta, igual
-    // que un aporte a un activo no cuenta acá sino en `invested`. Se excluye
-    // por la LLAVE, nunca por el nombre visible — mismo criterio que
-    // getExpenses y create_account_transfer. "Ajuste de saldo" SÍ sigue
-    // contando: a diferencia de una transferencia, es una corrección real de
-    // lo que pasó este mes.
-    if (t.category?.system_key === 'savings_movement') continue
+    // Una transferencia entre cuentas o un movimiento de ahorro no es un gasto
+    // ni un ingreso real: es plata que cambió de lugar, igual que un aporte a
+    // un activo no cuenta acá sino en `invested`. Se excluye por la LLAVE,
+    // nunca por el nombre visible, y desde la migración 0041 son DOS llaves:
+    // el reparto de un conteo se anota con la misma categoría que una
+    // transferencia, porque es lo mismo (ver isMovedMoney).
+    //
+    // "Ajuste de saldo" SÍ sigue contando, y ahora contar entero es contar
+    // bien: desde la 0041 lleva solo el NETO del conteo, que es el gasto que
+    // de verdad ocurrió. Antes llevaba también el reparto, y por eso este
+    // total se pasaba.
+    if (isMovedMoney(t.category)) continue
     const currency = transactionCurrencyOf(t)
     addTo(t.kind === 'income' ? incomes : expenses, currency, Number(t.amount))
   }

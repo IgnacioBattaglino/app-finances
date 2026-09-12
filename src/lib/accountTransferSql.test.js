@@ -68,7 +68,8 @@ create table categories (
   kind text not null check (kind in ('expense','income')),
   is_system boolean not null default false,
   system_key text,
-  is_archived boolean not null default false
+  is_archived boolean not null default false,
+  position int not null default 0
 );
 create table liquid_accounts (
   id uuid primary key default gen_random_uuid(),
@@ -99,13 +100,35 @@ create schema if not exists auth;
 create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('app.current_user_id', true), '')::uuid
 $$;
+-- Lo que la 0041 toca al aplicarse: siembra la categoría nueva a partir de
+-- auth.users, redefine handle_new_user (cuyo cuerpo no se valida al crearla,
+-- pero sí necesita que las tablas existan para el insert que sí corre) y
+-- enlaza el reparto desde liquid_reconciliations.
+create table auth.users (id uuid primary key);
+insert into auth.users values ('${USER}');
+create table asset_types (id uuid primary key default gen_random_uuid(), user_id uuid, name text,
+  earns_yield boolean, include_in_total boolean, display_order int);
+create table settings (user_id uuid primary key);
+create table liquid_reconciliations (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  declared_amount numeric(14,2) not null,
+  adjustment_transaction_id uuid references transactions(id),
+  account_id uuid references liquid_accounts(id)
+);
 `
 
 const SEED = `
 truncate transactions, liquid_accounts, categories cascade;
+-- Las dos llaves conviven a propósito: desde la 0041 una transferencia usa
+-- 'account_transfer' y 'savings_movement' queda solo para los aportes y
+-- retiros de una cuenta de ahorro. Si la función volviera a la llave vieja,
+-- los tests de más abajo --que exigen la categoría correcta-- se caerían.
 insert into categories (id, user_id, name, kind, is_system, system_key) values
   ('aaaaaaaa-0000-4000-8000-000000000001', '${USER}', 'Movimiento de ahorro', 'expense', true, 'savings_movement'),
-  ('aaaaaaaa-0000-4000-8000-000000000002', '${USER}', 'Movimiento de ahorro', 'income', true, 'savings_movement');
+  ('aaaaaaaa-0000-4000-8000-000000000002', '${USER}', 'Movimiento de ahorro', 'income', true, 'savings_movement'),
+  ('aaaaaaaa-0000-4000-8000-000000000003', '${USER}', 'Transferencia de cuenta', 'expense', true, 'account_transfer'),
+  ('aaaaaaaa-0000-4000-8000-000000000004', '${USER}', 'Transferencia de cuenta', 'income', true, 'account_transfer');
 insert into liquid_accounts (id, user_id, name, currency) values
   ('${EFECTIVO}', '${USER}', 'Efectivo', 'ARS'),
   ('${MERCADO_PAGO}', '${USER}', 'Mercado Pago', 'ARS'),
@@ -141,6 +164,7 @@ describe.skipIf(!available)('create_account_transfer (SQL)', () => {
     execFileSync('createdb', [DB])
     psql(SCHEMA)
     psql(readFileSync('supabase/migrations/0040_account_transfers.sql', 'utf8'))
+    psql(readFileSync('supabase/migrations/0041_reconcile_netting.sql', 'utf8'))
   })
 
   afterAll(() => {
@@ -201,10 +225,102 @@ describe.skipIf(!available)('create_account_transfer (SQL)', () => {
     expect(count('transactions')).toBe(0)
   })
 
-  it('sin la categoría del sistema "Movimiento de ahorro", avisa en vez de escribir a medias', () => {
-    psql(`update categories set is_archived = true where system_key = 'savings_movement';`)
+  it('la categoría es "Transferencia de cuenta", no "Movimiento de ahorro"', () => {
+    // El cambio de la 0041: 'savings_movement' mentía en la mitad de sus usos.
+    // Transferir de Efectivo a Mercado Pago no es un ahorro, la plata sigue
+    // siendo líquida.
+    transfer(EFECTIVO, MERCADO_PAGO, 1000, 1000)
+
+    expect(
+      rows(`select distinct c.system_key from transactions t
+            join categories c on c.id = t.category_id;`),
+    ).toEqual([['account_transfer']])
+  })
+
+  it('sin la categoría del sistema, avisa en vez de escribir a medias', () => {
+    psql(`update categories set is_archived = true where system_key = 'account_transfer';`)
     const err = transferExpectingFailure(EFECTIVO, MERCADO_PAGO, 1000, 1000)
-    expect(err).toMatch(/Movimiento de ahorro/)
+    expect(err).toMatch(/Transferencia de cuenta/)
     expect(count('transactions')).toBe(0)
+  })
+})
+
+// ── La migración de lo que ya está cargado (0041) ──────────────────────────
+// Las transferencias viejas quedaron anotadas con 'savings_movement', que
+// miente: transferir de Efectivo a Mercado Pago no es un ahorro. Cambiarlas de
+// categoría es mecánico —no toca montos, saldos ni cuentas— pero tiene que
+// alcanzar SOLO a las transferencias: un aporte o un retiro de una cuenta de
+// ahorro (SavingsMovementModal) no lleva transfer_id y sigue siendo un
+// movimiento de ahorro de verdad.
+//
+// Base propia porque hace falta el estado ANTERIOR a la migración: filas
+// escritas por la 0040 y recién después la 0041 encima.
+const OLD_DB = `app_finances_transfer_migration_${process.pid}`
+
+const oldPsql = (sql) =>
+  execFileSync('psql', ['-d', OLD_DB, '-v', 'ON_ERROR_STOP=1', '-q', '-A', '-t', '-F', '\t', '-c', sql], {
+    encoding: 'utf8',
+  })
+
+describe.skipIf(!available)('la migración de las transferencias ya cargadas (0041)', () => {
+  beforeAll(() => {
+    execFileSync('createdb', [OLD_DB])
+    oldPsql(SCHEMA)
+    oldPsql(readFileSync('supabase/migrations/0040_account_transfers.sql', 'utf8'))
+    // El mundo como estaba: las dos categorías viejas, y nada más.
+    oldPsql(`
+      insert into categories (id, user_id, name, kind, is_system, system_key) values
+        ('aaaaaaaa-0000-4000-8000-000000000001', '${USER}', 'Movimiento de ahorro', 'expense', true, 'savings_movement'),
+        ('aaaaaaaa-0000-4000-8000-000000000002', '${USER}', 'Movimiento de ahorro', 'income', true, 'savings_movement');
+      insert into liquid_accounts (id, user_id, name, currency) values
+        ('${EFECTIVO}', '${USER}', 'Efectivo', 'ARS'),
+        ('${MERCADO_PAGO}', '${USER}', 'Mercado Pago', 'ARS');
+    `)
+    // Una transferencia de verdad, escrita por la función de la 0040...
+    oldPsql(`set app.current_user_id = '${USER}';
+             select create_account_transfer('${EFECTIVO}', '${MERCADO_PAGO}', '2026-08-01', 1000, 1000);`)
+    // ...y un aporte a una cuenta de ahorro, que NO es una transferencia: una
+    // sola fila, sin transfer_id, con la misma categoría.
+    oldPsql(`insert into transactions (date, kind, category_id, description, amount, currency, account_id)
+             values ('2026-08-02', 'income', 'aaaaaaaa-0000-4000-8000-000000000002',
+                     'Aporte al ahorro', 500, 'ARS', '${MERCADO_PAGO}');`)
+
+    oldPsql(readFileSync('supabase/migrations/0041_reconcile_netting.sql', 'utf8'))
+  })
+
+  afterAll(() => {
+    if (available) execFileSync('dropdb', ['--if-exists', OLD_DB])
+  })
+
+  const categorized = () =>
+    oldPsql(`select coalesce(t.description, ''), c.system_key from transactions t
+             join categories c on c.id = t.category_id order by t.date, t.kind;`)
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => line.split('\t'))
+
+  it('las dos patas de una transferencia pasan a "Transferencia de cuenta"', () => {
+    expect(categorized()).toEqual([
+      ['Transferencia a Mercado Pago', 'account_transfer'],
+      ['Transferencia de Efectivo', 'account_transfer'],
+      // El aporte al ahorro queda donde estaba: no tiene transfer_id, no es
+      // una transferencia entre cuentas.
+      ['Aporte al ahorro', 'savings_movement'],
+    ])
+  })
+
+  it('no toca montos, cuentas ni fechas: es un cambio de etiqueta', () => {
+    expect(
+      oldPsql(`select sum(case when kind = 'income' then amount else -amount end) from transactions;`).trim(),
+    ).toBe('500.00') // +1000 −1000 (la transferencia) +500 (el aporte)
+    expect(oldPsql(`select count(*) from transactions where account_id is null;`).trim()).toBe('0')
+  })
+
+  it('la categoría nueva nace para cada usuario que ya existía', () => {
+    expect(
+      oldPsql(`select kind from categories where system_key = 'account_transfer' order by kind;`)
+        .split('\n')
+        .filter(Boolean),
+    ).toEqual(['expense', 'income'])
   })
 })
