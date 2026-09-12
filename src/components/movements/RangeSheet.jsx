@@ -21,7 +21,9 @@ import {
 //      normal (ver un mes) y resuelve el que no tenía forma: saltar a un mes
 //      de un año anterior, que con las flechas de la pantalla costaba doce
 //      toques por año.
-//   2. Los atajos: el año entero que se está mirando en la grilla, los últimos
+//   2. Los atajos: volver al mes actual desde donde sea (el camino de vuelta
+//      después de irse a mirar 2023, que con las flechas sería tan largo como
+//      la ida), el año entero que se está mirando en la grilla, los últimos
 //      doce meses, y todo el historial.
 //   3. Dos fechas a mano, para lo que no cae en ninguna de las anteriores.
 //
@@ -62,7 +64,13 @@ function Shortcut({ active, onClick, children }) {
   )
 }
 
+const THIS_MONTH = () => {
+  const now = new Date()
+  return monthRange(now.getMonth() + 1, now.getFullYear())
+}
+
 function RangeSheet({ range, onChange, onClose }) {
+  const thisMonth = THIS_MONTH()
   // El año de la GRILLA, que no es el del rango: se navega para buscar un mes
   // sin que la pantalla de atrás cambie hasta que se elige uno. Arranca en el
   // año de lo que se está mirando, o en el actual si el rango no tiene año
@@ -82,6 +90,16 @@ function RangeSheet({ range, onChange, onClose }) {
     <FormSheet title="Qué período mirar" onClose={onClose}>
       <div className="space-y-5 pt-1">
         <div className="flex flex-wrap gap-2">
+          <Shortcut
+            active={
+              range.mode === RANGE_MONTH &&
+              range.month === thisMonth.month &&
+              range.year === thisMonth.year
+            }
+            onClick={() => choose(thisMonth)}
+          >
+            Este mes
+          </Shortcut>
           <Shortcut active={range.mode === RANGE_YEAR && range.year === gridYear} onClick={() => choose(yearRange(gridYear))}>
             Todo {gridYear}
           </Shortcut>
