@@ -4,6 +4,7 @@ import {
   computeLiquidByAccount,
   lastReconciliationByAccount,
   retroactiveReconciliation,
+  summarizeReconciliation,
   decideAdjustment,
   planReconciliation,
   totalsByCurrency,
@@ -675,5 +676,44 @@ describe('planReconciliation', () => {
       expect(plan.currencies[0].net).toBe(0)
       expect(written(plan).every(([kind]) => kind === 'reparto')).toBe(true)
     })
+  })
+})
+
+describe('summarizeReconciliation', () => {
+  // Qué escribió un conteo, para poder decirlo antes de borrarlo: "se borran
+  // los 3 movimientos que escribió".
+  it('cuenta el ajuste y los repartos como movimientos distintos', () => {
+    const summary = summarizeReconciliation([
+      { date: '2026-09-05', adjustment_transaction_id: 'ajuste', redistribution_transaction_id: 'rep-1' },
+      { date: '2026-09-05', adjustment_transaction_id: null, redistribution_transaction_id: 'rep-2' },
+    ])
+    expect(summary).toEqual({ date: '2026-09-05', movements: 3, accounts: 2 })
+  })
+
+  it('una cuenta sola con su ajuste es un movimiento', () => {
+    expect(
+      summarizeReconciliation([
+        { date: '2026-09-05', adjustment_transaction_id: 'ajuste', redistribution_transaction_id: null },
+      ]),
+    ).toEqual({ date: '2026-09-05', movements: 1, accounts: 1 })
+  })
+
+  it('una cuenta declarada sin diferencia no escribió ningún movimiento, pero es una cuenta', () => {
+    // La fila existe igual: registra "declaré esto en esta fecha".
+    expect(
+      summarizeReconciliation([
+        { date: '2026-09-05', adjustment_transaction_id: 'ajuste', redistribution_transaction_id: null },
+        { date: '2026-09-05', adjustment_transaction_id: null, redistribution_transaction_id: null },
+      ]),
+    ).toEqual({ date: '2026-09-05', movements: 1, accounts: 2 })
+  })
+
+  it('el mismo movimiento en dos filas se cuenta una sola vez', () => {
+    expect(
+      summarizeReconciliation([
+        { date: '2026-09-05', adjustment_transaction_id: 'ajuste', redistribution_transaction_id: 'rep' },
+        { date: '2026-09-05', adjustment_transaction_id: 'ajuste', redistribution_transaction_id: null },
+      ]).movements,
+    ).toBe(2)
   })
 })

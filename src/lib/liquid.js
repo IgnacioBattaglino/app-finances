@@ -48,6 +48,75 @@ export async function getLastReconciliationByAccount() {
   return lastReconciliationByAccount(await getReconciliations())
 }
 
+// ── Borrar un conteo ──────────────────────────────────────────────────────
+//
+// Un conteo no escribe un movimiento suelto: escribe una fila de
+// liquid_reconciliations por cuenta declarada ("declaré tanto acá este día"),
+// el "Ajuste de saldo" del neto de cada moneda (el gasto real) y un "Reparto
+// entre cuentas" por cada cuenta a la que le falte algo para cuadrar. Esas
+// piezas se sostienen entre sí --los repartos suman cero y cada cuenta queda
+// en lo declarado (ADR-016)-- así que se borran juntas o no se borra ninguna,
+// igual que las dos patas de una transferencia.
+
+// El conteo que escribió este movimiento, o null si el movimiento no es parte
+// de ninguno (un gasto común, o una transferencia entre cuentas de verdad, que
+// comparte categoría con el reparto pero lleva transfer_id).
+//
+// Dos consultas y no una: la primera encuentra la fila que enlaza a este
+// movimiento, la segunda trae las hermanas de su conteo. Una fila sin
+// `batch_id` --anterior a la migración 0042-- es su propio conteo, que es todo
+// lo que se puede saber de lo que ya estaba guardado.
+export async function getReconciliationOf(transactionId) {
+  const { data, error } = await supabase
+    .from('liquid_reconciliations')
+    .select('*')
+    .or(
+      `adjustment_transaction_id.eq.${transactionId},redistribution_transaction_id.eq.${transactionId}`,
+    )
+    .limit(1)
+  if (error) throw error
+
+  const row = data[0]
+  if (!row) return null
+  if (!row.batch_id) return summarizeReconciliation([row])
+
+  const { data: batch, error: batchError } = await supabase
+    .from('liquid_reconciliations')
+    .select('*')
+    .eq('batch_id', row.batch_id)
+  if (batchError) throw batchError
+  return summarizeReconciliation(batch.length > 0 ? batch : [row])
+}
+
+// Qué escribió un conteo, en los números que la pantalla necesita para
+// contarlo: su fecha, cuántos movimientos dejó y sobre cuántas cuentas. Un
+// movimiento puede estar en las dos columnas de filas distintas, así que se
+// cuentan ids únicos. Pura y testeable.
+export function summarizeReconciliation(rows) {
+  const movements = new Set()
+  for (const row of rows) {
+    if (row.adjustment_transaction_id) movements.add(row.adjustment_transaction_id)
+    if (row.redistribution_transaction_id) movements.add(row.redistribution_transaction_id)
+  }
+  return { date: rows[0]?.date ?? null, movements: movements.size, accounts: rows.length }
+}
+
+// Borra el conteo entero a partir de uno de sus movimientos: sus filas de
+// liquid_reconciliations y todos los movimientos que escribió, en una sola
+// transacción (delete_reconciliation, migración 0042). Desde el cliente serían
+// dos DELETE sueltos, y uno solo de los dos podría quedar hecho.
+export async function deleteReconciliation(transactionId) {
+  const { data, error } = await supabase.rpc('delete_reconciliation', {
+    p_transaction_id: transactionId,
+  })
+  if (error) throw error
+  return {
+    date: data?.date ?? null,
+    movements: data?.deleted_movements ?? 0,
+    accounts: data?.deleted_reconciliations ?? 0,
+  }
+}
+
 // Si esta fecha cae en o antes de la última reconciliación DE SU CUENTA, hay
 // que avisar (nunca bloquear): editar o borrar la fila puede correr un saldo
 // que el usuario ya dio por contado. Devuelve esa reconciliación (para el

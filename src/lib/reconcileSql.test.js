@@ -77,7 +77,7 @@ const AJENA = '99999999-9999-4999-8999-999999999999' // no existe (o es de otro 
 // declared_amount_ars, y la migración —que se aplica más abajo tal cual— los
 // renombra. El seed y las consultas de más abajo ya usan los nombres nuevos,
 // porque corren con las migraciones puestas. Lo mismo con `system_key`
-// (0037) y `redistribution_transaction_id` (0041).
+// (0037), `redistribution_transaction_id` (0041) y `batch_id` (0042).
 //
 // `transfer_id` sí está desde el principio, aunque lo agregue la 0040: esta
 // tanda no aplica esa migración (no se prueba acá la transferencia entre
@@ -136,10 +136,14 @@ create table debt_payments (
 );
 create table liquid_reconciliations (
   id uuid primary key default gen_random_uuid(),
+  -- user_id y created_at los usa el backfill de la 0042, que agrupa las filas
+  -- de un mismo conteo por la transacción en que se escribieron.
+  user_id uuid,
   date date not null,
   declared_amount_ars numeric(14,2) not null check (declared_amount_ars >= 0),
   adjustment_transaction_id uuid references transactions(id),
-  account_id uuid references liquid_accounts(id)
+  account_id uuid references liquid_accounts(id),
+  created_at timestamptz not null default now()
 );
 -- Las tablas que toca handle_new_user, que la 0041 redefine: el cuerpo de una
 -- función plpgsql no se valida al crearla, pero el archivo también hace un
@@ -239,6 +243,8 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
     psql(readFileSync('supabase/migrations/0036_account_currency_and_savings.sql', 'utf8'))
     psql(readFileSync('supabase/migrations/0037_categories_system_key.sql', 'utf8'))
     psql(readFileSync('supabase/migrations/0041_reconcile_netting.sql', 'utf8'))
+    // Y la 0042, que agrupa las filas de cada conteo y agrega el borrado.
+    psql(readFileSync('supabase/migrations/0042_delete_reconciliation.sql', 'utf8'))
   })
 
   afterAll(() => {
@@ -634,6 +640,130 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
     })
   })
 
+  // ── Borrar un conteo (migración 0042) ────────────────────────────────────
+  // Un conteo escribe varias filas que se sostienen entre sí: los repartos
+  // suman cero y cada cuenta queda en lo declarado. Borrar una sola rompe esa
+  // aritmética en silencio, así que se borran juntas — igual que las dos patas
+  // de una transferencia.
+  describe('borrar un conteo', () => {
+    // El id del ajuste y el del reparto de una cuenta, para poder entrar a
+    // borrar por cualquiera de los dos.
+    const idOf = (systemKey, accountId) =>
+      one(`select t.id::text from transactions t join categories c on c.id = t.category_id
+           where c.system_key = '${systemKey}' and t.date = '2026-09-05'
+             and t.account_id = '${accountId}';`)[0]
+
+    const del = (id) => psql(`select delete_reconciliation('${id}');`).trim()
+
+    it('borra todo lo que escribió el conteo: sus movimientos y sus registros', () => {
+      // Dos cuentas, neto −300: un ajuste en Efectivo y un reparto en cada una.
+      reconcile('2026-09-05', [
+        [EFECTIVO, 9800],
+        [MERCADO_PAGO, 4900],
+      ])
+      expect(adjustments()).toHaveLength(1)
+      expect(redistributions()).toHaveLength(2)
+
+      del(idOf('balance_adjustment', EFECTIVO))
+
+      expect(adjustments()).toEqual([])
+      expect(redistributions()).toEqual([])
+      expect(reconciliations()).toEqual([])
+    })
+
+    it('se puede entrar a borrar por un reparto, no solo por el ajuste', () => {
+      reconcile('2026-09-05', [
+        [EFECTIVO, 9800],
+        [MERCADO_PAGO, 4900],
+      ])
+
+      del(idOf('account_transfer', MERCADO_PAGO))
+
+      expect(adjustments()).toEqual([])
+      expect(redistributions()).toEqual([])
+      expect(reconciliations()).toEqual([])
+    })
+
+    it('los saldos vuelven exactamente a lo que la app calculaba antes', () => {
+      const before = balances()
+
+      reconcile('2026-09-05', [
+        [EFECTIVO, 9800],
+        [MERCADO_PAGO, 4900],
+      ])
+      del(idOf('balance_adjustment', EFECTIVO))
+
+      const after = balances()
+      expect(after.get(EFECTIVO)).toBe(before.get(EFECTIVO))
+      expect(after.get(MERCADO_PAGO)).toBe(before.get(MERCADO_PAGO))
+    })
+
+    it('no toca nada que no sea del conteo', () => {
+      // Los dos movimientos del seed y la reconciliación vieja siguen ahí.
+      reconcile('2026-09-05', [[EFECTIVO, 12000]])
+      del(idOf('balance_adjustment', EFECTIVO))
+
+      expect(count('transactions')).toBe(2)
+      expect(count('liquid_reconciliations')).toBe(1)
+    })
+
+    it('dice cuántas cosas borró', () => {
+      reconcile('2026-09-05', [
+        [EFECTIVO, 9800],
+        [MERCADO_PAGO, 4900],
+      ])
+
+      const result = JSON.parse(del(idOf('balance_adjustment', EFECTIVO)))
+      expect(result.date).toBe('2026-09-05')
+      expect(result.deleted_movements).toBe(3) // el ajuste + los dos repartos
+      expect(result.deleted_reconciliations).toBe(2) // una fila por cuenta
+    })
+
+    it('un conteo de dos monedas se borra entero, las dos monedas juntas', () => {
+      psql(`update liquid_accounts set currency = 'USD' where id = '${MERCADO_PAGO}';`)
+
+      reconcile('2026-09-05', [
+        [EFECTIVO, 8000], // −2000 ARS
+        [MERCADO_PAGO, 5030], // +30 USD
+      ])
+      expect(adjustments()).toHaveLength(2)
+
+      del(idOf('balance_adjustment', EFECTIVO))
+
+      expect(adjustments()).toEqual([])
+      expect(reconciliations()).toEqual([])
+    })
+
+    it('una fila sin batch (anterior a la 0042) se borra sola, con lo suyo', () => {
+      // Es lo que queda de un conteo viejo: no hay forma de saber qué se
+      // escribió junto, así que se borra exactamente lo que esa fila enlaza.
+      reconcile('2026-09-05', [
+        [EFECTIVO, 9800],
+        [MERCADO_PAGO, 4900],
+      ])
+      psql(`update liquid_reconciliations set batch_id = null where date = '2026-09-05';`)
+
+      const result = JSON.parse(del(idOf('balance_adjustment', EFECTIVO)))
+      expect(result.deleted_reconciliations).toBe(1)
+
+      // La otra cuenta queda intacta: su fila y su reparto siguen ahí.
+      expect(reconciliations()).toHaveLength(1)
+      expect(redistributions()).toHaveLength(1)
+    })
+
+    it('un movimiento que no es parte de un conteo se rechaza sin borrar nada', () => {
+      const comida = one(
+        `insert into transactions (date, kind, category_id, amount, account_id)
+         values ('2026-09-05', 'expense', 'aaaaaaaa-0000-4000-8000-000000000003', 500, '${EFECTIVO}')
+         returning id::text;`,
+      )[0]
+
+      const error = psqlExpectingFailure(`select delete_reconciliation('${comida}');`)
+      expect(error).toMatch(/no es parte de un conteo/)
+      expect(count('transactions')).toBe(3)
+    })
+  })
+
   // ── Lo que motivó la migración 0034 ────────────────────────────────────────
   // Antes, con el loop en el cliente, cada uno de estos casos dejaba escritas
   // las cuentas anteriores mientras la pantalla decía "no se pudo guardar".
@@ -713,3 +843,86 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
 function adjustmentId() {
   return one(`select id::text from transactions where date = '2026-09-05' order by ctid limit 1;`)[0]
 }
+
+
+// ── El agrupado de los conteos ya guardados (0042) ─────────────────────────
+// Hasta la 0042 las filas de liquid_reconciliations no tenían forma de decir
+// cuáles se habían escrito juntas. El backfill no lo adivina: `created_at` es
+// `default now()`, que en Postgres es el reloj de la TRANSACCIÓN, así que dos
+// filas con el mismo user_id, la misma fecha y el mismo created_at al
+// microsegundo se escribieron en la misma llamada — y desde la 0034 eso es
+// exactamente "el mismo conteo".
+//
+// Base propia porque hace falta el estado ANTERIOR a la migración: conteos
+// escritos por la 0041 y recién después la 0042 encima.
+const OLD_DB = `app_finances_reconcile_batch_${process.pid}`
+
+const oldPsql = (sql) =>
+  execFileSync('psql', ['-d', OLD_DB, '-v', 'ON_ERROR_STOP=1', '-q', '-A', '-t', '-F', '\t', '-c', sql], {
+    encoding: 'utf8',
+  })
+
+const oldRows = (sql) =>
+  oldPsql(sql)
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.split('\t'))
+
+describe.skipIf(!available)('el agrupado de los conteos ya guardados (0042)', () => {
+  beforeAll(() => {
+    execFileSync('createdb', [OLD_DB])
+    oldPsql(SCHEMA)
+    for (const m of [
+      '0033_liquid_by_account.sql',
+      '0034_reconcile_liquid.sql',
+      '0036_account_currency_and_savings.sql',
+      '0037_categories_system_key.sql',
+      '0041_reconcile_netting.sql',
+    ]) {
+      oldPsql(readFileSync(`supabase/migrations/${m}`, 'utf8'))
+    }
+    oldPsql(SEED)
+
+    // Un conteo de DOS cuentas: dos filas escritas en la misma transacción.
+    oldPsql(reconcileSql('2026-09-05', [[EFECTIVO, 9800], [MERCADO_PAGO, 4900]]))
+    // Y otro, otro día, de una sola cuenta: su propia llamada, su propia fila.
+    oldPsql(reconcileSql('2026-09-06', [[EFECTIVO, 9000]]))
+
+    oldPsql(readFileSync('supabase/migrations/0042_delete_reconciliation.sql', 'utf8'))
+  })
+
+  afterAll(() => {
+    if (available) execFileSync('dropdb', ['--if-exists', OLD_DB])
+  })
+
+  // Solo los dos conteos de septiembre: el seed deja además una fila suelta de
+  // enero, que es justamente el caso de una escritura vieja e independiente y
+  // que el primer test ya cubre (tampoco queda sin agrupar).
+  const batches = () =>
+    oldRows(`select date::text, coalesce(batch_id::text, 'null') from liquid_reconciliations
+             where date >= '2026-09-01' order by date, ctid;`)
+
+  it('no queda ninguna fila sin agrupar', () => {
+    expect(oldPsql(`select count(*) from liquid_reconciliations where batch_id is null;`).trim()).toBe('0')
+  })
+
+  it('las dos filas del mismo conteo comparten batch, y el otro conteo tiene el suyo', () => {
+    const rows = batches()
+    expect(rows).toHaveLength(3)
+    const [primera, segunda, otroDia] = rows
+    expect(primera[1]).toBe(segunda[1]) // mismo conteo
+    expect(otroDia[1]).not.toBe(primera[1]) // otro día, otra llamada
+  })
+
+  it('borrar un conteo viejo agrupado se lleva sus dos filas', () => {
+    const id = oldPsql(`select t.id::text from transactions t
+                        join categories c on c.id = t.category_id
+                        where c.system_key = 'balance_adjustment' and t.date = '2026-09-05';`).trim()
+
+    const result = JSON.parse(oldPsql(`select delete_reconciliation('${id}');`).trim())
+    expect(result.deleted_reconciliations).toBe(2)
+
+    // Queda solo el conteo del otro día.
+    expect(batches()).toHaveLength(1)
+  })
+})

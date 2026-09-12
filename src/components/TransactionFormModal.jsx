@@ -7,8 +7,9 @@ import {
 } from '../lib/transactions.js'
 import { getAccountTransferPair, deleteAccountTransfer } from '../lib/accountTransfers.js'
 import { createCategory } from '../lib/categories.js'
-import { retroactiveReconciliation } from '../lib/liquid.js'
+import { retroactiveReconciliation, getReconciliationOf, deleteReconciliation } from '../lib/liquid.js'
 import { todayISO, toDecimalInput, formatByCurrency, formatDayYear } from '../lib/format.js'
+import { isMovedMoney, isBalanceAdjustment } from '../lib/systemCategories.js'
 import FormSheet from './FormSheet.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
@@ -50,9 +51,19 @@ function TransactionFormModal({
   // borrado); null mientras carga o si no se pudo resolver.
   const [transferSibling, setTransferSibling] = useState(null)
   const [confirmDeleteTransfer, setConfirmDeleteTransfer] = useState(false)
+  // El conteo que escribió este movimiento, si lo escribió uno (ver
+  // getReconciliationOf): null mientras carga o si no es parte de ninguno.
+  const [reconciliation, setReconciliation] = useState(null)
 
   const editing = Boolean(initial?.id)
   const isTransferPart = Boolean(initial?.transfer_id)
+  // Un movimiento PUEDE venir de un conteo solo si lleva una de sus dos
+  // categorías y no es una pata de transferencia (que comparte la categoría
+  // del reparto). Se filtra acá para no consultar en cada gasto común.
+  const couldBeReconciliation =
+    editing &&
+    !isTransferPart &&
+    (isBalanceAdjustment(initial?.category) || isMovedMoney(initial?.category))
 
   useEffect(() => {
     if (!open) return
@@ -73,7 +84,24 @@ function TransactionFormModal({
     setCategoryError(null)
     setTransferSibling(null)
     setConfirmDeleteTransfer(false)
+    setReconciliation(null)
   }, [open, initial, defaultKind, defaultAccountId])
+
+  // Un fallo buscándolo no bloquea nada: sin el dato el formulario se comporta
+  // como con cualquier movimiento, y el borrado --que igual pasa por la base--
+  // avisa si no se puede.
+  useEffect(() => {
+    if (!open || !couldBeReconciliation) return
+    let cancelled = false
+    getReconciliationOf(initial.id)
+      .then((found) => {
+        if (!cancelled) setReconciliation(found)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [open, initial, couldBeReconciliation])
 
   // Una pata de transferencia (migración 0040) no se edita sola: solo hace
   // falta el nombre de la otra cuenta, para el mensaje de la confirmación de
@@ -204,6 +232,20 @@ function TransactionFormModal({
   // la reconciliación del líquido. Un movimiento que ya la tenga asignada
   // (por una reconciliación) se sigue mostrando normal en el historial —
   // esto solo afecta qué se puede ELEGIR de nuevo.
+  // Lo que este movimiento es en realidad: una de las cosas que escribió un
+  // conteo, y que no se sostienen por separado (ver ADR-016). Se dice antes de
+  // tocar nada, no recién en la confirmación del borrado.
+  const reconciliationNotice = reconciliation && (
+    <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+      Esto lo escribió «Contar mi plata» el {formatDayYear(reconciliation.date)}
+      {reconciliation.movements > 1
+        ? `, junto con ${reconciliation.movements - 1} ${
+            reconciliation.movements === 2 ? 'movimiento más' : 'movimientos más'
+          }. Se sostienen entre sí, así que se borran juntos.`
+        : '.'}
+    </p>
+  )
+
   const kindCategories = categories.filter((cat) => cat.kind === kind && !cat.is_system)
   const amountValue = Number(amount.replace(',', '.'))
   // La moneda sale de la cuenta elegida y se guarda en la fila (ver
@@ -273,10 +315,19 @@ function TransactionFormModal({
     setBusy(true)
     setError(null)
     try {
-      await deleteTransaction(initial.id)
+      // Un movimiento de un conteo no se borra solo: se lleva su conteo
+      // entero, de una (ver deleteReconciliation). Borrarlo suelto lo
+      // rechazaría la base --la fila de liquid_reconciliations lo
+      // referencia-- y, peor, dejaría a los demás movimientos del conteo
+      // moviendo plata por algo que ya no existe.
+      if (reconciliation) await deleteReconciliation(initial.id)
+      else await deleteTransaction(initial.id)
       onDeleted?.(initial.id)
     } catch (e) {
-      setError({ message: 'No se pudo eliminar el movimiento.', detail: e })
+      setError({
+        message: reconciliation ? 'No se pudo eliminar el conteo.' : 'No se pudo eliminar el movimiento.',
+        detail: e,
+      })
       setBusy(false)
     }
   }
@@ -431,6 +482,7 @@ function TransactionFormModal({
             </div>
           </div>
 
+          {reconciliationNotice}
           {/* Mismo aviso arriba (mientras se edita) y dentro de la
               confirmación de borrado — nunca los dos a la vez. */}
           {!confirmDelete && retroNotice}
@@ -442,7 +494,15 @@ function TransactionFormModal({
               <div className="space-y-2">
                 {retroNotice}
                 <div className="flex items-center justify-between notice text-[15px]">
-                  <span className="text-clay">¿Eliminar este movimiento? Es permanente.</span>
+                  <span className="text-clay">
+                    {reconciliation
+                      ? `¿Eliminar este conteo? Se ${
+                          reconciliation.movements === 1
+                            ? 'borra el movimiento que escribió'
+                            : `borran los ${reconciliation.movements} movimientos que escribió`
+                        } y el registro de lo que declaraste. Es permanente. Tus saldos vuelven a lo que la app calculaba antes de contar: volvé a contar tu plata para acomodarlos.`
+                      : '¿Eliminar este movimiento? Es permanente.'}
+                  </span>
                   <div className="flex items-center gap-4">
                     <button
                       type="button"
@@ -470,7 +530,7 @@ function TransactionFormModal({
                 disabled={busy}
                 className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
               >
-                Eliminar movimiento
+                {reconciliation ? 'Eliminar el conteo' : 'Eliminar movimiento'}
               </button>
             ))}
       </form>

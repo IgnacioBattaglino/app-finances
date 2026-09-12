@@ -2,7 +2,7 @@
 
 Fecha: 2026-09-12
 Estado: aceptada
-Migraciones: 0041
+Migraciones: 0041, 0042 (el borrado)
 
 ## Contexto
 
@@ -162,3 +162,31 @@ neteo lo anotó.
   `adjustment_transaction_id` sigue significando lo mismo (el ajuste del neto, y
   por eso ahora lo lleva una sola fila por moneda) y el reparto es un
   movimiento distinto, con otra categoría y otro significado.
+
+## Addendum (0042): un conteo se borra entero
+
+Lo que esta decisión convirtió en un conjunto de filas que se sostienen entre
+sí también cambia qué significa borrar una de ellas. Los repartos suman cero y
+cada cuenta queda en lo declarado **porque están todas**: si se borra el ajuste
+del neto y quedan los repartos, la app sigue moviendo plata entre cuentas por
+un conteo que ya no existe; si se borra un reparto, esa cuenta queda corrida y
+las demás no. Y la fila de `liquid_reconciliations` quedaría afirmando "declaré
+$X" sobre un ajuste que ya no está.
+
+Por eso borrar cualquiera de esos movimientos borra **el conteo entero** —sus
+filas de `liquid_reconciliations` y todos los movimientos que escribió—, en una
+sola operación atómica (`delete_reconciliation`). Es la misma regla que ya
+aplican las dos patas de una transferencia.
+
+Para saber qué filas son el mismo conteo, `liquid_reconciliations` gana
+`batch_id`. Lo ya guardado se agrupa por `(user_id, date, created_at)`, que no
+es una inferencia: `created_at` es `default now()`, el reloj de la transacción.
+
+Nada más lee esta tabla, así que perder una de sus filas no rompe ningún
+cálculo: el disponible sale de los movimientos, no de acá. Lo que se pierde es
+lo que la fila decía, y se pierde bien — el "Reconciliada el X" de esa cuenta
+vuelve al conteo anterior, el aviso de "esta operación es anterior a la última
+vez que contaste X" deja de aparecer para ese tramo (ya no hay ningún saldo
+dado por contado ahí) y el próximo ajuste vuelve a llamarse "Saldo inicial" si
+no le queda ningún conteo. **Lo que sí queda mal es el saldo**, hasta que el
+usuario vuelva a contar: por eso la confirmación del borrado lo dice.
