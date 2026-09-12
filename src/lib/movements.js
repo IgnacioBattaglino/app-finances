@@ -199,15 +199,22 @@ export function monthTotals({ transactions, contributions }) {
   }
 }
 
-// Una lista sola, ordenada como venían las dos fuentes: por fecha
-// descendente y, dentro del mismo día, lo último cargado primero. Cada ítem
-// dice de qué tabla salió en vez de aplanarse a una forma común: la fila
-// original es lo que la pantalla necesita para editar un movimiento o para
-// saber a qué activo navegar, y aplanarla la perdería.
-export function mergeMovements(transactions, contributions) {
+// Una lista sola, ordenada como venían las fuentes: por fecha descendente y,
+// dentro del mismo día, lo último cargado primero. Cada ítem dice de qué tabla
+// salió en vez de aplanarse a una forma común: la fila original es lo que la
+// pantalla necesita para editar un movimiento o para saber a qué activo
+// navegar, y aplanarla la perdería.
+//
+// `transfers` son las transferencias y los repartos YA colapsados a una línea
+// (ver collapseTransfers en lib/movementList.js): una operación que son dos
+// filas de la base entra acá como un ítem solo. Se ordenan con el mismo
+// criterio que el resto porque llevan la fecha y el created_at de su pata de
+// origen, que es la misma que la de su hermana — las dos se escriben juntas.
+export function mergeMovements(transactions, contributions, transfers = []) {
   const items = [
     ...transactions.map((row) => ({ source: 'transaction', row })),
     ...contributions.map((row) => ({ source: 'contribution', row })),
+    ...transfers.map((row) => ({ source: 'transfer', row })),
   ]
 
   return items.sort((a, b) => {

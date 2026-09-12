@@ -18,6 +18,8 @@ import {
   monthTotals,
 } from '../lib/movements.js'
 import { getCategories } from '../lib/categories.js'
+import { collapseTransfers } from '../lib/movementList.js'
+import { getReconciliationBatches } from '../lib/liquid.js'
 import { movementType, isMovedMoneyType } from '../lib/systemCategories.js'
 import { formatByCurrency, formatMonthYear, formatDay } from '../lib/format.js'
 
@@ -165,6 +167,56 @@ function SavingsRow({ tx }) {
   )
 }
 
+// Una transferencia entre cuentas, o el reparto de un conteo: DOS filas de la
+// base en UNA línea. En la base son dos porque cada cuenta tiene que ver su
+// propio movimiento; acá es una porque fue una sola operación, y mostrarla
+// dos veces la hacía leer como el doble de actividad (5.5 del informe).
+//
+// SIN SIGNO Y SIN COLOR: la flecha ya dice todo lo que hay que decir. Un +
+// junto a un − sobre la misma operación no significan nada (el patrimonio no
+// se movió), y la app ya tiene la regla de que la plata que cambia de lugar va
+// sin color — acá además no habría de qué lado ponerlo.
+//
+// UN SOLO MONTO, salvo que las cuentas estén en monedas distintas: ahí son dos
+// hechos pares (la misma regla que MoneyStack) y los dos se muestran, cada uno
+// pegado a su cuenta, porque el par de montos ES el registro de la conversión.
+//
+// NI LÁPIZ NI CHEVRÓN. No lleva lápiz porque no se puede editar (ni una pata
+// de transferencia ni una fila de un conteo, desde ef840b4) y no lleva chevrón
+// porque no hay una cuenta a la que navegar: la fila habla de dos. Se toca
+// igual, y abre el mismo detalle de solo lectura que ya existía, que es desde
+// donde se borra. La flecha del medio es el glifo de esta fila y no se repite
+// en ninguna otra.
+function TransferRow({ transfer, onOpen }) {
+  const { from, to } = transfer
+  const twoAmounts = from.currency !== to.currency
+  return (
+    <button type="button" onClick={onOpen} className={ROW_CLASS}>
+      <div className="min-w-0">
+        <p className="truncate text-[17px]">
+          <span>{from.name}</span>{' '}
+          <span className="font-money font-medium">
+            {formatByCurrency(from.currency, from.amount)}
+          </span>
+          <span className="px-1.5 text-ink-faint">→</span>
+          {twoAmounts && (
+            <>
+              <span className="font-money font-medium">
+                {formatByCurrency(to.currency, to.amount)}
+              </span>{' '}
+            </>
+          )}
+          <span>{to.name}</span>
+        </p>
+        <p className="mt-0.5 truncate text-[13px] text-ink-soft">
+          {formatDay(transfer.date)}
+          {transfer.origin === 'split' ? ' · Reparto de un conteo' : ' · Transferencia'}
+        </p>
+      </div>
+    </button>
+  )
+}
+
 // Uno de los cinco números del mes. El monto de la derecha es una COLUMNA:
 // una línea por moneda con saldo (ver monthTotals / currencyLines), del mismo
 // tamaño y con el mismo color, porque son dos hechos del mismo rango — el
@@ -201,6 +253,11 @@ function Movements() {
   // se fue" recorre monthItems buscando gastos, y una inversión no es un
   // gasto — meterlas ahí las metería en el desglose.
   const [monthInvestments, setMonthInvestments] = useState([])
+  // Qué conteo escribió cada movimiento (id → batch_id). Es lo que permite
+  // aparear los repartos de un mismo conteo entre sí sin mezclar dos conteos
+  // del mismo día; `transactions` no lleva esa columna (ver
+  // getReconciliationBatches).
+  const [batches, setBatches] = useState(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -219,12 +276,14 @@ function Movements() {
       // hay un número principal que valga la pena salvar si la otra mitad
       // falla — un mes al que le faltan las inversiones muestra un balance
       // equivocado, y es peor que decir que no se pudo cargar.
-      const [transactions, investments] = await Promise.all([
+      const [transactions, investments, reconciliationBatches] = await Promise.all([
         getTransactions({ month, year }),
         getLiquidContributions({ month, year }),
+        getReconciliationBatches(),
       ])
       setMonthItems(transactions)
       setMonthInvestments(investments)
+      setBatches(reconciliationBatches)
     } catch (e) {
       setError({ message: 'No se pudieron cargar los movimientos.', detail: e })
     } finally {
@@ -299,13 +358,27 @@ function Movements() {
     .filter((t) => kind === 'all' || t.kind === kind)
     .filter((t) => !categoryId || t.category_id === categoryId)
 
+  // Las transferencias y los repartos se colapsan DESPUÉS de filtrar y no
+  // antes, para que un filtro que deja una sola de las dos patas no arme un
+  // par a medias: con "Gastos" elegido se ve la pata que salió, suelta, igual
+  // que hasta ahora. Sin filtros —el caso normal— las dos están y la línea
+  // sale entera.
+  const { transfers, transactions: looseTransactions } = collapseTransfers(
+    filteredTransactions,
+    (id) => batches.get(id) ?? null,
+  )
+
   // Una inversión no es un gasto ni un ingreso, así que los filtros de tipo la
   // dejan afuera en vez de meterla arbitrariamente en uno de los dos; el de
   // categoría también, porque no tiene categoría que pueda coincidir. En
   // "Todos" y sin categoría elegida, aparece. Los tres renglones de arriba no
   // se mueven: siguen describiendo el mes completo.
   const showInvestments = kind === 'all' && !categoryId
-  const items = mergeMovements(filteredTransactions, showInvestments ? monthInvestments : [])
+  const items = mergeMovements(
+    looseTransactions,
+    showInvestments ? monthInvestments : [],
+    transfers,
+  )
 
   const { expenses, incomes, invested, saved, balance } = monthTotals({
     transactions: monthItems,
@@ -479,6 +552,15 @@ function Movements() {
                 {items.map(({ source, row }) =>
                   source === 'contribution' ? (
                     <InvestmentRow key={`c-${row.id}`} contribution={row} />
+                  ) : source === 'transfer' ? (
+                    <TransferRow
+                      key={`x-${row.id}`}
+                      transfer={row}
+                      onOpen={() => {
+                        setEditing(row.row)
+                        setModalOpen(true)
+                      }}
+                    />
                   ) : row.account?.is_savings ? (
                     <SavingsRow key={`t-${row.id}`} tx={row} />
                   ) : (

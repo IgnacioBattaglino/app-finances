@@ -58,6 +58,39 @@ export async function getLastReconciliationByAccount() {
 // en lo declarado (ADR-016)-- así que se borran juntas o no se borra ninguna,
 // igual que las dos patas de una transferencia.
 
+// QUÉ CONTEO ESCRIBIÓ CADA MOVIMIENTO, para toda una tanda de una: un Map de
+// id de movimiento → batch_id de su conteo. Es lo que le falta a la lista de
+// Movimientos para poder aparear los repartos de un mismo conteo entre sí
+// (ver collapseTransfers en lib/movementList.js): `transactions` no lleva
+// batch_id --el vínculo vive del otro lado, en las dos columnas de
+// liquid_reconciliations que apuntan a los movimientos que escribió-- y sin él
+// dos conteos del mismo día se mezclarían en un solo apareo.
+//
+// Se trae la tabla entera y no solo el rango navegado: crece de a una fila por
+// cuenta declarada por conteo (unas pocas por mes) y así el rango "Todo" no
+// necesita un camino distinto. Mismo criterio que getReconciliations, que ya
+// la trae completa para el aviso de los formularios.
+//
+// Una fila sin batch_id (un conteo anterior a la migración 0042 que quedó sin
+// agrupar) se saltea: sin llave de conteo no hay con quién aparearla, y el
+// movimiento queda suelto en la lista, que es exactamente lo que es.
+export async function getReconciliationBatches() {
+  const { data, error } = await supabase
+    .from('liquid_reconciliations')
+    .select('batch_id, adjustment_transaction_id, redistribution_transaction_id')
+  if (error) throw error
+
+  const byTransaction = new Map()
+  for (const row of data) {
+    if (!row.batch_id) continue
+    if (row.adjustment_transaction_id) byTransaction.set(row.adjustment_transaction_id, row.batch_id)
+    if (row.redistribution_transaction_id) {
+      byTransaction.set(row.redistribution_transaction_id, row.batch_id)
+    }
+  }
+  return byTransaction
+}
+
 // El conteo que escribió este movimiento, o null si el movimiento no es parte
 // de ninguno (un gasto común, o una transferencia entre cuentas de verdad, que
 // comparte categoría con el reparto pero lleva transfer_id).
