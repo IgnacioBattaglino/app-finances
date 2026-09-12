@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js'
 import { round } from './money.js'
 import { LOCAL_CURRENCY, currencyLines, hasAmount, amountInCurrency } from './currencyTotals.js'
+import { getAccounts } from './liquidAccounts.js'
 
 // Todas las reconciliaciones, de la más nueva a la más vieja. La tabla crece
 // de a una fila por cuenta declarada, así que traerla entera es barato y
@@ -172,17 +173,17 @@ export async function getAccountBalances() {
 }
 
 export async function computeCurrentLiquid() {
+  // getAccounts() (no getAccountsRaw ni un select propio): filtra
+  // is_archived, que es lo que significa "eliminada" para una cuenta con
+  // historia (ver deleteAccount, lib/liquidAccounts.js). Sin este filtro una
+  // cuenta borrada así seguía apareciendo acá —con su saldo en 0, pero como
+  // fila propia— tanto en el desglose de Inicio como en las filas de "Contar
+  // mi plata", que la ofrecía para reconciliar de nuevo. El total no
+  // depende de esta lista (sale de TODOS los baldes, más abajo), así que
+  // filtrar no le esconde plata a nadie.
   const [reconciliations, accountRows, buckets] = await Promise.all([
     getReconciliations(),
-    supabase
-      .from('liquid_accounts')
-      .select('*')
-      .order('position')
-      .order('name')
-      .then(({ data, error }) => {
-        if (error) throw error
-        return data
-      }),
+    getAccounts(),
     supabase.rpc('get_liquid_by_account').then(({ data, error }) => {
       if (error) throw error
       return data

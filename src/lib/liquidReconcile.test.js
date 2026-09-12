@@ -120,8 +120,8 @@ const SYSTEM_CATEGORIES = [
 function seedTwoAccounts() {
   h.state.tables = {
     liquid_accounts: [
-      { id: EFECTIVO, name: 'Efectivo', position: 0, currency: 'ARS', is_savings: false },
-      { id: MERCADO_PAGO, name: 'Mercado Pago', position: 1, currency: 'ARS', is_savings: false },
+      { id: EFECTIVO, name: 'Efectivo', position: 0, currency: 'ARS', is_savings: false, is_archived: false },
+      { id: MERCADO_PAGO, name: 'Mercado Pago', position: 1, currency: 'ARS', is_savings: false, is_archived: false },
     ],
     liquid_reconciliations: [
       { id: 'rec-vieja', account_id: EFECTIVO, date: '2026-01-01', declared_amount: 10000 },
@@ -207,6 +207,7 @@ describe('las cuentas de ahorro no son el disponible', () => {
       position: 2,
       currency: 'USD',
       is_savings: true,
+      is_archived: false,
     })
     h.state.tables.transactions.push({ kind: 'income', amount: 220, account_id: AHORRO })
   })
@@ -250,6 +251,7 @@ describe('una cuenta en dólares del día a día', () => {
       position: 3,
       currency: 'USD',
       is_savings: false,
+      is_archived: false,
     })
     h.state.tables.transactions.push({ kind: 'income', amount: 100, account_id: USD_DIARIA })
   })
