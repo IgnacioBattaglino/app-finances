@@ -1,5 +1,5 @@
 import { LOCAL_CURRENCY, currencyLines, amountInCurrency } from './currencyTotals.js'
-import { isMovedMoney } from './systemCategories.js'
+import { movementType, isMovedMoneyType, ACCOUNT_TRANSFER } from './systemCategories.js'
 
 // Movimientos = lo que pasó por el bolsillo. Son dos tablas: los gastos e
 // ingresos viven en transactions, y las inversiones que salen del disponible (o
@@ -90,7 +90,11 @@ function addTo(map, currency, delta) {
 function savedByCurrency(transactions) {
   const legs = new Map()
   for (const t of transactions) {
-    if (!t.transfer_id) continue
+    // Una transferencia de verdad (tipo 5): mismo criterio que movementType,
+    // que ya decide "transferencia" solo con transfer_id, sin mirar la
+    // categoría — el reparto de un conteo (tipo 4) nunca llega acá porque no
+    // lleva transfer_id.
+    if (movementType(t) !== ACCOUNT_TRANSFER) continue
     if (!legs.has(t.transfer_id)) legs.set(t.transfer_id, [])
     legs.get(t.transfer_id).push(t)
   }
@@ -135,7 +139,7 @@ export function monthTotals({ transactions, contributions }) {
     // bien: desde la 0041 lleva solo el NETO del conteo, que es el gasto que
     // de verdad ocurrió. Antes llevaba también el reparto, y por eso este
     // total se pasaba.
-    if (isMovedMoney(t.category)) continue
+    if (isMovedMoneyType(movementType(t))) continue
     const currency = transactionCurrencyOf(t)
     addTo(t.kind === 'income' ? incomes : expenses, currency, Number(t.amount))
   }

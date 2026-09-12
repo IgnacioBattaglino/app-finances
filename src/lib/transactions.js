@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js'
 import { LOCAL_CURRENCY } from './currencyTotals.js'
-import { isMovedMoney } from './systemCategories.js'
+import { isMovedMoney, movementType, isMovedMoneyType } from './systemCategories.js'
 
 // El join implícito trae el nombre y la llave de la categoría en la misma
 // query — la llave es lo que permite excluir "Movimiento de ahorro" de los
@@ -141,7 +141,7 @@ export function groupExpensesByCategory(transactions) {
   const byCurrency = new Map()
   for (const t of transactions) {
     if (t.kind !== 'expense') continue
-    if (isMovedMoney(t.category)) continue
+    if (isMovedMoneyType(movementType(t))) continue
     const currency = t.currency ?? LOCAL_CURRENCY
     const name = t.category?.name ?? 'Sin categoría'
     if (!byCurrency.has(currency)) byCurrency.set(currency, new Map())

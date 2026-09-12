@@ -18,6 +18,7 @@ import {
   monthTotals,
 } from '../lib/movements.js'
 import { getCategories } from '../lib/categories.js'
+import { movementType, isMovedMoneyType } from '../lib/systemCategories.js'
 import { formatByCurrency, formatMonthYear, formatDay } from '../lib/format.js'
 
 const now = new Date()
@@ -60,8 +61,14 @@ function PlusIcon() {
 const ROW_CLASS =
   'flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist'
 
-// Gasto o ingreso: se toca para editarlo (de ahí el lápiz).
+// Gasto o ingreso: se toca para editarlo (de ahí el lápiz). El color es por
+// SIGNIFICADO, no por `kind`: un reparto de conteo o una pata de transferencia
+// que caen en esta fila (porque su cuenta no es de ahorro) no son ni una
+// pérdida ni una ganancia, son plata que cambió de lugar — van sin color,
+// igual que ya hacen InvestmentRow y SavingsRow. Un gasto, un ingreso o un
+// ajuste de saldo (que sí son reales) se quedan con el color de siempre.
 function TransactionRow({ tx, onEdit }) {
+  const isMoved = isMovedMoneyType(movementType(tx))
   return (
     <button type="button" onClick={onEdit} className={ROW_CLASS}>
       <div className="min-w-0">
@@ -79,7 +86,7 @@ function TransactionRow({ tx, onEdit }) {
       </div>
       <span
         className={`font-money shrink-0 text-[17px] font-medium ${
-          tx.kind === 'expense' ? 'text-clay' : 'text-gain'
+          isMoved ? '' : tx.kind === 'expense' ? 'text-clay' : 'text-gain'
         }`}
       >
         {tx.kind === 'expense' ? '−' : '+'}

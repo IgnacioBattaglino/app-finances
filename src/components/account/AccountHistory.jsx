@@ -1,4 +1,5 @@
 import { formatByCurrency, formatDay } from '../../lib/format.js'
+import { movementType, isMovedMoneyType } from '../../lib/systemCategories.js'
 import EditIcon from '../EditIcon.jsx'
 
 // Un movimiento (transactions) de esta cuenta: categoría + descripción a la
@@ -6,7 +7,14 @@ import EditIcon from '../EditIcon.jsx'
 // moneda de la cuenta a la derecha. Editable/borrable al tocarlo — el propio
 // TransactionFormModal decide si es una pata de transferencia y la muestra de
 // solo lectura con la opción de borrar la transferencia entera.
+//
+// El color es por SIGNIFICADO, no por `kind`: mismo criterio que
+// TransactionRow en Movements.jsx. Acá hace más falta todavía, porque esta
+// lista no tiene un branch aparte para una cuenta de ahorro (es siempre la
+// misma cuenta) — sin esto, CUALQUIER reparto o transferencia que cae en el
+// historial de una cuenta se ve como un gasto o un ingreso real.
 function TransactionRow({ tx, onClick }) {
+  const isMoved = isMovedMoneyType(movementType(tx))
   return (
     <button
       type="button"
@@ -25,7 +33,7 @@ function TransactionRow({ tx, onClick }) {
       </div>
       <span
         className={`font-money shrink-0 text-[17px] font-medium ${
-          tx.kind === 'expense' ? 'text-clay' : 'text-gain'
+          isMoved ? '' : tx.kind === 'expense' ? 'text-clay' : 'text-gain'
         }`}
       >
         {tx.kind === 'expense' ? '−' : '+'}
