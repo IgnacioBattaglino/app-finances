@@ -1,5 +1,8 @@
 import { supabase } from './supabase.js'
 import { todayISO } from './format.js'
+// Paginar hasta el final es lo mismo que necesita la lista de Movimientos con
+// un rango largo: la regla vive en un solo lugar (ver lib/pagination.js).
+import { fetchAllPages } from './pagination.js'
 
 // Exportación de los datos propios a CSV, para abrir en una planilla.
 //
@@ -16,28 +19,6 @@ import { todayISO } from './format.js'
 
 const DELIMITER = ';'
 
-// PostgREST corta cualquier consulta en 1000 filas sin avisar. Una
-// exportación es, por definición, todo el historial -- así que en vez de
-// pedir todo de una, se pagina con `.range()` hasta que una página vuelve con
-// menos de PAGE_SIZE filas (la señal de que ya no queda nada más).
-//
-// `buildQuery` recibe el (from, to) de la página y devuelve la consulta ya
-// armada, ordenada de forma ESTABLE (con un desempate único, como `id`): sin
-// eso, dos filas con el mismo valor en las columnas de orden podrían caer las
-// dos en una página y ninguna en la otra, o repetirse en las dos.
-const PAGE_SIZE = 1000
-
-async function fetchAllPages(buildQuery) {
-  const rows = []
-  let from = 0
-  while (true) {
-    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1)
-    if (error) throw error
-    rows.push(...data)
-    if (data.length < PAGE_SIZE) return rows
-    from += PAGE_SIZE
-  }
-}
 
 function escapeCell(value) {
   if (value === null || value === undefined) return ''

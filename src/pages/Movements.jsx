@@ -27,9 +27,26 @@ import {
 } from '../lib/movementList.js'
 import { getReconciliationBatches } from '../lib/liquid.js'
 import { movementType, isMovedMoneyType } from '../lib/systemCategories.js'
-import { formatByCurrency, formatMonthYear, formatDay } from '../lib/format.js'
+import { formatByCurrency, formatDay } from '../lib/format.js'
+import RangeSheet from '../components/movements/RangeSheet.jsx'
+import {
+  bounds,
+  canShift,
+  contains,
+  label as rangeLabel,
+  monthOf,
+  monthRange,
+  shift,
+} from '../lib/dateRange.js'
 
 const now = new Date()
+
+// Cuántas filas se pintan de una. Con un mes no cambia nada (un mes cargado
+// tiene decenas de movimientos, no cientos), pero "Todo" puede ser el
+// historial completo y meter miles de nodos en el DOM de un teléfono. Los
+// TOTALES siempre se calculan sobre el período entero: esto recorta lo que se
+// dibuja, nunca lo que se cuenta.
+const PAGE = 100
 
 function Arrow({ direction }) {
   return (
@@ -266,14 +283,19 @@ function Movements() {
   const [batches, setBatches] = useState(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [month, setMonth] = useState(now.getMonth() + 1)
-  const [year, setYear] = useState(now.getFullYear())
+  // El período que se está mirando. Arranca en el mes en curso, que es la
+  // lectura más frecuente y la que la pantalla tenía siempre; desde acá se
+  // puede pasar a un año, al historial completo o a dos fechas cualesquiera
+  // (ver lib/dateRange.js).
+  const [range, setRange] = useState(() => monthRange(now.getMonth() + 1, now.getFullYear()))
+  const [rangeOpen, setRangeOpen] = useState(false)
   // Qué cajón de movimientos se está mirando (ver movementBucket): el filtro
   // es por SIGNIFICADO, no por `transactions.kind`, así que lo que se ve es
   // exactamente lo que suma el renglón homónimo de los totales.
   const [bucket, setBucket] = useState(ALL)
   const [categoryId, setCategoryId] = useState('')
   const [categories, setCategories] = useState([])
+  const [visible, setVisible] = useState(PAGE)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
 
@@ -285,9 +307,10 @@ function Movements() {
       // hay un número principal que valga la pena salvar si la otra mitad
       // falla — un mes al que le faltan las inversiones muestra un balance
       // equivocado, y es peor que decir que no se pudo cargar.
+      const { from, to } = bounds(range)
       const [transactions, investments, reconciliationBatches] = await Promise.all([
-        getTransactions({ month, year }),
-        getLiquidContributions({ month, year }),
+        getTransactions({ from, to }),
+        getLiquidContributions({ from, to }),
         getReconciliationBatches(),
       ])
       setMonthItems(transactions)
@@ -303,25 +326,23 @@ function Movements() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month, year])
+  }, [range])
 
   useEffect(() => {
     getCategories().then(setCategories).catch(() => {})
   }, [])
 
-  function moveMonth(delta) {
-    let m = month + delta
-    let y = year
-    if (m === 0) {
-      m = 12
-      y -= 1
-    }
-    if (m === 13) {
-      m = 1
-      y += 1
-    }
-    setMonth(m)
-    setYear(y)
+  // Cambiar de período o de filtro es empezar a leer otra lista: vuelve a las
+  // primeras PAGE filas en vez de arrastrar el "ver más" de la anterior.
+  useEffect(() => {
+    setVisible(PAGE)
+  }, [range, bucket, categoryId])
+
+  // Las flechas mueven de a un paso DEL PERÍODO elegido: mes a mes cuando se
+  // mira un mes, año a año cuando se mira un año. Con "Todo" o un rango a
+  // medida no hay paso natural y las flechas no se muestran (ver canShift).
+  function moveRange(delta) {
+    setRange((current) => shift(current, delta))
   }
 
   // Cambiar de cajón puede dejar elegida una categoría que ya no aplica: una
@@ -350,14 +371,14 @@ function Movements() {
   function refreshAfterSave(saved) {
     closeModal()
 
-    // Si el movimiento quedó en otro mes que el navegado (típico: cargarlo con
-    // fecha de hoy mientras mirás un mes pasado), saltamos a su mes. La fila en
+    // Si el movimiento quedó fuera del período navegado (típico: cargarlo con
+    // fecha de hoy mientras mirás un mes pasado), saltamos a SU mes. La fila en
     // la lista es la única confirmación de que se guardó: quedarse donde estaba
-    // hace pensar que la operación no tuvo efecto.
-    const [y, m] = saved?.date?.split('-').map(Number) ?? []
-    if (y && m && (y !== year || m !== month)) {
-      setMonth(m)
-      setYear(y) // el efecto de [month, year] dispara load()
+    // hace pensar que la operación no tuvo efecto. Se salta al mes y no al
+    // período equivalente porque un movimiento es de un día: el mes es el
+    // recorte más chico que lo contiene y lo deja a la vista.
+    if (saved?.date && !contains(range, saved.date)) {
+      setRange(monthOf(saved.date)) // el efecto de [range] dispara load()
       return
     }
     load()
@@ -429,25 +450,44 @@ function Movements() {
           min-content y ahí el truncate hace su trabajo. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-8">
         <section className="space-y-3 lg:sticky lg:top-10 lg:self-start">
-          {/* Navegador de mes */}
+          {/* Navegador del período. Las flechas son las de siempre y hacen lo
+              de siempre; lo nuevo es que el nombre del medio se toca y abre
+              la hoja para elegir otro período. Con "Todo" o un rango a medida
+              las flechas desaparecen (no hay un "siguiente" de eso) y el
+              nombre ocupa la fila entera; los huecos las reemplazan para que
+              el título no se corra de lugar al cambiar de modo. */}
           <div className="surface flex items-center justify-between px-2 py-1.5">
+            {canShift(range) ? (
+              <button
+                type="button"
+                onClick={() => moveRange(-1)}
+                aria-label="Período anterior"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
+              >
+                <Arrow direction="left" />
+              </button>
+            ) : (
+              <span aria-hidden className="h-9 w-9 shrink-0" />
+            )}
             <button
               type="button"
-              onClick={() => moveMonth(-1)}
-              aria-label="Mes anterior"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
+              onClick={() => setRangeOpen(true)}
+              className="min-w-0 truncate rounded-full px-3 py-1 text-[17px] font-semibold transition active:bg-mist md:hover:bg-mist"
             >
-              <Arrow direction="left" />
+              {rangeLabel(range)}
             </button>
-            <span className="text-[17px] font-semibold">{formatMonthYear(month, year)}</span>
-            <button
-              type="button"
-              onClick={() => moveMonth(1)}
-              aria-label="Mes siguiente"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
-            >
-              <Arrow direction="right" />
-            </button>
+            {canShift(range) ? (
+              <button
+                type="button"
+                onClick={() => moveRange(1)}
+                aria-label="Período siguiente"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
+              >
+                <Arrow direction="right" />
+              </button>
+            ) : (
+              <span aria-hidden className="h-9 w-9 shrink-0" />
+            )}
           </div>
 
           {error && (
@@ -555,14 +595,16 @@ function Movements() {
             <p className="px-1 text-[15px] text-ink-soft">Cargando…</p>
           ) : items.length === 0 && !error ? (
             <p className="surface px-4 py-10 text-center text-[15px] text-ink-soft">
-              {hasExtraFilters ? 'Sin movimientos con estos filtros.' : 'Sin movimientos este mes.'}
+              {hasExtraFilters
+                ? 'Sin movimientos con estos filtros.'
+                : 'Sin movimientos en este período.'}
             </p>
           ) : (
             !error && (
               <div className="list">
                 {/* La key lleva el prefijo de la fuente: son dos tablas con
                     uuid propios y nada garantiza que no se crucen. */}
-                {items.map(({ source, row }) =>
+                {items.slice(0, visible).map(({ source, row }) =>
                   source === 'contribution' ? (
                     <InvestmentRow key={`c-${row.id}`} contribution={row} />
                   ) : source === 'transfer' ? (
@@ -590,6 +632,16 @@ function Movements() {
               </div>
             )
           )}
+
+          {items.length > visible && (
+            <button
+              type="button"
+              onClick={() => setVisible((n) => n + PAGE)}
+              className="btn btn-secondary w-full"
+            >
+              Ver más ({items.length - visible})
+            </button>
+          )}
         </section>
       </div>
 
@@ -602,6 +654,10 @@ function Movements() {
       >
         <PlusIcon />
       </button>
+
+      {rangeOpen && (
+        <RangeSheet range={range} onChange={setRange} onClose={() => setRangeOpen(false)} />
+      )}
 
       <TransactionFormModal
         open={modalOpen}

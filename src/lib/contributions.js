@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { fetchAllPages } from './pagination.js'
 import { computeContributed, decomposeWithdrawal } from './portfolio.js'
 import { round } from './money.js'
 
@@ -79,31 +80,35 @@ export async function getContributions({ assetId, month, year, limit, offset = 0
 //
 // El nombre del activo viene por join: la lista tiene que poder decir "a qué"
 // se invirtió, y el id solo sirve para navegar al detalle.
-export async function getLiquidContributions({ month, year }) {
-  const { start, next } = monthRange(month, year)
-
-  const { data, error } = await supabase
-    .from('contributions')
-    // La moneda de la cuenta viaja con la fila, igual que en getTransactions:
-    // decide si el monto en dólares hay que convertirlo para mostrarlo (ver
-    // contributionAmount). Se lee de la cuenta y no de una lista en el cliente
-    // porque los selectores no ofrecen las cuentas de ahorro ni las ocultas, y
-    // una inversión vieja puede apuntar a cualquiera de las dos.
-    //
-    // `savings_account_id` del activo dice si esto fue una inversión o un
-    // ahorro: los activos que la migración 0038 convirtió en cuentas de ahorro
-    // lo llevan, y sus aportes no son "Invertido" sino "Ahorrado" (ver
-    // monthTotals).
-    .select(
-      'id, date, direction, amount_usd, mep_rate, created_at, account_id, account:liquid_accounts(currency), asset:assets(id, name, savings_account_id)',
-    )
-    .eq('affects_liquid', true)
-    .gte('date', start)
-    .lt('date', next)
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data
+// Mismo rango inclusivo y misma paginación que getTransactions, y por el mismo
+// motivo: las dos alimentan la misma pantalla, que ahora puede pedir un año
+// entero o el historial completo.
+export async function getLiquidContributions({ from, to } = {}) {
+  return fetchAllPages((pageFrom, pageTo) => {
+    let query = supabase
+      .from('contributions')
+      // La moneda de la cuenta viaja con la fila, igual que en getTransactions:
+      // decide si el monto en dólares hay que convertirlo para mostrarlo (ver
+      // contributionAmount). Se lee de la cuenta y no de una lista en el
+      // cliente porque los selectores no ofrecen las cuentas de ahorro ni las
+      // ocultas, y una inversión vieja puede apuntar a cualquiera de las dos.
+      //
+      // `savings_account_id` del activo dice si esto fue una inversión o un
+      // ahorro: los activos que la migración 0038 convirtió en cuentas de
+      // ahorro lo llevan, y sus aportes no son "Invertido" sino "Ahorrado"
+      // (ver monthTotals).
+      .select(
+        'id, date, direction, amount_usd, mep_rate, created_at, account_id, account:liquid_accounts(currency), asset:assets(id, name, savings_account_id)',
+      )
+      .eq('affects_liquid', true)
+    if (from) query = query.gte('date', from)
+    if (to) query = query.lte('date', to)
+    return query
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(pageFrom, pageTo)
+  })
 }
 
 // Separa una tanda de `pageSize + 1` filas (pedidas de más a propósito) en la

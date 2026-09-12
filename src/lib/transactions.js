@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js'
 import { LOCAL_CURRENCY } from './currencyTotals.js'
 import { isMovedMoney, movementType, isMovedMoneyType } from './systemCategories.js'
+import { fetchAllPages } from './pagination.js'
 
 // El join implícito trae el nombre y la llave de la categoría en la misma
 // query — la llave es lo que permite excluir "Movimiento de ahorro" de los
@@ -52,22 +53,26 @@ function toRow({ date, kind, categoryId, description, amount, currency, accountI
   }
 }
 
-export async function getTransactions({ month, year } = {}) {
-  let query = supabase.from('transactions').select(SELECT)
-
-  if (month && year) {
-    const start = `${year}-${String(month).padStart(2, '0')}-01`
-    const next =
-      month === 12
-        ? `${year + 1}-01-01`
-        : `${year}-${String(month + 1).padStart(2, '0')}-01`
-    query = query.gte('date', start).lt('date', next)
-  }
-
-  const { data, error } = await query
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-  if (error) throw error
+// `from`/`to` son las dos fechas INCLUSIVAS del rango que se está mirando (las
+// arma lib/dateRange.js), y las dos son opcionales: sin ninguna trae todo el
+// historial, que es el rango "Todo" de la pantalla.
+//
+// PAGINADA, y no por prolijidad: desde que el rango puede ser un año o el
+// historial entero, pasar las 1000 filas de PostgREST dejó de ser improbable
+// (docs/ux/movimientos.md, 5.8) — y el corte es silencioso, así que la
+// pantalla mostraría totales de menos sin que nada lo indique. El desempate
+// por `id` es lo que hace que las páginas no se pisen entre sí.
+export async function getTransactions({ from, to } = {}) {
+  const data = await fetchAllPages((pageFrom, pageTo) => {
+    let query = supabase.from('transactions').select(SELECT)
+    if (from) query = query.gte('date', from)
+    if (to) query = query.lte('date', to)
+    return query
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(pageFrom, pageTo)
+  })
 
   // LOS MOVIMIENTOS DE UNA CUENTA DE AHORRO TAMBIÉN SON MOVIMIENTOS.
   //

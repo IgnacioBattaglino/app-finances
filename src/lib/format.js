@@ -109,6 +109,33 @@ export function formatDayYear(date) {
   return dayYear.format(parsed)
 }
 
+// "12 ago 2025": la misma información que formatDayYear pero sin los "de" que
+// es-AR intercala ("12 de ago de 2025"). Para cuando la fecha convive con otra
+// en la misma línea —los dos extremos de un rango— y el largo empieza a
+// importar: unidas por un guion, las dos versiones largas no entran en el
+// ancho de un teléfono.
+//
+// Se arma con formatToParts y no con un patrón propio para que el ORDEN de
+// día, mes y año lo siga decidiendo Intl, no nosotros.
+const dayShortYear = new Intl.DateTimeFormat('es-AR', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
+export function formatDayShortYear(date) {
+  if (typeof date !== 'string') return ''
+  const [y, m, d] = date.split('-').map(Number)
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return ''
+  const parsed = new Date(y, m - 1, d)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return dayShortYear
+    .formatToParts(parsed)
+    .filter((part) => part.type === 'day' || part.type === 'month' || part.type === 'year')
+    .map((part) => part.value)
+    .join(' ')
+}
+
 export function todayISO() {
   const now = new Date()
   const pad = (n) => String(n).padStart(2, '0')
