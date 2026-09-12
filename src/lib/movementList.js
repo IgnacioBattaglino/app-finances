@@ -1,5 +1,12 @@
 import { transactionCurrencyOf } from './movements.js'
-import { movementType, ACCOUNT_TRANSFER, RECONCILIATION_SPLIT } from './systemCategories.js'
+import {
+  movementType,
+  ACCOUNT_TRANSFER,
+  BALANCE_ADJUSTMENT,
+  INCOME,
+  RECONCILIATION_SPLIT,
+  SAVINGS_MOVEMENT,
+} from './systemCategories.js'
 
 // CÓMO SE ARMA LA LISTA DE MOVIMIENTOS: qué filas se juntan en una sola línea
 // y en qué cajón cae cada una. Puro y testeable: recibe las filas ya
@@ -227,5 +234,87 @@ export function collapseTransfers(transactions, batchOf) {
   return {
     transfers: [...byTransfer.items, ...bySplit.items],
     transactions: bySplit.loose,
+  }
+}
+
+// ── EN QUÉ CAJÓN CAE CADA LÍNEA ────────────────────────────────────────────
+//
+// Los seis filtros de la pantalla. Hasta acá el filtro miraba
+// `transactions.kind`, que es la columna de la base, mientras los totales
+// miraban el SIGNIFICADO (isMovedMoney): con "Gastos" elegido la lista
+// mostraba filas rojas que no estaban en el total de Gastos —transferencias,
+// repartos, movimientos de ahorro— y los dos números se contradecían a un
+// dedo de distancia (docs/ux/movimientos.md, 4.1). Acá el filtro pasa a mirar
+// lo mismo que los totales, así que "Gastos" muestra exactamente las filas que
+// suma el renglón Gastos. Ese es el criterio de aceptación.
+//
+// LOS CAJONES SON DISJUNTOS: cada línea cae en uno y solo uno. Por eso una
+// transferencia que cruza al ahorro va a Ahorros y no a Transferencias — es
+// la que cuenta en el renglón "Ahorrado", y contarla en los dos lugares
+// volvería a mostrar la misma plata dos veces, que es de lo que venimos.
+//
+// Recibe un ítem ya mezclado (`{ source, row }`, ver mergeMovements) y no una
+// fila: el cajón de una transferencia depende de sus DOS patas, así que no se
+// puede decidir mirando una sola. Esa es la diferencia con movementType, que
+// clasifica filas y sigue siendo el bloque con el que esto se construye.
+export const ALL = 'all'
+export const EXPENSES = 'expenses'
+export const INCOMES = 'incomes'
+export const INVESTMENTS = 'investments'
+export const SAVINGS = 'savings'
+export const TRANSFERS = 'transfers'
+
+export const MOVEMENT_BUCKETS = [
+  { value: ALL, label: 'Todos' },
+  { value: EXPENSES, label: 'Gastos' },
+  { value: INCOMES, label: 'Ingresos' },
+  { value: INVESTMENTS, label: 'Inversiones' },
+  { value: SAVINGS, label: 'Ahorros' },
+  { value: TRANSFERS, label: 'Transferencias' },
+]
+
+// Los únicos cajones donde una categoría de usuario significa algo. En los
+// otros tres no hay ninguna categoría que elegir —una inversión no tiene, y
+// una transferencia o un movimiento de ahorro llevan siempre la del sistema—,
+// así que la pantalla esconde ese control en vez de dejarlo prometiendo un
+// filtro que no filtra nada.
+export function bucketHasCategories(bucket) {
+  return bucket === ALL || bucket === EXPENSES || bucket === INCOMES
+}
+
+export function movementBucket({ source, row }) {
+  // Una inversión o un retiro. Cuál de los dos cajones es lo decide la misma
+  // señal que usa monthTotals para elegir entre "Invertido" y "Ahorrado": un
+  // aporte a un activo que la migración 0038 convirtió en cuenta de ahorro es
+  // ahorro, no inversión (ADR-014).
+  if (source === 'contribution') return row.asset?.savings_account_id ? SAVINGS : INVESTMENTS
+
+  // Una transferencia o un reparto ya colapsados: ahorro si cruza (el mismo
+  // criterio de savedByCurrency), y si no, plata que se movió dentro del
+  // disponible.
+  if (source === 'transfer') return row.crossesSavings ? SAVINGS : TRANSFERS
+
+  switch (movementType(row)) {
+    // El ajuste del neto de un conteo es un gasto o un ingreso REAL (la plata
+    // que faltaba y no habías cargado), así que va con ellos: es lo que ya
+    // hace monthTotals, que lo suma sin distinguirlo.
+    case BALANCE_ADJUSTMENT:
+      return row.kind === 'expense' ? EXPENSES : INCOMES
+    // Un aporte o un retiro "de afuera" de una cuenta de ahorro: plata que
+    // entró o salió de lo guardado sin pasar por ninguna cuenta de la app. No
+    // suma en el renglón "Ahorrado" (no movió el disponible, igual que una
+    // tenencia preexistente no suma a "Invertido"), pero es de ahorro, y si no
+    // cayera acá no habría ningún cajón donde encontrarla.
+    case SAVINGS_MOVEMENT:
+      return SAVINGS
+    // Patas huérfanas y repartos que no se pudieron aparear: siguen siendo lo
+    // que son. Del lado del ahorro si su cuenta lo es.
+    case ACCOUNT_TRANSFER:
+    case RECONCILIATION_SPLIT:
+      return row.account?.is_savings ? SAVINGS : TRANSFERS
+    case INCOME:
+      return INCOMES
+    default:
+      return EXPENSES
   }
 }

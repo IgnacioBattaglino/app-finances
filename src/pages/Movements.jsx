@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
-import BinaryChoice from '../components/form/BinaryChoice.jsx'
+import FilterChips from '../components/form/FilterChips.jsx'
 import EditIcon from '../components/EditIcon.jsx'
 import FormError from '../components/form/FormError.jsx'
 import { getTransactions, groupExpensesByCategory } from '../lib/transactions.js'
@@ -18,7 +18,13 @@ import {
   monthTotals,
 } from '../lib/movements.js'
 import { getCategories } from '../lib/categories.js'
-import { collapseTransfers } from '../lib/movementList.js'
+import {
+  collapseTransfers,
+  movementBucket,
+  bucketHasCategories,
+  MOVEMENT_BUCKETS,
+  ALL,
+} from '../lib/movementList.js'
 import { getReconciliationBatches } from '../lib/liquid.js'
 import { movementType, isMovedMoneyType } from '../lib/systemCategories.js'
 import { formatByCurrency, formatMonthYear, formatDay } from '../lib/format.js'
@@ -262,7 +268,10 @@ function Movements() {
   const [error, setError] = useState(null)
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
-  const [kind, setKind] = useState('all')
+  // Qué cajón de movimientos se está mirando (ver movementBucket): el filtro
+  // es por SIGNIFICADO, no por `transactions.kind`, así que lo que se ve es
+  // exactamente lo que suma el renglón homónimo de los totales.
+  const [bucket, setBucket] = useState(ALL)
   const [categoryId, setCategoryId] = useState('')
   const [categories, setCategories] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
@@ -315,16 +324,19 @@ function Movements() {
     setYear(y)
   }
 
-  // Cambiar de tipo puede dejar elegida una categoría que ya no aplica (una
-  // de gasto con el filtro en "Ingresos"): se limpia, mismo criterio que usa
-  // el formulario de carga al cambiar Gasto/Ingreso. Con "Todos" cualquier
-  // categoría sigue siendo válida.
-  function changeKind(value) {
-    setKind(value)
-    if (categoryId && value !== 'all') {
-      const cat = categories.find((c) => c.id === categoryId)
-      if (cat && cat.kind !== value) setCategoryId('')
-    }
+  // Cambiar de cajón puede dejar elegida una categoría que ya no aplica: una
+  // de gasto con el filtro en "Ingresos", o cualquiera en un cajón que no
+  // tiene categorías (Inversiones, Ahorros, Transferencias), donde además el
+  // control desaparece y la categoría quedaría filtrando en silencio. Se
+  // limpia, mismo criterio que usa el formulario de carga al cambiar
+  // Gasto/Ingreso.
+  function changeBucket(value) {
+    setBucket(value)
+    if (!categoryId) return
+    if (!bucketHasCategories(value)) return setCategoryId('')
+    const cat = categories.find((c) => c.id === categoryId)
+    const wanted = value === 'expenses' ? 'expense' : value === 'incomes' ? 'income' : null
+    if (wanted && cat && cat.kind !== wanted) setCategoryId('')
   }
 
   function closeModal() {
@@ -351,40 +363,37 @@ function Movements() {
     load()
   }
 
-  // La lista de abajo respeta los filtros de tipo/categoría; los totales y el
-  // desglose (más arriba) se calculan sobre el mes entero, sin filtrar:
-  // describen el mes navegado completo, no lo que quedó visible en la lista.
-  const filteredTransactions = monthItems
-    .filter((t) => kind === 'all' || t.kind === kind)
-    .filter((t) => !categoryId || t.category_id === categoryId)
-
-  // Las transferencias y los repartos se colapsan DESPUÉS de filtrar y no
-  // antes, para que un filtro que deja una sola de las dos patas no arme un
-  // par a medias: con "Gastos" elegido se ve la pata que salió, suelta, igual
-  // que hasta ahora. Sin filtros —el caso normal— las dos están y la línea
-  // sale entera.
+  // La lista se arma en tres pasos, y el orden importa: primero se COLAPSA
+  // (sobre el mes entero, para que las dos patas de una transferencia siempre
+  // se encuentren), después se mezcla, y recién al final se FILTRA. Filtrar
+  // antes rompería el apareo: un filtro que dejara una sola pata armaría
+  // líneas a medias, y el cajón de una transferencia se decide mirando sus dos
+  // puntas.
+  //
+  // Los totales y el desglose (más arriba) se calculan aparte, sobre el mes
+  // entero y sin filtrar: describen el mes navegado completo, no lo que quedó
+  // visible en la lista.
   const { transfers, transactions: looseTransactions } = collapseTransfers(
-    filteredTransactions,
+    monthItems,
     (id) => batches.get(id) ?? null,
   )
 
-  // Una inversión no es un gasto ni un ingreso, así que los filtros de tipo la
-  // dejan afuera en vez de meterla arbitrariamente en uno de los dos; el de
-  // categoría también, porque no tiene categoría que pueda coincidir. En
-  // "Todos" y sin categoría elegida, aparece. Los tres renglones de arriba no
-  // se mueven: siguen describiendo el mes completo.
-  const showInvestments = kind === 'all' && !categoryId
-  const items = mergeMovements(
-    looseTransactions,
-    showInvestments ? monthInvestments : [],
-    transfers,
-  )
+  const items = mergeMovements(looseTransactions, monthInvestments, transfers)
+    .filter((item) => bucket === ALL || movementBucket(item) === bucket)
+    // El filtro de categoría solo puede alcanzar a gastos e ingresos: una
+    // inversión no tiene categoría, y una transferencia lleva siempre la del
+    // sistema. Con una categoría elegida, lo que no es una transaction se va
+    // — no porque no interese, sino porque no hay categoría que pueda
+    // coincidir.
+    .filter(
+      (item) => !categoryId || (item.source === 'transaction' && item.row.category_id === categoryId),
+    )
 
   const { expenses, incomes, invested, saved, balance } = monthTotals({
     transactions: monthItems,
     contributions: monthInvestments,
   })
-  const hasExtraFilters = kind !== 'all' || categoryId !== ''
+  const hasExtraFilters = bucket !== ALL || categoryId !== ''
   const categoryBreakdown = groupExpensesByCategory(monthItems)
 
   return (
@@ -508,34 +517,38 @@ function Movements() {
 
         {/* Historial, con sus filtros */}
         <section className="space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {/* Tres opciones cortas no necesitan media pantalla de ancho */}
-            <div className="flex-1 md:max-w-sm">
-              <BinaryChoice
-                options={[
-                  { value: 'all', label: 'Todos' },
-                  { value: 'expense', label: 'Gastos' },
-                  { value: 'income', label: 'Ingresos' },
-                ]}
-                value={kind}
-                onChange={changeKind}
-              />
-            </div>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              aria-label="Filtrar por categoría"
-              className="rounded-[12px] bg-mist px-3.5 py-2.5 text-[15px] outline-none sm:max-w-[45%]"
-            >
-              <option value="">Todas las categorías</option>
-              {categories
-                .filter((cat) => kind === 'all' || cat.kind === kind)
-                .map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-            </select>
+          {/* Los dos controles van uno debajo del otro y no lado a lado: los
+              chips necesitan todo el ancho para que el corte del último se lea
+              como "hay más" y no como un chip aplastado. El de categoría
+              aparece solo donde una categoría significa algo. */}
+          <div className="space-y-2">
+            <FilterChips
+              options={MOVEMENT_BUCKETS}
+              value={bucket}
+              onChange={changeBucket}
+              label="Filtrar por tipo de movimiento"
+            />
+            {bucketHasCategories(bucket) && (
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                aria-label="Filtrar por categoría"
+                className="w-full rounded-[12px] bg-mist px-3.5 py-2.5 text-[15px] outline-none sm:max-w-xs"
+              >
+                <option value="">Todas las categorías</option>
+                {categories
+                  .filter(
+                    (cat) =>
+                      bucket === ALL ||
+                      cat.kind === (bucket === 'expenses' ? 'expense' : 'income'),
+                  )
+                  .map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+              </select>
+            )}
           </div>
 
           {loading ? (

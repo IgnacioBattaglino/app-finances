@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { collapseTransfers, pairAmounts } from './movementList.js'
+import {
+  collapseTransfers,
+  pairAmounts,
+  movementBucket,
+  bucketHasCategories,
+  ALL,
+  EXPENSES,
+  INCOMES,
+  INVESTMENTS,
+  SAVINGS,
+  TRANSFERS,
+} from './movementList.js'
 
 // Las cuentas del escenario: dos del día a día en pesos, una de ahorro y una
 // en dólares. El nombre importa para las aserciones (la línea con flecha lo
@@ -286,5 +297,101 @@ describe('pairAmounts', () => {
 
     expect(pairs.map((p) => p.cents)).toEqual([20, 10])
     expect(pairs.reduce((sum, p) => sum + p.cents, 0)).toBe(30)
+  })
+})
+
+describe('movementBucket · los seis cajones son disjuntos', () => {
+  const bucketOfTx = (row) => movementBucket({ source: 'transaction', row })
+
+  it('un gasto y un ingreso de categoría de usuario', () => {
+    expect(bucketOfTx(tx({ kind: 'expense', amount: 1, account: efectivo }))).toBe(EXPENSES)
+    expect(bucketOfTx(tx({ kind: 'income', amount: 1, account: efectivo }))).toBe(INCOMES)
+  })
+
+  it('el ajuste del neto de un conteo cuenta como gasto o ingreso REAL, igual que en los totales', () => {
+    const category = { name: 'Ajuste de saldo', system_key: 'balance_adjustment' }
+    expect(bucketOfTx(tx({ kind: 'expense', amount: 1, account: efectivo, category }))).toBe(EXPENSES)
+    expect(bucketOfTx(tx({ kind: 'income', amount: 1, account: efectivo, category }))).toBe(INCOMES)
+  })
+
+  it('un movimiento de ahorro "de afuera" cae en Ahorros, aunque no sume en "Ahorrado"', () => {
+    const category = { name: 'Movimiento de ahorro', system_key: 'savings_movement' }
+    expect(bucketOfTx(tx({ kind: 'income', amount: 1, account: colchon, category }))).toBe(SAVINGS)
+  })
+
+  it('una pata huérfana o un reparto sin aparear siguen siendo lo que son', () => {
+    const suelta = tx({
+      kind: 'expense',
+      amount: 1,
+      account: mp,
+      transfer_id: 'x',
+      category: TRANSFER_CATEGORY,
+    })
+    const reparto = split({ kind: 'expense', amount: 1, account: efectivo })
+    expect(bucketOfTx(suelta)).toBe(TRANSFERS)
+    expect(bucketOfTx(reparto)).toBe(TRANSFERS)
+  })
+
+  it('una inversión va a Inversiones, y un aporte a un activo convertido en cuenta de ahorro va a Ahorros', () => {
+    const inversion = { source: 'contribution', row: { direction: 'in', asset: { id: 'a1' } } }
+    const ahorro = {
+      source: 'contribution',
+      row: { direction: 'in', asset: { id: 'a2', savings_account_id: 'acc-1' } },
+    }
+    expect(movementBucket(inversion)).toBe(INVESTMENTS)
+    expect(movementBucket(ahorro)).toBe(SAVINGS)
+  })
+
+  it('una transferencia va a Transferencias, salvo que cruce al ahorro: ahí va a Ahorros', () => {
+    const [entreDiarias] = collapseTransfers(
+      transferPair({ from: mp, to: efectivo, amount: 100 }),
+      noBatch,
+    ).transfers
+    const [alAhorro] = collapseTransfers(
+      transferPair({ id: 'xfer-2', from: efectivo, to: colchon, amount: 100 }),
+      noBatch,
+    ).transfers
+
+    expect(movementBucket({ source: 'transfer', row: entreDiarias })).toBe(TRANSFERS)
+    // La que cruza al ahorro es la que suma en el renglón "Ahorrado": va con
+    // él y no en dos cajones a la vez.
+    expect(movementBucket({ source: 'transfer', row: alAhorro })).toBe(SAVINGS)
+  })
+
+  it('EL CRITERIO DE 4.1: "Gastos" deja pasar exactamente lo que suma el total de Gastos', () => {
+    const comida = tx({ kind: 'expense', amount: 45000, account: efectivo })
+    const ajuste = tx({
+      kind: 'expense',
+      amount: 12000,
+      account: efectivo,
+      category: { name: 'Ajuste de saldo', system_key: 'balance_adjustment' },
+    })
+    const transferencia = transferPair({ from: mp, to: efectivo, amount: 650000 })
+    const reparto = [
+      split({ kind: 'expense', amount: 112188, account: efectivo }),
+      split({ kind: 'income', amount: 112188, account: mp }),
+    ]
+    const rows = [comida, ajuste, ...transferencia, ...reparto]
+    const batchOf = (id) => (reparto.some((r) => r.id === id) ? 'batch-1' : null)
+
+    const { transfers, transactions } = collapseTransfers(rows, batchOf)
+    const enGastos = [
+      ...transactions.map((row) => ({ source: 'transaction', row })),
+      ...transfers.map((row) => ({ source: 'transfer', row })),
+    ].filter((item) => movementBucket(item) === EXPENSES)
+
+    // Solo el gasto común y el ajuste, que son los dos que monthTotals suma.
+    expect(enGastos.map((item) => Number(item.row.amount))).toEqual([45000, 12000])
+  })
+})
+
+describe('bucketHasCategories', () => {
+  it('solo Todos, Gastos e Ingresos tienen categorías que elegir', () => {
+    expect(bucketHasCategories(ALL)).toBe(true)
+    expect(bucketHasCategories(EXPENSES)).toBe(true)
+    expect(bucketHasCategories(INCOMES)).toBe(true)
+    expect(bucketHasCategories(INVESTMENTS)).toBe(false)
+    expect(bucketHasCategories(SAVINGS)).toBe(false)
+    expect(bucketHasCategories(TRANSFERS)).toBe(false)
   })
 })
