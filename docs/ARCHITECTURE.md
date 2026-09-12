@@ -190,6 +190,29 @@ Una fila por usuario (la crea el trigger de sembrado al registrarse).
 
 Justificación de target_allocation como JSONB y no tabla: son 5 valores que se leen y escriben siempre juntos como una unidad de configuración; una tabla aparte agregaría joins sin beneficio. Si en el futuro la asignación necesitara historia propia, se migra a tabla.
 
+### app_admins (migración 0043)
+La marca de administrador. Deliberadamente NO es una columna en `settings` (que ya tiene una fila por usuario): `settings` tiene RLS "own rows" `for all`, que incluye UPDATE, así que un `is_admin` ahí dejaría a cualquier usuario hacerse admin a sí mismo. Esta tabla en cambio no tiene NINGUNA policy de escritura — ni el propio admin puede insertarse vía la API, solo por SQL corrido a mano. Ver ADR-017.
+| Campo | Tipo | Notas |
+|---|---|---|
+| user_id | uuid PK, FK → auth.users | sin default: nadie se marca solo |
+| created_at | timestamptz default now() | |
+
+### invitations (migración 0043)
+El link de registro de un solo uso. `id` ES el código que viaja en la URL (`?invite=<uuid>`) — no hay una columna de código aparte, 122 bits de azar alcanzan y nadie lo tipea a mano.
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | uuid PK | default gen_random_uuid(); es el código de la invitación |
+| created_by | uuid FK → auth.users | NOT NULL, default auth.uid() |
+| created_at | timestamptz default now() | |
+| expires_at | timestamptz | default now() + 7 días |
+| used_at | timestamptz | nullable; la marca handle_new_user al consumirla |
+| used_by | uuid FK → auth.users | nullable |
+| used_by_email | text | nullable; copia del email de quien la usó — evita tener que leer auth.users (que PostgREST no expone) para mostrar "usada por" en la pantalla de admin |
+| revoked_at | timestamptz | nullable; la anula un admin desde la pantalla, solo si todavía no se usó |
+| | | CHECK `invitations_not_used_and_revoked`: `used_at is null or revoked_at is null` — un estado no puede ser las dos cosas a la vez |
+
+RLS: una sola policy `for all to authenticated using (is_admin()) with check (is_admin())`. Un no-admin no tiene ningún acceso — ni lectura, ni alta, ni baja.
+
 ### instruments (migración 0018, semilla data912 en 0019, cripto a Binance en 0021)
 Catálogo COMPARTIDO de activos cotizables. **No lleva user_id**: las mismas filas para todos (un precio de mercado es público). Ver ADR-006.
 | Campo | Tipo | Notas |
@@ -247,9 +270,11 @@ RLS de instruments e instrument_prices: SELECT para authenticated, **ninguna pol
 
 - Credenciales de Supabase en .env (nunca en el repo).
 - Datos reales solo en Supabase. El repo no contiene datos financieros.
-- Multiusuario con Supabase Auth (email + contraseña). Registro semi-cerrado: las cuentas las crea el administrador; no hay signup público.
-- RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009, asset_types en la 0014): "own rows" en las tablas raíz (user_id = auth.uid()); liquid_accounts nace con la suya en la 0032 y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz.
-- Trigger handle_new_user (migración 0007, redefinido en 0010, 0012, 0014, 0015, 0032, 0038 y 0041): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas las SEIS del sistema (migración 0041): "Ajuste de saldo" (expense e income, `system_key = 'balance_adjustment'`), que usa el neto de la reconciliación del líquido; "Movimiento de ahorro" (expense e income, `system_key = 'savings_movement'`), que usan los aportes y retiros de las cuentas de ahorro; y "Transferencia de cuenta" (expense e income, `system_key = 'account_transfer'`), que usan las transferencias entre cuentas y el reparto de un conteo —, sus 5 bolsas de activos default (asset_types, sin valuation_mode desde la 0015), su cuenta inicial del disponible "Efectivo" (liquid_accounts, migración 0032) y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql; para usuarios anteriores a la 0014, el backfill de asset_types va incluido en esa misma migración (idempotente).
+- Multiusuario con Supabase Auth (email + contraseña). Registro por invitación desde la migración 0043: la única forma de crear una cuenta es un link de un solo uso generado por un admin — no hay signup público sin invitación. Ver ADR-017.
+- RLS habilitado en todas las tablas con políticas de aislamiento por usuario (migración 0005, reemplazan a las "authenticated full access" de la 0002; liquid_reconciliations nace con la suya en la 0009, asset_types en la 0014): "own rows" en las tablas raíz (user_id = auth.uid()); liquid_accounts nace con la suya en la 0032 y "own via asset" / "own via debt" en las hijas, que heredan el dueño vía su tabla raíz. `app_admins` (0043) es la excepción deliberada: ni siquiera tiene policy de escritura, y `invitations` (0043) usa una sola policy `is_admin()` para todo.
+- Trigger handle_new_user (migración 0007, redefinido en 0010, 0012, 0014, 0015, 0032, 0038, 0041 y 0043): al crearse un usuario en auth.users, siembra sus categorías iniciales — incluidas las SEIS del sistema (migración 0041): "Ajuste de saldo" (expense e income, `system_key = 'balance_adjustment'`), que usa el neto de la reconciliación del líquido; "Movimiento de ahorro" (expense e income, `system_key = 'savings_movement'`), que usan los aportes y retiros de las cuentas de ahorro; y "Transferencia de cuenta" (expense e income, `system_key = 'account_transfer'`), que usan las transferencias entre cuentas y el reparto de un conteo —, sus 5 bolsas de activos default (asset_types, sin valuation_mode desde la 0015), su cuenta inicial del disponible "Efectivo" (liquid_accounts, migración 0032) y su fila de settings. Para usuarios anteriores a la 0010, las categorías de ajuste se siembran con supabase/seeds/adjustment_categories.sql; para usuarios anteriores a la 0014, el backfill de asset_types va incluido en esa misma migración (idempotente). Desde la 0043, antes de sembrar nada, EXIGE y CONSUME una invitación: lee `invite_code` de `raw_user_meta_data` (el único metadato que un `signUp` público puede escribir — `raw_app_meta_data` solo lo toca la service_role key), bloquea la fila con `select ... for update` (para que dos usos simultáneos del mismo link no pasen los dos) y aborta con `raise exception` si no existe, ya se usó, venció o fue anulada. Como el trigger corre en la MISMA transacción con la que GoTrue inserta en auth.users, ese `raise exception` deshace la creación del usuario entero — no hay forma de que quede una invitación quemada sin cuenta, ni una cuenta sin invitación. No hay ninguna excepción a esta regla, ni para el admin.
+- Función is_admin() (migración 0043): si el usuario que llama tiene fila en `app_admins`. STABLE y SECURITY INVOKER — lee a través de la policy "leer la propia marca", así que cada uno solo puede confirmar su propia condición. La usa la policy de `invitations` y el frontend, solo para decidir si muestra la pantalla de administración (comodidad, no protección).
+- Función validate_invite (migración 0043): el estado de un código de invitación (`valid`/`used`/`expired`/`revoked`/`not_found`), pensada para llamarse SIN sesión —es la puerta de entrada a la pantalla de registro—. SECURITY DEFINER: bypassa la policy de `invitations` para poder responder sin login, pero devuelve solo el estado, nunca la fila (quién la creó no se expone). `grant execute to anon, authenticated`.
 - Catálogo de precios compartido (migración 0018): instruments e instrument_prices NO llevan user_id y tienen solo policy de SELECT para authenticated (anon no lee). No hay policy de escritura: el único escritor es la Edge Function refresh_prices con la service_role key, que bypassa RLS. El cron (pg_cron a las 12:00 UTC = 09:00 ART) la llama vía pg_net; la URL y el secreto de autorización viven en Supabase Vault, no en el repo. Ver ADR-006 y supabase/functions/refresh_prices/README.md.
 - Función get_liquid_by_account (migraciones 0033, 0036 y 0039): devuelve el disponible sumado POR CUENTA, una fila por `account_id` (más el balde null, "sin cuenta"), con la moneda y la marca de ahorro de cada cuenta desde la 0036. SECURITY INVOKER, igual que get_portfolio_series — RLS sigue filtrando por usuario en las tres tablas que suma ("own rows" en transactions, "own via asset" en contributions, "own via debt" en debt_payments). Solo authenticated puede ejecutarla. Replica la semántica de `computeLiquidByAccount`, no la reinventa: es un cambio de cómo se calcula, no de qué se calcula.
 - Función system_category_id (migración 0041): la categoría del sistema por su llave y su kind, en un solo lugar. La usan `reconcile_liquid` y `create_account_transfer`, que repetían el mismo select con el mismo riesgo (buscar por nombre o por `is_system` a secas, que desde la 0037 ya no distingue una de otra). STABLE y SECURITY INVOKER: solo lee, y a través de RLS. Traduce la llave al nombre visible para el mensaje de error.
@@ -276,3 +301,4 @@ RLS de instruments e instrument_prices: SELECT para authenticated, **ninguna pol
 - ADR-014: un activo que vale exactamente lo aportado no es una inversión sino plata guardada, y se convierte en una cuenta de ahorro sin borrar nada.
 - ADR-015: los saldos y los gastos se muestran separados por moneda, sin convertir; solo la comparación histórica (la serie de 12 meses) y el Total de Inicio unifican a dólares.
 - ADR-016: contar la plata registra dos hechos distintos — el gasto real es el NETO del total de cada moneda, y lo que queda es un reparto entre cuentas que no cuenta en ninguna estadística.
+- ADR-017: el registro es por invitación de un solo uso, la marca de admin vive en una tabla sin ninguna policy de escritura, y la invitación se consume en la misma transacción que crea la cuenta.
