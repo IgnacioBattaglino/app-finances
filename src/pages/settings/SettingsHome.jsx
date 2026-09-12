@@ -1,14 +1,19 @@
 import { useAuth } from '../../hooks/useAuth.jsx'
 import { useTheme } from '../../hooks/useTheme.jsx'
 import PageHeader from '../../components/PageHeader.jsx'
-import { SettingsGroup, SettingsLinkRow } from '../../components/settings/SettingsList.jsx'
+import {
+  SettingsGroup,
+  SettingsLinkRow,
+  SettingsValueRow,
+  SettingsButtonRow,
+} from '../../components/settings/SettingsList.jsx'
 import { APP_VERSION } from '../../version.js'
 
-// Raíz de Ajustes: solo la lista de categorías de ajuste. Ningún control vive
-// acá — cada uno está en la pantalla de su tema, para que esta lista se lea
-// entera de un vistazo.
+// Raíz de Ajustes: solo lo que NO es plata (Cuentas y Grupos de activos se
+// mudaron a Mi plata e Inversiones, que es donde se usan). Lo único que vive
+// en la raíz misma es el pie: la sesión no justifica una pantalla propia.
 function SettingsHome() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const { accent, theme } = useTheme()
 
   return (
@@ -26,13 +31,12 @@ function SettingsHome() {
 
         <SettingsGroup title="Tus datos">
           <SettingsLinkRow to="/ajustes/categorias" label="Categorías" />
-          <SettingsLinkRow to="/ajustes/cuentas" label="Cuentas" />
-          <SettingsLinkRow to="/ajustes/grupos" label="Grupos de activos" />
           <SettingsLinkRow to="/ajustes/exportar" label="Exportar mis datos" />
         </SettingsGroup>
 
-        <SettingsGroup title="Cuenta">
-          <SettingsLinkRow to="/ajustes/cuenta" label="Cuenta" value={user?.email} />
+        <SettingsGroup footer="Las cuentas las crea el administrador: no hay registro público ni cambio de email desde acá.">
+          <SettingsValueRow label="Email" value={user?.email} />
+          <SettingsButtonRow onClick={signOut} label="Cerrar sesión" tone="danger" />
         </SettingsGroup>
 
         {/* Marca de versión para confirmar a ojo si un deploy se aplicó */}

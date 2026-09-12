@@ -60,7 +60,7 @@ export function AssetRow({ asset, valuation, contributions }) {
 
   return (
     <Link
-      to={`/portafolio/${asset.id}`}
+      to={`/inversiones/${asset.id}`}
       className="block px-4 py-3.5 text-left transition active:bg-mist md:hover:bg-mist"
     >
       <div className="flex items-baseline justify-between gap-3">
@@ -127,11 +127,11 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
           tinte (que está calibrado para no quedar más flojo que este gris).
 
           Y es un link al detalle del grupo, la MISMA pantalla que se abre
-          desde Ajustes: ahí se le cambia el nombre, el color y el resto. Dos
-          pantallas para lo mismo se desincronizan; una sola, no. */}
+          desde la lista de grupos: ahí se le cambia el nombre, el color y el
+          resto. Dos pantallas para lo mismo se desincronizan; una sola, no. */}
       <Link
-        to={`/ajustes/grupos/${assetType.id}`}
-        state={{ from: 'portfolio' }}
+        to={`/inversiones/grupos/${assetType.id}`}
+        state={{ from: 'inversiones' }}
         className={`block px-4 py-3 transition active:opacity-90 ${color ? 'group-tint' : 'bg-mist'}`}
       >
         <div className="flex items-baseline justify-between gap-3">
@@ -169,7 +169,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
           <p className="mt-1.5 text-[13px] text-ink-soft">
             Este grupo está archivado pero todavía tiene activos sin archivar, así que se
             muestra: su valor sigue contando en el total. Movelos a otro grupo, o restaurá el
-            grupo desde Ajustes.
+            grupo desde su detalle.
           </p>
         )}
         {outOfTotal && (

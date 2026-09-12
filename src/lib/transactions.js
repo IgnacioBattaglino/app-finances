@@ -77,7 +77,7 @@ export async function getTransactions({ month, year } = {}) {
 }
 
 // Movimientos de UNA cuenta puntual, paginados: el historial del detalle de
-// una cuenta (Ajustes → Cuentas → detalle). A diferencia de getTransactions,
+// una cuenta (Mi plata → detalle). A diferencia de getTransactions,
 // NO excluye las cuentas de ahorro — acá la cuenta es justo el filtro, así
 // que una cuenta de ahorro tiene que poder ver los suyos. Mismo patrón de
 // paginado (limit/offset con range) que getContributions.

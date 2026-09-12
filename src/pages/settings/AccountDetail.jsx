@@ -35,7 +35,9 @@ const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'Dólares' },
 ]
 
-// Detalle de una cuenta: nombre, moneda, tipo, saldo y eliminar.
+// Detalle de una cuenta: primero la plata (saldo, extracto, aportar/retirar
+// si es de ahorro), después su configuración (nombre, moneda, tipo) y
+// eliminar al pie — quien entra viene de tocar un saldo, no a configurar.
 //
 // Renombrar es libre y no afecta nada: ningún cálculo depende del nombre de la
 // cuenta, solo de su id (mismo criterio que los grupos de activos).
@@ -178,7 +180,7 @@ function AccountDetail() {
     setError(null)
     try {
       await deleteAccount(account.id)
-      navigate('/ajustes/cuentas')
+      navigate('/plata')
     } catch (e) {
       setError({ message: 'No se pudo eliminar la cuenta.', detail: e.message })
       setBusy(false)
@@ -188,7 +190,7 @@ function AccountDetail() {
 
   if (loading) {
     return (
-      <SettingsPage title="Cuenta" backTo="/ajustes/cuentas" backLabel="Cuentas">
+      <SettingsPage title="Cuenta" backTo="/plata" backLabel="Mi plata">
         <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
       </SettingsPage>
     )
@@ -196,7 +198,7 @@ function AccountDetail() {
 
   if (!account) {
     return (
-      <SettingsPage title="Cuenta" backTo="/ajustes/cuentas" backLabel="Cuentas">
+      <SettingsPage title="Cuenta" backTo="/plata" backLabel="Mi plata">
         <FormError message={error?.message} detail={error?.detail} />
       </SettingsPage>
     )
@@ -205,8 +207,42 @@ function AccountDetail() {
   const dirty = name.trim() !== account.name
 
   return (
-    <SettingsPage title={account.name} backTo="/ajustes/cuentas" backLabel="Cuentas">
+    <SettingsPage title={account.name} backTo="/plata" backLabel="Mi plata">
       <FormError message={error?.message} detail={error?.detail} />
+
+      {/* Primero la plata: quien entra acá viene de tocar un saldo, no a
+          configurar la cuenta. La configuración (nombre, moneda, ahorro) va
+          al final, como los ajustes de esa plata y no lo primero que se ve. */}
+      <SettingsGroup title="Saldo">
+        <SettingsValueRow
+          label="Actual"
+          value={formatByCurrency(account.currency, balance?.amount ?? 0)}
+        />
+      </SettingsGroup>
+
+      <div>
+        <h2 className="eyebrow mb-2 px-1">Historial</h2>
+        <AccountHistory
+          transactions={history}
+          hasMore={hasMoreHistory}
+          loadingMore={loadingMoreHistory}
+          loadMoreError={loadMoreHistoryError}
+          onLoadMore={loadMoreHistory}
+          onEdit={(tx) => setTxModal({ open: true, editing: tx })}
+        />
+      </div>
+
+      {/* Solo para cuentas de ahorro: el mismo patrón de aportar/retirar que
+          ya tienen los activos de inversión, pero moviendo plata entre esta
+          cuenta y una de uso diario (o de/hacia afuera de la app). Una cuenta
+          de uso diario no lo necesita: para el día a día ya está la carga
+          rápida de gasto/ingreso. */}
+      {account.is_savings && (
+        <SettingsGroup footer="Aportar y retirar mueven la plata entre esta cuenta y una de tu disponible, o de/hacia afuera de la app.">
+          <SettingsButtonRow label="Aportar" onClick={() => setMovement('contribution')} />
+          <SettingsButtonRow label="Retirar" onClick={() => setMovement('withdrawal')} />
+        </SettingsGroup>
+      )}
 
       <form onSubmit={handleRename}>
         <SettingsGroup
@@ -259,37 +295,6 @@ function AccountDetail() {
           disabled={busy}
         />
       </SettingsGroup>
-
-      <SettingsGroup title="Saldo">
-        <SettingsValueRow
-          label="Actual"
-          value={formatByCurrency(account.currency, balance?.amount ?? 0)}
-        />
-      </SettingsGroup>
-
-      <div>
-        <h2 className="eyebrow mb-2 px-1">Historial</h2>
-        <AccountHistory
-          transactions={history}
-          hasMore={hasMoreHistory}
-          loadingMore={loadingMoreHistory}
-          loadMoreError={loadMoreHistoryError}
-          onLoadMore={loadMoreHistory}
-          onEdit={(tx) => setTxModal({ open: true, editing: tx })}
-        />
-      </div>
-
-      {/* Solo para cuentas de ahorro: el mismo patrón de aportar/retirar que
-          ya tienen los activos de inversión, pero moviendo plata entre esta
-          cuenta y una de uso diario (o de/hacia afuera de la app). Una cuenta
-          de uso diario no lo necesita: para el día a día ya está la carga
-          rápida de gasto/ingreso. */}
-      {account.is_savings && (
-        <SettingsGroup footer="Aportar y retirar mueven la plata entre esta cuenta y una de tu disponible, o de/hacia afuera de la app.">
-          <SettingsButtonRow label="Aportar" onClick={() => setMovement('contribution')} />
-          <SettingsButtonRow label="Retirar" onClick={() => setMovement('withdrawal')} />
-        </SettingsGroup>
-      )}
 
       <SettingsGroup>
         {confirmingDelete ? (

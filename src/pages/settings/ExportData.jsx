@@ -104,7 +104,7 @@ function ExportData() {
           }
         />
         <ExportRow
-          title="Portafolio"
+          title="Inversiones"
           description="aportes y retiros"
           count={operations?.length ?? null}
           onDownload={() => saveCsv(exportFilename('portafolio'), portfolioCsv(operations))}

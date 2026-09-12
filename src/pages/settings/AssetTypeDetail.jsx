@@ -132,18 +132,18 @@ function AssetTypeDetail() {
   const [confirm, setConfirm] = useState(null)
   const [error, setError] = useState(null)
 
-  // Esta pantalla se entra desde dos lugares: la lista de Ajustes → Grupos, y
-  // tocando el encabezado de un grupo en Portafolio (ver AssetGroup.jsx, que
-  // linkea con este state). El botón de atrás tiene que volver a donde el
-  // usuario estaba, no a un destino fijo — así Portafolio recupera su scroll
-  // y su orden (useScrollRestoration solo restaura en un volver atrás de
-  // verdad, no en un push a una ruta fija).
-  const fromPortfolio = location.state?.from === 'portfolio'
+  // Esta pantalla se entra desde dos lugares: la lista de Inversiones →
+  // Grupos, y tocando el encabezado de un grupo en Inversiones (ver
+  // AssetGroup.jsx, que linkea con este state). El botón de atrás tiene que
+  // volver a donde el usuario estaba, no a un destino fijo — así Inversiones
+  // recupera su scroll y su orden (useScrollRestoration solo restaura en un
+  // volver atrás de verdad, no en un push a una ruta fija).
+  const fromPortfolio = location.state?.from === 'inversiones'
   const backProps = fromPortfolio
-    ? { onBack: () => navigate(-1), backLabel: 'Portafolio' }
-    : { backTo: '/ajustes/grupos', backLabel: 'Grupos de activos' }
+    ? { onBack: () => navigate(-1), backLabel: 'Inversiones' }
+    : { backTo: '/inversiones/grupos', backLabel: 'Grupos de activos' }
 
-  // Los activos del grupo con su valor salen del MISMO lugar que Portafolio
+  // Los activos del grupo con su valor salen del MISMO lugar que Inversiones
   // (usePortfolio), no de una consulta propia: el valor de un activo depende
   // de su modo de valuación, del precio en vivo y de la última valuación
   // manual, y recalcularlo acá por separado es la forma más segura de que las
@@ -242,7 +242,7 @@ function AssetTypeDetail() {
       // El grupo ya no existe: no hay a dónde "volver" en el historial, así
       // que se navega al lugar que corresponde según el origen (mismo
       // criterio que el botón de atrás de arriba).
-      navigate(fromPortfolio ? '/portafolio' : '/ajustes/grupos')
+      navigate(fromPortfolio ? '/inversiones' : '/inversiones/grupos')
     } catch (e) {
       setError({ message, detail: e.message })
       setBusy(false)
@@ -302,7 +302,7 @@ function AssetTypeDetail() {
       </form>
 
       {/* Qué hay adentro del grupo. Es lo primero que se quiere ver al llegar
-          acá desde Portafolio (tocando el encabezado), y hasta ahora esta
+          acá desde Inversiones (tocando el encabezado), y hasta ahora esta
           pantalla no lo mostraba: decía cuántos activos había, no cuáles.
           Cada fila entra al detalle del activo, que es donde se opera. */}
       {(portfolioLoading || groupAssets.length > 0) && (
@@ -313,7 +313,7 @@ function AssetTypeDetail() {
             groupAssets.map((asset) => (
               <SettingsLinkRow
                 key={asset.id}
-                to={`/portafolio/${asset.id}`}
+                to={`/inversiones/${asset.id}`}
                 label={asset.name}
                 value={
                   <span className="font-money">
@@ -329,10 +329,10 @@ function AssetTypeDetail() {
       )}
 
       {canMove && (
-        <SettingsGroup footer="Es el orden con el que los grupos aparecen en Portafolio.">
+        <SettingsGroup footer="Es el orden con el que los grupos aparecen en Inversiones.">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <span className="text-[15px]">
-              Orden en Portafolio
+              Orden en Inversiones
               <span className="ml-2 text-[13px] text-ink-soft">
                 {position + 1} de {siblings.length}
               </span>
@@ -363,12 +363,12 @@ function AssetTypeDetail() {
 
       <SettingsGroup
         title="Color"
-        footer="Tiñe el encabezado del grupo y sus activos en Portafolio, para distinguirlo de un vistazo. No cambia ningún número ni los verdes y rojos de ganancia y pérdida."
+        footer="Tiñe el encabezado del grupo y sus activos en Inversiones, para distinguirlo de un vistazo. No cambia ningún número ni los verdes y rojos de ganancia y pérdida."
       >
         <ColorChoice value={assetType.color} onChange={handleColor} disabled={busy} />
       </SettingsGroup>
 
-      <SettingsGroup footer="Si lo apagás, el grupo se sigue viendo en Portafolio pero no suma al valor total ni al rendimiento general.">
+      <SettingsGroup footer="Si lo apagás, el grupo se sigue viendo en Inversiones pero no suma al valor total ni al rendimiento general.">
         <SettingsSwitchRow
           label="Cuenta en el total del portafolio"
           checked={assetType.include_in_total !== false}
@@ -389,7 +389,7 @@ function AssetTypeDetail() {
       </SettingsGroup>
 
       {assetType.is_archived ? (
-        <SettingsGroup footer="Vuelve a aparecer en Portafolio y al elegir el grupo de un activo.">
+        <SettingsGroup footer="Vuelve a aparecer en Inversiones y al elegir el grupo de un activo.">
           <SettingsButtonRow
             onClick={() => leaveAfter(() => restoreAssetType(assetType.id), 'No se pudo restaurar el grupo.')}
             label="Restaurar grupo"
@@ -403,7 +403,7 @@ function AssetTypeDetail() {
           <SettingsButtonRow label="Archivar grupo" tone="neutral" disabled onClick={() => {}} />
         </SettingsGroup>
       ) : action === 'archive' ? (
-        <SettingsGroup footer="Archivar lo saca de Portafolio y de la lista al elegir grupo. Sus activos archivados quedan como están, y podés restaurarlo cuando quieras.">
+        <SettingsGroup footer="Archivar lo saca de Inversiones y de la lista al elegir grupo. Sus activos archivados quedan como están, y podés restaurarlo cuando quieras.">
           {confirm === 'archive' ? (
             <div className="flex items-center justify-between gap-3 px-4 py-3 text-[15px]">
               <span>¿Archivar «{assetType.name}»?</span>

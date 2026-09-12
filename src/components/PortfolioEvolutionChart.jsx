@@ -220,7 +220,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
                   </p>
                   <button
                     type="button"
-                    onClick={() => navigate('/portafolio')}
+                    onClick={() => navigate('/inversiones')}
                     className="font-semibold underline"
                   >
                     Actualizar valuación
@@ -253,7 +253,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
                       <p className="mt-2.5 rounded-[14px] bg-mist px-3.5 py-2.5 text-left text-[13px] leading-relaxed text-ink-soft">
                         Cuánto ganaste o perdiste sobre todo lo que aportaste, contando absolutamente todo
                         lo que tenés invertido (incluidos activos archivados o que no buscan rendimiento) —
-                        por eso puede no coincidir con el "Rendimiento" de Portafolio, que mide un grupo más
+                        por eso puede no coincidir con el "Rendimiento" de Inversiones, que mide un grupo más
                         acotado. No tiene en cuenta en qué momento pusiste cada aporte.
                       </p>
                     )}

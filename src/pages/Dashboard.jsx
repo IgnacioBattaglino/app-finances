@@ -491,21 +491,21 @@ function Dashboard() {
           loading={liquidLoading}
           error={liquidError}
           onRetry={loadLiquid}
-          onClick={() => navigate('/ajustes/cuentas', { state: { from: 'dashboard' } })}
+          onClick={() => navigate('/plata')}
         />
 
         {/* Plata guardada aparte, fuera del día a día — ver ADR-014. Solo
             aparece con saldo: sin cuentas de ahorro (o con saldo 0) no hay
             nada que este número le sume a la pantalla. El chevron lleva al
-            mismo lugar que "Dinero disponible": Ajustes → Cuentas, donde
-            viven las dos y desde donde se reconcilia. */}
+            mismo lugar que "Dinero disponible": Mi plata, donde viven las
+            dos y desde donde se reconcilia. */}
         {hasSavings && (
           <SummaryCard
             label="Dinero ahorrado"
             lines={savingsLines}
             breakdown={savingsBreakdown}
             info="Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento."
-            onClick={() => navigate('/ajustes/cuentas', { state: { from: 'dashboard' } })}
+            onClick={() => navigate('/plata')}
           />
         )}
 
@@ -516,12 +516,12 @@ function Dashboard() {
           loading={portfolioLoading}
           error={portfolioError}
           onRetry={reloadPortfolio}
-          onClick={() => navigate('/portafolio')}
+          onClick={() => navigate('/inversiones')}
         />
 
         {/* Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0"
-            permanente es ruido; la sección sigue estando en la barra de
-            navegación. */}
+            permanente es ruido. Ya no tiene pestaña propia: se entra desde
+            Mi plata, que siempre muestra la fila aunque el saldo sea 0. */}
         {hasDebts && (
           <SummaryCard
             label="Deudas"

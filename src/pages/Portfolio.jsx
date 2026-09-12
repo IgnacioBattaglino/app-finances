@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import AssetGroup, { AssetRow } from '../components/AssetGroup.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
@@ -134,7 +135,7 @@ function Portfolio() {
   return (
     <div className="page">
       <PageHeader
-        title="Portafolio"
+        title="Inversiones"
         action={
           assets.length > 0 && (
             <div className="hidden gap-2 md:flex">
@@ -144,6 +145,17 @@ function Portfolio() {
           )
         }
       />
+
+      {/* Gestión de grupos (crear, renombrar, archivar): antes vivía en
+          Ajustes, ahora que un grupo es cosa de Inversiones necesita su
+          propio punto de entrada acá — el encabezado de cada grupo ya
+          linkea a su detalle, pero no a la lista completa. Siempre visible,
+          incluso sin activos todavía: los grupos existen aparte de ellos. */}
+      <div className="mb-4 flex justify-end">
+        <Link to="/inversiones/grupos" className="eyebrow transition hover:text-ink">
+          Grupos de activos
+        </Link>
+      </div>
 
       {loading ? (
         <p className="text-[15px] text-ink-soft">Cargando…</p>

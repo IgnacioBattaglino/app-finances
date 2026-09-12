@@ -69,7 +69,9 @@ function AssetTypes() {
   return (
     <SettingsPage
       title="Grupos de activos"
-      description="Cómo se agrupa tu portafolio: un activo puede estar en un grupo, o quedar suelto."
+      description="Cómo se agrupan tus inversiones: un activo puede estar en un grupo, o quedar suelto."
+      backTo="/inversiones"
+      backLabel="Inversiones"
     >
       {error && (
         <div className="notice space-y-2">
@@ -88,11 +90,11 @@ function AssetTypes() {
         <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
       ) : (
         <>
-          <SettingsGroup footer="El orden es el mismo que ves en Portafolio.">
+          <SettingsGroup footer="El orden es el mismo que ves en Inversiones.">
             {assetTypes.map((at) => (
               <SettingsLinkRow
                 key={at.id}
-                to={`/ajustes/grupos/${at.id}`}
+                to={`/inversiones/grupos/${at.id}`}
                 label={at.name}
                 badge={at.include_in_total === false ? 'fuera del total' : undefined}
               />
@@ -108,7 +110,7 @@ function AssetTypes() {
               {archived.map((at) => (
                 <SettingsLinkRow
                   key={at.id}
-                  to={`/ajustes/grupos/${at.id}`}
+                  to={`/inversiones/grupos/${at.id}`}
                   label={at.name}
                 />
               ))}

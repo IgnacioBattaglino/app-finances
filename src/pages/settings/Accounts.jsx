@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { getAccounts, deleteAccount, reorderAccounts } from '../../lib/liquidAccounts.js'
 import { getAccountBalances } from '../../lib/liquid.js'
-import { formatByCurrency } from '../../lib/format.js'
-import SettingsPage from '../../components/settings/SettingsPage.jsx'
-import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
+import { getDebts, summarizeDebts } from '../../lib/debts.js'
+import { formatByCurrency, formatUSD } from '../../lib/format.js'
+import PageHeader from '../../components/PageHeader.jsx'
+import { SettingsGroup, SettingsButtonRow, SettingsLinkRow } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
 import { ReorderableRows, GripIcon } from '../../components/settings/ReorderableRows.jsx'
@@ -105,7 +106,7 @@ function AccountRow({ account, dragHandlers, onDeleted, onError }) {
         <GripIcon />
       </button>
       <Link
-        to={`/ajustes/cuentas/${account.id}`}
+        to={`/plata/${account.id}`}
         className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 transition active:opacity-60"
       >
         <span className="min-w-0 truncate text-[17px]">{account.name}</span>
@@ -126,19 +127,8 @@ function AccountRow({ account, dragHandlers, onDeleted, onError }) {
 }
 
 function Accounts() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  // Se entra desde Ajustes (backTo fijo, de siempre) o tocando "Dinero
-  // disponible"/"Dinero ahorrado" en Inicio (Dashboard manda state.from):
-  // ahí "atrás" tiene que volver a Inicio de verdad, no a Ajustes, que ni
-  // siquiera es de donde vino. Mismo patrón que AssetTypeDetail con
-  // fromPortfolio.
-  const fromDashboard = location.state?.from === 'dashboard'
-  const backProps = fromDashboard
-    ? { onBack: () => navigate(-1), backLabel: 'Inicio' }
-    : { backTo: '/ajustes', backLabel: 'Ajustes' }
-
   const [accounts, setAccounts] = useState([])
+  const [debtsBalance, setDebtsBalance] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [note, setNote] = useState(null)
@@ -149,9 +139,14 @@ function Accounts() {
     setLoading(true)
     setError(null)
     try {
-      const [accountRows, balances] = await Promise.all([getAccounts(), getAccountBalances()])
+      const [accountRows, balances, debts] = await Promise.all([
+        getAccounts(),
+        getAccountBalances(),
+        getDebts(),
+      ])
       const byId = new Map(balances.map((b) => [b.account_id, Number(b.amount)]))
       setAccounts(accountRows.map((a) => ({ ...a, amount: byId.get(a.id) ?? 0 })))
+      setDebtsBalance(summarizeDebts(debts).totalBalance)
     } catch (e) {
       setError({ message: 'No se pudieron cargar las cuentas.', detail: e.message })
     } finally {
@@ -202,54 +197,42 @@ function Accounts() {
   const savingsAccounts = accounts.filter((a) => a.is_savings)
 
   return (
-    <SettingsPage
-      title="Cuentas"
-      description="Dónde está la plata que contás como disponible: efectivo, billeteras, cuentas del banco."
-      {...backProps}
-    >
-      {error && (
-        <div className="notice space-y-2">
-          <FormError message={error.message} detail={error.detail} />
-          <button
-            type="button"
-            onClick={load}
-            className="text-[15px] font-semibold text-clay underline"
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+    <div className="page-narrow">
+      <PageHeader
+        title="Mi plata"
+        description="Dónde está la plata que contás como disponible: efectivo, billeteras, cuentas del banco."
+      />
 
-      {note && <p className="notice text-[15px]">{note}</p>}
+      <div className="space-y-7">
+        {error && (
+          <div className="notice space-y-2">
+            <FormError message={error.message} detail={error.detail} />
+            <button
+              type="button"
+              onClick={load}
+              className="text-[15px] font-semibold text-clay underline"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
 
-      {loading ? (
-        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
-      ) : (
-        <>
-          <SettingsGroup footer="Compará lo que la app calculó con lo que tenés de verdad, cuenta por cuenta.">
-            <SettingsButtonRow label="Contar mi plata" onClick={() => setReconcileOpen(true)} />
-          </SettingsGroup>
+        {note && <p className="notice text-[15px]">{note}</p>}
 
-          <SettingsGroup footer="Mové plata de una cuenta a otra, sin cargar un gasto y un ingreso por separado.">
-            <SettingsButtonRow label="Transferir entre cuentas" onClick={() => setTransferOpen(true)} />
-          </SettingsGroup>
+        {loading ? (
+          <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
+        ) : (
+          <>
+            <SettingsGroup footer="Compará lo que la app calculó con lo que tenés de verdad, cuenta por cuenta.">
+              <SettingsButtonRow label="Contar mi plata" onClick={() => setReconcileOpen(true)} />
+            </SettingsGroup>
 
-          <SettingsGroup footer="La primera de la lista es la que viene elegida al cargar un movimiento — arrastrá con la manija para cambiar el orden. Tu dinero disponible total no depende de cómo las repartas.">
-            <ReorderableRows items={dailyAccounts} onCommit={commitOrder}>
-              {(account, dragHandlers) => (
-                <AccountRow
-                  account={account}
-                  dragHandlers={dragHandlers}
-                  onDeleted={handleDeleted}
-                  onError={setError}
-                />
-              )}
-            </ReorderableRows>
-          </SettingsGroup>
+            <SettingsGroup footer="Mové plata de una cuenta a otra, sin cargar un gasto y un ingreso por separado.">
+              <SettingsButtonRow label="Transferir entre cuentas" onClick={() => setTransferOpen(true)} />
+            </SettingsGroup>
 
-          {savingsAccounts.length > 0 && (
-            <SettingsGroup title="Ahorro">
-              <ReorderableRows items={savingsAccounts} onCommit={commitOrder}>
+            <SettingsGroup footer="La primera de la lista es la que viene elegida al cargar un movimiento — arrastrá con la manija para cambiar el orden. Tu dinero disponible total no depende de cómo las repartas.">
+              <ReorderableRows items={dailyAccounts} onCommit={commitOrder}>
                 {(account, dragHandlers) => (
                   <AccountRow
                     account={account}
@@ -260,13 +243,36 @@ function Accounts() {
                 )}
               </ReorderableRows>
             </SettingsGroup>
-          )}
 
-          <SettingsGroup>
-            <NewAccountRow onCreated={(created) => setAccounts((prev) => [...prev, { ...created, amount: 0 }])} />
-          </SettingsGroup>
-        </>
-      )}
+            {savingsAccounts.length > 0 && (
+              <SettingsGroup title="Ahorro">
+                <ReorderableRows items={savingsAccounts} onCommit={commitOrder}>
+                  {(account, dragHandlers) => (
+                    <AccountRow
+                      account={account}
+                      dragHandlers={dragHandlers}
+                      onDeleted={handleDeleted}
+                      onError={setError}
+                    />
+                  )}
+                </ReorderableRows>
+              </SettingsGroup>
+            )}
+
+            <SettingsGroup>
+              <NewAccountRow onCreated={(created) => setAccounts((prev) => [...prev, { ...created, amount: 0 }])} />
+            </SettingsGroup>
+
+            {/* Deudas dejó de tener pestaña propia: acá es lo que junto con el
+                disponible y el ahorro responde "cuánto tengo y cuánto debo".
+                Siempre visible, aunque el saldo sea 0: es el único punto de
+                entrada a Deudas ahora que no está en la barra. */}
+            <SettingsGroup footer="Cuánto te queda por pagar en total.">
+              <SettingsLinkRow to="/deudas" label="Deudas" value={formatUSD(debtsBalance ?? 0)} />
+            </SettingsGroup>
+          </>
+        )}
+      </div>
 
       <LiquidModal open={reconcileOpen} onClose={() => setReconcileOpen(false)} onSaved={afterReconciled} />
       <AccountTransferModal
@@ -275,7 +281,7 @@ function Accounts() {
         onClose={() => setTransferOpen(false)}
         onSaved={afterTransferred}
       />
-    </SettingsPage>
+    </div>
   )
 }
 

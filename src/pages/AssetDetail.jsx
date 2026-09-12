@@ -48,13 +48,13 @@ function AssetDetail() {
   const location = useLocation()
 
   // Esta pantalla se entra desde dos lugares: el encabezado de un grupo en
-  // Portafolio (default, sin state) y una fila de inversión en Movimientos
+  // Inversiones (default, sin state) y una fila de inversión en Movimientos
   // (que linkea con state.from, ver Movements.jsx). El botón de atrás tiene
   // que volver a donde el usuario estaba, no a un destino fijo -- mismo
-  // mecanismo que AssetTypeDetail con Ajustes/Portafolio.
+  // mecanismo que AssetTypeDetail con Inversiones.
   const fromMovements = location.state?.from === 'movements'
-  const backLabel = fromMovements ? 'Movimientos' : 'Portafolio'
-  const goBack = () => (fromMovements ? navigate(-1) : navigate('/portafolio'))
+  const backLabel = fromMovements ? 'Movimientos' : 'Inversiones'
+  const goBack = () => (fromMovements ? navigate(-1) : navigate('/inversiones'))
 
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
@@ -183,7 +183,7 @@ function AssetDetail() {
   }
 
   if (!loading && !error && !assets.some((a) => a.id === assetId)) {
-    return <Navigate to="/portafolio" replace />
+    return <Navigate to="/inversiones" replace />
   }
 
   const asset = assets.find((a) => a.id === assetId) ?? null

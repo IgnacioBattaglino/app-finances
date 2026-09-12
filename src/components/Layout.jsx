@@ -20,25 +20,14 @@ const tabs = [
     icon: <path d="M7 4.5v14m0 0-3.2-3.2M7 18.5l3.2-3.2m6.8 4.2v-14m0 0-3.2 3.2M17 5.5l3.2 3.2" />,
   },
   {
-    to: '/portafolio',
-    label: 'Portafolio',
-    icon: <path d="M4 19.5V11m5.3 8.5v-15m5.4 15v-8m5.3 8v-12" />,
-  },
-  {
-    to: '/objetivo',
-    label: 'Objetivo',
-    icon: (
-      <>
-        <circle cx="12" cy="12" r="8.5" />
-        <circle cx="12" cy="12" r="4" />
-        <circle cx="12" cy="12" r="0.6" />
-      </>
-    ),
-  },
-  {
-    to: '/deudas',
-    label: 'Deudas',
+    to: '/plata',
+    label: 'Mi plata',
     icon: <path d="M3.2 7.5h17.6v11.5H3.2zM3.2 11h17.6M7 15.2h4" />,
+  },
+  {
+    to: '/inversiones',
+    label: 'Inversiones',
+    icon: <path d="M4 19.5V11m5.3 8.5v-15m5.4 15v-8m5.3 8v-12" />,
   },
   {
     to: '/ajustes',
@@ -70,7 +59,10 @@ function TabIcon({ children, className, active }) {
 function Layout() {
   // En el detalle de un activo, la tab bar mobile la reemplaza la barra de
   // acciones propia de esa pantalla (Aportar/Retirar) — ver AssetDetail.
-  const isAssetDetail = useMatch('/portafolio/:assetId')
+  // El match es de dos segmentos, así que "grupos" (la lista de grupos, la
+  // otra ruta de dos segmentos bajo /inversiones) se excluye a mano.
+  const assetDetailMatch = useMatch('/inversiones/:assetId')
+  const isAssetDetail = Boolean(assetDetailMatch) && assetDetailMatch.params.assetId !== 'grupos'
 
   return (
     <div className="min-h-dvh bg-paper text-ink md:flex">

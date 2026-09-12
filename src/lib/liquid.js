@@ -162,7 +162,7 @@ export function computeLiquidFromCollections(collections) {
 // computeLiquidByAccount, y hay un test que lo verifica contra datos.
 // El desglose por cuenta tal cual lo devuelve la base: una fila por cuenta con
 // su moneda, su marca de ahorro y su saldo (get_liquid_by_account, migración
-// 0036). Para Ajustes → Cuentas, que solo necesita el saldo de cada cuenta —
+// 0036). Para Mi plata, que solo necesita el saldo de cada cuenta —
 // sin el total, lo sin asignar ni la última reconciliación que arma
 // computeCurrentLiquid.
 export async function getAccountBalances() {

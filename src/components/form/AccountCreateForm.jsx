@@ -16,7 +16,7 @@ import Switch from './Switch.jsx'
 // mano con onKeyDown en vez de onSubmit — funciona igual en los dos lugares
 // donde no hay anidamiento.
 //
-// `extended`: solo Ajustes → Cuentas lo pasa. Ahí, y únicamente ahí, la
+// `extended`: solo Mi plata lo pasa. Ahí, y únicamente ahí, la
 // cuenta nace eligiendo moneda y tipo — es el único momento en que la moneda
 // se elige libremente (ver AccountDetail: una vez que la cuenta tiene
 // movimientos, queda fija). El alta al vuelo de un formulario de carga o de

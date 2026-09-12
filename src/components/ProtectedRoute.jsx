@@ -16,7 +16,7 @@ function ProtectedRoute() {
   }
 
   // Se guarda a dónde quería ir para que el login lo devuelva ahí (ver
-  // Login.jsx). Sin esto, entrar por un link directo a /portafolio o /deudas
+  // Login.jsx). Sin esto, entrar por un link directo a /inversiones o /deudas
   // —o reabrir la PWA con la sesión vencida— terminaba siempre en Inicio.
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location }} />

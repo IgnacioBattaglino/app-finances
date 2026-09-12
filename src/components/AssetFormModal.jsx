@@ -205,7 +205,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                 <p className="mt-1.5 text-[13px] text-ink-soft">
                   Agrupá tus activos por categoría (cripto, efectivo, acciones) para ver cómo
                   rinde cada grupo. Sin grupo el activo aparece solo, con su propio valor.
-                  Renombrar y archivar grupos: en Ajustes.
+                  Renombrar y archivar grupos: en Inversiones.
                 </p>
               )}
 
@@ -289,7 +289,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                   </div>
                 </div>
                 <p className="text-[13px] text-ink-soft">
-                  Podés restaurarlo después desde «Archivados», al final de Portafolio.
+                  Podés restaurarlo después desde «Archivados», al final de Inversiones.
                 </p>
               </div>
             ) : (
