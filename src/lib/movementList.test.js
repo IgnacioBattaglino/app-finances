@@ -386,8 +386,11 @@ describe('movementBucket · los seis cajones son disjuntos', () => {
 })
 
 describe('bucketHasCategories', () => {
-  it('solo Todos, Gastos e Ingresos tienen categorías que elegir', () => {
-    expect(bucketHasCategories(ALL)).toBe(true)
+  // "Todos" queda afuera a propósito: sin un kind con el que filtrar la lista,
+  // toda categoría que exista de gasto y de ingreso aparecía dos veces
+  // seguidas, con el mismo nombre (docs/ux/movimientos.md, 2.1).
+  it('solo Gastos e Ingresos tienen categorías que elegir', () => {
+    expect(bucketHasCategories(ALL)).toBe(false)
     expect(bucketHasCategories(EXPENSES)).toBe(true)
     expect(bucketHasCategories(INCOMES)).toBe(true)
     expect(bucketHasCategories(INVESTMENTS)).toBe(false)

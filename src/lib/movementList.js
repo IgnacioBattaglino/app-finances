@@ -274,12 +274,21 @@ export const MOVEMENT_BUCKETS = [
 ]
 
 // Los únicos cajones donde una categoría de usuario significa algo. En los
-// otros tres no hay ninguna categoría que elegir —una inversión no tiene, y
-// una transferencia o un movimiento de ahorro llevan siempre la del sistema—,
-// así que la pantalla esconde ese control en vez de dejarlo prometiendo un
-// filtro que no filtra nada.
+// otros no hay ninguna categoría que elegir —una inversión no tiene, y una
+// transferencia o un movimiento de ahorro llevan siempre la del sistema—, así
+// que la pantalla esconde ese control en vez de dejarlo prometiendo un filtro
+// que no filtra nada.
+//
+// "TODOS" TAMPOCO LO TIENE, y eso resuelve de paso el selector duplicado
+// (docs/ux/movimientos.md, 2.1): la lista de categorías es la misma para gasto
+// y para ingreso, así que sin un kind con el que filtrarla toda categoría que
+// exista en los dos —las seis del sistema, o un "Regalos" que el usuario tenga
+// de las dos clases— aparecía dos veces seguidas, con el mismo nombre y sin
+// nada que las distinguiera. Elegir el tipo primero deja una sola de cada par,
+// que es exactamente lo que el informe había medido: el duplicado existía
+// únicamente en el estado por default.
 export function bucketHasCategories(bucket) {
-  return bucket === ALL || bucket === EXPENSES || bucket === INCOMES
+  return bucket === EXPENSES || bucket === INCOMES
 }
 
 export function movementBucket({ source, row }) {

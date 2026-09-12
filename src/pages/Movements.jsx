@@ -24,6 +24,7 @@ import {
   bucketHasCategories,
   MOVEMENT_BUCKETS,
   ALL,
+  EXPENSES,
 } from '../lib/movementList.js'
 import { getReconciliationBatches } from '../lib/liquid.js'
 import { movementType, isMovedMoneyType } from '../lib/systemCategories.js'
@@ -347,8 +348,9 @@ function Movements() {
 
   // Cambiar de cajón puede dejar elegida una categoría que ya no aplica: una
   // de gasto con el filtro en "Ingresos", o cualquiera en un cajón que no
-  // tiene categorías (Inversiones, Ahorros, Transferencias), donde además el
-  // control desaparece y la categoría quedaría filtrando en silencio. Se
+  // tiene categorías (Todos, Inversiones, Ahorros, Transferencias), donde
+  // además el control desaparece y la categoría quedaría filtrando en
+  // silencio. Se
   // limpia, mismo criterio que usa el formulario de carga al cambiar
   // Gasto/Ingreso.
   function changeBucket(value) {
@@ -356,8 +358,7 @@ function Movements() {
     if (!categoryId) return
     if (!bucketHasCategories(value)) return setCategoryId('')
     const cat = categories.find((c) => c.id === categoryId)
-    const wanted = value === 'expenses' ? 'expense' : value === 'incomes' ? 'income' : null
-    if (wanted && cat && cat.kind !== wanted) setCategoryId('')
+    if (cat && cat.kind !== (value === EXPENSES ? 'expense' : 'income')) setCategoryId('')
   }
 
   function closeModal() {
@@ -560,7 +561,9 @@ function Movements() {
           {/* Los dos controles van uno debajo del otro y no lado a lado: los
               chips necesitan todo el ancho para que el corte del último se lea
               como "hay más" y no como un chip aplastado. El de categoría
-              aparece solo donde una categoría significa algo. */}
+              aparece solo en Gastos e Ingresos, que es donde una categoría
+              significa algo y donde además la lista sale sin duplicados (ver
+              bucketHasCategories). */}
           <div className="space-y-2">
             <FilterChips
               options={MOVEMENT_BUCKETS}
@@ -577,11 +580,7 @@ function Movements() {
               >
                 <option value="">Todas las categorías</option>
                 {categories
-                  .filter(
-                    (cat) =>
-                      bucket === ALL ||
-                      cat.kind === (bucket === 'expenses' ? 'expense' : 'income'),
-                  )
+                  .filter((cat) => cat.kind === (bucket === EXPENSES ? 'expense' : 'income'))
                   .map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
