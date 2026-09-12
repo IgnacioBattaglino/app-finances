@@ -3,6 +3,7 @@ import { useAuth } from './hooks/useAuth.jsx'
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import Login from './pages/Login.jsx'
+import Register from './pages/Register.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Movements from './pages/Movements.jsx'
@@ -19,6 +20,7 @@ import AccountDetail from './pages/settings/AccountDetail.jsx'
 import AssetTypes from './pages/settings/AssetTypes.jsx'
 import AssetTypeDetail from './pages/settings/AssetTypeDetail.jsx'
 import ExportData from './pages/settings/ExportData.jsx'
+import Invitations from './pages/settings/Invitations.jsx'
 
 // Redirects de rutas viejas con parámetro: la app es una PWA instalable y
 // puede haber accesos directos guardados a la URL anterior.
@@ -56,6 +58,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/registro" element={<Register />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
@@ -79,6 +82,7 @@ function App() {
           <Route path="/ajustes/categorias" element={<Categories />} />
           <Route path="/ajustes/categorias/:categoryId" element={<CategoryDetail />} />
           <Route path="/ajustes/exportar" element={<ExportData />} />
+          <Route path="/ajustes/invitaciones" element={<Invitations />} />
 
           {/* Rutas viejas: quedan redirigiendo, no se borran — la app es
               instalable y puede haber accesos directos guardados. */}

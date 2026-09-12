@@ -1,5 +1,6 @@
 import { useAuth } from '../../hooks/useAuth.jsx'
 import { useTheme } from '../../hooks/useTheme.jsx'
+import { useIsAdmin } from '../../hooks/useIsAdmin.js'
 import PageHeader from '../../components/PageHeader.jsx'
 import {
   SettingsGroup,
@@ -15,6 +16,7 @@ import { APP_VERSION } from '../../version.js'
 function SettingsHome() {
   const { user, signOut } = useAuth()
   const { accent, theme } = useTheme()
+  const isAdmin = useIsAdmin()
 
   return (
     <div className="page-narrow">
@@ -34,7 +36,13 @@ function SettingsHome() {
           <SettingsLinkRow to="/ajustes/exportar" label="Exportar mis datos" />
         </SettingsGroup>
 
-        <SettingsGroup footer="Las cuentas las crea el administrador: no hay registro público ni cambio de email desde acá.">
+        {isAdmin && (
+          <SettingsGroup title="Administración" footer="Solo vos ves esta sección.">
+            <SettingsLinkRow to="/ajustes/invitaciones" label="Invitaciones" />
+          </SettingsGroup>
+        )}
+
+        <SettingsGroup footer="Las cuentas se crean con un link de invitación: no hay registro público ni cambio de email desde acá.">
           <SettingsValueRow label="Email" value={user?.email} />
           <SettingsButtonRow onClick={signOut} label="Cerrar sesión" tone="danger" />
         </SettingsGroup>

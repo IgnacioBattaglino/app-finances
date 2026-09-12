@@ -60,6 +60,8 @@ const AUTH = {
   weak_password: 'La contraseña es muy corta: usá al menos 6 caracteres.',
   over_request_rate_limit: 'Probaste muchas veces seguidas. Esperá un momento y volvé a intentar.',
   email_not_confirmed: 'Todavía no confirmaste este email.',
+  user_already_exists: 'Ya existe una cuenta con ese email. Iniciá sesión en vez de registrarte.',
+  signup_disabled: 'El registro no está habilitado en este momento.',
 }
 
 // Quedarse sin internet es el error más común de todos y no es un error de la

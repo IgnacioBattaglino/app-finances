@@ -8,7 +8,7 @@ Estados usados en este documento: ✅ implementado · 🟡 parcial · 🔜 pendi
 
 App de finanzas personales para un inversor amateur que arranca. Objetivo del usuario: hacer crecer su capital ("bola de nieve"), protegerlo de la inflación, y avanzar hacia la independencia financiera (FIRE). Uso personal real + pieza de portfolio.
 
-Multiusuario con registro semi-cerrado: las cuentas las crea el administrador (no hay registro público). Cada usuario opera 100% aislado: sus categorías, movimientos, portafolio, deudas y ajustes son propios.
+Multiusuario con registro por invitación: la única forma de crear una cuenta es un link de un solo uso que genera el administrador (no hay registro público sin invitación). Cada usuario opera 100% aislado: sus categorías, movimientos, portafolio, deudas y ajustes son propios.
 
 ## Principios de diseño
 
@@ -129,7 +129,8 @@ La explicación de un control va en la NOTA AL PIE de su grupo, una sola vez —
 - ✅ Las categorías del sistema ("Ajuste de saldo", "Movimiento de ahorro" y "Transferencia de cuenta", cada una en gasto e ingreso) se muestran con un badge y su detalle es de solo lectura: no se pueden renombrar, ni eliminar, ni reordenar.
 - ✅ Exportar mis datos: dos CSV, uno de movimientos (fecha, tipo, categoría, descripción, monto ARS) y otro de operaciones de inversión (fecha, activo, grupo, aporte/retiro, monto USD, cantidad, tipo de cambio, de dónde salió, ganancia realizada, si es parte de una transferencia). Con NOMBRES, no con uuid. Formato para planilla en español: separador punto y coma, coma decimal, sin separador de miles (con miles, la planilla los toma como texto y no se pueden sumar) y BOM para que Excel lea bien los acentos. En el celular abre la hoja de compartir del sistema; en escritorio descarga directo.
 - ✅ Email y cerrar sesión: al pie de la raíz, sin pantalla propia (dos datos no justifican una).
-- ✅ Recuperación de contraseña: sin flujo de "olvidé mi contraseña" self-service dentro de la app (coherente con el registro semi-cerrado — lo dispara el administrador desde afuera). Al tocar el link de recuperación, la app lleva a una pantalla propia (`ResetPassword`) para elegir la contraseña nueva, sin pedir la anterior. Ver la nota técnica del mecanismo en CLAUDE.md.
+- ✅ Recuperación de contraseña: sin flujo de "olvidé mi contraseña" self-service dentro de la app (coherente con el registro por invitación — nadie puede pedir acceso a una cuenta que no es suya, solo cambiar la propia una vez adentro). Al tocar el link de recuperación, la app lleva a una pantalla propia (`ResetPassword`) para elegir la contraseña nueva, sin pedir la anterior. Ver la nota técnica del mecanismo en CLAUDE.md.
+- ✅ Registro por invitación (migración 0043, ver ADR-017): el administrador genera un link de un solo uso desde Ajustes → Invitaciones (pantalla visible solo para él — la protección real es la RLS de la tabla `invitations`, que exige `is_admin()`), vence a los 7 días si no se usa, y se puede anular mientras siga sin usarse. El link abre `/registro` con el código en la URL; sin un código válido la pantalla no muestra ningún formulario. Registrarse pide email y contraseña, sin confirmación por email (queda logueado al toque); consumir la invitación y crear la cuenta es atómico — pasa en el mismo trigger de base que siembra las categorías, así que no puede quedar una invitación quemada sin cuenta ni una cuenta sin invitación.
 - 🔜 Parámetros FIRE: ingreso mensual deseado (USD), tasa de retiro segura (%), retorno anual esperado (%), fecha de nacimiento, fecha de inicio del plan, ventana de meses para la proyección.
 - 🔜 Distribución objetivo del portafolio (% por tipo de activo, debe sumar 100) y umbral de rebalanceo. Hoy solo se editan directo en la base.
 
