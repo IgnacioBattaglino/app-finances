@@ -243,6 +243,104 @@ async function checkTransferGuard(client) {
   return ok
 }
 
+// invitations / app_admins (migración 0043): un no-admin no tiene NINGUNA
+// policy que le dé acceso, así que tiene que ver exactamente lo mismo que
+// alguien sin ninguna fila propia — nada — tanto leyendo como escribiendo. Si
+// la migración 0043 todavía no se aplicó, se reporta PENDIENTE y no se marca
+// como fallo (mismo criterio que checkTransferGuard).
+async function checkInvitations(authClient, anonClient) {
+  console.log(
+    `\n${BOLD}invitations / app_admins (migración 0043) — un no-admin no tiene ningún acceso${RESET}`,
+  )
+
+  const { data: adminFlag, error: adminErr } = await authClient.rpc('is_admin')
+  if (adminErr && (adminErr.code === 'PGRST202' || /Could not find the function/i.test(adminErr.message))) {
+    printRow('is_admin()', null, true, 'función aún no existe — corré la migración 0043 (PENDIENTE)')
+    return true
+  }
+  if (adminErr) {
+    printRow('is_admin()', null, false, adminErr.message)
+    return false
+  }
+
+  let ok = true
+
+  printRow(
+    'is_admin() (usuario test)',
+    null,
+    adminFlag === false,
+    adminFlag === false ? 'false, como corresponde' : 'FUGA: el usuario test es admin',
+  )
+  ok = ok && adminFlag === false
+
+  // Lectura: la policy "solo admin" tiene que devolver vacío para un no-admin,
+  // nunca las invitaciones de otro usuario.
+  const { data: readData, error: readErr } = await authClient.from('invitations').select('id')
+  const readOk = !readErr && readData.length === 0
+  printRow(
+    'invitations (lectura, no-admin)',
+    readData?.length ?? null,
+    readOk,
+    readOk ? '' : (readErr ? readErr.message : 'FUGA: ve invitaciones ajenas'),
+  )
+  ok = ok && readOk
+
+  // Escritura: un no-admin no puede generar invitaciones, ni por la pantalla
+  // ni llamando a la tabla directo — que es exactamente lo que pide la
+  // consigna original de esta verificación.
+  const { data: inserted, error: writeErr } = await authClient.from('invitations').insert({}).select('id')
+  const writeRejected = Boolean(writeErr)
+  printRow(
+    'invitations (alta, no-admin)',
+    null,
+    writeRejected,
+    writeRejected ? 'rechazada por RLS' : 'FUGA: el usuario test pudo generar una invitación',
+  )
+  ok = ok && writeRejected
+  if (!writeRejected && inserted?.[0]?.id) {
+    await authClient.from('invitations').delete().eq('id', inserted[0].id) // best-effort cleanup
+  }
+
+  // app_admins: un no-admin puede consultar la tabla (no hay error), pero solo
+  // ve su propia fila — que no existe, así que el resultado es vacío.
+  const { data: adminRows, error: adminRowsErr } = await authClient.from('app_admins').select('user_id')
+  const adminRowsOk = !adminRowsErr && adminRows.length === 0
+  printRow(
+    'app_admins (lectura, no-admin)',
+    adminRows?.length ?? null,
+    adminRowsOk,
+    adminRowsOk ? '' : (adminRowsErr ? adminRowsErr.message : 'FUGA: ve la marca de otro usuario'),
+  )
+  ok = ok && adminRowsOk
+
+  // validate_invite tiene que funcionar SIN sesión —es la puerta de entrada al
+  // registro— y no devolver más que el estado.
+  const { data: anonStatus, error: anonErr } = await anonClient.rpc('validate_invite', {
+    p_id: '00000000-0000-4000-8000-000000000000',
+  })
+  const anonOk = !anonErr && anonStatus === 'not_found'
+  printRow(
+    'validate_invite (sin login)',
+    null,
+    anonOk,
+    anonOk ? `respondió "${anonStatus}"` : anonErr ? anonErr.message : `respuesta inesperada: ${anonStatus}`,
+  )
+  ok = ok && anonOk
+
+  // Sin login tampoco se puede leer la tabla directo.
+  const { data: anonRows, error: anonRowsErr } = await anonClient.from('invitations').select('id')
+  const anonRowsOk = Boolean(anonRowsErr) || anonRows.length === 0
+  printRow(
+    'invitations (sin login)',
+    anonRows?.length ?? null,
+    anonRowsOk,
+    anonRowsOk ? '' : 'FUGA: visible sin login',
+  )
+  ok = ok && anonRowsOk
+
+  return ok
+}
+
 async function main() {
   const authClient = createClient(SUPABASE_URL, SUPABASE_KEY, clientOptions)
   const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
@@ -284,6 +382,7 @@ async function main() {
   }
 
   allOk = (await checkTransferGuard(authClient)) && allOk
+  allOk = (await checkInvitations(authClient, anonClient)) && allOk
 
   await authClient.auth.signOut()
 
