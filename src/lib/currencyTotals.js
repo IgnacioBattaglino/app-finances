@@ -32,7 +32,7 @@ export function currencyLines(totals) {
   const lines = [...totals]
     .map(([currency, amount]) => ({ currency, amount: round(amount) }))
     // Medio centavo: por debajo de eso, cualquier moneda es cero — es el mismo
-    // umbral con el que decideAdjustment decide que no hay diferencia.
+    // umbral con el que rowMovement decide que no hay diferencia.
     .filter((line) => Math.abs(line.amount) >= 0.005)
     .sort(sortByCurrency)
 

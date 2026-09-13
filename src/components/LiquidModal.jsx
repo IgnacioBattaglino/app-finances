@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { computeCurrentLiquid, reconcile, decideAdjustment, planReconciliation } from '../lib/liquid.js'
+import { computeCurrentLiquid, reconcile, rowMovement, planReconciliation } from '../lib/liquid.js'
 import { formatARS, formatByCurrency, todayISO, formatDayYear } from '../lib/format.js'
 import { LOCAL_CURRENCY } from '../lib/currencyTotals.js'
 import FormSheet from './FormSheet.jsx'
@@ -23,7 +23,7 @@ function AccountRow({ account, value, onChange }) {
   const currency = account.currency ?? 'ARS'
   const declaredValue = Number(String(value).replace(',', '.'))
   const filled = value !== '' && Number.isFinite(declaredValue) && declaredValue >= 0
-  const decision = filled ? decideAdjustment(account.amount, declaredValue) : null
+  const decision = filled ? rowMovement(account.amount, declaredValue) : null
   const difference = filled ? declaredValue - account.amount : 0
 
   return (

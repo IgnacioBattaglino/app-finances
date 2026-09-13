@@ -479,7 +479,7 @@ export function planReconciliation(declarations) {
 // Un movimiento a partir de un monto con signo: sube = ingreso, baja = gasto,
 // y por debajo del centavo no hay movimiento (medio centavo no es plata, y es
 // el mismo umbral con el que currencyLines decide que una moneda está en
-// cero). Es la única definición de esa regla: decideAdjustment delega acá.
+// cero). Es la única definición de esa regla: rowMovement delega acá.
 function movement(amount) {
   if (Math.abs(amount) < 0.01) return null
   return { kind: amount > 0 ? 'income' : 'expense', amount: Math.abs(amount) }
@@ -518,13 +518,11 @@ function pickAnchor(group, net) {
 
 // La diferencia entre lo declarado y lo calculado, como un movimiento con su
 // signo: null si es despreciable (< 1 centavo). La usa el modal para mostrar,
-// fila por fila, cuánto se corrió cada cuenta.
-//
-// OJO CON EL NOMBRE, que quedó de cuando cada cuenta generaba su propio
-// ajuste: desde el neteo de la migración 0041 esta diferencia NO es el gasto
-// que se va a registrar. El gasto es el neto de la moneda, y lo decide
-// planReconciliation; acá vive solo el umbral y el signo. Pura y testeable.
-export function decideAdjustment(current, declaredAmount) {
+// fila por fila, cuánto se corrió cada cuenta — nada más: no decide ningún
+// ajuste. El gasto real es el neto de la moneda, y lo decide
+// planReconciliation; acá vive solo el umbral y el signo del preview. Pura y
+// testeable.
+export function rowMovement(current, declaredAmount) {
   return movement(round(declaredAmount - current))
 }
 

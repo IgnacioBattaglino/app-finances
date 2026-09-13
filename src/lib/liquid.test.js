@@ -5,7 +5,7 @@ import {
   lastReconciliationByAccount,
   retroactiveReconciliation,
   summarizeReconciliation,
-  decideAdjustment,
+  rowMovement,
   planReconciliation,
   totalsByCurrency,
   visibleBreakdown,
@@ -132,17 +132,17 @@ describe('computeLiquidFromCollections', () => {
   })
 })
 
-describe('decideAdjustment', () => {
-  it('declarado mayor que actual → ajuste income por la diferencia', () => {
-    expect(decideAdjustment(1000, 1200)).toEqual({ kind: 'income', amount: 200 })
+describe('rowMovement', () => {
+  it('declarado mayor que actual → income por la diferencia', () => {
+    expect(rowMovement(1000, 1200)).toEqual({ kind: 'income', amount: 200 })
   })
 
-  it('declarado menor que actual → ajuste expense por la diferencia', () => {
-    expect(decideAdjustment(1000, 800)).toEqual({ kind: 'expense', amount: 200 })
+  it('declarado menor que actual → expense por la diferencia', () => {
+    expect(rowMovement(1000, 800)).toEqual({ kind: 'expense', amount: 200 })
   })
 
-  it('declarado igual al actual → no genera ajuste (evita insertar amount=0, que violaría el CHECK > 0)', () => {
-    expect(decideAdjustment(1000, 1000)).toBe(null)
+  it('declarado igual al actual → sin diferencia que mostrar', () => {
+    expect(rowMovement(1000, 1000)).toBe(null)
   })
 })
 

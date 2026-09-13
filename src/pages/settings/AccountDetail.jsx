@@ -217,7 +217,7 @@ function AccountDetail() {
   }
 
   const dirty = name.trim() !== account.name
-  // Menos de un centavo no es un saldo — mismo umbral que decideAdjustment
+  // Menos de un centavo no es un saldo — mismo umbral que rowMovement
   // (lib/liquid.js): por debajo de eso reconcile_liquid no generaría ningún
   // ajuste, así que pedirle uno sería un viaje al servidor sin ningún efecto.
   const hasBalance = Math.abs(balance?.amount ?? 0) >= 0.01
