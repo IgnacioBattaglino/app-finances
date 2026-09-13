@@ -7,6 +7,7 @@ import { SettingsGroup, SettingsLinkRow } from '../components/settings/SettingsL
 import CommitmentReminder from '../components/commitments/CommitmentReminder.jsx'
 import CommitmentFormModal from '../components/commitments/CommitmentFormModal.jsx'
 import CardFormModal from '../components/commitments/CardFormModal.jsx'
+import PaymentCardVisual from '../components/commitments/PaymentCardVisual.jsx'
 import { useCommitments } from '../hooks/useCommitments.js'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { getCards } from '../lib/paymentCards.js'
@@ -175,6 +176,7 @@ function Commitments() {
                 to={`/compromisos/tarjetas/${card.id}`}
                 className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
               >
+                <PaymentCardVisual name={card.name} colorId={card.color} size="sm" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[17px]">{card.name}</span>
                   <span className="block truncate text-[13px] text-ink-soft">

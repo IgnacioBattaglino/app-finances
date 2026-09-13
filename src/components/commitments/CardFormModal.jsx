@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import FormSheet from '../FormSheet.jsx'
 import FormError from '../form/FormError.jsx'
 import MissingHint from '../form/MissingHint.jsx'
-import { createCard, updateCard } from '../../lib/paymentCards.js'
+import PaymentCardVisual from './PaymentCardVisual.jsx'
+import { CARD_COLORS, createCard, updateCard } from '../../lib/paymentCards.js'
 import { round } from '../../lib/money.js'
 
 // Alta y edición de una tarjeta. Tres campos y dos de ellos opcionales: lo
@@ -12,11 +13,59 @@ import { round } from '../../lib/money.js'
 // compras, así que las tres que tengas en la misma vencen el mismo día — que
 // es como funciona en la vida real, un solo resumen. Quien no se lo acuerda
 // puede dejarlo vacío y cada compra usa su propia fecha, igual que hasta ahora.
+//
+// Las etiquetas son sustantivos ("Nombre", "Límite"), no preguntas: ver la
+// nota de CommitmentFormModal sobre la excepción de Compromisos.
+//
+// COLOR: puramente de presentación (payment_cards.color, migración 0046), sin
+// paleta compartida con los grupos de activos ni con el acento de la app —
+// son los cinco colores de una tarjeta física. "Sin color" es una elección
+// válida, igual que en el color de un grupo de activos.
+const NO_COLOR = { id: null, name: 'Sin color' }
+
+function ColorChoice({ value, onChange, disabled }) {
+  return (
+    <div className="grid grid-cols-3 gap-4 p-4 pt-0">
+      {[NO_COLOR, ...CARD_COLORS].map((option) => {
+        const selected = (value ?? null) === option.id
+        return (
+          <button
+            key={option.id ?? 'none'}
+            type="button"
+            onClick={() => onChange(option.id)}
+            disabled={disabled}
+            aria-pressed={selected}
+            className="flex flex-col items-center gap-1.5 disabled:opacity-40"
+          >
+            <span
+              className={`h-9 w-14 rounded-md transition ${
+                option.id ? '' : 'bg-mist shadow-[inset_0_0_0_1px_var(--color-line)]'
+              } ${selected ? 'ring-2 ring-ink/30 ring-offset-2 ring-offset-card' : ''}`}
+              style={
+                option.id
+                  ? {
+                      backgroundColor: option.bg,
+                      boxShadow: option.border ? `inset 0 0 0 1px ${option.border}` : undefined,
+                    }
+                  : undefined
+              }
+            />
+            <span className={`text-[13px] ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}>
+              {option.name}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function CardFormModal({ open, initial = null, onClose, onSaved }) {
   const [name, setName] = useState('')
   const [dueDay, setDueDay] = useState('')
   const [limit, setLimit] = useState('')
   const [currency, setCurrency] = useState('ARS')
+  const [color, setColor] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -28,6 +77,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
     setDueDay(initial?.due_day == null ? '' : String(initial.due_day))
     setLimit(initial?.credit_limit == null ? '' : String(initial.credit_limit).replace('.', ','))
     setCurrency(initial?.currency ?? 'ARS')
+    setColor(initial?.color ?? null)
     setError(null)
     setBusy(false)
   }, [open, initial])
@@ -53,6 +103,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
       dueDay: day,
       creditLimit: parsedLimit == null ? null : round(parsedLimit, 2),
       currency,
+      color,
     }
     try {
       const saved = editing ? await updateCard(initial.id, fields) : await createCard(fields)
@@ -83,7 +134,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
       <form id="card-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="shrink-0 text-[17px]">¿Cómo le decís?</span>
+            <span className="shrink-0 text-[17px]">Nombre</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -94,7 +145,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
           </label>
 
           <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">¿En qué moneda?</span>
+            <span className="text-[17px]">Moneda</span>
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
@@ -107,37 +158,38 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
         </div>
 
         <div className="list">
+          <div className="flex justify-center px-4 pt-4">
+            <PaymentCardVisual name={name || 'Tarjeta'} colorId={color} size="lg" />
+          </div>
+          <ColorChoice value={color} onChange={setColor} disabled={busy} />
+        </div>
+
+        <div className="list">
           <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">¿Qué día se paga?</span>
+            <span className="text-[17px]">Día de pago</span>
             <input
               value={dueDay}
               onChange={(e) => setDueDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
               inputMode="numeric"
-              placeholder="—"
-              className="font-money w-16 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+              placeholder="Opcional"
+              className="font-money w-24 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
             />
           </label>
 
           <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">¿Cuál es el límite?</span>
+            <span className="text-[17px]">Límite</span>
             <div className="flex items-center gap-1">
               <span className="text-[15px] text-ink-soft">{symbol}</span>
               <input
                 value={limit}
                 onChange={(e) => setLimit(e.target.value)}
                 inputMode="decimal"
-                placeholder="—"
+                placeholder="Opcional"
                 className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
               />
             </div>
           </label>
         </div>
-
-        <p className="px-1 text-[13px] text-ink-soft">
-          Los dos son opcionales. El día se lo presta a las compras que cargues acá, así que todas
-          vencen el mismo día — como el resumen. El límite solo sirve para mostrarte cuánto llevás
-          comprometido.
-        </p>
 
         <MissingHint missing={missing} />
         <FormError {...(error ?? {})} />

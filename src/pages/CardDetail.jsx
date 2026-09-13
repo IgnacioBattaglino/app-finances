@@ -6,6 +6,7 @@ import MoneyStack from '../components/MoneyStack.jsx'
 import FormError from '../components/form/FormError.jsx'
 import CardFormModal from '../components/commitments/CardFormModal.jsx'
 import CommitmentFormModal from '../components/commitments/CommitmentFormModal.jsx'
+import PaymentCardVisual from '../components/commitments/PaymentCardVisual.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { getCard, deleteCard } from '../lib/paymentCards.js'
 import { getCommitmentsWithCharges } from '../lib/commitments.js'
@@ -96,6 +97,10 @@ function CardDetail() {
   return (
     <SettingsPage title={card.name} backTo="/compromisos" backLabel="Compromisos">
       {error && <FormError {...error} />}
+
+      <div className="flex justify-center">
+        <PaymentCardVisual name={card.name} colorId={card.color} size="lg" />
+      </div>
 
       <section className="surface p-4 md:p-5">
         <p className="eyebrow mb-1.5">Por resumen</p>
