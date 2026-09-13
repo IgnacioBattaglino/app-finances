@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getCategories, createCategory, deleteCategory, reorderCategories } from '../../lib/categories.js'
+import { getCategories, createCategory, reorderCategories } from '../../lib/categories.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
@@ -82,56 +82,11 @@ function NewCategoryRow({ kind, onCreated }) {
   )
 }
 
-// Una fila: manija para arrastrar, nombre que entra al detalle (renombrar) y
-// eliminar. Las del sistema no se arrastran ni se eliminan — la reconciliación
-// del líquido depende de ellas.
-function CategoryRow({ category, dragHandlers, onDeleted, onError }) {
-  const [confirming, setConfirming] = useState(false)
-  const [busy, setBusy] = useState(false)
-
-  async function handleDelete() {
-    setBusy(true)
-    try {
-      const { deleted } = await deleteCategory(category.id)
-      onDeleted(category.id, deleted)
-    } catch (e) {
-      onError({ message: 'No se pudo eliminar la categoría.', detail: e })
-      setBusy(false)
-      setConfirming(false)
-    }
-  }
-
-  if (confirming) {
-    return (
-      <div className="space-y-1.5 px-4 py-3">
-        <div className="flex items-center justify-between gap-3 text-[15px]">
-          <span className="min-w-0 truncate">¿Eliminar «{category.name}»?</span>
-          <div className="flex shrink-0 items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              disabled={busy}
-              className="text-ink-soft"
-            >
-              No
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={busy}
-              className="font-semibold text-clay disabled:opacity-50"
-            >
-              Sí, eliminar
-            </button>
-          </div>
-        </div>
-        <p className="text-[13px] text-ink-soft">
-          Si ningún movimiento la usa, se elimina para siempre.
-        </p>
-      </div>
-    )
-  }
-
+// La fila es solo para leer, reordenar y entrar al detalle — eliminar vive
+// únicamente ahí (H9 del informe de arquitectura de información): tenerlo
+// repetido acá solo agrega riesgo sin agregar nada. Las del sistema no se
+// arrastran ni se eliminan — la reconciliación del líquido depende de ellas.
+function CategoryRow({ category, dragHandlers }) {
   if (category.is_system) {
     return (
       <div className="flex w-full items-center gap-3 px-4 py-3">
@@ -161,14 +116,6 @@ function CategoryRow({ category, dragHandlers, onDeleted, onError }) {
       >
         {category.name}
       </Link>
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        aria-label={`Eliminar ${category.name}`}
-        className="shrink-0 px-2.5 py-3 text-[15px] font-medium text-clay transition active:opacity-60"
-      >
-        Eliminar
-      </button>
     </div>
   )
 }
@@ -177,7 +124,6 @@ function Categories() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [note, setNote] = useState(null)
 
   async function load() {
     setLoading(true)
@@ -198,16 +144,6 @@ function Categories() {
   function handleCreated(created) {
     // Al final de su grupo, que es la position que le dio el alta.
     setCategories((prev) => [...prev, created])
-    setNote(null)
-  }
-
-  function handleDeleted(id, deleted) {
-    setCategories((prev) => prev.filter((cat) => cat.id !== id))
-    setNote(
-      deleted
-        ? null
-        : 'La categoría tenía movimientos: dejó de ofrecerse, y esos movimientos la siguen mostrando.',
-    )
   }
 
   async function commitOrder(ordered) {
@@ -238,20 +174,15 @@ function Categories() {
     return (
       <SettingsGroup
         title={title}
-        footer="Arrastrá con la manija para cambiar el orden en que aparecen al cargar un movimiento. Al eliminar una que ya tenga movimientos, esos movimientos la siguen mostrando."
+        footer="Arrastrá con la manija para cambiar el orden en que aparecen al cargar un movimiento. Eliminar una categoría se hace desde su detalle."
       >
         <ReorderableRows items={sortable} onCommit={commitOrder}>
           {(category, dragHandlers) => (
-            <CategoryRow
-              category={category}
-              dragHandlers={dragHandlers}
-              onDeleted={handleDeleted}
-              onError={setError}
-            />
+            <CategoryRow category={category} dragHandlers={dragHandlers} />
           )}
         </ReorderableRows>
         {system.map((category) => (
-          <CategoryRow key={category.id} category={category} onDeleted={handleDeleted} onError={setError} />
+          <CategoryRow key={category.id} category={category} />
         ))}
         <NewCategoryRow kind={kind} onCreated={handleCreated} />
       </SettingsGroup>
@@ -275,8 +206,6 @@ function Categories() {
           </button>
         </div>
       )}
-
-      {note && <p className="notice text-[15px]">{note}</p>}
 
       {loading ? (
         <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
