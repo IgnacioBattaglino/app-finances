@@ -20,11 +20,20 @@ import { OVERDUE, occurrenceTitle } from '../../lib/commitmentSchedule.js'
 // El bloque no se mueve de lugar nunca —Inicio no puede cambiar de forma
 // según el estado— y lo que cambia es el teñido, el texto y el peso:
 //
-//   · vencido    → teñido en clay, texto en clay y semibold
-//   · por vencer → sin teñir, texto en ink-soft, peso normal
+//   · vencido    → teñido en clay (.notice), y el texto lo dice
+//   · por vencer → tarjeta normal, sin teñir
+//
+// "Vence hoy" NO va teñido: todavía no se te pasó nada. El teñido está
+// reservado para lo que ya venció (ver planOccurrences).
 //
 // Cuando no hay nada que confirmar no está, que es el mismo criterio que ya
 // usa la tarjeta de Deudas ("un US$ 0 permanente es ruido").
+//
+// ── POR QUÉ EL BOTÓN NO ES `.btn` ──────────────────────────────────────────
+// `.btn` mide 52px de alto: es el botón de un formulario, y acá se comía el
+// ancho de la fila y empujaba el nombre de la cuenta a una tercera línea. Este
+// es un botón de fila, no de formulario. Queda en ~42px, que se toca con el
+// pulgar sin apuntar y deja el texto de arriba a todo el ancho.
 
 function lateLabel(occurrence) {
   const { daysLate, dueDate } = occurrence
@@ -48,37 +57,46 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
       className={`${overdue ? 'notice' : 'surface p-4'} ${className}`}
       aria-label="Vencimientos para confirmar"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className={`text-[15px] ${overdue ? 'font-semibold' : 'font-medium text-ink'}`}>
-            {occurrenceTitle(next)}
-          </p>
-          <p className={`text-[13px] ${overdue ? '' : 'text-ink-soft'}`}>
-            {lateLabel(next)}
-            {next.plan.account?.name ? ` · ${next.plan.account.name}` : ''}
-          </p>
-        </div>
+      {/* El monto arriba a la derecha, a la misma altura que el nombre: son
+          las dos cosas que se leen de un vistazo. */}
+      <div className="flex items-baseline justify-between gap-3">
+        <p className={`min-w-0 truncate text-[15px] font-semibold ${overdue ? '' : 'text-ink'}`}>
+          {occurrenceTitle(next)}
+        </p>
+        <p className="font-money shrink-0 text-[15px] font-semibold">
+          {formatByCurrency(next.currency, next.amount)}
+        </p>
+      </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <button
-            type="button"
-            onClick={() => onConfirm(next)}
-            disabled={busy}
-            className="btn btn-primary"
-          >
-            {busy ? 'Guardando…' : 'Confirmar'}
-          </button>
-          {/* El monto ES el botón para corregirlo: "un toque para decir si el
-              monto cambió". El camino normal no cuesta ese toque —Confirmar ya
-              usa el monto del plan— y el que cambió está a uno solo. */}
-          <button
-            type="button"
-            onClick={() => onAdjust(next)}
-            className="font-money text-[13px] text-ink-soft underline decoration-dotted underline-offset-4"
-          >
-            {formatByCurrency(next.currency, next.amount)} · corregir
-          </button>
-        </div>
+      <p className={`mt-0.5 text-[13px] ${overdue ? '' : 'text-ink-soft'}`}>
+        {lateLabel(next)}
+        {next.plan.account?.name ? ` · ${next.plan.account.name}` : ''}
+      </p>
+
+      <div className="mt-3 flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => onConfirm(next)}
+          disabled={busy}
+          // Baja en desktop igual que `.btn`, y por el mismo motivo: 42px es
+          // la medida del pulgar, no la del mouse. La diferencia
+          // celular/desktop sigue viviendo en un solo breakpoint.
+          className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-[15px] font-semibold text-white transition active:scale-[0.975] disabled:opacity-40 md:px-4 md:py-1.5 md:text-[14px]"
+        >
+          {busy ? 'Guardando…' : 'Confirmar'}
+        </button>
+        {/* El toque de más, el de "el monto cambió" (regla 5). El camino
+            normal no lo cuesta: Confirmar ya usa el monto del plan. */}
+        <button
+          type="button"
+          onClick={() => onAdjust(next)}
+          disabled={busy}
+          className={`text-[13px] underline decoration-dotted underline-offset-4 disabled:opacity-40 ${
+            overdue ? '' : 'text-ink-soft'
+          }`}
+        >
+          Cambió el monto
+        </button>
       </div>
 
       {rest.length > 0 && (
@@ -88,9 +106,7 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
             overdue ? '' : 'text-ink-soft'
           }`}
         >
-          <span>
-            y {rest.length} {rest.length === 1 ? 'más para confirmar' : 'más para confirmar'}
-          </span>
+          <span>y {rest.length} más para confirmar</span>
           <span aria-hidden="true">→</span>
         </Link>
       )}

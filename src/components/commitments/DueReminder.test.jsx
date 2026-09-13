@@ -44,6 +44,16 @@ describe('DueReminder', () => {
     expect(render([])).toBe('')
   })
 
+  it('lo que vence HOY no va teñido: todavía no se te pasó nada', () => {
+    // Regresión encontrada en la pasada visual: con `dueDate <= today` el
+    // bloque de Inicio se teñía en clay el mismo día del vencimiento, que es
+    // lo contrario de lo que tiene que comunicar.
+    const due = duePayments({ plans: [plan({ start_date: '2026-09-13' })], today: '2026-09-13' })
+    const html = render(due)
+    expect(html).toContain('vence hoy')
+    expect(html).not.toContain('notice')
+  })
+
   it('un vencido cuenta los días y va teñido', () => {
     const due = duePayments({ plans: [plan({ start_date: '2026-09-01' })], today: '2026-09-13' })
     const html = render(due)
@@ -72,8 +82,13 @@ describe('DueReminder', () => {
     expect(html).toContain('y 3 más para confirmar')
   })
 
-  it('el monto es el botón para corregirlo: un toque para decir que cambió', () => {
+  it('el monto se lee de un vistazo y corregirlo es un toque aparte', () => {
     const due = duePayments({ plans: [plan({ start_date: '2026-09-10' })], today: '2026-09-13' })
-    expect(render(due)).toContain('corregir')
+    const html = render(due)
+    expect(html).toContain('Cambió el monto')
+    expect(html).toContain('50.000')
+    // El botón de la fila NO es `.btn` (52px, el de un formulario): a ese alto
+    // se comía el ancho y empujaba el nombre de la cuenta a una tercera línea.
+    expect(html).not.toContain('btn btn-primary')
   })
 })

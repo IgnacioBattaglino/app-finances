@@ -213,9 +213,11 @@ function CommitmentDetail() {
           {remaining ? (
             <>
               <p>
-                {remaining.count > 0
-                  ? `${remaining.count} ${remaining.count === 1 ? 'cuota' : 'cuotas'} de ${plan.installments}`
-                  : 'Ya confirmaste todas las cuotas'}
+                {remaining.count === 0
+                  ? 'Ya confirmaste todas las cuotas'
+                  : remaining.count === plan.installments
+                    ? `Las ${remaining.count} cuotas, sin confirmar todavía`
+                    : `${remaining.count} de ${plan.installments} ${remaining.count === 1 ? 'cuota' : 'cuotas'}`}
                 {total != null ? ` · la compra salió ${formatByCurrency(plan.currency, total)}` : ''}
               </p>
               {remaining.lastDueDate && (

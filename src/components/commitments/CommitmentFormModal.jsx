@@ -361,7 +361,11 @@ function CommitmentFormModal({
           <CollapsedDateField
             value={startDate}
             onChange={setStartDate}
-            label={isInstallments ? '¿Cuándo vence la próxima?' : '¿Cuándo es el próximo débito?'}
+            // Cortas a propósito: con la etiqueta larga ("¿Cuándo vence la
+            // próxima?") el label y la fecha se partían los DOS en dos líneas
+            // en un teléfono. Cuál es "la próxima" ya lo dice el contexto, y
+            // el resumen de abajo repite la fecha de la última.
+            label={isInstallments ? '¿Cuándo vence?' : '¿Cuándo se debita?'}
           />
         </div>
 

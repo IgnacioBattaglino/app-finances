@@ -222,7 +222,11 @@ export function planOccurrences({ plan, charges = [], today = todayISO(), until 
 
     const charge = byDate.get(dueDate) ?? null
     byDate.delete(dueDate)
-    const status = chargeStatus(charge) ?? (dueDate <= today ? OVERDUE : PENDING)
+    // ESTRICTAMENTE MENOR: algo que vence HOY no está vencido, vence hoy. Con
+    // `<=` el bloque de Inicio se teñía en clay el mismo día del vencimiento,
+    // que es exactamente lo contrario de lo que tiene que comunicar — el
+    // teñido está reservado para lo que ya se te pasó.
+    const status = chargeStatus(charge) ?? (dueDate < today ? OVERDUE : PENDING)
     items.push({
       planId: plan.id,
       index,
