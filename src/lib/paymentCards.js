@@ -63,7 +63,7 @@ async function nextPosition() {
   return (data[0]?.position ?? -1) + 1
 }
 
-function toRow({ name, dueDay, creditLimit, currency, color }) {
+function toRow({ name, dueDay, creditLimit, currency, color, last4 }) {
   return {
     name: name.trim(),
     // Los dos opcionales a propósito: quien no se acuerda del día de cierre de
@@ -73,6 +73,10 @@ function toRow({ name, dueDay, creditLimit, currency, color }) {
     credit_limit: creditLimit ?? null,
     currency: currency ?? 'ARS',
     color: color ?? null,
+    // SOLO los últimos cuatro (migración 0047): el formulario ya descarta
+    // cualquier valor incompleto antes de llegar acá, así que lo único que se
+    // guarda es null o cuatro dígitos.
+    last4: last4 ?? null,
   }
 }
 

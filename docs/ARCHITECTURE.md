@@ -225,6 +225,7 @@ Tarjetas. Existen por una sola cosa que ninguna otra pieza puede hacer: **darle 
 | currency | text NOT NULL default 'ARS' | la moneda del límite y la sugerida para sus compras. Mismo formato y criterio que `liquid_accounts.currency` |
 | position | int NOT NULL default 0 | orden manual, mismo patrón que categories.position |
 | color | text | nullable (migración 0046); puramente de presentación — qué rectángulo pinta `PaymentCardVisual`. Paleta propia en `CARD_COLORS` (`src/lib/paymentCards.js`), deliberadamente DISTINTA de `ACCENTS` (grupos de activos y acento de la app): son los cinco colores de una tarjeta física, no una elección de marca. Sin CHECK, mismo criterio que `asset_types.color`: un id desconocido cae a "sin color" del lado del cliente |
+| last4 | text | nullable (migración 0047), CHECK `^[0-9]{4}$` cuando no es null. SOLO los últimos cuatro dígitos, nunca el número completo — la app no tiene ninguna razón para guardarlo. `text` y no `numeric`: un dígito inicial en cero ("0032") es válido. Se muestra enmascarado ("•••• 4417") sobre el color de `PaymentCardVisual`; nunca se inventa un valor de relleno |
 | created_at | timestamptz default now() | |
 
 ### commitments (migración 0045)

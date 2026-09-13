@@ -21,6 +21,11 @@ import { round } from '../../lib/money.js'
 // paleta compartida con los grupos de activos ni con el acento de la app —
 // son los cinco colores de una tarjeta física. "Sin color" es una elección
 // válida, igual que en el color de un grupo de activos.
+//
+// ÚLTIMOS 4 DÍGITOS (migración 0047): SOLO eso, nunca el número completo —no
+// se pide ni se guarda—, y nunca inventado: si no están los cuatro, la
+// previsualización no muestra nada (ver PaymentCardVisual). El input sólo
+// deja escribir dígitos y corta en cuatro.
 const NO_COLOR = { id: null, name: 'Sin color' }
 
 function ColorChoice({ value, onChange, disabled }) {
@@ -66,6 +71,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
   const [limit, setLimit] = useState('')
   const [currency, setCurrency] = useState('ARS')
   const [color, setColor] = useState(null)
+  const [last4, setLast4] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -78,6 +84,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
     setLimit(initial?.credit_limit == null ? '' : String(initial.credit_limit).replace('.', ','))
     setCurrency(initial?.currency ?? 'ARS')
     setColor(initial?.color ?? null)
+    setLast4(initial?.last4 ?? '')
     setError(null)
     setBusy(false)
   }, [open, initial])
@@ -91,6 +98,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
   if (!name.trim()) missing.push('nombre')
   if (day != null && !(day >= 1 && day <= 31)) missing.push('un día entre 1 y 31')
   if (parsedLimit != null && !(parsedLimit > 0)) missing.push('un límite mayor a cero')
+  if (last4 && last4.length !== 4) missing.push('los 4 dígitos completos')
   const valid = missing.length === 0
 
   async function handleSubmit(event) {
@@ -104,6 +112,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
       creditLimit: parsedLimit == null ? null : round(parsedLimit, 2),
       currency,
       color,
+      last4: last4 || null,
     }
     try {
       const saved = editing ? await updateCard(initial.id, fields) : await createCard(fields)
@@ -155,11 +164,22 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
               <option value="USD">Dólares</option>
             </select>
           </label>
+
+          <label className="flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-[17px]">Últimos 4 dígitos</span>
+            <input
+              value={last4}
+              onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              inputMode="numeric"
+              placeholder="Opcional"
+              className="font-money w-24 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+            />
+          </label>
         </div>
 
         <div className="list">
           <div className="flex justify-center px-4 pt-4">
-            <PaymentCardVisual name={name || 'Tarjeta'} colorId={color} size="lg" />
+            <PaymentCardVisual name={name || 'Tarjeta'} colorId={color} last4={last4} size="lg" />
           </div>
           <ColorChoice value={color} onChange={setColor} disabled={busy} />
         </div>

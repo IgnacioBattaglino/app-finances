@@ -99,7 +99,7 @@ function CardDetail() {
       {error && <FormError {...error} />}
 
       <div className="flex justify-center">
-        <PaymentCardVisual name={card.name} colorId={card.color} size="lg" />
+        <PaymentCardVisual name={card.name} colorId={card.color} last4={card.last4} size="lg" />
       </div>
 
       <section className="surface p-4 md:p-5">
