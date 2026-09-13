@@ -30,6 +30,16 @@ const tabs = [
     icon: <path d="M4 19.5V11m5.3 8.5v-15m5.4 15v-8m5.3 8v-12" />,
   },
   {
+    to: '/compromisos',
+    label: 'Compromisos',
+    // Un almanaque con un tilde: lo que hay que pagar en una fecha, y el
+    // gesto de darlo por hecho. No repite la billetera de "Mi plata" — esa
+    // es la plata que tengo, esta es la que ya está comprometida.
+    icon: (
+      <path d="M3.8 6.8h16.4v13.4H3.8zM3.8 10.8h16.4M8 4.2v3m8-3v3m-6.6 9.4 1.9 1.9 3.5-3.7" />
+    ),
+  },
+  {
     to: '/ajustes',
     label: 'Ajustes',
     icon: <path d="M4 7.5h16M4 12h16M4 16.5h16M9.5 5.5v4m5 0v5m-6 2v4" />,
@@ -117,7 +127,12 @@ function Layout() {
                 to={to}
                 end={to === '/'}
                 className={({ isActive }) =>
-                  `flex flex-1 flex-col items-center gap-1 pt-1.5 pb-2 text-[10px] font-medium transition ${
+                  // `whitespace-nowrap`: con seis pestañas cada una mide ~62px
+                  // en un iPhone y las etiquetas largas ("Movimientos",
+                  // "Compromisos") quedan a pocos pixeles del ancho. Sin esto,
+                  // la primera que no entre se parte en dos líneas y levanta
+                  // esa pestaña sola, desalineando toda la barra.
+                  `flex min-w-0 flex-1 flex-col items-center gap-1 pt-1.5 pb-2 text-[10px] font-medium tracking-[-0.01em] whitespace-nowrap transition ${
                     isActive ? 'text-accent-ink' : 'text-ink-soft'
                   }`
                 }

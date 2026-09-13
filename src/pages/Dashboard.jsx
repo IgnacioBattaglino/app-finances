@@ -521,7 +521,7 @@ function Dashboard() {
 
         {/* Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0"
             permanente es ruido. Ya no tiene pestaña propia: se entra desde
-            Mi plata, que siempre muestra la fila aunque el saldo sea 0. */}
+            Compromisos, que siempre muestra la fila aunque el saldo sea 0. */}
         {hasDebts && (
           <SummaryCard
             label="Deudas"
@@ -530,7 +530,7 @@ function Dashboard() {
             loading={debtsLoading}
             error={debtsError}
             onRetry={loadDebts}
-            onClick={() => navigate('/deudas')}
+            onClick={() => navigate('/compromisos/deudas')}
           />
         )}
       </div>

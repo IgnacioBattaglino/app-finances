@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getAccounts, reorderAccounts } from '../../lib/liquidAccounts.js'
 import { getAccountBalances } from '../../lib/liquid.js'
-import { getDebts, summarizeDebts } from '../../lib/debts.js'
-import { formatByCurrency, formatUSD } from '../../lib/format.js'
+import { formatByCurrency } from '../../lib/format.js'
 import PageHeader from '../../components/PageHeader.jsx'
-import { SettingsGroup, SettingsButtonRow, SettingsLinkRow } from '../../components/settings/SettingsList.jsx'
+import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
 import { ReorderableRows, GripIcon } from '../../components/settings/ReorderableRows.jsx'
@@ -75,7 +74,6 @@ function AccountRow({ account, dragHandlers }) {
 
 function Accounts() {
   const [accounts, setAccounts] = useState([])
-  const [debtsBalance, setDebtsBalance] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [reconcileOpen, setReconcileOpen] = useState(false)
@@ -85,14 +83,9 @@ function Accounts() {
     setLoading(true)
     setError(null)
     try {
-      const [accountRows, balances, debts] = await Promise.all([
-        getAccounts(),
-        getAccountBalances(),
-        getDebts(),
-      ])
+      const [accountRows, balances] = await Promise.all([getAccounts(), getAccountBalances()])
       const byId = new Map(balances.map((b) => [b.account_id, Number(b.amount)]))
       setAccounts(accountRows.map((a) => ({ ...a, amount: byId.get(a.id) ?? 0 })))
-      setDebtsBalance(summarizeDebts(debts).totalBalance)
     } catch (e) {
       setError({ message: 'No se pudieron cargar las cuentas.', detail: e })
     } finally {
@@ -186,14 +179,6 @@ function Accounts() {
 
             <SettingsGroup>
               <NewAccountRow onCreated={(created) => setAccounts((prev) => [...prev, { ...created, amount: 0 }])} />
-            </SettingsGroup>
-
-            {/* Deudas dejó de tener pestaña propia: acá es lo que junto con el
-                disponible y el ahorro responde "cuánto tengo y cuánto debo".
-                Siempre visible, aunque el saldo sea 0: es el único punto de
-                entrada a Deudas ahora que no está en la barra. */}
-            <SettingsGroup footer="Cuánto te queda por pagar en total.">
-              <SettingsLinkRow to="/deudas" label="Deudas" value={formatUSD(debtsBalance ?? 0)} />
             </SettingsGroup>
           </>
         )}

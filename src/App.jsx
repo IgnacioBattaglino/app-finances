@@ -11,6 +11,7 @@ import Portfolio from './pages/Portfolio.jsx'
 import AssetDetail from './pages/AssetDetail.jsx'
 import Goal from './pages/Goal.jsx'
 import Debts from './pages/Debts.jsx'
+import Commitments from './pages/Commitments.jsx'
 import SettingsHome from './pages/settings/SettingsHome.jsx'
 import Appearance from './pages/settings/Appearance.jsx'
 import Categories from './pages/settings/Categories.jsx'
@@ -74,7 +75,10 @@ function App() {
           <Route path="/inversiones/grupos" element={<AssetTypes />} />
           <Route path="/inversiones/grupos/:assetTypeId" element={<AssetTypeDetail />} />
           <Route path="/objetivo" element={<Goal />} />
-          <Route path="/deudas" element={<Debts />} />
+          {/* Compromisos: lo que ya está comprometido y todavía no se pagó.
+              Deudas dejó de colgar de Mi plata y vive acá adentro. */}
+          <Route path="/compromisos" element={<Commitments />} />
+          <Route path="/compromisos/deudas" element={<Debts />} />
           {/* Ajustes es una lista de temas y cada uno entra a su pantalla
               (modelo iOS), así que son rutas propias y no secciones */}
           <Route path="/ajustes" element={<SettingsHome />} />
@@ -92,6 +96,7 @@ function App() {
           <Route path="/ajustes/cuentas/:accountId" element={<RedirectAccountDetail />} />
           <Route path="/ajustes/grupos" element={<Navigate to="/inversiones/grupos" replace />} />
           <Route path="/ajustes/grupos/:assetTypeId" element={<RedirectAssetTypeDetail />} />
+          <Route path="/deudas" element={<Navigate to="/compromisos/deudas" replace />} />
           {/* /ajustes/cuenta desapareció: el email y Cerrar sesión pasaron al
               pie de Ajustes. */}
           <Route path="/ajustes/cuenta" element={<Navigate to="/ajustes" replace />} />

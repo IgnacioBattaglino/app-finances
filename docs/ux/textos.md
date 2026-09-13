@@ -74,11 +74,11 @@ Convenciones:
 | Pantalla Inicio, botón (desktop) / FAB (celular, sin texto) | Nuevo gasto | Abre el alta rápida de gasto | | `src/pages/Dashboard.jsx:470,591` |
 | Tarjeta resumen, etiqueta | Dinero disponible | Nombre de la tarjeta de líquido | | `src/pages/Dashboard.jsx:486` |
 | Tarjeta resumen, hint | Configurar mis cuentas | Aparece solo la primera vez, antes de la primera reconciliación | | `src/pages/Dashboard.jsx:488` |
-| Tarjeta resumen, explicación (botón "i") | La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones. | Explica "Dinero disponible" | | `src/pages/Dashboard.jsx:490` |
+| Tarjeta resumen, explicación (botón "i") | La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones. | Explica "Dinero disponible" | Tu dinero liquido. Sube con tus ingeresos y baja con tus gastos.| `src/pages/Dashboard.jsx:490` |
 | Tarjeta resumen, etiqueta | Dinero ahorrado | Nombre de la tarjeta de cuentas de ahorro (solo si hay saldo) | | `src/pages/Dashboard.jsx:504` |
-| Tarjeta resumen, explicación (botón "i") | Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento. | Explica "Dinero ahorrado" | | `src/pages/Dashboard.jsx:507` |
+| Tarjeta resumen, explicación (botón "i") | Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento. | Explica "Dinero ahorrado" |Eliminar | `src/pages/Dashboard.jsx:507` |
 | Tarjeta resumen, etiqueta | Dinero invertido | Nombre de la tarjeta de portafolio | | `src/pages/Dashboard.jsx:513` (también encabezado de Inversiones, ver más abajo) |
-| Tarjeta resumen, explicación (botón "i") | Lo que valen hoy tus inversiones, según el último precio o la última valuación que cargaste. | Explica "Dinero invertido" | | `src/pages/Dashboard.jsx:515` |
+| Tarjeta resumen, explicación (botón "i") | Lo que valen hoy tus inversiones, según el último precio o la última valuación que cargaste. | Explica "Dinero invertido" | Lo que valen tus activos.| `src/pages/Dashboard.jsx:515` |
 | Tarjeta resumen, etiqueta | Deudas | Nombre de la tarjeta de deudas (solo si hay deudas cargadas) | | `src/pages/Dashboard.jsx:527` |
 | Tarjeta resumen, nota | Te queda por pagar | Aclara qué mide el monto de la tarjeta Deudas | | `src/pages/Dashboard.jsx:529` (repite en `src/pages/Debts.jsx:88`) |
 | Tarjeta resumen, texto de carga | Calculando… | Estado de carga de una tarjeta / gráfico | | `src/pages/Dashboard.jsx:38,164,233` (y en varios componentes más, ver "Patrones compartidos") |
