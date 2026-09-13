@@ -24,9 +24,11 @@ import { round } from '../../lib/money.js'
 // es que una compra en cuotas TERMINA y una suscripción no — y eso es
 // exactamente lo que cambia entre las dos mitades del form.
 //
-// Cada campo se nombra con la pregunta que responde, nunca desde la
-// implementación: "¿Cuántas cuotas son?" y no "installments", "¿Desde qué
-// cuota va?" y no "first_installment".
+// EXCEPCIÓN deliberada a la convención general de CLAUDE.md ("cada campo se
+// nombra con la pregunta que responde"): en Compromisos las etiquetas son
+// sustantivos ("Nombre", "Cantidad de cuotas"), no preguntas. Es un cambio
+// acotado a esta sección; el resto de la app sigue con preguntas hasta que se
+// unifique el criterio.
 
 const INSTALLMENTS = 'installments'
 const SUBSCRIPTION = 'subscription'
@@ -245,7 +247,7 @@ function CommitmentFormModal({
         {!editing && (
           <div className="list">
             <div className="px-4 py-3">
-              <p className="mb-2 text-[15px]">¿Qué estás cargando?</p>
+              <p className="mb-2 text-[15px]">Tipo</p>
               <BinaryChoice options={KINDS} value={kind} onChange={setKind} />
               <p className="mt-1.5 text-[13px] text-ink-soft">
                 {isInstallments
@@ -258,7 +260,7 @@ function CommitmentFormModal({
 
         <div className="list">
           <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="shrink-0 text-[17px]">{isInstallments ? '¿Qué compraste?' : '¿Qué es?'}</span>
+            <span className="shrink-0 text-[17px]">Nombre</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -270,7 +272,7 @@ function CommitmentFormModal({
 
           {isInstallments && (
             <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">¿Con qué tarjeta?</span>
+              <span className="text-[17px]">Tarjeta</span>
               <select
                 value={cardId ?? ''}
                 onChange={(e) => changeCard(e.target.value)}
@@ -290,14 +292,14 @@ function CommitmentFormModal({
         <div className="list">
           {isInstallments && (
             <div className="px-4 py-3">
-              <p className="mb-2 text-[15px]">¿Qué monto sabés?</p>
+              <p className="mb-2 text-[15px]">Monto que conocés</p>
               <BinaryChoice options={AMOUNT_MODES} value={amountMode} onChange={setAmountMode} />
             </div>
           )}
 
           <label className="flex items-center justify-between gap-3 px-4 py-3">
             <span className="shrink-0 text-[17px]">
-              {!isInstallments ? '¿Cuánto te debitan?' : amountMode === BY_TOTAL ? '¿Cuánto salió?' : '¿Cuánto es cada cuota?'}
+              {!isInstallments ? 'Monto' : amountMode === BY_TOTAL ? 'Total' : 'Monto de la cuota'}
             </span>
             <div className="flex items-center gap-1">
               <span className="text-[15px] text-ink-soft">{symbol}</span>
@@ -315,7 +317,7 @@ function CommitmentFormModal({
           {isInstallments ? (
             <>
               <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[17px]">¿En cuántas cuotas?</span>
+                <span className="text-[17px]">Cantidad de cuotas</span>
                 <input
                   value={installments}
                   onChange={(e) => setInstallments(e.target.value.replace(/\D/g, ''))}
@@ -327,7 +329,7 @@ function CommitmentFormModal({
               </label>
               <div className="px-4 py-3">
                 <label className="flex items-center justify-between gap-3">
-                  <span className="text-[17px]">¿Vas por la cuota…?</span>
+                  <span className="text-[17px]">Primera cuota</span>
                   <input
                     value={firstInstallment}
                     onChange={(e) => setFirstInstallment(e.target.value.replace(/\D/g, ''))}
@@ -343,7 +345,7 @@ function CommitmentFormModal({
             </>
           ) : (
             <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">¿Cada cuánto?</span>
+              <span className="text-[17px]">Frecuencia</span>
               <select
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value)}
@@ -361,11 +363,11 @@ function CommitmentFormModal({
           <CollapsedDateField
             value={startDate}
             onChange={setStartDate}
-            // Cortas a propósito: con la etiqueta larga ("¿Cuándo vence la
-            // próxima?") el label y la fecha se partían los DOS en dos líneas
-            // en un teléfono. Cuál es "la próxima" ya lo dice el contexto, y
-            // el resumen de abajo repite la fecha de la última.
-            label={isInstallments ? '¿Cuándo vence?' : '¿Cuándo se debita?'}
+            // Cortas a propósito: con una etiqueta larga el label y la fecha
+            // se partían los DOS en dos líneas en un teléfono. Cuál es "la
+            // próxima" ya lo dice el contexto, y el resumen de abajo repite la
+            // fecha de la última.
+            label={isInstallments ? 'Vencimiento' : 'Débito'}
           />
         </div>
 
@@ -399,7 +401,7 @@ function CommitmentFormModal({
 
         <div className="list">
           <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">¿Con qué categoría?</span>
+            <span className="text-[17px]">Categoría</span>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
@@ -421,7 +423,7 @@ function CommitmentFormModal({
             accounts={accounts}
             value={accountId}
             onChange={setAccountId}
-            label="¿De qué cuenta sale?"
+            label="Cuenta"
             onAccountCreated={onAccountCreated}
           />
         </div>

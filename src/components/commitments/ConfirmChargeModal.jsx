@@ -109,7 +109,7 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
       <form id="confirm-charge-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">¿Cuánto te debitaron?</span>
+            <span className="text-[17px]">Monto</span>
             <div className="flex items-center gap-1">
               <span className="text-[15px] text-ink-soft">{symbol}</span>
               <input
@@ -123,13 +123,13 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
             </div>
           </label>
 
-          <CollapsedDateField value={date} onChange={setDate} label="¿Qué día?" />
+          <CollapsedDateField value={date} onChange={setDate} label="Fecha" />
 
           <AccountField
             accounts={accounts}
             value={accountId}
             onChange={setAccountId}
-            label="¿De qué cuenta salió?"
+            label="Cuenta"
             onAccountCreated={onAccountCreated}
           />
         </div>
