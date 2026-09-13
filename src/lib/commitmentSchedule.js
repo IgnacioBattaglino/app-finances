@@ -386,3 +386,13 @@ export function committedInMonth({ plans, chargesByPlan = new Map(), month, toda
     a.currency === 'ARS' ? -1 : b.currency === 'ARS' ? 1 : a.currency < b.currency ? -1 : 1,
   )
 }
+
+// El nombre de lo que vence, con el número de cuota cuando lo tiene: "Heladera
+// · cuota 2 de 6" dice de una que esto SE TERMINA, que es la diferencia que la
+// sección entera tiene que dejar ver. Es también la descripción con la que se
+// guarda el gasto al confirmarlo, así que en Movimientos la fila se explica
+// sola sin necesitar ningún tipo de movimiento nuevo.
+export function occurrenceTitle(occurrence) {
+  const { plan, number, of } = occurrence
+  return number && of ? `${plan.name} · cuota ${number} de ${of}` : plan.name
+}

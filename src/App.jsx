@@ -12,6 +12,8 @@ import AssetDetail from './pages/AssetDetail.jsx'
 import Goal from './pages/Goal.jsx'
 import Debts from './pages/Debts.jsx'
 import Commitments from './pages/Commitments.jsx'
+import CommitmentDetail from './pages/CommitmentDetail.jsx'
+import CardDetail from './pages/CardDetail.jsx'
 import SettingsHome from './pages/settings/SettingsHome.jsx'
 import Appearance from './pages/settings/Appearance.jsx'
 import Categories from './pages/settings/Categories.jsx'
@@ -79,6 +81,8 @@ function App() {
               Deudas dejó de colgar de Mi plata y vive acá adentro. */}
           <Route path="/compromisos" element={<Commitments />} />
           <Route path="/compromisos/deudas" element={<Debts />} />
+          <Route path="/compromisos/tarjetas/:cardId" element={<CardDetail />} />
+          <Route path="/compromisos/planes/:commitmentId" element={<CommitmentDetail />} />
           {/* Ajustes es una lista de temas y cada uno entra a su pantalla
               (modelo iOS), así que son rutas propias y no secciones */}
           <Route path="/ajustes" element={<SettingsHome />} />

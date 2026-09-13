@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
+import CommitmentReminder from '../components/commitments/CommitmentReminder.jsx'
 import Money from '../components/Money.jsx'
 import MoneyStack from '../components/MoneyStack.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
@@ -20,6 +21,7 @@ import { getCategories } from '../lib/categories.js'
 import { getDebts, summarizeDebts } from '../lib/debts.js'
 import { formatARS, formatUSD, todayISO } from '../lib/format.js'
 import { useAccounts } from '../hooks/useAccounts.js'
+import { useDuePayments } from '../hooks/useCommitments.js'
 
 // Recharts pesa bastante: se carga solo cuando hace falta (hay al menos un
 // aporte o un gasto para graficar), no en el bundle principal. Las dos
@@ -259,6 +261,11 @@ function Dashboard() {
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
   const { accounts, defaultAccountId, addAccount } = useAccounts()
+  // Lo que hay que confirmar. Un fallo cargándolo NO se propaga como error de
+  // la pantalla: el recordatorio es un agregado y quedarse sin ver el
+  // disponible porque no se pudieron leer los compromisos sería peor (mismo
+  // criterio que useAccounts).
+  const { due, reload: reloadCommitments } = useDuePayments()
 
   // Mismo cálculo que usa Portafolio (precio en vivo + filtro
   // include_in_total): el número tiene que ser el mismo en las dos pantallas.
@@ -469,6 +476,21 @@ function Dashboard() {
             Nuevo gasto
           </button>
         }
+      />
+
+      {/* EL RECORDATORIO DE COMPROMISOS. Va SIEMPRE en el mismo lugar —arriba
+          de las tarjetas— y nunca se mueve según el estado: Inicio es la
+          pantalla que se abre todos los días y no puede cambiar de forma sola.
+          Lo que escala es el teñido, el texto y el peso (ver DueReminder).
+          Es una sola fila pase lo que pase, y confirmar de a uno es un toque
+          sin salir de acá. Sin nada que confirmar no está, igual que la
+          tarjeta de Deudas. */}
+      <CommitmentReminder
+        due={due}
+        accounts={accounts}
+        onChanged={reloadCommitments}
+        onAccountCreated={addAccount}
+        className="mb-3"
       />
 
       {/* Los mundos, uno al lado del otro y del mismo tamaño. Nunca se suman
