@@ -368,6 +368,24 @@ en una pestaña no es sumar, pero es un paso en esa dirección.
 La alternativa es dejar Deudas como pestaña y quedarse en seis — pero entonces
 Objetivo tiene que salir igual.
 
+> **Resuelto, y por un camino que este informe no tenía a la vista
+> (2026-09-13).** Deudas no se quedó en Mi plata: se mudó a una pestaña nueva,
+> **Compromisos**, junto con las tarjetas (compras en cuotas) y las
+> suscripciones. La barra vuelve a seis:
+>
+>     Inicio · Movimientos · Mi plata · Inversiones · Compromisos · Ajustes
+>
+> El argumento de 3.1 se sostiene igual: la barra sigue nombrando dónde está la
+> plata, y la sexta pestaña no es una lista de cero o una fila —que era la
+> objeción a Deudas como pestaña propia— sino la única que responde "¿qué
+> tengo que pagar?". Mi plata queda con lo que tengo, que es la pregunta que
+> esa pestaña hace, y Objetivo sigue fuera de la barra.
+>
+> La preocupación de los tres mundos tampoco aplica: agrupar deudas con cuotas
+> y suscripciones no suma nada con nada — Compromisos no muestra un total
+> único, muestra el saldo de las deudas en USD por un lado y lo comprometido
+> del mes por moneda por el otro. Ver ADR-019.
+
 ### 2 · Los movimientos de ahorro, ¿entran a Movimientos?
 
 Hoy no aparecen ahí, solo en el extracto de su cuenta. Es defendible —no son

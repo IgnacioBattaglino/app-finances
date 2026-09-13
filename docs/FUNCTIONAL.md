@@ -45,7 +45,7 @@ La home. Muestra los tres mundos, separados y en este orden:
 
 - ✅ Dinero disponible (en ARS). Tocarlo lleva a Mi plata, donde está "Contar mi plata" (reconciliación); si nunca se declaró un saldo, la tarjeta invita a hacerlo ("declarar mi saldo").
 - ✅ Dinero invertido (en USD). Tocarlo lleva a Inversiones. Sale del mismo `usePortfolio` que esa pantalla, así que el número es idéntico en las dos.
-- ✅ Deudas (saldo restante en USD): tarjeta a ancho completo debajo de las otras dos, para que se lea como una magnitud aparte y no como el tercio de un total que no existe. Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0" fijo es ruido. Ya no tiene pestaña propia: se entra desde Mi plata, que siempre muestra la fila de Deudas aunque el saldo sea 0.
+- ✅ Deudas (saldo restante en USD): tarjeta a ancho completo debajo de las otras dos, para que se lea como una magnitud aparte y no como el tercio de un total que no existe. Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0" fijo es ruido. Se entra desde Compromisos, que siempre muestra la fila de Deudas aunque el saldo sea 0 — ya no cuelga de Mi plata, que responde "cuánto tengo" y no "cuánto debo".
 - ✅ Bloque de gastos: total del mes con la comparación contra el mes anterior a esta altura, desglose por categoría, y una serie de los últimos 12 meses en dólares. Las dos partes cargan por separado: si falla la conversión a dólares (que necesita la serie de cotizaciones), el total del mes y el desglose SIGUEN viéndose y solo el gráfico muestra su propio «Reintentar». Un gráfico de apoyo no puede llevarse puesto el número que se mira todos los días.
 - NO muestra un patrimonio total (ver Principios): las tres tarjetas nunca se suman.
 - 🔜 Rendimiento del invertido en la propia tarjeta (hoy solo el valor).
@@ -104,7 +104,25 @@ El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD 
 - Proyección: meses restantes y edad estimada al llegar, con interés compuesto (retorno esperado configurable) sobre el ritmo de aporte actual. El ritmo usa el promedio de los últimos 6 meses (ventana configurable en Ajustes), no el histórico completo.
 - Simulador: aporte mensual necesario para llegar a una edad elegida (ej: 30, 35).
 
-### 5. Deudas 🟡
+### 5. Compromisos 🟡
+
+La pestaña de **lo que ya está comprometido y todavía no salió de tu plata**. Agrupa tres cosas que responden la misma pregunta ("¿qué tengo que pagar?"): tarjetas con sus compras en cuotas, suscripciones, y deudas — que se mudaron acá desde Mi plata, sin cambiar nada de lo que se puede hacer con ellas.
+
+- ✅ **Un vencimiento pendiente NO cuenta en ningún total**: ni en el disponible, ni en los gastos del mes, ni en el balance, ni en el desglose por categoría. No es una limitación del filtrado: es que un pendiente no existe como fila en ninguna tabla. El plan es configuración y sus vencimientos se calculan, igual que el saldo de una deuda se calcula de sus pagos (ver ADR-019). Recién cuenta cuando el usuario lo confirma.
+- ✅ **Nada se carga solo.** La confirmación es siempre del usuario. Pero lo vencido no puede pasar desapercibido: se queda visible e insiste.
+- ✅ **Una cuota confirmada es un gasto común**, con la categoría de usuario que eligió el plan, que sale del disponible como cualquier otro. NO es un pago de deuda, y la regla que deja los pagos de deuda fuera de los totales del mes no se toca.
+- ✅ **Tarjetas**: nombre, y opcionalmente día de vencimiento y límite. La tarjeta existe por una sola cosa que ninguna otra pieza puede hacer: darle la MISMA fecha a todas sus compras — en la vida real se paga un solo resumen. Sin día, cada compra usa su propia fecha. El límite solo sirve para mostrar cuánto se lleva comprometido.
+- ✅ **Compras en cuotas**: qué compraste, el monto (el total o la cuota — a veces se sabe uno y a veces el otro), cuántas cuotas, y desde qué cuota va (para cargar una compra ya empezada: "tengo 3 de 6 pagadas"). Las cuotas anteriores no se inventan como confirmadas: se pagaron afuera de la app. Si el total no divide exacto, **la primera cuota absorbe la diferencia** (es lo que suelen hacer los bancos, así que coincide más seguido con el resumen real) y el formulario muestra el reparto ANTES de guardar.
+- ✅ **Suscripciones**: monto, categoría, cada cuánto y qué día. No tienen final ni total: no le debés nada a Netflix el año que viene.
+- ✅ **La diferencia que la pantalla muestra**: "Comprometido este mes" nunca es un número solo. Dice qué parte son cuotas que se terminan —con la fecha de la última— y qué parte son suscripciones que siguen. Un total que sube y baja por su cuenta, sin explicación, confunde. Por moneda y sin convertir (ADR-015).
+- ✅ **El recordatorio**: una sola fila, siempre, en Inicio y en Compromisos. Muestra el vencimiento más urgente con un botón Confirmar (un toque: usa el monto, la cuenta y la fecha del plan) y cuenta el resto en una línea; al confirmar, la misma fila pasa al siguiente. El monto es a su vez el botón para corregirlo, que es el toque de más para decir que cambió. En Inicio va SIEMPRE en el mismo lugar —arriba de las tarjetas— y nunca se mueve según el estado: lo que escala es el teñido (clay si está vencido), el texto y el peso. Un vencido dice "venció hace 12 días", y ese número sube solo: es lo único que impide que el aviso se vuelva paisaje. Sin nada que confirmar, el bloque no está.
+- ✅ **Terminar y dar de baja son la misma operación**, así que hay una sola: deja de generar vencimientos a partir de hoy. Lo ya confirmado queda intacto, lo vencido sin confirmar sigue pendiente (porque de verdad se debe) y el plan baja a "Terminados" con su historial entero. Es neutro y reversible, y el texto dice todo eso antes de que se toque nada. **Eliminar** (rojo, permanente) existe solo para un plan que nunca confirmó ningún pago — mismo par que ya usan las categorías.
+- ✅ **Deshacer una confirmación** borra el gasto y la marca juntos. Borrar el gasto desde Movimientos también funciona: el vencimiento vuelve a pendiente solo.
+- ✅ **Descartar un vencimiento** ("no lo pagué"): el mes que no fuiste al gimnasio. Sin esto, sacárselo de encima obligaría a inventar un gasto que no existió.
+- 🔜 Ver, desde un gasto de Movimientos, de qué plan salió (hoy la fila lo dice en su descripción: "Heladera · cuota 2 de 6").
+- 🔜 Avisar cuando una compra nueva supera el límite de su tarjeta.
+
+#### 5.1 Deudas 🟡
 
 - ✅ Resumen arriba: cuánto debés en total (saldo restante, el número protagonista), con barra de avance y "pagaste X de Y" como referencia en chico.
 - ✅ Lista de deudas activas: cada una es una tarjeta con acreedor, saldo restante, barra de avance y "pagaste X de Y · %". La barra usa pine (el verde de la app) y no clay: pagar una deuda es progreso, no un error — clay queda para lo destructivo, como en el resto de la app.
