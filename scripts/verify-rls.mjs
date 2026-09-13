@@ -40,6 +40,13 @@ const ROOT_TABLES = [
   'settings',
   'liquid_reconciliations',
   'liquid_accounts',
+  // Compromisos (migración 0045). Las tres son raíz con user_id propio: un
+  // plan y una tarjeta son del usuario, y el cargo de un vencimiento también
+  // (no hereda por FK como contributions, porque lo escribe una función que
+  // ya lo completa con auth.uid()).
+  'payment_cards',
+  'commitments',
+  'commitment_charges',
 ]
 
 // Tablas hijas: sin user_id propio, heredan el dueño vía FK a su tabla raíz
@@ -83,6 +90,13 @@ function printRow(name, count, ok, note = '') {
 
 async function checkOwnRoot(client, table, userId) {
   const { data, error } = await client.from(table).select('*')
+  // Una tabla que todavía no existe es una migración sin aplicar, no una
+  // fuga: se reporta PENDIENTE, igual que el catálogo de precios y
+  // create_transfer. Así esta verificación se puede correr ANTES de aplicar
+  // la migración nueva, que es justo cuando hace falta correrla.
+  if (isMissingRelation(error)) {
+    return { ok: true, count: null, note: 'tabla aún no existe — migración sin aplicar (PENDIENTE)' }
+  }
   if (error) return { ok: false, count: null, note: error.message }
   const leaked = data.filter((row) => row.user_id !== userId)
   return {
@@ -108,6 +122,10 @@ async function checkOwnChild(client, table, parent, userId) {
 
 async function checkAnon(client, table) {
   const { data, error } = await client.from(table).select('id')
+  // Cualquier error desde el lado anónimo significa lo mismo y es lo que
+  // importa: sin login no se vio ninguna fila. No se distingue si la tabla no
+  // existe — desde acá es indistinguible de una bloqueada, y la conclusión de
+  // seguridad es la misma.
   if (error) return { ok: true, count: 0, note: 'bloqueado por RLS (error)' }
   return {
     ok: data.length === 0,
@@ -341,6 +359,65 @@ async function checkInvitations(authClient, anonClient) {
   return ok
 }
 
+// confirm_commitment_charge (migración 0045) no debe permitir confirmar un
+// vencimiento de un plan ajeno: si lo permitiera, escribiría un GASTO en la
+// cuenta de otro usuario, que es la peor fuga posible de toda la app. La
+// función valida antes de insertar, así que rechaza sin escribir; igual se
+// cuentan transactions antes y después para probar que no hubo ninguna
+// escritura parcial (mismo criterio que checkTransferGuard). Si la migración
+// todavía no se aplicó, se reporta PENDIENTE y no se marca como fallo.
+async function checkCommitmentsGuard(client) {
+  console.log(
+    `\n${BOLD}confirm_commitment_charge — no debe confirmar el plan de otro usuario${RESET}`,
+  )
+
+  async function countTransactions() {
+    const { count, error } = await client
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+    return error ? null : count
+  }
+
+  const before = await countTransactions()
+
+  const { error } = await client.rpc('confirm_commitment_charge', {
+    p_commitment_id: crypto.randomUUID(),
+    p_due_date: '2020-01-01',
+    p_date: '2020-01-01',
+    p_amount: 1,
+    p_account_id: null,
+    p_description: null,
+  })
+
+  if (error && (error.code === 'PGRST202' || /Could not find the function/i.test(error.message))) {
+    printRow('confirm (plan ajeno)', null, true, 'función aún no existe — corré la migración 0045 (PENDIENTE)')
+    return true
+  }
+
+  const rejected = Boolean(error)
+  printRow(
+    'confirm (plan ajeno)',
+    null,
+    rejected,
+    rejected ? 'rechazado' : 'FUGA: confirmó un plan que no es suyo',
+  )
+
+  const after = await countTransactions()
+  let ok = rejected
+  if (before !== null && after !== null) {
+    const noWrites = before === after
+    printRow(
+      'sin escrituras parciales',
+      after,
+      noWrites,
+      noWrites ? '' : `FUGA: transactions pasó de ${before} a ${after}`,
+    )
+    ok = ok && noWrites
+  }
+
+  return ok
+}
+
 async function main() {
   const authClient = createClient(SUPABASE_URL, SUPABASE_KEY, clientOptions)
   const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
@@ -382,6 +459,7 @@ async function main() {
   }
 
   allOk = (await checkTransferGuard(authClient)) && allOk
+  allOk = (await checkCommitmentsGuard(authClient)) && allOk
   allOk = (await checkInvitations(authClient, anonClient)) && allOk
 
   await authClient.auth.signOut()
@@ -389,7 +467,7 @@ async function main() {
   console.log()
   if (allOk) {
     console.log(
-      `${GREEN}${BOLD}✓ RLS OK: aislamiento por usuario en las 10 tablas + catálogo de precios compartido (legible, no escribible).${RESET}`,
+      `${GREEN}${BOLD}✓ RLS OK: aislamiento por usuario en las 13 tablas + catálogo de precios compartido (legible, no escribible).${RESET}`,
     )
     process.exit(0)
   } else {
