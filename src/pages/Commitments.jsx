@@ -176,16 +176,26 @@ function Commitments() {
                 to={`/compromisos/tarjetas/${card.id}`}
                 className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
               >
-                <PaymentCardVisual name={card.name} colorId={card.color} size="sm" />
+                {/* El nombre y el número van EN la tarjeta, no al lado: la
+                    fila los mostraría truncados y repetidos. Lo que queda al
+                    lado es lo único que el dibujo no puede decir. */}
+                <PaymentCardVisual
+                  name={card.name}
+                  colorId={card.color}
+                  last4={card.last4}
+                  size="md"
+                />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[17px]">{card.name}</span>
-                  <span className="block truncate text-[13px] text-ink-soft">
+                  <span className="block truncate text-[17px]">
                     {ofCard.length === 0
-                      ? 'Sin compras cargadas'
-                      : `${ofCard.length} ${ofCard.length === 1 ? 'compra' : 'compras'}${
-                          card.due_day ? ` · vence el ${card.due_day}` : ''
-                        }`}
+                      ? 'Sin compras'
+                      : `${ofCard.length} ${ofCard.length === 1 ? 'compra' : 'compras'}`}
                   </span>
+                  {card.due_day && (
+                    <span className="block truncate text-[13px] text-ink-soft">
+                      Vence el {card.due_day}
+                    </span>
+                  )}
                 </span>
                 {monthly > 0 && (
                   <span className="font-money shrink-0 text-[17px] text-ink-soft">
