@@ -311,25 +311,82 @@ describe('monthTotals → Ahorrado', () => {
     expect(line(t.saved)).toBe(0)
   })
 
-  it('el reparto de un conteo comparte categoría pero no es una transferencia', () => {
-    // Lo escribe reconcile_liquid y NO lleva transfer_id (migración 0041), así
-    // que queda afuera sin necesitar una regla aparte — aunque caiga en una
-    // cuenta de ahorro.
-    const t = totals([
-      {
-        id: 'r1',
-        date: '2026-07-15',
-        kind: 'income',
-        amount: 4000,
-        currency: 'ARS',
-        transfer_id: null,
-        category: { name: 'Transferencia de cuenta', system_key: 'account_transfer' },
-        account: ahorro,
-      },
-    ])
+  // El reparto de un conteo (reconcile_liquid) comparte categoría con una
+  // transferencia real pero NO lleva transfer_id (migración 0041), así que no
+  // se puede aparear por par. `reparto` arma las filas sueltas de un conteo:
+  // una por cuenta declarada, sin la ventaja de venir de a pares.
+  const reparto = (filas, date = '2026-07-15') =>
+    filas.map(({ id, account, kind, amount }) => ({
+      id,
+      date,
+      kind,
+      amount,
+      currency: account.currency ?? 'ARS',
+      created_at: `${date}T10:00:00Z`,
+      transfer_id: null,
+      category: { name: 'Transferencia de cuenta', system_key: 'account_transfer' },
+      account,
+    }))
+
+  it('un reparto que deja plata en una cuenta de ahorro cuenta como Ahorrado', () => {
+    // El caso de 5.4: contás tu plata, Efectivo baja $50.000 y la cuenta de
+    // ahorro sube $50.000. El neto de la moneda da cero (no hay "Ajuste de
+    // saldo"), así que sin esta regla "Ahorrado" no se enteraba de nada.
+    const t = totals(
+      reparto([
+        { id: 'r1-efectivo', account: efectivo, kind: 'expense', amount: 50000 },
+        { id: 'r1-ahorro', account: ahorro, kind: 'income', amount: 50000 },
+      ]),
+    )
+
+    expect(line(t.saved)).toBe(50000)
+    // Ni un peso se mueve de los otros tres: son dos filas 'account_transfer',
+    // excluidas de gastos e ingresos igual que antes.
+    expect(line(t.expenses)).toBe(0)
+    expect(line(t.incomes)).toBe(0)
+    expect(line(t.invested)).toBe(0)
+    // Balance = 0 − 0 − 0 − 50.000: esa plata dejó de estar disponible.
+    expect(line(t.balance)).toBe(-50000)
+  })
+
+  it('un reparto que saca plata de una cuenta de ahorro la descuenta', () => {
+    const t = totals(
+      reparto([
+        { id: 'r2-ahorro', account: ahorro, kind: 'expense', amount: 20000 },
+        { id: 'r2-efectivo', account: efectivo, kind: 'income', amount: 20000 },
+      ]),
+    )
+
+    expect(line(t.saved)).toBe(-20000)
+    expect(line(t.balance)).toBe(20000)
+  })
+
+  it('un reparto entre dos cuentas del día a día no toca Ahorrado', () => {
+    const t = totals(
+      reparto([
+        { id: 'r3-efectivo', account: efectivo, kind: 'expense', amount: 10000 },
+        { id: 'r3-mp', account: mercadoPago, kind: 'income', amount: 10000 },
+      ]),
+    )
 
     expect(line(t.saved)).toBe(0)
-    expect(line(t.incomes)).toBe(0)
+    expect(line(t.balance)).toBe(0)
+  })
+
+  it('un reparto de tres cuentas cuenta solo lo que cruza a la de ahorro', () => {
+    // Efectivo baja 100, Mercado Pago sube 30 (sigue en el día a día) y Ahorro
+    // sube 70. No hace falta saber "de cuál cuenta salieron esos 70": el resto
+    // de las cuentas de la moneda no suma nada acá, así que el número da
+    // exactamente lo que cruzó la frontera.
+    const t = totals(
+      reparto([
+        { id: 'r4-efectivo', account: efectivo, kind: 'expense', amount: 10000 },
+        { id: 'r4-mp', account: mercadoPago, kind: 'income', amount: 3000 },
+        { id: 'r4-ahorro', account: ahorro, kind: 'income', amount: 7000 },
+      ]),
+    )
+
+    expect(line(t.saved)).toBe(7000)
   })
 
   it('un aporte "de afuera" no cuenta: esa plata nunca salió del bolsillo', () => {

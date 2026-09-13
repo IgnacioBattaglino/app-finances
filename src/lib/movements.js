@@ -1,5 +1,10 @@
 import { LOCAL_CURRENCY, currencyLines, amountInCurrency } from './currencyTotals.js'
-import { movementType, isMovedMoneyType, ACCOUNT_TRANSFER } from './systemCategories.js'
+import {
+  movementType,
+  isMovedMoneyType,
+  ACCOUNT_TRANSFER,
+  RECONCILIATION_SPLIT,
+} from './systemCategories.js'
 
 // Movimientos = lo que pasó por el bolsillo. Son dos tablas: los gastos e
 // ingresos viven en transactions, y las inversiones que salen del disponible (o
@@ -82,24 +87,45 @@ function addTo(map, currency, delta) {
 // bolsillo" es lo que dice la pata de este lado. Eso es lo que hace que el
 // balance cierre: resta exactamente la plata que salió del disponible.
 //
-// El REPARTO de un conteo comparte la categoría pero NO lleva transfer_id (lo
-// ponen solo las transferencias, ver reconcile_liquid): queda afuera solo, sin
-// una regla aparte. Y una pata sin su hermana --que no debería pasar, las dos
-// se escriben juntas y con la misma fecha-- se ignora en vez de adivinar hacia
-// dónde iba.
+// El REPARTO de un conteo (tipo 4, RECONCILIATION_SPLIT) comparte la
+// categoría con una transferencia real pero NO lleva transfer_id (lo ponen
+// solo las transferencias, ver reconcile_liquid), así que no hay con qué
+// aparear su hermana. No hace falta: los repartos de UNA moneda dentro de UN
+// conteo suman cero (ADR-016, sección 3), así que lo que entró o salió de una
+// cuenta DE AHORRO es, por sí solo, exactamente lo que cruzó la frontera —sin
+// importar de qué cuenta del día a día salió o a cuál volvió, y sin necesitar
+// el batch_id que si hace falta para dibujar la flecha en la lista (ver
+// pairAmounts en lib/movementList.js, que resuelve una pregunta distinta: CON
+// QUIÉN se aparea cada peso, no CUÁNTO cruzó). Sumar cada reparto de una
+// cuenta de ahorro por separado, en vez de aparearlos primero, da el mismo
+// número: la resta ya se hace sola porque el resto de las cuentas de esa
+// moneda —las que no son de ahorro— no suman nada acá.
+//
+// Una transferencia real (tipo 5, con transfer_id) sigue apareándose por
+// pares: ahí SÍ puede llegar una pata sin su hermana --que no debería pasar,
+// las dos se escriben juntas y con la misma fecha-- y se ignora en vez de
+// adivinar hacia dónde iba.
 function savedByCurrency(transactions) {
   const legs = new Map()
+  const saved = new Map()
+
   for (const t of transactions) {
+    const type = movementType(t)
+
+    if (type === RECONCILIATION_SPLIT) {
+      if (!t.account?.is_savings) continue
+      addTo(saved, transactionCurrencyOf(t), t.kind === 'income' ? Number(t.amount) : -Number(t.amount))
+      continue
+    }
+
     // Una transferencia de verdad (tipo 5): mismo criterio que movementType,
     // que ya decide "transferencia" solo con transfer_id, sin mirar la
-    // categoría — el reparto de un conteo (tipo 4) nunca llega acá porque no
-    // lleva transfer_id.
-    if (movementType(t) !== ACCOUNT_TRANSFER) continue
+    // categoría.
+    if (type !== ACCOUNT_TRANSFER) continue
     if (!legs.has(t.transfer_id)) legs.set(t.transfer_id, [])
     legs.get(t.transfer_id).push(t)
   }
 
-  const saved = new Map()
   for (const pair of legs.values()) {
     if (pair.length !== 2) continue
     const savings = pair.filter((t) => t.account?.is_savings)

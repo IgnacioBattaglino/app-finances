@@ -55,7 +55,7 @@ Qué suma a cada total, para una fila de `transactions`:
 | Gasto común | `null` (de usuario) | ✅ | — | — | — |
 | Ingreso común | `null` (de usuario) | — | ✅ | — | — |
 | Ajuste de saldo (el neto de un conteo) | `balance_adjustment` | ✅ si `expense` | ✅ si `income` | — | — |
-| **Reparto entre cuentas** (el resto de un conteo) | `account_transfer` | ❌ | ❌ | — | — |
+| **Reparto entre cuentas** (el resto de un conteo) | `account_transfer` | ❌ | ❌ | — | ✅ solo si su cuenta es de ahorro |
 | Pata de transferencia entre cuentas | `account_transfer` + `transfer_id` | ❌ | ❌ | — | ✅ solo si cruza a una cuenta de ahorro |
 | Movimiento de ahorro "de afuera" | `savings_movement` | ❌ | ❌ | — | ❌ |
 
@@ -103,9 +103,9 @@ Lo mismo para los otros tres renglones del mismo mes:
   "Ajuste de saldo", que desde la 0041 es el neto y es un gasto de verdad.
 - **Invertido**: solo `contributions` con `affects_liquid = true` de activos que
   no fueron convertidos en cuenta de ahorro. Ningún conteo lo toca.
-- **Ahorrado**: solo transferencias que cruzan a una cuenta de ahorro (con
-  `transfer_id`) y aportes a activos migrados. **Un reparto que deja plata en
-  una cuenta de ahorro NO entra** — ver 5.4, que es un número que falta.
+- **Ahorrado**: transferencias que cruzan a una cuenta de ahorro (con
+  `transfer_id`), aportes a activos migrados, y desde la corrección de 5.4
+  también los repartos de un conteo que caen en una cuenta de ahorro.
 
 ### 1.3 Qué hace imposible darse cuenta — ROMPE
 
@@ -472,22 +472,57 @@ lista de inversiones sin ninguna explicación. Lo mismo le pasa a los aportes de
 **cualquier activo archivado** que caiga en el mes navegado, no solo a los
 migrados.
 
-### 5.4 Un conteo puede aumentar tu ahorro sin que "Ahorrado" se entere — ROMPE
-
-"Ahorrado" cuenta una transferencia cuando exactamente una de sus dos patas cae
-en una cuenta de ahorro, y para aparear las patas necesita `transfer_id`. Los
-repartos de un conteo **no llevan `transfer_id`** (lo comenta `savedByCurrency`
-con precisión: "queda afuera solo, sin una regla aparte").
+### 5.4 Un conteo puede aumentar tu ahorro sin que "Ahorrado" se entere — CORREGIDO
 
 El caso concreto: contás tu plata, declarás menos en Efectivo y más en tu
 cuenta de ahorro en pesos, el neto de la moneda da cero. La 0041 escribe dos
 repartos que se compensan; los saldos quedan perfectos. Pero lo que realmente
 pasó es que moviste plata del bolsillo al ahorro sin registrarlo, y el renglón
-"Ahorrado" del mes —cuya única función es medir exactamente eso— no se mueve.
+"Ahorrado" del mes —cuya única función es medir exactamente eso— no se movía.
 
-Es defendible como consecuencia de ADR-016 ("el reparto no cuenta en ninguna
-estadística") y es, al mismo tiempo, un número que queda corto. Vale la pena
-decidirlo explícitamente en vez de heredarlo.
+Se decidió explícitamente (no era un default aceptable, ver el hallazgo
+original más abajo): un reparto que deja plata en una cuenta de ahorro cuenta
+en "Ahorrado", en los dos sentidos, igual que ya hacían las transferencias y
+los retiros. Corrige el número, y solo ese: Gastos, Ingresos, Invertido y el
+resto de la aritmética de ADR-016 (el reparto sigue sin ser un gasto ni un
+ingreso real) no se tocan. El Balance sí se mueve, porque ya restaba
+"Ahorrado" con el mismo criterio que "Invertido": si $50.000 cruzan del
+disponible al ahorro, el Balance del mes baja $50.000, aunque nadie haya
+"gastado" nada — es exactamente la misma plata que dejó de estar disponible.
+
+**Por qué no hacía falta aparear los repartos** (`pairAmounts`,
+`lib/movementList.js`, commit 5ea5fc9), aunque resuelve un problema parecido:
+esa función responde "con qué cuenta se aparea cada peso", que hace falta para
+dibujar la flecha "Efectivo → Ahorro" en la lista, y para eso sí necesita el
+`batch_id` (para no mezclar dos conteos) y una regla de desempate cuando el
+apareo es ambiguo (varias cuentas bajan y varias suben a la vez). El total
+"Ahorrado" pregunta algo más chico: "cuánta plata cruzó la frontera", y eso no
+depende de CON QUIÉN se empareja cada peso. Como los repartos de una moneda
+dentro de un conteo suman cero (ADR-016), lo que entró o salió de las cuentas
+de ahorro **por sí solo** ya es la respuesta — sumar cada pata de una cuenta
+de ahorro por separado da el mismo número que aparear primero y sumar los
+pares, sin necesitar `batch_id` ni resolver la ambigüedad del reparto de tres
+o más cuentas. Dos preguntas distintas, la misma regla de fondo (ADR-016), y
+cada una con la herramienta que necesita — no dos reglas que puedan divergir.
+
+Implementado en `savedByCurrency` (`src/lib/movements.js`), con tests en
+`src/lib/movements.test.js` (`monthTotals → Ahorrado`) para los dos sentidos y
+para un reparto de tres cuentas.
+
+<details>
+<summary>Hallazgo original (antes de la corrección)</summary>
+
+"Ahorrado" contaba una transferencia cuando exactamente una de sus dos patas
+caía en una cuenta de ahorro, y para aparear las patas necesitaba
+`transfer_id`. Los repartos de un conteo **no llevan `transfer_id`** (lo
+comentaba `savedByCurrency` con precisión: "queda afuera solo, sin una regla
+aparte"), así que quedaban siempre afuera, aunque cruzaran a una cuenta de
+ahorro.
+
+Era defendible como consecuencia de ADR-016 ("el reparto no cuenta en ninguna
+estadística") y era, al mismo tiempo, un número que quedaba corto.
+
+</details>
 
 ### 5.5 Una transferencia se lee como dos movimientos — INCOMODA
 
