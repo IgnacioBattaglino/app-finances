@@ -67,7 +67,7 @@ function AccountDetail() {
   const [categories, setCategories] = useState([])
   const [txModal, setTxModal] = useState({ open: false, editing: null })
   const { accounts: dailyAccounts, defaultAccountId, addAccount } = useAccounts()
-  const lastReconciliations = useLastReconciliations()
+  const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
 
   async function reload() {
     const [accountData, balances, firstPage] = await Promise.all([
@@ -388,6 +388,7 @@ function AccountDetail() {
         onClose={() => setTxModal({ open: false, editing: null })}
         onSaved={afterTxSaved}
         onDeleted={afterTxSaved}
+        onReconciled={reloadLastReconciliations}
       />
     </SettingsPage>
   )

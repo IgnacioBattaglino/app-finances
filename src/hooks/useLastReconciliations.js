@@ -7,6 +7,11 @@ import { getLastReconciliationByAccount } from '../lib/liquid.js'
 //
 // Un fallo cargándola no bloquea nada: es un dato accesorio (mismo criterio
 // que useAccounts), y sin él el aviso simplemente no aparece.
+//
+// `reload` se expone para que esos mismos formularios, después de contar la
+// plata desde el propio aviso (ver el botón "Contarla de nuevo ahora"), la
+// vuelvan a pedir: si no, el aviso seguiría mostrando la fecha vieja aunque
+// el conteo ya se haya guardado.
 export function useLastReconciliations() {
   const [byAccount, setByAccount] = useState(new Map())
 
@@ -22,5 +27,5 @@ export function useLastReconciliations() {
     load()
   }, [load])
 
-  return byAccount
+  return { byAccount, reload: load }
 }

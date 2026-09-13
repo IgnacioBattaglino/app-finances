@@ -4,6 +4,7 @@ import { retroactiveReconciliation } from '../lib/liquid.js'
 import { todayISO, formatUSD, formatDayYear, toDecimalInput } from '../lib/format.js'
 import { round } from '../lib/money.js'
 import FormSheet from './FormSheet.jsx'
+import LiquidModal from './LiquidModal.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError from './form/FormError.jsx'
@@ -40,6 +41,7 @@ function DebtPaymentModal({
   onSaved,
   onDeleted,
   onAccountCreated,
+  onReconciled,
 }) {
   const [amountUsd, setAmountUsd] = useState('') // solo al editar: input propio
   const [railAmountUsd, setRailAmountUsd] = useState(null) // al crear: lo reporta ExchangeRateField
@@ -50,6 +52,10 @@ function DebtPaymentModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Abre "Contar mi plata" ENCIMA de este formulario, sin cerrarlo — mismo
+  // criterio que TransactionFormModal: navegar perdería un pago a medio
+  // cargar.
+  const [reconcileOpen, setReconcileOpen] = useState(false)
 
   const editing = Boolean(initial?.id)
 
@@ -71,6 +77,7 @@ function DebtPaymentModal({
     setError(null)
     setConfirmDelete(false)
     setBusy(false)
+    setReconcileOpen(false)
   }, [open, initial, defaultAccountId])
 
   if (!open) return null
@@ -87,11 +94,19 @@ function DebtPaymentModal({
       : null
   const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
   const retroNotice = retro && (
-    <p className="notice text-[13px]">
-      Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
-      {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta — te
-      conviene volver a contarla después de guardar.
-    </p>
+    <div className="notice space-y-1.5 text-[13px]">
+      <p>
+        Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
+        {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta.
+      </p>
+      <button
+        type="button"
+        onClick={() => setReconcileOpen(true)}
+        className="font-semibold text-accent-ink underline"
+      >
+        Contarla de nuevo ahora
+      </button>
+    </div>
   )
 
   const missing = []
@@ -142,6 +157,7 @@ function DebtPaymentModal({
   }
 
   return (
+    <>
     <FormSheet
       title={editing ? 'Editar pago' : `Pagar a ${debt.creditor}`}
       onClose={onClose}
@@ -270,6 +286,15 @@ function DebtPaymentModal({
           ))}
       </form>
     </FormSheet>
+    <LiquidModal
+      open={reconcileOpen}
+      onClose={() => setReconcileOpen(false)}
+      onSaved={() => {
+        setReconcileOpen(false)
+        onReconciled?.()
+      }}
+    />
+    </>
   )
 }
 

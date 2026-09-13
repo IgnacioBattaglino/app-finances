@@ -59,7 +59,7 @@ function AssetDetail() {
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
   const { accounts, defaultAccountId, addAccount } = useAccounts()
-  const lastReconciliations = useLastReconciliations()
+  const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
 
   const [assets, setAssets] = useState([])
   const [assetTypes, setAssetTypes] = useState([])
@@ -468,6 +468,7 @@ function AssetDetail() {
         onClose={closeModals}
         onSaved={refresh}
         onDeleted={refresh}
+        onReconciled={reloadLastReconciliations}
       />
       <TransferFormModal
         open={transferModal}

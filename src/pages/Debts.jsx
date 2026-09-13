@@ -135,7 +135,7 @@ function Debts() {
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
   const { accounts, defaultAccountId, addAccount } = useAccounts()
-  const lastReconciliations = useLastReconciliations()
+  const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
   const [debts, setDebts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -321,6 +321,7 @@ function Debts() {
           onClose={closeModals}
           onSaved={refresh}
           onDeleted={refresh}
+          onReconciled={reloadLastReconciliations}
         />
       )}
     </div>

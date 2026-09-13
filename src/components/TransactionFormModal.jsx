@@ -11,6 +11,7 @@ import { retroactiveReconciliation, getReconciliationOf, deleteReconciliation } 
 import { todayISO, toDecimalInput, formatByCurrency, formatDayYear } from '../lib/format.js'
 import { isMovedMoney, isBalanceAdjustment } from '../lib/systemCategories.js'
 import FormSheet from './FormSheet.jsx'
+import LiquidModal from './LiquidModal.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError from './form/FormError.jsx'
@@ -30,6 +31,7 @@ function TransactionFormModal({
   onDeleted,
   onCategoryCreated,
   onAccountCreated,
+  onReconciled,
 }) {
   const [date, setDate] = useState(todayISO())
   const [kind, setKind] = useState(defaultKind)
@@ -61,6 +63,12 @@ function TransactionFormModal({
   // render): así nunca hay una ventana donde se pueda editar un movimiento
   // que después resulta ser parte de un conteo.
   const [reconciliation, setReconciliation] = useState(undefined)
+  // Abre "Contar mi plata" ENCIMA de este formulario, sin cerrarlo: quien
+  // llega acá viene de editar algo y puede no haberlo guardado todavía, así
+  // que navegar a /plata perdería ese cambio. Apilar el sheet (ver el render,
+  // mismo z-50 de FormSheet, apilado por orden en el DOM) deja este formulario
+  // intacto atrás y a la vista apenas se cierra el de contar.
+  const [reconcileOpen, setReconcileOpen] = useState(false)
 
   const editing = Boolean(initial?.id)
   const isTransferPart = Boolean(initial?.transfer_id)
@@ -92,6 +100,7 @@ function TransactionFormModal({
     setTransferSibling(null)
     setConfirmDeleteTransfer(false)
     setReconciliation(undefined)
+    setReconcileOpen(false)
   }, [open, initial, defaultKind, defaultAccountId])
 
   // Mientras esto no resuelve, la fila se muestra de solo lectura si
@@ -141,11 +150,33 @@ function TransactionFormModal({
     : null
   const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
   const retroNotice = retro && (
-    <p className="notice text-[13px]">
-      Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
-      {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta — te
-      conviene volver a contarla después de guardar.
-    </p>
+    <div className="notice space-y-1.5 text-[13px]">
+      <p>
+        Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
+        {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta.
+      </p>
+      <button
+        type="button"
+        onClick={() => setReconcileOpen(true)}
+        className="font-semibold text-accent-ink underline"
+      >
+        Contarla de nuevo ahora
+      </button>
+    </div>
+  )
+  // Se define una sola vez y se reutiliza en los tres finales posibles del
+  // componente (transferencia, conteo de solo lectura, formulario normal):
+  // LiquidModal ya devuelve null si no está abierto, así que apilarlo siempre
+  // no cuesta nada.
+  const reconcileModal = (
+    <LiquidModal
+      open={reconcileOpen}
+      onClose={() => setReconcileOpen(false)}
+      onSaved={() => {
+        setReconcileOpen(false)
+        onReconciled?.()
+      }}
+    />
   )
 
   // Lo que este movimiento es en realidad: una de las cosas que escribió un
@@ -184,6 +215,7 @@ function TransactionFormModal({
   // con isTransferPart.
   if (isTransferPart) {
     return (
+      <>
       <FormSheet
         title={initial.kind === 'expense' ? 'Transferencia enviada' : 'Transferencia recibida'}
         onClose={onClose}
@@ -252,6 +284,8 @@ function TransactionFormModal({
           )}
         </div>
       </FormSheet>
+      {reconcileModal}
+      </>
     )
   }
 
@@ -271,6 +305,7 @@ function TransactionFormModal({
   if (couldBeReconciliation && reconciliation !== null) {
     const loaded = Boolean(reconciliation)
     return (
+      <>
       <FormSheet
         title={initial.category?.name ?? (initial.kind === 'expense' ? 'Gasto' : 'Ingreso')}
         onClose={onClose}
@@ -343,6 +378,8 @@ function TransactionFormModal({
           )}
         </div>
       </FormSheet>
+      {reconcileModal}
+      </>
     )
   }
 
@@ -433,6 +470,7 @@ function TransactionFormModal({
   }
 
   return (
+    <>
     <FormSheet
       title={editing ? 'Editar movimiento' : 'Nuevo movimiento'}
       onClose={onClose}
@@ -629,6 +667,8 @@ function TransactionFormModal({
             ))}
       </form>
     </FormSheet>
+    {reconcileModal}
+    </>
   )
 }
 

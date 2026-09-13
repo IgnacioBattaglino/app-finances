@@ -294,7 +294,7 @@ function Movements() {
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
   const { accounts, defaultAccountId, addAccount } = useAccounts()
-  const lastReconciliations = useLastReconciliations()
+  const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
   // Movimientos del mes navegado, sin filtrar por tipo/categoría: de acá
   // salen tanto los totales y el desglose (que describen el mes completo)
   // como la lista filtrada de abajo (filtrada en cliente).
@@ -704,6 +704,7 @@ function Movements() {
         onClose={closeModal}
         onSaved={refreshAfterSave}
         onDeleted={refreshAfterSave}
+        onReconciled={reloadLastReconciliations}
       />
     </div>
   )

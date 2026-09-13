@@ -13,6 +13,7 @@ import { retroactiveReconciliation } from '../lib/liquid.js'
 import { todayISO, formatUSD, formatARS, formatQuantity, formatDayYear, toDecimalInput } from '../lib/format.js'
 import { round } from '../lib/money.js'
 import FormSheet from './FormSheet.jsx'
+import LiquidModal from './LiquidModal.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError from './form/FormError.jsx'
@@ -67,6 +68,7 @@ function ContributionFormModal({
   onSaved,
   onDeleted,
   onAccountCreated,
+  onReconciled,
 }) {
   const [quantity, setQuantity] = useState('')
   const [amountUsd, setAmountUsd] = useState('') // usado cuando el vínculo cantidad↔monto está activo
@@ -82,6 +84,10 @@ function ContributionFormModal({
   // null mientras carga o si no se pudo resolver.
   const [transferSibling, setTransferSibling] = useState(null)
   const [confirmDeleteTransfer, setConfirmDeleteTransfer] = useState(false)
+  // Abre "Contar mi plata" ENCIMA de este formulario, sin cerrarlo — mismo
+  // criterio que TransactionFormModal: navegar perdería un aporte/retiro a
+  // medio cargar.
+  const [reconcileOpen, setReconcileOpen] = useState(false)
 
   const editing = Boolean(initial?.id)
   const isTransferPart = Boolean(initial?.transfer_id)
@@ -110,6 +116,7 @@ function ContributionFormModal({
     setBusy(false)
     setTransferSibling(null)
     setConfirmDeleteTransfer(false)
+    setReconcileOpen(false)
   }, [open, initial, asset, defaultAccountId])
 
   // Una pata de transferencia no se edita (ver más abajo): solo necesitamos
@@ -139,11 +146,32 @@ function ContributionFormModal({
       : null
   const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
   const retroNotice = retro && (
-    <p className="notice text-[13px]">
-      Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
-      {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta — te
-      conviene volver a contarla después de guardar.
-    </p>
+    <div className="notice space-y-1.5 text-[13px]">
+      <p>
+        Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
+        {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta.
+      </p>
+      <button
+        type="button"
+        onClick={() => setReconcileOpen(true)}
+        className="font-semibold text-accent-ink underline"
+      >
+        Contarla de nuevo ahora
+      </button>
+    </div>
+  )
+  // Una sola definición, reutilizada en los dos finales del componente
+  // (transferencia de solo lectura y formulario normal): LiquidModal ya
+  // devuelve null si no está abierto.
+  const reconcileModal = (
+    <LiquidModal
+      open={reconcileOpen}
+      onClose={() => setReconcileOpen(false)}
+      onSaved={() => {
+        setReconcileOpen(false)
+        onReconciled?.()
+      }}
+    />
   )
 
   async function handleDeleteTransfer() {
@@ -164,6 +192,7 @@ function ContributionFormModal({
   // (las dos patas, atómico) y volver a cargarla.
   if (isTransferPart) {
     return (
+      <>
       <FormSheet
         title={operation === 'withdrawal' ? 'Transferencia enviada' : 'Transferencia recibida'}
         onClose={onClose}
@@ -239,6 +268,8 @@ function ContributionFormModal({
           )}
         </div>
       </FormSheet>
+      {reconcileModal}
+      </>
     )
   }
 
@@ -374,6 +405,7 @@ function ContributionFormModal({
   }
 
   return (
+    <>
     <FormSheet
       // Editando, "Aportar a X" describe mal lo que se está haciendo (no se
       // está aportando de nuevo) y además contradice al botón "Eliminar
@@ -541,6 +573,8 @@ function ContributionFormModal({
             ))}
       </form>
     </FormSheet>
+    {reconcileModal}
+    </>
   )
 }
 
