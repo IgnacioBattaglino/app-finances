@@ -1,71 +1,29 @@
 import { useState } from 'react'
 import { createAssetType } from '../lib/assetTypes.js'
-import FormError from './form/FormError.jsx'
+import InlineCreate from './form/InlineCreate.jsx'
 import Switch from './form/Switch.jsx'
 
-// Alta de bolsa: nombre + rendimiento default. Compartido entre el mini-form
-// de AssetFormModal ("+ Nueva bolsa") y el alta en Ajustes — mismos campos,
-// mismo comportamiento, solo cambia qué pasa después de crear (onCreated).
-// onCancel es opcional: solo hace falta donde este form puede colapsar de
-// vuelta a otra cosa (el select de bolsa); en Ajustes está siempre visible.
+// Alta de grupo: nombre + rendimiento default. Compartido entre el mini-form
+// de AssetFormModal ("+ Nuevo grupo") y el alta en la lista de grupos — mismos
+// campos, mismo comportamiento, solo cambia qué pasa después de crear
+// (onCreated). onCancel es opcional: solo hace falta donde este form puede
+// colapsar de vuelta a otra cosa (el select de grupo).
 function CreateAssetTypeForm({ onCreated, onCancel }) {
-  const [name, setName] = useState('')
   const [earnsYield, setEarnsYield] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
-
-  async function handleCreate(event) {
-    event.preventDefault()
-    const trimmed = name.trim()
-    if (!trimmed || busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      const created = await createAssetType({ name: trimmed, earnsYield })
-      setName('')
-      onCreated(created)
-    } catch (e) {
-      setError({ message: 'No se pudo crear el grupo.', detail: e })
-    } finally {
-      setBusy(false)
-    }
-  }
 
   return (
-    <div className="space-y-3">
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="¿Cómo se llama? ej: Cripto, Efectivo"
-        disabled={busy}
-        className="field"
-      />
+    <InlineCreate
+      placeholder="Nombre, ej: Cripto, Efectivo"
+      createLabel="Crear grupo"
+      errorMessage="No se pudo crear el grupo."
+      onCreate={async (name) => onCreated(await createAssetType({ name, earnsYield }))}
+      onCancel={onCancel}
+    >
       <div className="flex items-center justify-between gap-3">
-        <span className="text-body">Los activos nuevos buscan rendimiento</span>
-        <Switch
-          checked={earnsYield}
-          onChange={setEarnsYield}
-          disabled={busy}
-          label="Los activos nuevos buscan rendimiento"
-        />
+        <span className="text-subhead text-ink-soft">Los activos nuevos buscan rendimiento</span>
+        <Switch checked={earnsYield} onChange={setEarnsYield} label="Los activos nuevos buscan rendimiento" />
       </div>
-      <div className="flex items-center justify-end gap-4 text-subhead">
-        {onCancel && (
-          <button type="button" onClick={onCancel} disabled={busy} className="text-ink-soft">
-            Cancelar
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={busy || !name.trim()}
-          className="font-semibold text-accent-ink disabled:opacity-50"
-        >
-          {busy ? 'Creando…' : 'Crear grupo'}
-        </button>
-      </div>
-      <FormError message={error?.message} detail={error?.detail} />
-    </div>
+    </InlineCreate>
   )
 }
 

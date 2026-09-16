@@ -19,6 +19,7 @@ import MissingHint from './form/MissingHint.jsx'
 import AccountField from './form/AccountField.jsx'
 import ConfirmAction from './form/ConfirmAction.jsx'
 import { showToast } from './Toast.jsx'
+import InlineCreate from './form/InlineCreate.jsx'
 
 function TransactionFormModal({
   open,
@@ -47,9 +48,6 @@ function TransactionFormModal({
   // grupo" en AssetFormModal): antes había que abandonar el gasto a medio
   // cargar, ir a Ajustes y volver a empezar.
   const [creatingCategory, setCreatingCategory] = useState(false)
-  const [newCategoryName, setNewCategoryName] = useState('')
-  const [categoryBusy, setCategoryBusy] = useState(false)
-  const [categoryError, setCategoryError] = useState(null)
   // Nombre de la otra cuenta de la transferencia (para el mensaje de
   // borrado); null mientras carga o si no se pudo resolver.
   const [transferSibling, setTransferSibling] = useState(null)
@@ -94,8 +92,6 @@ function TransactionFormModal({
     setError(null)
     setBusy(false)
     setCreatingCategory(false)
-    setNewCategoryName('')
-    setCategoryError(null)
     setTransferSibling(null)
     setReconciliation(undefined)
     setReconcileOpen(false)
@@ -347,29 +343,16 @@ function TransactionFormModal({
     // El alta a medio escribir era para el otro tipo: se cancela en vez de
     // crear un "Nafta" de ingreso porque quedó el input abierto.
     setCreatingCategory(false)
-    setNewCategoryName('')
-    setCategoryError(null)
   }
 
   // La categoría nace con el tipo del movimiento que se está cargando y queda
   // elegida: el usuario escribió el nombre para usarla ahora, no para tener
   // que buscarla en el selector después de crearla.
-  async function handleCreateCategory() {
-    const trimmed = newCategoryName.trim()
-    if (!trimmed || categoryBusy) return
-    setCategoryBusy(true)
-    setCategoryError(null)
-    try {
-      const created = await createCategory(trimmed, kind)
-      onCategoryCreated?.(created)
-      setCategoryId(created.id)
-      setCreatingCategory(false)
-      setNewCategoryName('')
-    } catch (e) {
-      setCategoryError({ message: 'No se pudo crear la categoría.', detail: e })
-    } finally {
-      setCategoryBusy(false)
-    }
+  async function handleCreateCategory(name) {
+    const created = await createCategory(name, kind)
+    onCategoryCreated?.(created)
+    setCategoryId(created.id)
+    setCreatingCategory(false)
   }
 
   async function handleSubmit(event) {
@@ -432,22 +415,39 @@ function TransactionFormModal({
             onChange={changeKind}
           />
 
-          <div className="list">
-            <label className="row">
-              <span className="text-body">Monto</span>
-              <div className="flex items-center gap-1">
-                <span className="text-subhead text-ink-soft">{currency === 'USD' ? 'US$' : '$'}</span>
+          {/* EL MONTO, protagonista: es lo primero que se escribe y el único
+              dato que no tiene un valor por defecto. Grande y centrado, como
+              en Wallet, en vez de ser una fila más a la par de la fecha.
+              El input no tiene ancho propio: comparte celda con una copia
+              invisible de lo escrito, así mide exactamente el número y el
+              símbolo queda pegado a él. Sin aro de foco: se abre ya enfocado
+              y el cursor en el medio de la tarjeta dice dónde se escribe. */}
+          <label className="surface flex flex-col items-center gap-0.5 px-4 pt-3.5 pb-4">
+            <span className="text-footnote text-ink-soft">Monto</span>
+            <span className="font-money flex max-w-full items-baseline justify-center gap-1.5 font-semibold">
+              <span className="text-[26px] text-ink-soft">{currency === 'USD' ? 'US$' : '$'}</span>
+              <span className="inline-grid min-w-0 text-[44px] leading-tight tracking-tight">
+                <span aria-hidden="true" className="invisible col-start-1 row-start-1 whitespace-pre">
+                  {amount || '0'}
+                </span>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"
+                  enterKeyHint="next"
                   placeholder="0"
                   required
                   autoFocus
-                  className="font-money w-32 input-inline"
+                  // `size` 1: sin esto el ancho intrínseco del input (unos 20
+                  // caracteres) estira la celda y el número se corre a la izquierda.
+                  size={1}
+                  className="input-inline col-start-1 row-start-1 w-full text-left text-[44px] leading-tight"
                 />
-              </div>
-            </label>
+              </span>
+            </span>
+          </label>
+
+          <div className="list">
             <div className="px-4 py-3">
               <label className="flex items-center justify-between gap-3">
                 <span className="text-body">Categoría</span>
@@ -460,7 +460,6 @@ function TransactionFormModal({
                     const value = e.target.value
                     if (value === '__new__') {
                       setCreatingCategory(true)
-                      setCategoryError(null)
                       return
                     }
                     setCreatingCategory(false)
@@ -482,50 +481,13 @@ function TransactionFormModal({
               </label>
 
               {creatingCategory && (
-                <div className="mt-2.5 space-y-2.5">
-                  <input
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        // Enter acá crearía el movimiento entero con el submit
-                        // del form de arriba, todavía sin categoría elegida.
-                        e.preventDefault()
-                        handleCreateCategory()
-                      }
-                      if (e.key === 'Escape') {
-                        setCreatingCategory(false)
-                        setNewCategoryName('')
-                      }
-                    }}
-                    placeholder={kind === 'expense' ? 'ej: Comida, Transporte' : 'ej: Sueldo, Freelance'}
-                    autoFocus
-                    disabled={categoryBusy}
-                    className="field"
+                <div className="mt-2.5">
+                  <InlineCreate
+                    placeholder={kind === 'expense' ? 'Nombre, ej: Comida, Transporte' : 'Nombre, ej: Sueldo, Freelance'}
+                    errorMessage="No se pudo crear la categoría."
+                    onCreate={handleCreateCategory}
+                    onCancel={() => setCreatingCategory(false)}
                   />
-                  <FormError message={categoryError?.message} detail={categoryError?.detail} />
-                  <div className="flex items-center justify-end gap-4 text-subhead">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCreatingCategory(false)
-                        setNewCategoryName('')
-                        setCategoryError(null)
-                      }}
-                      disabled={categoryBusy}
-                      className="text-ink-soft"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCreateCategory}
-                      disabled={categoryBusy || !newCategoryName.trim()}
-                      className="font-semibold text-accent-ink disabled:opacity-50"
-                    >
-                      Crear
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
@@ -546,13 +508,10 @@ function TransactionFormModal({
                 <input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Opcional — ej: super, alquiler"
+                  placeholder="Opcional"
                   className="min-w-0 flex-1 input-inline"
                 />
               </label>
-              <p className="mt-1.5 text-footnote text-ink-soft">
-                Se ve en la lista, al lado de la categoría.
-              </p>
             </div>
           </div>
 

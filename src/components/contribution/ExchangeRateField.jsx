@@ -56,8 +56,7 @@ export function applyRateChoice({ pesos, dolares, rate, keep }) {
 // Piezas de presentación
 // ---------------------------------------------------------------------------
 
-const fieldInputClass =
-  'input-inline font-money w-full'
+const fieldInputClass = 'input-inline font-money w-full'
 
 // Un monto dentro del par pesos/dólares: los dos se dibujan exactamente igual
 // (mismo relleno, mismo tamaño, misma altura) porque ninguno de los dos es el
@@ -66,7 +65,7 @@ function PairedAmount({ label, symbol, value, onChange, placeholder = '0' }) {
   return (
     <label className="flex min-w-0 flex-col gap-1">
       <span className="text-footnote text-ink-soft">{label}</span>
-      <span className="flex items-center gap-1 rounded-[10px] bg-mist px-3 py-2">
+      <span className="flex items-center gap-1 rounded-field bg-mist px-3 py-2 transition-shadow focus-within:shadow-[inset_0_0_0_2px_var(--color-accent)]">
         <span className="shrink-0 text-subhead text-ink-soft">{symbol}</span>
         <input
           value={value}
@@ -85,9 +84,10 @@ function PairedAmount({ label, symbol, value, onChange, placeholder = '0' }) {
 
 // Fila del tipo de cambio, compartida por las tres variantes. Cambiar el
 // dólar de una operación es una acción frecuente y real (comprar a un precio
-// distinto del MEP del día): el disparador es un `.btn` de verdad —52px en
-// celular, 36px en desktop, como cualquier otro botón de la app— y no el texto
-// gris de 13px con el que convivía, que no se leía como algo tocable.
+// distinto del MEP del día), así que tiene que leerse como tocable: el valor
+// mismo es el control, en la pastilla gris de "tocá para cambiar" que usa
+// también la fecha (`.value-button`). Antes era un botón de 52px a lo ancho
+// que competía con Guardar por ser lo más visible del formulario.
 function RateControl({
   value,
   loading = false,
@@ -103,29 +103,33 @@ function RateControl({
   children,
 }) {
   if (loading) {
-    return <p className="px-4 py-3 text-footnote text-ink-soft">Buscando cotización…</p>
+    return (
+      <div className="row">
+        <span className="text-body">Tipo de cambio</span>
+        <span className="animate-pulse text-footnote text-ink-soft">Buscando cotización…</span>
+      </div>
+    )
   }
 
   if (!expanded) {
     return (
-      <div className="px-4 py-3">
+      <div className="px-4 py-2.5">
         <div className="flex items-center justify-between gap-3">
           <span className="text-body">Tipo de cambio</span>
-          <span className="font-money text-body">{value > 0 ? formatARS(value) : '—'}</span>
+          <button type="button" onClick={onExpand} aria-label={changeLabel} className="value-button font-money">
+            {value > 0 ? formatARS(value) : changeLabel}
+          </button>
         </div>
         <p className="mt-1 text-footnote text-ink-soft">{caption}</p>
-        <button type="button" onClick={onExpand} className="btn btn-quiet mt-2.5 w-full md:w-auto">
-          {changeLabel}
-        </button>
       </div>
     )
   }
 
   return (
-    <div className="px-4 py-3">
+    <div className="px-4 py-2.5">
       <label className="flex items-center justify-between gap-3">
         <span className="text-body">Tipo de cambio</span>
-        <span className="flex items-center gap-1">
+        <span className="value-button">
           <span className="text-subhead text-ink-soft">$</span>
           <input
             value={draft}
@@ -133,16 +137,16 @@ function RateControl({
             inputMode="decimal"
             placeholder="0"
             // Autofocus permitido: el input se revela por una acción explícita
-            // del usuario (tocó el botón), no al abrir el formulario.
+            // del usuario (tocó el valor), no al abrir el formulario.
             autoFocus
-            className="font-money w-28 input-inline"
+            className="font-money w-24 input-inline"
           />
         </span>
       </label>
       <p className="mt-1 text-footnote text-ink-soft">{editCaption}</p>
       {children}
       {resetLabel && (
-        <button type="button" onClick={onReset} className="btn btn-quiet mt-2.5 w-full md:w-auto">
+        <button type="button" onClick={onReset} className="btn-text mt-2 text-subhead text-accent-ink">
           {resetLabel}
         </button>
       )}

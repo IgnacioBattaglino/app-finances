@@ -173,6 +173,7 @@
   }
 
   .list :is(input, select, textarea):focus-visible,
+  .input-inline:focus-visible,
   .field:focus-visible,
   [role='dialog']:focus-visible {
     outline: none !important;
@@ -243,7 +244,10 @@
   /* La fila que tiene el foco de un campo se marca entera (ver :focus-visible
      en base). Un aro interior y no un fondo: el fondo de la fila es el de
      presionado. */
-  .list > :has(:is(input, select, textarea):focus-visible) {
+  .list
+    > :has(:is(input, select, textarea):focus-visible):not(
+      :has(.field:focus-visible, :is(.value-button, .bg-mist) :focus-visible)
+    ) {
     box-shadow: inset 0 0 0 2px var(--color-accent);
   }
 
@@ -319,6 +323,32 @@
   }
 
   .field:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--color-accent);
+  }
+
+  /* Un valor que se toca para cambiarlo, a la derecha de una fila: la fecha
+     de un movimiento, el tipo de cambio de un aporte. La pastilla gris es la
+     forma del selector compacto de iOS: se lee como tocable sin ser un botón
+     grande que compita con Guardar. */
+  .value-button {
+    display: inline-flex;
+    min-height: 2.25rem;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: var(--radius-field);
+    background-color: var(--color-mist);
+    padding: 0.375rem 0.75rem;
+    font-size: var(--text-body);
+    white-space: nowrap;
+    transition: background-color var(--duration-base) ease-out;
+  }
+
+  .value-button:active {
+    background-color: var(--color-line);
+    transition-duration: 0s;
+  }
+
+  .value-button:has(:focus-visible) {
     box-shadow: inset 0 0 0 2px var(--color-accent);
   }
 

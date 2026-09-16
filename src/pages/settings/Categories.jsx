@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { getCategories, createCategory, reorderCategories } from '../../lib/categories.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
-import FormError, { ErrorNotice } from '../../components/form/FormError.jsx'
+import { ErrorNotice } from '../../components/form/FormError.jsx'
+import InlineCreate from '../../components/form/InlineCreate.jsx'
 import { ReorderableRows } from '../../components/settings/ReorderableRows.jsx'
 import { Grip } from '../../components/Icons.jsx'
 
@@ -17,38 +18,13 @@ import { Grip } from '../../components/Icons.jsx'
 // formulario que abre con teclado.
 function NewCategoryRow({ kind, onCreated }) {
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
-
-  function close() {
-    setOpen(false)
-    setName('')
-    setError(null)
-  }
-
-  async function handleCreate(event) {
-    event.preventDefault()
-    const trimmed = name.trim()
-    if (!trimmed || busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      onCreated(await createCategory(trimmed, kind))
-      close()
-    } catch (e) {
-      setError({ message: 'No se pudo crear la categoría.', detail: e })
-    } finally {
-      setBusy(false)
-    }
-  }
 
   if (!open) {
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full px-4 py-3 text-left text-body font-medium text-accent-ink transition active:bg-mist"
+        className="row w-full text-left text-body font-medium text-accent-ink pressable"
       >
         Nueva categoría
       </button>
@@ -56,30 +32,17 @@ function NewCategoryRow({ kind, onCreated }) {
   }
 
   return (
-    <form onSubmit={handleCreate} className="space-y-2.5 px-4 py-3">
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => e.key === 'Escape' && close()}
-        placeholder={kind === 'expense' ? 'ej: Comida, Transporte' : 'ej: Sueldo, Freelance'}
-        autoFocus
-        disabled={busy}
-        className="field"
+    <div className="px-4 py-3">
+      <InlineCreate
+        placeholder={kind === 'expense' ? 'Nombre, ej: Comida, Transporte' : 'Nombre, ej: Sueldo, Freelance'}
+        errorMessage="No se pudo crear la categoría."
+        onCreate={async (name) => {
+          onCreated(await createCategory(name, kind))
+          setOpen(false)
+        }}
+        onCancel={() => setOpen(false)}
       />
-      <FormError message={error?.message} detail={error?.detail} />
-      <div className="flex items-center justify-end gap-4 text-subhead">
-        <button type="button" onClick={close} disabled={busy} className="text-ink-soft">
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={busy || !name.trim()}
-          className="font-semibold text-accent-ink disabled:opacity-50"
-        >
-          Guardar
-        </button>
-      </div>
-    </form>
+    </div>
   )
 }
 

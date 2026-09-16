@@ -26,13 +26,13 @@ describe('CollapsedDateField', () => {
   })
 
   it('muestra "Hoy" cuando el valor es la fecha de hoy', () => {
-    expect(render({ value: todayISO() })).toContain('Hoy · cambiar')
+    expect(render({ value: todayISO() })).toContain('>Hoy<')
   })
 
   it('muestra la fecha con año cuando no es hoy', () => {
     const html = render({ value: '2024-03-15' })
     expect(html).toContain('2024')
-    expect(html).toContain('cambiar')
+    expect(html).toContain('Cambiar')
   })
 
   it('usa el label que le pasan', () => {
