@@ -59,7 +59,7 @@ function CategoryDetail() {
     setError(null)
     try {
       await deleteCategory(category.id)
-      navigate('/ajustes/categorias')
+      navigate('/ajustes/categorias', { viewTransition: true })
     } catch (e) {
       setError({ message: 'No se pudo eliminar la categoría.', detail: e })
       setBusy(false)

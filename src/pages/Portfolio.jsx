@@ -152,7 +152,7 @@ function Portfolio() {
           linkea a su detalle, pero no a la lista completa. Siempre visible,
           incluso sin activos todavía: los grupos existen aparte de ellos. */}
       <div className="mb-4 flex justify-end">
-        <Link to="/inversiones/grupos" className="eyebrow transition hover:text-ink">
+        <Link viewTransition to="/inversiones/grupos" className="eyebrow transition hover:text-ink">
           Grupos de activos
         </Link>
       </div>

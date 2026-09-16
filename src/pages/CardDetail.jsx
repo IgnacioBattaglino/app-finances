@@ -13,6 +13,7 @@ import { getCommitmentsWithCharges } from '../lib/commitments.js'
 import { getCategories } from '../lib/categories.js'
 import { isFinished, planRemaining } from '../lib/commitmentSchedule.js'
 import { formatByCurrency, formatPercent, todayISO } from '../lib/format.js'
+import { ChevronRight } from '../components/Icons.jsx'
 
 // Detalle de una tarjeta: lo que te va a llegar en el próximo resumen, las
 // compras que lo componen, y al pie sus datos.
@@ -133,7 +134,7 @@ function CardDetail() {
             today,
           })
           return (
-            <Link
+            <Link viewTransition
               key={plan.id}
               to={`/compromisos/planes/${plan.id}`}
               className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
@@ -149,9 +150,7 @@ function CardDetail() {
               <span className="font-money shrink-0 text-body text-ink-soft">
                 {formatByCurrency(plan.currency, plan.amount)}
               </span>
-              <span aria-hidden="true" className="shrink-0 text-ink-faint">
-                ›
-              </span>
+              <ChevronRight />
             </Link>
           )
         })}
@@ -161,15 +160,13 @@ function CardDetail() {
       {done.length > 0 && (
         <SettingsGroup title={`Terminadas (${done.length})`}>
           {done.map((plan) => (
-            <Link
+            <Link viewTransition
               key={plan.id}
               to={`/compromisos/planes/${plan.id}`}
               className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
             >
               <span className="min-w-0 flex-1 truncate text-body text-ink-soft">{plan.name}</span>
-              <span aria-hidden="true" className="shrink-0 text-ink-faint">
-                ›
-              </span>
+              <ChevronRight />
             </Link>
           ))}
         </SettingsGroup>
@@ -206,7 +203,7 @@ function CardDetail() {
                     setError(null)
                     try {
                       await deleteCard(card.id)
-                      navigate('/compromisos')
+                      navigate('/compromisos', { viewTransition: true })
                     } catch (e) {
                       setError({ message: 'No se pudo eliminar la tarjeta.', detail: e })
                       setBusy(false)

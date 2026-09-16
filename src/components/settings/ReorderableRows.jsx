@@ -5,24 +5,6 @@ import { useEffect, useRef, useState } from 'react'
 // hacen exactamente el mismo gesto sobre la misma clase de lista, así que vive
 // acá en vez de estar copiado.
 
-export function GripIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className="h-5 w-5 shrink-0 text-ink-faint"
-      aria-hidden="true"
-    >
-      <circle cx="9" cy="6" r="1.6" />
-      <circle cx="15" cy="6" r="1.6" />
-      <circle cx="9" cy="12" r="1.6" />
-      <circle cx="15" cy="12" r="1.6" />
-      <circle cx="9" cy="18" r="1.6" />
-      <circle cx="15" cy="18" r="1.6" />
-    </svg>
-  )
-}
-
 // Reordenamiento por arrastre, con Pointer Events y no con la API de drag de
 // HTML5: esa no dispara con el dedo en iOS, y esta pantalla se usa sobre todo
 // desde el teléfono. El proyecto no tiene librería de drag-and-drop y esto no

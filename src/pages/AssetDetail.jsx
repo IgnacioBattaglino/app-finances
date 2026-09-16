@@ -17,7 +17,6 @@ import { formatUSD, formatQuantity, formatDay, formatDayYear } from '../lib/form
 import SourceTag from '../components/SourceTag.jsx'
 import Gain from '../components/Gain.jsx'
 import Money from '../components/Money.jsx'
-import EditIcon from '../components/EditIcon.jsx'
 import MetricCard from '../components/assetDetail/MetricCard.jsx'
 import AssetHistory from '../components/assetDetail/AssetHistory.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
@@ -28,6 +27,8 @@ import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
 import TransferFormModal from '../components/contribution/TransferFormModal.jsx'
 import LiquidatePositionModal from '../components/contribution/LiquidatePositionModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
+import { Pencil } from '../components/Icons.jsx'
+import BackLink from '../components/BackLink.jsx'
 
 const PAGE_SIZE = 20
 
@@ -54,7 +55,7 @@ function AssetDetail() {
   // mecanismo que AssetTypeDetail con Inversiones.
   const fromMovements = location.state?.from === 'movements'
   const backLabel = fromMovements ? 'Movimientos' : 'Inversiones'
-  const goBack = () => (fromMovements ? navigate(-1) : navigate('/inversiones'))
+  const goBack = () => (fromMovements ? navigate(-1) : navigate('/inversiones', { viewTransition: true }))
 
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
@@ -226,31 +227,13 @@ function AssetDetail() {
           pone la pantalla anterior, y así el nombre del activo arranca
           alineado con el resto del contenido en vez de correrse por una
           flecha. */}
-      <button
-        type="button"
-        onClick={goBack}
-        className="-ml-1 mb-3 inline-flex items-center gap-0.5 text-body text-accent-ink"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-4 w-4"
-          aria-hidden="true"
-        >
-          <path d="m15 5-7 7 7 7" />
-        </svg>
-        {backLabel}
-      </button>
+      <BackLink onClick={goBack}>{backLabel}</BackLink>
 
       <div className="mb-5 flex items-start justify-between gap-4 md:mb-7">
         <p className="flex min-w-0 items-center gap-2">
           <span className="title-page truncate">{asset?.name}</span>
           <button type="button" onClick={() => setAssetFormModal(true)} aria-label="Editar activo">
-            <EditIcon className="h-4 w-4 shrink-0 text-ink-soft" />
+            <Pencil className="h-4 w-4 shrink-0 text-ink-soft" />
           </button>
         </p>
         <div className="hidden shrink-0 gap-2 pt-1 md:flex">

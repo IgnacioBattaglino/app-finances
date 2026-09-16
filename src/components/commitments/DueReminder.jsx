@@ -100,7 +100,7 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
       </div>
 
       {rest.length > 0 && (
-        <Link
+        <Link viewTransition
           to="/compromisos"
           className={`mt-3 flex items-center justify-between gap-2 text-footnote ${
             overdue ? '' : 'text-ink-soft'

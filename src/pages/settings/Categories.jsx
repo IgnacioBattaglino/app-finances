@@ -4,7 +4,8 @@ import { getCategories, createCategory, reorderCategories } from '../../lib/cate
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
 import FormError, { ErrorNotice } from '../../components/form/FormError.jsx'
-import { ReorderableRows, GripIcon } from '../../components/settings/ReorderableRows.jsx'
+import { ReorderableRows } from '../../components/settings/ReorderableRows.jsx'
+import { Grip } from '../../components/Icons.jsx'
 
 // Alta al pie del grupo al que va a pertenecer: antes el form de alta vivía
 // suelto entre las dos listas con un segmentado Gasto/Ingreso adentro, y no
@@ -108,9 +109,9 @@ function CategoryRow({ category, dragHandlers }) {
         aria-label={`Reordenar ${category.name}`}
         className="shrink-0 cursor-grab touch-none px-1.5 py-3 active:cursor-grabbing"
       >
-        <GripIcon />
+        <Grip />
       </button>
-      <Link
+      <Link viewTransition
         to={`/ajustes/categorias/${category.id}`}
         className="min-w-0 flex-1 truncate py-3 text-body transition active:opacity-60"
       >

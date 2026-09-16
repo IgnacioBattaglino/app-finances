@@ -22,6 +22,7 @@ import {
   planRemaining,
 } from '../lib/commitmentSchedule.js'
 import { formatByCurrency, formatDayYear, formatUSD, todayISO } from '../lib/format.js'
+import { ChevronRight } from '../components/Icons.jsx'
 
 // COMPROMISOS: la plata que ya está comprometida antes de que empiece el mes.
 //
@@ -79,7 +80,7 @@ function PlanRow({ plan, chargesByPlan, today }) {
     : frequencyLabel(plan.frequency)
 
   return (
-    <Link
+    <Link viewTransition
       to={`/compromisos/planes/${plan.id}`}
       className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
     >
@@ -90,9 +91,7 @@ function PlanRow({ plan, chargesByPlan, today }) {
       <span className="font-money shrink-0 text-body text-ink-soft">
         {formatByCurrency(plan.currency, plan.amount)}
       </span>
-      <span aria-hidden="true" className="shrink-0 text-ink-faint">
-        ›
-      </span>
+      <ChevronRight />
     </Link>
   )
 }
@@ -171,7 +170,7 @@ function Commitments() {
             const ofCard = active.filter((p) => p.card_id === card.id)
             const monthly = ofCard.reduce((sum, p) => sum + Number(p.amount), 0)
             return (
-              <Link
+              <Link viewTransition
                 key={card.id}
                 to={`/compromisos/tarjetas/${card.id}`}
                 className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
@@ -202,9 +201,7 @@ function Commitments() {
                     {formatByCurrency(card.currency, monthly)}
                   </span>
                 )}
-                <span aria-hidden="true" className="shrink-0 text-ink-faint">
-                  ›
-                </span>
+                <ChevronRight />
               </Link>
             )
           })}

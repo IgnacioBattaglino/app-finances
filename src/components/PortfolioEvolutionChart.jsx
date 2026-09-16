@@ -215,7 +215,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
                   </p>
                   <button
                     type="button"
-                    onClick={() => navigate('/inversiones')}
+                    onClick={() => navigate('/inversiones', { viewTransition: true })}
                     className="font-semibold underline"
                   >
                     Actualizar valuación

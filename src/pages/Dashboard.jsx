@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import CommitmentReminder from '../components/commitments/CommitmentReminder.jsx'
 import Money from '../components/Money.jsx'
@@ -22,6 +22,7 @@ import { getDebts, summarizeDebts } from '../lib/debts.js'
 import { formatARS, formatUSD, todayISO } from '../lib/format.js'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useDuePayments } from '../hooks/useCommitments.js'
+import { ChevronRight, ChevronDown, Plus, Settings } from '../components/Icons.jsx'
 
 // Recharts pesa bastante: se carga solo cuando hace falta (hay al menos un
 // aporte o un gasto para graficar), no en el bundle principal. Las dos
@@ -38,59 +39,6 @@ function ChartPlaceholder({ className = 'h-[380px]' }) {
     <div className={`surface flex items-center justify-center text-subhead text-ink-soft ${className}`}>
       Calculando…
     </div>
-  )
-}
-
-function Chevron() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4 shrink-0 text-ink-faint"
-      aria-hidden="true"
-    >
-      <path d="m9 5 7 7-7 7" />
-    </svg>
-  )
-}
-
-// Mismo trazo que Chevron, apuntando abajo: abre/cierra el detalle del
-// resumen de Total. Gira 180° cuando está abierto, en vez de tener un ícono
-// para cada estado.
-function ChevronDown({ open }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`h-4 w-4 shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`}
-      aria-hidden="true"
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  )
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      className="h-6 w-6"
-      aria-hidden="true"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
   )
 }
 
@@ -170,7 +118,7 @@ function SummaryCard({
           {note && <span className="mt-2 block text-footnote text-ink-soft">{note}</span>}
           {hint && <span className="mt-2 block text-footnote font-medium text-accent-ink">{hint}</span>}
         </span>
-        <Chevron />
+        <ChevronRight />
       </button>
       {/* Desglose por cuenta: nombre y monto por línea, nada más. No compite
           con el monto grande de arriba — lo explica. Cada fila en su propia
@@ -472,9 +420,20 @@ function Dashboard() {
       <PageHeader
         title="Inicio"
         action={
-          <button type="button" onClick={openExpenseModal} className="btn btn-primary hidden md:inline-flex">
-            Nuevo gasto
-          </button>
+          <>
+            <button type="button" onClick={openExpenseModal} className="btn btn-primary hidden md:inline-flex">
+              Nuevo gasto
+            </button>
+            {/* Ajustes en el celular: no es una pestaña (ver Layout). */}
+            <Link
+              viewTransition
+              to="/ajustes"
+              aria-label="Ajustes"
+              className="-mt-1 -mr-2 flex h-11 w-11 items-center justify-center rounded-full text-ink-soft transition-colors active:bg-mist md:hidden"
+            >
+              <Settings />
+            </Link>
+          </>
         }
       />
 
@@ -513,7 +472,7 @@ function Dashboard() {
           loading={liquidLoading}
           error={liquidError}
           onRetry={loadLiquid}
-          onClick={() => navigate('/plata')}
+          onClick={() => navigate('/plata', { viewTransition: true })}
         />
 
         {/* Plata guardada aparte, fuera del día a día — ver ADR-014. Solo
@@ -527,7 +486,7 @@ function Dashboard() {
             lines={savingsLines}
             breakdown={savingsBreakdown}
             info="Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento."
-            onClick={() => navigate('/plata')}
+            onClick={() => navigate('/plata', { viewTransition: true })}
           />
         )}
 
@@ -538,7 +497,7 @@ function Dashboard() {
           loading={portfolioLoading}
           error={portfolioError}
           onRetry={reloadPortfolio}
-          onClick={() => navigate('/inversiones')}
+          onClick={() => navigate('/inversiones', { viewTransition: true })}
         />
 
         {/* Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0"
@@ -552,7 +511,7 @@ function Dashboard() {
             loading={debtsLoading}
             error={debtsError}
             onRetry={loadDebts}
-            onClick={() => navigate('/compromisos/deudas')}
+            onClick={() => navigate('/compromisos/deudas', { viewTransition: true })}
           />
         )}
       </div>
@@ -613,7 +572,7 @@ function Dashboard() {
         aria-label="Nuevo gasto"
         className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 flex h-15 w-15 items-center justify-center rounded-full bg-accent text-white shadow-[0_8px_24px_rgb(16_18_24/0.22)] transition active:scale-95 active:bg-accent-deep md:hidden"
       >
-        <PlusIcon />
+        <Plus />
       </button>
 
       {/* Sin categorías todavía (cargando o falló) no se abre el formulario

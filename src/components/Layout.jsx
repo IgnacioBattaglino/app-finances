@@ -1,13 +1,16 @@
-import { NavLink, Outlet, useMatch } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useMatches } from 'react-router-dom'
 import RingsMark from './RingsMark.jsx'
+import { SETTINGS_PATH } from './Icons.jsx'
 
 // Las dos navegaciones de la app son la misma lista con dos formas:
 //
-// - En el celular, una barra abajo, al alcance del pulgar, con el ícono
-//   grande y el nombre chico. La pestaña activa lleva una cápsula teñida
-//   además del color: a un vistazo, sin leer, se sabe dónde estás.
+// - En el celular, una barra abajo, al alcance del pulgar, con CINCO destinos:
+//   todos son plata. Ajustes no está: se usa poco (el tema se elige una vez)
+//   y con seis pestañas los nombres no entraban en un teléfono. Se entra desde
+//   el engranaje de Inicio, que es donde las apps de finanzas ponen el perfil.
 // - En desktop, una columna lateral fija tipo lista de origen (Mail, Finder),
-//   donde el nombre pesa más que el ícono porque hay lugar para leerlo.
+//   con Ajustes separado al pie: ahí sobra el lugar y no hay por qué
+//   esconderlo.
 const tabs = [
   {
     to: '/',
@@ -33,18 +36,16 @@ const tabs = [
     to: '/compromisos',
     label: 'Compromisos',
     // Un almanaque con un tilde: lo que hay que pagar en una fecha, y el
-    // gesto de darlo por hecho. No repite la billetera de "Mi plata" — esa
-    // es la plata que tengo, esta es la que ya está comprometida.
-    icon: (
-      <path d="M3.8 6.8h16.4v13.4H3.8zM3.8 10.8h16.4M8 4.2v3m8-3v3m-6.6 9.4 1.9 1.9 3.5-3.7" />
-    ),
-  },
-  {
-    to: '/ajustes',
-    label: 'Ajustes',
-    icon: <path d="M4 7.5h16M4 12h16M4 16.5h16M9.5 5.5v4m5 0v5m-6 2v4" />,
+    // gesto de darlo por hecho.
+    icon: <path d="M3.8 6.8h16.4v13.4H3.8zM3.8 10.8h16.4M8 4.2v3m8-3v3m-6.6 9.4 1.9 1.9 3.5-3.7" />,
   },
 ]
+
+const settingsTab = {
+  to: '/ajustes',
+  label: 'Ajustes',
+  icon: <path d={SETTINGS_PATH} />,
+}
 
 function TabIcon({ children, className, active }) {
   return (
@@ -53,8 +54,7 @@ function TabIcon({ children, className, active }) {
       fill="none"
       stroke="currentColor"
       // El trazo engorda en la pestaña activa: la misma señal que usa SF
-      // Symbols al pasar de la variante de línea a la rellena, sin tener que
-      // dibujar dos juegos de íconos.
+      // Symbols al pasar de la variante de línea a la rellena.
       strokeWidth={active ? 2.1 : 1.7}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -66,94 +66,109 @@ function TabIcon({ children, className, active }) {
   )
 }
 
+function SidebarLink({ to, label, icon }) {
+  return (
+    <NavLink
+      viewTransition
+      to={to}
+      end={to === '/'}
+      className={({ isActive }) =>
+        `flex items-center gap-3 rounded-field px-3 py-2 text-subhead transition-colors ${
+          isActive ? 'bg-accent/10 font-semibold text-accent-ink' : 'text-ink-soft hover:bg-mist hover:text-ink'
+        }`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <TabIcon className="h-[18px] w-[18px] shrink-0" active={isActive}>
+            {icon}
+          </TabIcon>
+          {label}
+        </>
+      )}
+    </NavLink>
+  )
+}
+
+// Qué pestaña corresponde a una ruta: la de su primer segmento. `null` fuera
+// de las cinco (Ajustes en el celular), y ahí la cápsula se apaga.
+function activeTabIndex(pathname) {
+  if (pathname === '/') return 0
+  return tabs.findIndex((tab) => tab.to !== '/' && pathname.startsWith(tab.to))
+}
+
 function Layout() {
-  // En el detalle de un activo, la tab bar mobile la reemplaza la barra de
-  // acciones propia de esa pantalla (Aportar/Retirar) — ver AssetDetail.
-  // El match es de dos segmentos, así que "grupos" (la lista de grupos, la
-  // otra ruta de dos segmentos bajo /inversiones) se excluye a mano.
-  const assetDetailMatch = useMatch('/inversiones/:assetId')
-  const isAssetDetail = Boolean(assetDetailMatch) && assetDetailMatch.params.assetId !== 'grupos'
+  const { pathname } = useLocation()
+  // Una pantalla con su propia barra de acciones abajo (el detalle de un
+  // activo: Aportar/Retirar) la declara en su ruta (`handle`, ver App.jsx).
+  const ownBottomBar = useMatches().some((match) => match.handle?.ownBottomBar)
+  const active = activeTabIndex(pathname)
 
   return (
     <div className="min-h-dvh bg-paper text-ink md:flex">
-      {/* Columna lateral (desktop) */}
-      <nav className="sticky top-0 hidden h-dvh w-62 shrink-0 flex-col border-r border-line px-3 py-7 md:flex">
-        <div className="mb-8 flex items-center gap-2.5 px-3">
-          <RingsMark className="h-7 w-7 text-accent-ink" />
-          <span className="text-body font-semibold tracking-tight">finanzas</span>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          {tabs.map(({ to, label, icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-field px-3 py-2 text-subhead transition ${
-                  isActive
-                    ? 'bg-accent/10 font-semibold text-accent-ink'
-                    : 'text-ink-soft hover:bg-mist hover:text-ink'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <TabIcon className="h-[18px] w-[18px] shrink-0" active={isActive}>
-                    {icon}
-                  </TabIcon>
-                  {label}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
+      {/* Columna lateral (desktop). La línea divisoria vive en el <aside>,
+          que se estira con la página, y no en el <nav> fijo: si no, se cortaba
+          a la altura de la ventana en cualquier pantalla más larga. */}
+      <aside className="hidden w-62 shrink-0 border-r border-line md:block">
+        <nav className="sticky top-0 flex h-dvh flex-col px-3 py-7 [view-transition-name:sidebar]">
+          <div className="mb-8 flex items-center gap-2.5 px-3">
+            <RingsMark className="h-7 w-7 text-accent-ink" />
+            <span className="text-body font-semibold tracking-tight">finanzas</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {tabs.map((tab) => (
+              <SidebarLink key={tab.to} {...tab} />
+            ))}
+          </div>
+          <div className="mt-auto flex flex-col">
+            <SidebarLink {...settingsTab} />
+          </div>
+        </nav>
+      </aside>
 
-      <main className="w-full flex-1">
-        {/* El padding inferior del celular deja pasar la tab bar flotante; en
-            desktop no hay barra abajo, así que no hace falta reservarlo. */}
+      <main className="w-full min-w-0 flex-1">
+        {/* El padding inferior del celular deja pasar la barra flotante. */}
         <div className="px-4 pt-7 pb-32 md:px-10 md:pt-10 md:pb-16">
           <Outlet />
         </div>
       </main>
 
-      {/* Barra inferior (celular) — oculta en el detalle de un activo */}
-      {!isAssetDetail && (
-        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
-          <div className="mx-auto flex max-w-lg">
-            {tabs.map(({ to, label, icon }) => (
+      {!ownBottomBar && (
+        <nav
+          aria-label="Principal"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl [view-transition-name:tabbar] md:hidden"
+        >
+          <div className="relative mx-auto flex max-w-lg">
+            {/* La cápsula de la pestaña activa es UNA sola y se desliza de una
+                pestaña a otra: el movimiento dice a dónde fuiste. Las pestañas
+                miden lo mismo, así que su posición es un porcentaje. */}
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none absolute top-1.5 left-0 flex h-7 justify-center transition-[translate,opacity] duration-[var(--duration-slow)] ease-[var(--ease-ios)] ${
+                active < 0 ? 'opacity-0' : ''
+              }`}
+              style={{ width: `${100 / tabs.length}%`, translate: `${Math.max(active, 0) * 100}% 0` }}
+            >
+              <span className="h-7 w-11 rounded-full bg-accent/12" />
+            </span>
+            {tabs.map(({ to, label, icon }, index) => (
               <NavLink
+                viewTransition
                 key={to}
                 to={to}
                 end={to === '/'}
-                className={({ isActive }) =>
-                  // `whitespace-nowrap`: con seis pestañas cada una mide ~62px
-                  // en un iPhone y las etiquetas largas ("Movimientos",
-                  // "Compromisos") quedan a pocos pixeles del ancho. Sin esto,
-                  // la primera que no entre se parte en dos líneas y levanta
-                  // esa pestaña sola, desalineando toda la barra.
-                  `flex min-w-0 flex-1 flex-col items-center gap-1 pt-1.5 pb-2 text-[10px] font-medium tracking-[-0.01em] whitespace-nowrap transition ${
-                    isActive ? 'text-accent-ink' : 'text-ink-soft'
-                  }`
-                }
+                // `whitespace-nowrap`: una etiqueta que se parte en dos
+                // líneas levanta su pestaña sola y desalinea la barra.
+                className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 pt-1.5 pb-2 text-[10px] font-medium tracking-[-0.01em] whitespace-nowrap transition-colors ${
+                  index === active ? 'text-accent-ink' : 'text-ink-soft'
+                }`}
               >
-                {({ isActive }) => (
-                  <>
-                    {/* La cápsula se renderiza siempre y solo cambia de color:
-                        si apareciera solo en la activa, la fila entera se
-                        movería un pixel al cambiar de pestaña. */}
-                    <span
-                      className={`flex h-7 w-11 items-center justify-center rounded-full transition ${
-                        isActive ? 'bg-accent/12' : 'bg-transparent'
-                      }`}
-                    >
-                      <TabIcon className="h-[22px] w-[22px]" active={isActive}>
-                        {icon}
-                      </TabIcon>
-                    </span>
-                    {label}
-                  </>
-                )}
+                <span className="flex h-7 w-11 items-center justify-center">
+                  <TabIcon className="h-[22px] w-[22px]" active={index === active}>
+                    {icon}
+                  </TabIcon>
+                </span>
+                {label}
               </NavLink>
             ))}
           </div>

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
 import Money from '../components/Money.jsx'
-import EditIcon from '../components/EditIcon.jsx'
 import DebtFormModal from '../components/DebtFormModal.jsx'
 import DebtPaymentModal from '../components/DebtPaymentModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
@@ -15,6 +14,7 @@ import {
   summarizeDebts,
 } from '../lib/debts.js'
 import { formatUSD, formatDayYear, formatPercent } from '../lib/format.js'
+import { Pencil } from '../components/Icons.jsx'
 
 // Barra de avance del pago. Es la única señal visual propia de esta pantalla:
 // la parte accent es lo ya pagado. Verde y no clay a propósito — pagar una deuda
@@ -78,7 +78,7 @@ export function DebtCard({ debt, expanded, onToggle, onEdit, onPay, onEditPaymen
           className="flex max-w-full min-w-0 items-center gap-1.5 text-left"
         >
           <span className="truncate text-subhead font-medium">{debt.creditor}</span>
-          <EditIcon />
+          <Pencil />
         </button>
 
         <p className="mt-1.5 text-[28px] leading-none font-semibold">

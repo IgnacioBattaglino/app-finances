@@ -5,7 +5,6 @@ import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
 import FilterChips from '../components/form/FilterChips.jsx'
-import EditIcon from '../components/EditIcon.jsx'
 import { ErrorNotice } from '../components/form/FormError.jsx'
 import { getTransactions, groupExpensesByCategory } from '../lib/transactions.js'
 import { getLiquidContributions } from '../lib/contributions.js'
@@ -39,6 +38,7 @@ import {
   monthRange,
   shift,
 } from '../lib/dateRange.js'
+import { ChevronLeft, ChevronRight, Pencil, Plus } from '../components/Icons.jsx'
 
 const now = new Date()
 
@@ -48,39 +48,6 @@ const now = new Date()
 // TOTALES siempre se calculan sobre el período entero: esto recorta lo que se
 // dibuja, nunca lo que se cuenta.
 const PAGE = 100
-
-function Arrow({ direction }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-      aria-hidden="true"
-    >
-      <path d={direction === 'left' ? 'm14 5-7 7 7 7' : 'm10 5 7 7-7 7'} />
-    </svg>
-  )
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      className="h-6 w-6"
-      aria-hidden="true"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  )
-}
 
 // Las dos filas de la lista comparten caja: son el mismo tipo de renglón, lo
 // que cambia es qué pasa al tocarlas.
@@ -103,7 +70,7 @@ function TransactionRow({ tx, onEdit }) {
             {tx.category?.name ?? 'Sin categoría'}
             {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
           </span>
-          <EditIcon />
+          <Pencil />
         </p>
         <p className="mt-0.5 truncate text-footnote text-ink-soft">
           {formatDay(tx.date)}
@@ -160,7 +127,7 @@ export function InvestmentRow({ contribution: c }) {
   }
 
   return (
-    <Link to={`/inversiones/${c.asset?.id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
+    <Link viewTransition to={`/inversiones/${c.asset?.id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
       <div className="min-w-0">
         <p className="flex items-center gap-1.5 truncate text-body">
           <span className="truncate">
@@ -168,7 +135,7 @@ export function InvestmentRow({ contribution: c }) {
             <span className="text-ink-soft"> · {c.asset?.name ?? 'Activo'}</span>
           </span>
           <span className="shrink-0 text-ink-faint">
-            <Arrow direction="right" />
+            <ChevronRight className="h-4 w-4" />
           </span>
         </p>
         <p className="mt-0.5 text-footnote text-ink-soft">{formatDay(c.date)}</p>
@@ -194,7 +161,7 @@ export function InvestmentRow({ contribution: c }) {
 // nombre de la cuenta —debajo, como en cualquier fila— dice dónde.
 function SavingsRow({ tx }) {
   return (
-    <Link to={`/plata/${tx.account_id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
+    <Link viewTransition to={`/plata/${tx.account_id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
       <div className="min-w-0">
         <p className="flex items-center gap-1.5 truncate text-body">
           <span className="truncate">
@@ -202,7 +169,7 @@ function SavingsRow({ tx }) {
             {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
           </span>
           <span className="shrink-0 text-ink-faint">
-            <Arrow direction="right" />
+            <ChevronRight className="h-4 w-4" />
           </span>
         </p>
         <p className="mt-0.5 truncate text-footnote text-ink-soft">
@@ -499,7 +466,7 @@ function Movements() {
                 aria-label="Período anterior"
                 className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft pressable"
               >
-                <Arrow direction="left" />
+                <ChevronLeft className="h-4 w-4" />
               </button>
             ) : (
               <span aria-hidden className="h-9 w-9 shrink-0" />
@@ -518,7 +485,7 @@ function Movements() {
                 aria-label="Período siguiente"
                 className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft pressable"
               >
-                <Arrow direction="right" />
+                <ChevronRight className="h-4 w-4" />
               </button>
             ) : (
               <span aria-hidden className="h-9 w-9 shrink-0" />
@@ -676,7 +643,7 @@ function Movements() {
         aria-label="Nuevo movimiento"
         className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 flex h-15 w-15 items-center justify-center rounded-full bg-accent text-white shadow-[0_8px_24px_rgb(16_18_24/0.22)] transition active:scale-95 active:bg-accent-deep md:hidden"
       >
-        <PlusIcon />
+        <Plus />
       </button>
 
       {rangeOpen && (

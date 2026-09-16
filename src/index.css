@@ -594,7 +594,33 @@
   }
 }
 
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* CAMBIO DE PANTALLA (View Transitions, ver `viewTransition` en los links).
+   La pantalla que se va se apaga rápido y la que llega sube apenas: se lee
+   como "entraste a otro lugar" sin que el contenido viaje por la pantalla.
+   La barra de pestañas y la columna lateral tienen nombre propio
+   (`view-transition-name`), así que no participan: la navegación se queda
+   quieta mientras cambia lo de adentro. */
+::view-transition-old(root) {
+  animation: fade-out var(--duration-fast) ease-out both;
+}
+
+::view-transition-new(root) {
+  animation: rise var(--duration-base) var(--ease-ios) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
   *,
   *::before,
   *::after {

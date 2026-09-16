@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import Switch from '../form/Switch.jsx'
+import { ChevronRight } from '../Icons.jsx'
 
 // Piezas de la lista agrupada de Ajustes (modelo iOS): la pantalla raíz lista
 // categorías de ajustes y cada una entra a sus opciones específicas, en vez
@@ -9,23 +10,6 @@ import Switch from '../form/Switch.jsx'
 // pie opcional. La nota es donde va la explicación de un control: al pie del
 // grupo se lee una vez, mientras que repetida en cada fila (como estaba en
 // grupos de activos) es ruido que nadie lee la segunda vez.
-
-function Chevron() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4 shrink-0 text-ink-faint"
-      aria-hidden="true"
-    >
-      <path d="m9 5 7 7-7 7" />
-    </svg>
-  )
-}
 
 export function SettingsGroup({ title, footer, children }) {
   return (
@@ -46,7 +30,7 @@ export function SettingsGroup({ title, footer, children }) {
 // nombre (el "fuera del total" de un grupo de activos).
 export function SettingsLinkRow({ to, label, value, badge }) {
   return (
-    <Link
+    <Link viewTransition
       to={to}
       className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
     >
@@ -59,7 +43,7 @@ export function SettingsLinkRow({ to, label, value, badge }) {
         )}
       </span>
       {value && <span className="shrink-0 truncate text-body text-ink-soft">{value}</span>}
-      <Chevron />
+      <ChevronRight />
     </Link>
   )
 }

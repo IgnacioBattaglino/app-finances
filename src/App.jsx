@@ -1,29 +1,29 @@
-import { Routes, Route, Navigate, useParams } from 'react-router-dom'
+import {
+  createBrowserRouter,
+  createRoutesFromElements,
+  Navigate,
+  Outlet,
+  Route,
+  RouterProvider,
+  ScrollRestoration,
+  useLocation,
+  useParams,
+} from 'react-router-dom'
 import { useAuth } from './hooks/useAuth.jsx'
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import Login from './pages/Login.jsx'
-import Register from './pages/Register.jsx'
-import ResetPassword from './pages/ResetPassword.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import Movements from './pages/Movements.jsx'
-import Portfolio from './pages/Portfolio.jsx'
-import AssetDetail from './pages/AssetDetail.jsx'
-import Goal from './pages/Goal.jsx'
-import Debts from './pages/Debts.jsx'
-import Commitments from './pages/Commitments.jsx'
-import CommitmentDetail from './pages/CommitmentDetail.jsx'
-import CardDetail from './pages/CardDetail.jsx'
-import SettingsHome from './pages/settings/SettingsHome.jsx'
-import Appearance from './pages/settings/Appearance.jsx'
-import Categories from './pages/settings/Categories.jsx'
-import CategoryDetail from './pages/settings/CategoryDetail.jsx'
-import Accounts from './pages/settings/Accounts.jsx'
-import AccountDetail from './pages/settings/AccountDetail.jsx'
-import AssetTypes from './pages/settings/AssetTypes.jsx'
-import AssetTypeDetail from './pages/settings/AssetTypeDetail.jsx'
-import ExportData from './pages/settings/ExportData.jsx'
-import Invitations from './pages/settings/Invitations.jsx'
+
+// Router de datos (createBrowserRouter) y no <BrowserRouter>: es el que sabe
+// animar una navegación con la View Transitions API (`viewTransition` en los
+// links, ver index.css) y cargar cada pantalla recién cuando se entra.
+//
+// Cada pantalla que no es la de entrada se carga aparte (`lazy`): antes el
+// bundle inicial traía la app entera —todas las pantallas y todos sus
+// formularios— para mostrar Inicio. El router espera el chunk ANTES de
+// cambiar de pantalla, así que no hay un parpadeo de "cargando" en el medio.
+const page = (load) => () => load().then((module) => ({ Component: module.default }))
 
 // Redirects de rutas viejas con parámetro: la app es una PWA instalable y
 // puede haber accesos directos guardados a la URL anterior.
@@ -40,60 +40,79 @@ function RedirectAssetTypeDetail() {
   return <Navigate to={`/inversiones/grupos/${assetTypeId}`} replace />
 }
 
-function App() {
+// El link de recuperación de Supabase no llega a una ruta nuestra: cae en el
+// Site URL con el token en el hash (ver lib/supabase.js). Mientras dura ese
+// flujo la app es una sola pantalla: todo redirige a la contraseña nueva, y
+// esa pantalla no existe fuera del flujo.
+//
+// ScrollRestoration: entrar a una pantalla empieza arriba y volver atrás
+// devuelve el scroll de donde se estaba. Las listas que cargan después del
+// primer render (Inversiones) completan la vuelta con useScrollRestoration.
+function Root() {
   const { passwordRecovery } = useAuth()
+  const { pathname } = useLocation()
+  const onRecoveryScreen = pathname === '/nueva-contrasena'
 
-  // El link de recuperación de Supabase no llega a una ruta nuestra: cae en el
-  // Site URL (el inicio) con el token en el hash (ver lib/supabase.js). Sin
-  // esto el usuario terminaba parado en Inicio, ya adentro con la sesión de
-  // recuperación y sin ninguna pantalla donde poner la contraseña nueva.
-  // Mientras dura ese flujo la app es una sola pantalla, así que las rutas
-  // normales ni se montan.
-  if (passwordRecovery) {
-    return (
-      <Routes>
-        <Route path="/nueva-contrasena" element={<ResetPassword />} />
-        <Route path="*" element={<Navigate to="/nueva-contrasena" replace />} />
-      </Routes>
-    )
-  }
+  if (passwordRecovery && !onRecoveryScreen) return <Navigate to="/nueva-contrasena" replace />
+  if (!passwordRecovery && onRecoveryScreen) return <Navigate to="/" replace />
 
   return (
-    <Routes>
+    <>
+      <ScrollRestoration />
+      <Outlet />
+    </>
+  )
+}
+
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<Root />} hydrateFallbackElement={null}>
+      <Route path="/nueva-contrasena" lazy={page(() => import('./pages/ResetPassword.jsx'))} />
       <Route path="/login" element={<Login />} />
-      <Route path="/registro" element={<Register />} />
+      <Route path="/registro" lazy={page(() => import('./pages/Register.jsx'))} />
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/movimientos" element={<Movements />} />
-          {/* Mi plata: las cuentas del disponible, subidas de Ajustes a
-              pestaña propia (ver docs/ux/arquitectura-informacion.md). */}
-          <Route path="/plata" element={<Accounts />} />
-          <Route path="/plata/:accountId" element={<AccountDetail />} />
-          {/* Inversiones (antes "Portafolio"): el detalle de un activo y la
-              gestión de sus grupos viven bajo la misma pestaña. */}
-          <Route path="/inversiones" element={<Portfolio />} />
-          <Route path="/inversiones/:assetId" element={<AssetDetail />} />
-          <Route path="/inversiones/grupos" element={<AssetTypes />} />
-          <Route path="/inversiones/grupos/:assetTypeId" element={<AssetTypeDetail />} />
-          <Route path="/objetivo" element={<Goal />} />
-          {/* Compromisos: lo que ya está comprometido y todavía no se pagó.
-              Deudas dejó de colgar de Mi plata y vive acá adentro. */}
-          <Route path="/compromisos" element={<Commitments />} />
-          <Route path="/compromisos/deudas" element={<Debts />} />
-          <Route path="/compromisos/tarjetas/:cardId" element={<CardDetail />} />
-          <Route path="/compromisos/planes/:commitmentId" element={<CommitmentDetail />} />
-          {/* Ajustes es una lista de temas y cada uno entra a su pantalla
-              (modelo iOS), así que son rutas propias y no secciones */}
-          <Route path="/ajustes" element={<SettingsHome />} />
-          <Route path="/ajustes/apariencia" element={<Appearance />} />
-          <Route path="/ajustes/categorias" element={<Categories />} />
-          <Route path="/ajustes/categorias/:categoryId" element={<CategoryDetail />} />
-          <Route path="/ajustes/exportar" element={<ExportData />} />
-          <Route path="/ajustes/invitaciones" element={<Invitations />} />
+          <Route path="/movimientos" lazy={page(() => import('./pages/Movements.jsx'))} />
+          {/* Mi plata: las cuentas del disponible (ver docs/ux/arquitectura-informacion.md). */}
+          <Route path="/plata" lazy={page(() => import('./pages/settings/Accounts.jsx'))} />
+          <Route path="/plata/:accountId" lazy={page(() => import('./pages/settings/AccountDetail.jsx'))} />
+          {/* Inversiones: el detalle de un activo y la gestión de sus grupos
+              viven bajo la misma pestaña. El detalle de un activo reemplaza la
+              barra de pestañas por la suya (`handle`, ver Layout). */}
+          <Route path="/inversiones" lazy={page(() => import('./pages/Portfolio.jsx'))} />
+          <Route
+            path="/inversiones/:assetId"
+            handle={{ ownBottomBar: true }}
+            lazy={page(() => import('./pages/AssetDetail.jsx'))}
+          />
+          <Route path="/inversiones/grupos" lazy={page(() => import('./pages/settings/AssetTypes.jsx'))} />
+          <Route
+            path="/inversiones/grupos/:assetTypeId"
+            lazy={page(() => import('./pages/settings/AssetTypeDetail.jsx'))}
+          />
+          <Route path="/objetivo" lazy={page(() => import('./pages/Goal.jsx'))} />
+          {/* Compromisos: lo que ya está comprometido y todavía no se pagó. */}
+          <Route path="/compromisos" lazy={page(() => import('./pages/Commitments.jsx'))} />
+          <Route path="/compromisos/deudas" lazy={page(() => import('./pages/Debts.jsx'))} />
+          <Route path="/compromisos/tarjetas/:cardId" lazy={page(() => import('./pages/CardDetail.jsx'))} />
+          <Route
+            path="/compromisos/planes/:commitmentId"
+            lazy={page(() => import('./pages/CommitmentDetail.jsx'))}
+          />
+          {/* Ajustes es una lista de temas y cada uno entra a su pantalla. */}
+          <Route path="/ajustes" lazy={page(() => import('./pages/settings/SettingsHome.jsx'))} />
+          <Route path="/ajustes/apariencia" lazy={page(() => import('./pages/settings/Appearance.jsx'))} />
+          <Route path="/ajustes/categorias" lazy={page(() => import('./pages/settings/Categories.jsx'))} />
+          <Route
+            path="/ajustes/categorias/:categoryId"
+            lazy={page(() => import('./pages/settings/CategoryDetail.jsx'))}
+          />
+          <Route path="/ajustes/exportar" lazy={page(() => import('./pages/settings/ExportData.jsx'))} />
+          <Route path="/ajustes/invitaciones" lazy={page(() => import('./pages/settings/Invitations.jsx'))} />
 
-          {/* Rutas viejas: quedan redirigiendo, no se borran — la app es
-              instalable y puede haber accesos directos guardados. */}
+          {/* Rutas viejas: quedan redirigiendo — puede haber accesos directos
+              guardados. */}
           <Route path="/portafolio" element={<Navigate to="/inversiones" replace />} />
           <Route path="/portafolio/:assetId" element={<RedirectAssetDetail />} />
           <Route path="/ajustes/cuentas" element={<Navigate to="/plata" replace />} />
@@ -101,14 +120,16 @@ function App() {
           <Route path="/ajustes/grupos" element={<Navigate to="/inversiones/grupos" replace />} />
           <Route path="/ajustes/grupos/:assetTypeId" element={<RedirectAssetTypeDetail />} />
           <Route path="/deudas" element={<Navigate to="/compromisos/deudas" replace />} />
-          {/* /ajustes/cuenta desapareció: el email y Cerrar sesión pasaron al
-              pie de Ajustes. */}
           <Route path="/ajustes/cuenta" element={<Navigate to="/ajustes" replace />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  )
+    </Route>,
+  ),
+)
+
+function App() {
+  return <RouterProvider router={router} />
 }
 
 export default App

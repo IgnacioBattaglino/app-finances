@@ -10,6 +10,7 @@ import {
   RANGE_MONTH,
   RANGE_YEAR,
 } from '../../lib/dateRange.js'
+import { ChevronLeft, ChevronRight } from '../Icons.jsx'
 
 // Elegir qué período se está mirando. Se abre tocando el nombre del período en
 // el navegador de Movimientos — no hay ningún control nuevo permanente en la
@@ -31,23 +32,6 @@ import {
 // antes de poder aplicarse.
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-
-function YearArrow({ direction }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-      aria-hidden="true"
-    >
-      <path d={direction === 'left' ? 'm14 5-7 7 7 7' : 'm10 5 7 7-7 7'} />
-    </svg>
-  )
-}
 
 function Shortcut({ active, onClick, children }) {
   return (
@@ -117,7 +101,7 @@ function RangeSheet({ range, onChange, onClose }) {
               aria-label="Año anterior"
               className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft pressable"
             >
-              <YearArrow direction="left" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
             <span className="font-money text-body font-semibold">{gridYear}</span>
             <button
@@ -126,7 +110,7 @@ function RangeSheet({ range, onChange, onClose }) {
               aria-label="Año siguiente"
               className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft pressable"
             >
-              <YearArrow direction="right" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
           <div className="grid grid-cols-4 gap-1">

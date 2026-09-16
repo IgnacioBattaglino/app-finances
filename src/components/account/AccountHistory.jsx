@@ -1,6 +1,6 @@
 import { formatByCurrency, formatDay } from '../../lib/format.js'
 import { movementType, isMovedMoneyType } from '../../lib/systemCategories.js'
-import EditIcon from '../EditIcon.jsx'
+import { Pencil } from '../Icons.jsx'
 
 // Un movimiento (transactions) de esta cuenta: categoría + descripción a la
 // izquierda (mismo peso que en Movimientos), monto con signo y color en la
@@ -27,7 +27,7 @@ function TransactionRow({ tx, onClick }) {
             {tx.category?.name ?? 'Sin categoría'}
             {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
           </span>
-          <EditIcon />
+          <Pencil />
         </p>
         <p className="mt-0.5 text-footnote text-ink-soft">{formatDay(tx.date)}</p>
       </div>

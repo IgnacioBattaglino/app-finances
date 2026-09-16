@@ -7,9 +7,10 @@ import PageHeader from '../../components/PageHeader.jsx'
 import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
 import { ErrorNotice } from '../../components/form/FormError.jsx'
 import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
-import { ReorderableRows, GripIcon } from '../../components/settings/ReorderableRows.jsx'
+import { ReorderableRows } from '../../components/settings/ReorderableRows.jsx'
 import LiquidModal from '../../components/LiquidModal.jsx'
 import AccountTransferModal from '../../components/account/AccountTransferModal.jsx'
+import { Grip } from '../../components/Icons.jsx'
 
 // Alta al pie de la lista, escondida hasta que se la pide: mismo patrón que
 // "Nueva categoría". `extended` le agrega moneda y tipo — acá, y solo acá, se
@@ -57,9 +58,9 @@ function AccountRow({ account, dragHandlers }) {
         aria-label={`Reordenar ${account.name}`}
         className="shrink-0 cursor-grab touch-none px-1.5 py-3 active:cursor-grabbing"
       >
-        <GripIcon />
+        <Grip />
       </button>
-      <Link
+      <Link viewTransition
         to={`/plata/${account.id}`}
         className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 transition active:opacity-60"
       >

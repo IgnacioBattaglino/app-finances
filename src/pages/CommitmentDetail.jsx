@@ -388,7 +388,7 @@ function CommitmentDetail() {
                     setError(null)
                     try {
                       await deleteCommitment(plan.id)
-                      navigate('/compromisos')
+                      navigate('/compromisos', { viewTransition: true })
                     } catch (e) {
                       setError({ message: 'No se pudo eliminar el plan.', detail: e })
                       setBusy(false)

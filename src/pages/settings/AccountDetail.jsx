@@ -192,7 +192,7 @@ function AccountDetail() {
         })
       }
       await deleteAccount(account.id)
-      navigate('/plata')
+      navigate('/plata', { viewTransition: true })
     } catch (e) {
       setError({ message: 'No se pudo eliminar la cuenta.', detail: e })
       setBusy(false)

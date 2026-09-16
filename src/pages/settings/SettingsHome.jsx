@@ -2,6 +2,7 @@ import { useAuth } from '../../hooks/useAuth.jsx'
 import { useTheme } from '../../hooks/useTheme.jsx'
 import { useIsAdmin } from '../../hooks/useIsAdmin.js'
 import PageHeader from '../../components/PageHeader.jsx'
+import BackLink from '../../components/BackLink.jsx'
 import {
   SettingsGroup,
   SettingsLinkRow,
@@ -20,6 +21,11 @@ function SettingsHome() {
 
   return (
     <div className="page-narrow">
+      {/* En el celular Ajustes no es una pestaña: se entra desde el engranaje
+          de Inicio y se vuelve ahí. En desktop sigue en la columna lateral. */}
+      <div className="md:hidden">
+        <BackLink to="/">Inicio</BackLink>
+      </div>
       <PageHeader title="Ajustes" />
 
       <div className="space-y-7">
@@ -48,7 +54,7 @@ function SettingsHome() {
         </SettingsGroup>
 
         {/* Marca de versión para confirmar a ojo si un deploy se aplicó */}
-        <p className="px-1 text-footnote text-ink-faint">versión {APP_VERSION}</p>
+        <p className="px-1 text-footnote text-ink-soft">versión {APP_VERSION}</p>
       </div>
     </div>
   )

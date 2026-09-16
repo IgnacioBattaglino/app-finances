@@ -9,25 +9,7 @@ import {
 import { getGroupColor } from '../lib/theme.js'
 import Gain from './Gain.jsx'
 import SourceTag from './SourceTag.jsx'
-
-// El mismo chevron que usan las filas de Ajustes que entran a otra pantalla:
-// es la marca de "esto lleva a algún lado" que ya tiene la app.
-function Chevron() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4 shrink-0 text-ink-faint"
-      aria-hidden="true"
-    >
-      <path d="m9 5 7 7-7 7" />
-    </svg>
-  )
-}
+import { ChevronRight } from './Icons.jsx'
 
 // Línea 2 de la fila, según el modo de valuación del activo (ver
 // FUNCTIONAL.md — Portafolio): la única línea que cambia de forma entre
@@ -59,7 +41,7 @@ export function AssetRow({ asset, valuation, contributions }) {
   const neutral = asset.yields === false || asset.valuation_mode === 'contributed'
 
   return (
-    <Link
+    <Link viewTransition
       to={`/inversiones/${asset.id}`}
       className="block px-4 py-3.5 text-left pressable"
     >
@@ -129,7 +111,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
           Y es un link al detalle del grupo, la MISMA pantalla que se abre
           desde la lista de grupos: ahí se le cambia el nombre, el color y el
           resto. Dos pantallas para lo mismo se desincronizan; una sola, no. */}
-      <Link
+      <Link viewTransition
         to={`/inversiones/grupos/${assetType.id}`}
         state={{ from: 'inversiones' }}
         className={`block px-4 py-3 transition active:opacity-90 ${color ? 'group-tint' : 'bg-mist'}`}
@@ -137,7 +119,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
         <div className="flex items-baseline justify-between gap-3">
           <span className="flex items-center gap-1.5 text-subhead font-semibold">
             {assetType.name}
-            <Chevron />
+            <ChevronRight />
             {outOfTotal && (
               <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-medium tracking-wide text-ink-soft uppercase">
                 fuera del total

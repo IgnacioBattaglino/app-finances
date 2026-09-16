@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import BackLink from '../BackLink.jsx'
 import PageHeader from '../PageHeader.jsx'
 
 // Envoltorio de toda subpantalla de Ajustes: link de vuelta arriba (modelo
@@ -21,42 +21,11 @@ function SettingsPage({
   onBack,
   children,
 }) {
-  const backContent = (
-    <>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-4 w-4"
-        aria-hidden="true"
-      >
-        <path d="m15 5-7 7 7 7" />
-      </svg>
-      {backLabel}
-    </>
-  )
-
   return (
     <div className="page-narrow">
-      {onBack ? (
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-3 -ml-1 inline-flex items-center gap-0.5 text-body text-accent-ink"
-        >
-          {backContent}
-        </button>
-      ) : (
-        <Link
-          to={backTo}
-          className="mb-3 -ml-1 inline-flex items-center gap-0.5 text-body text-accent-ink"
-        >
-          {backContent}
-        </Link>
-      )}
+      <BackLink to={backTo} onClick={onBack}>
+        {backLabel}
+      </BackLink>
       <PageHeader title={title} description={description} />
       <div className="space-y-7">{children}</div>
     </div>

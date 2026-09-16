@@ -25,40 +25,7 @@ import {
   SettingsSwitchRow,
 } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
-
-function Arrow({ direction }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-      aria-hidden="true"
-    >
-      {direction === 'up' ? <path d="M12 19V5m0 0-6 6m6-6 6 6" /> : <path d="M12 5v14m0 0 6-6m-6 6-6-6" />}
-    </svg>
-  )
-}
-
-function Check() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5 text-ink"
-      aria-hidden="true"
-    >
-      <path d="m5 12.5 5 5 9-11" />
-    </svg>
-  )
-}
+import { ArrowDown, ArrowUp, Check } from '../../components/Icons.jsx'
 
 // El color del grupo, con la misma forma que el selector de color de la app
 // (Ajustes › Apariencia): círculos grandes, el elegido con un aro y un tilde.
@@ -97,7 +64,7 @@ function ColorChoice({ value, onChange, disabled }) {
                   : undefined
               }
             >
-              {selected && <Check />}
+              {selected && <Check className="h-5 w-5 text-ink" />}
             </span>
             <span className={`text-footnote ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}>
               {option.name}
@@ -242,7 +209,7 @@ function AssetTypeDetail() {
       // El grupo ya no existe: no hay a dónde "volver" en el historial, así
       // que se navega al lugar que corresponde según el origen (mismo
       // criterio que el botón de atrás de arriba).
-      navigate(fromPortfolio ? '/inversiones' : '/inversiones/grupos')
+      navigate(fromPortfolio ? '/inversiones' : '/inversiones/grupos', { viewTransition: true })
     } catch (e) {
       setError({ message, detail: e })
       setBusy(false)
@@ -345,7 +312,7 @@ function AssetTypeDetail() {
                 aria-label="Subir un lugar"
                 className="rounded-lg p-1.5 text-accent-ink transition active:bg-mist disabled:opacity-25"
               >
-                <Arrow direction="up" />
+                <ArrowUp />
               </button>
               <button
                 type="button"
@@ -354,7 +321,7 @@ function AssetTypeDetail() {
                 aria-label="Bajar un lugar"
                 className="rounded-lg p-1.5 text-accent-ink transition active:bg-mist disabled:opacity-25"
               >
-                <Arrow direction="down" />
+                <ArrowDown />
               </button>
             </div>
           </div>

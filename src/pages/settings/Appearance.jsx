@@ -2,23 +2,7 @@ import { useTheme } from '../../hooks/useTheme.jsx'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
 import BinaryChoice from '../../components/form/BinaryChoice.jsx'
-
-function Check() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5 text-white"
-      aria-hidden="true"
-    >
-      <path d="m5 12.5 5 5 9-11" />
-    </svg>
-  )
-}
+import { Check } from '../../components/Icons.jsx'
 
 // Cómo se ve la app. No hay vista previa aparte: elegir aplica en el acto y la
 // pantalla entera (el fondo, el link de volver, el tilde, la barra de
@@ -62,7 +46,7 @@ function Appearance() {
                   }`}
                   style={{ backgroundColor: option.fill }}
                 >
-                  {selected && <Check />}
+                  {selected && <Check className="h-5 w-5 text-white" />}
                 </span>
                 <span
                   className={`text-footnote ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}
