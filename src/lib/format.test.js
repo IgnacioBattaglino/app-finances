@@ -33,8 +33,14 @@ describe('splitMoney', () => {
     })
   })
 
-  it('un solo decimal se conserva tal cual (no se rellena con ceros)', () => {
-    expect(splitMoney(formatARS(1234567.8)).decimals).toBe(',8')
+  it('los centavos van siempre de a dos, salvo en un monto entero', () => {
+    expect(splitMoney(formatARS(1234567.8)).decimals).toBe(',80')
+    expect(formatUSD(340.9)).toBe('US$\u00a0340,90')
+    expect(formatARS(400)).toBe('$\u00a0400')
+  })
+
+  it('un negativo usa el menos tipográfico, no el guion', () => {
+    expect(formatARS(-50005.14)).toBe('−$\u00a050.005,14')
   })
 
   it('un monto negativo saca el signo del símbolo y lo normaliza a −', () => {
@@ -42,7 +48,7 @@ describe('splitMoney', () => {
       sign: '−',
       symbol: 'US$',
       integer: '430',
-      decimals: ',2',
+      decimals: ',20',
     })
   })
 
