@@ -26,6 +26,7 @@ import {
 } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 import { ArrowDown, ArrowUp, Check } from '../../components/Icons.jsx'
+import ConfirmAction from '../../components/form/ConfirmAction.jsx'
 
 // El color del grupo, con la misma forma que el selector de color de la app
 // (Ajustes › Apariencia): círculos grandes, el elegido con un aro y un tilde.
@@ -96,7 +97,6 @@ function AssetTypeDetail() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [confirm, setConfirm] = useState(null)
   const [error, setError] = useState(null)
 
   // Esta pantalla se entra desde dos lugares: la lista de Inversiones →
@@ -371,71 +371,26 @@ function AssetTypeDetail() {
         </SettingsGroup>
       ) : action === 'archive' ? (
         <SettingsGroup footer="Archivar lo saca de Inversiones y de la lista al elegir grupo. Sus activos archivados quedan como están, y podés restaurarlo cuando quieras.">
-          {confirm === 'archive' ? (
-            <div className="row text-subhead">
-              <span>¿Archivar «{assetType.name}»?</span>
-              <div className="flex shrink-0 items-center gap-4 text-subhead">
-                <button
-                  type="button"
-                  onClick={() => setConfirm(null)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={() => leaveAfter(() => archiveAssetType(assetType.id), 'No se pudo archivar el grupo.')}
-                  disabled={busy}
-                  className="font-semibold text-accent-ink disabled:opacity-50"
-                >
-                  Sí, archivar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <SettingsButtonRow
-              onClick={() => setConfirm('archive')}
-              label="Archivar grupo"
-              tone="neutral"
-              disabled={busy}
-            />
-          )}
+          <ConfirmAction
+            variant="row"
+            tone="neutral"
+            label="Archivar grupo"
+            question={`¿Archivar «${assetType.name}»?`}
+            confirmLabel="Sí, archivar"
+            busy={busy}
+            onConfirm={() => leaveAfter(() => archiveAssetType(assetType.id), 'No se pudo archivar el grupo.')}
+          />
         </SettingsGroup>
       ) : (
         <SettingsGroup footer="El grupo no tiene ningún activo, así que se puede eliminar del todo.">
-          {confirm === 'delete' ? (
-            <div className="space-y-2 px-4 py-3">
-              <p className="text-subhead text-clay">
-                ¿Eliminar «{assetType.name}»? Es permanente.
-              </p>
-              <div className="flex items-center justify-end gap-4 text-subhead">
-                <button
-                  type="button"
-                  onClick={() => setConfirm(null)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={() => leaveAfter(() => deleteAssetType(assetType.id), 'No se pudo eliminar el grupo.')}
-                  disabled={busy}
-                  className="font-semibold text-clay disabled:opacity-50"
-                >
-                  Sí, eliminar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <SettingsButtonRow
-              onClick={() => setConfirm('delete')}
-              label="Eliminar grupo"
-              tone="danger"
-              disabled={busy}
-            />
-          )}
+          <ConfirmAction
+            variant="row"
+            label="Eliminar grupo"
+            question={`¿Eliminar «${assetType.name}»?`}
+            detail="Es permanente."
+            busy={busy}
+            onConfirm={() => leaveAfter(() => deleteAssetType(assetType.id), 'No se pudo eliminar el grupo.')}
+          />
         </SettingsGroup>
       )}
     </SettingsPage>

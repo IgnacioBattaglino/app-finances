@@ -215,18 +215,10 @@ function LiquidModal({ open, onClose, onSaved }) {
     <FormSheet
       title="Contar mi plata"
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="liquid-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
     >
-      <form id="liquid-form" onSubmit={handleSubmit} className="space-y-3">
         {state === null ? (
           <p className="surface px-4 py-3 text-subhead text-ink-soft">
             Calculando cuánto tenés según la app…
@@ -296,7 +288,6 @@ function LiquidModal({ open, onClose, onSaved }) {
         )}
 
         <FormError message={error?.message} detail={error?.detail} />
-      </form>
     </FormSheet>
   )
 }

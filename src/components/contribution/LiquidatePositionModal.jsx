@@ -133,18 +133,12 @@ function LiquidatePositionModal({
     <FormSheet
       title={`Liquidar ${asset.name}`}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="liquidate-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Liquidando…' : 'Liquidar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
+      submitLabel="Liquidar"
+      busyLabel="Liquidando…"
     >
-      <form id="liquidate-form" onSubmit={handleSubmit} className="space-y-3">
           <div className="list">
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
@@ -258,7 +252,6 @@ function LiquidatePositionModal({
           )}
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />
-      </form>
     </FormSheet>
   )
 }

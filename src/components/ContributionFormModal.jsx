@@ -22,6 +22,8 @@ import QuantityAmountField from './contribution/QuantityAmountField.jsx'
 import ExchangeRateField from './contribution/ExchangeRateField.jsx'
 import AccountField from './form/AccountField.jsx'
 import { OUTSIDE_ENTRY_HELP, OUTSIDE_EXIT_HELP } from './contribution/copy.js'
+import ConfirmAction from './form/ConfirmAction.jsx'
+import { showToast } from './Toast.jsx'
 
 // Copy espejo: aporte y retiro son la misma forma, solo cambia cómo se lee.
 const COPY = {
@@ -79,11 +81,9 @@ function ContributionFormModal({
   const [date, setDate] = useState(todayISO())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   // Nombre del otro activo de la transferencia (para el mensaje de borrado);
   // null mientras carga o si no se pudo resolver.
   const [transferSibling, setTransferSibling] = useState(null)
-  const [confirmDeleteTransfer, setConfirmDeleteTransfer] = useState(false)
   // Abre "Contar mi plata" ENCIMA de este formulario, sin cerrarlo — mismo
   // criterio que TransactionFormModal: navegar perdería un aporte/retiro a
   // medio cargar.
@@ -112,10 +112,8 @@ function ContributionFormModal({
     // nada deja la fila idéntica. Creando, la cuenta por defecto ya elegida.
     setAccountId(initial ? (initial.account_id ?? null) : defaultAccountId)
     setError(null)
-    setConfirmDelete(false)
     setBusy(false)
     setTransferSibling(null)
-    setConfirmDeleteTransfer(false)
     setReconcileOpen(false)
   }, [open, initial, asset, defaultAccountId])
 
@@ -230,42 +228,13 @@ function ContributionFormModal({
 
           <FormError message={error?.message} detail={error?.detail} />
 
-          {confirmDeleteTransfer ? (
-            <div className="flex items-center justify-between notice text-subhead">
-              <span className="text-clay">
-                ¿Eliminar esta transferencia? Se borran las dos partes
-                {transferSibling ? `: esta operación y la de «${transferSibling}»` : ''}. Es
-                permanente.
-              </span>
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteTransfer(false)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteTransfer}
-                  disabled={busy}
-                  className="font-semibold text-clay disabled:opacity-50"
-                >
-                  Sí, eliminar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteTransfer(true)}
-              disabled={busy}
-              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
-            >
-              Eliminar transferencia
-            </button>
-          )}
+          <ConfirmAction
+            label="Eliminar transferencia"
+            question="¿Eliminar esta transferencia?"
+            detail={`Se borran las dos partes${transferSibling ? `: esta operación y la de «${transferSibling}»` : ''}. Es permanente.`}
+            busy={busy}
+            onConfirm={handleDeleteTransfer}
+          />
         </div>
       </FormSheet>
       {reconcileModal}
@@ -385,6 +354,9 @@ function ContributionFormModal({
           ? await updateContribution(initial.id, fields)
           : await createContribution(fields)
       }
+      if (!editing) {
+        showToast(`${operation === 'withdrawal' ? 'Retiro' : 'Aporte'} guardado · ${formatUSD(roundedAmount)}`)
+      }
       onSaved(saved)
     } catch (e) {
       setError({ message: `No se pudo guardar el ${copy.entity}.`, detail: e })
@@ -412,18 +384,10 @@ function ContributionFormModal({
       // aporte" de abajo. Mismo patrón que el resto de la app: "Nuevo/Editar".
       title={editing ? `Editar ${copy.entity}` : copy.title(asset.name)}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="contribution-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
     >
-      <form id="contribution-form" onSubmit={handleSubmit} className="space-y-3">
           <div className="list">
             {editing && (
               <>
@@ -531,47 +495,19 @@ function ContributionFormModal({
           )}
           {/* Mismo aviso arriba (mientras se edita) y dentro de la
               confirmación de borrado — nunca los dos a la vez. */}
-          {!confirmDelete && retroNotice}
+          {retroNotice}
           <FormError message={error?.message ?? holdingsMessage} detail={error?.detail} />
           <MissingHint missing={missing} />
 
-          {editing &&
-            (confirmDelete ? (
-              <div className="space-y-2">
-                {retroNotice}
-                <div className="flex items-center justify-between notice text-subhead">
-                  <span className="text-clay">¿Eliminar este {copy.entity}? Es permanente.</span>
-                  <div className="flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDelete(false)}
-                      disabled={busy}
-                      className="text-ink-soft"
-                    >
-                      No
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={busy}
-                      className="font-semibold text-clay disabled:opacity-50"
-                    >
-                      Sí, eliminar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-                disabled={busy}
-                className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
-              >
-                Eliminar {copy.entity}
-              </button>
-            ))}
-      </form>
+          {editing && (
+            <ConfirmAction
+              label={`Eliminar ${copy.entity}`}
+              question={`¿Eliminar este ${copy.entity}?`}
+              detail="Es permanente."
+              busy={busy}
+              onConfirm={handleDelete}
+            />
+          )}
     </FormSheet>
     {reconcileModal}
     </>

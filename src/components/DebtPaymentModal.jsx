@@ -11,6 +11,7 @@ import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
 import ExchangeRateField from './contribution/ExchangeRateField.jsx'
 import AccountField from './form/AccountField.jsx'
+import ConfirmAction from './form/ConfirmAction.jsx'
 
 // De dónde sale la plata del pago. Mismo mecanismo y mismas palabras que
 // Aportar: mapea directo a affects_liquid (migración 0023).
@@ -51,7 +52,6 @@ function DebtPaymentModal({
   const [date, setDate] = useState(todayISO())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   // Abre "Contar mi plata" ENCIMA de este formulario, sin cerrarlo — mismo
   // criterio que TransactionFormModal: navegar perdería un pago a medio
   // cargar.
@@ -75,7 +75,6 @@ function DebtPaymentModal({
     setAccountId(initial ? (initial.account_id ?? null) : defaultAccountId)
     setDate(initial?.date ?? todayISO())
     setError(null)
-    setConfirmDelete(false)
     setBusy(false)
     setReconcileOpen(false)
   }, [open, initial, defaultAccountId])
@@ -161,18 +160,10 @@ function DebtPaymentModal({
     <FormSheet
       title={editing ? 'Editar pago' : `Pagar a ${debt.creditor}`}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="debt-payment-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
     >
-      <form id="debt-payment-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           {editing && (
             <label className="row">
@@ -244,47 +235,19 @@ function DebtPaymentModal({
 
         {/* Mismo aviso arriba (mientras se edita) y dentro de la
             confirmación de borrado — nunca los dos a la vez. */}
-        {!confirmDelete && retroNotice}
+        {retroNotice}
         <FormError message={error?.message} detail={error?.detail} />
         <MissingHint missing={missing} />
 
-        {editing &&
-          (confirmDelete ? (
-            <div className="space-y-2">
-              {retroNotice}
-              <div className="flex items-center justify-between notice text-subhead">
-                <span className="text-clay">¿Eliminar este pago? Es permanente.</span>
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDelete(false)}
-                    disabled={busy}
-                    className="text-ink-soft"
-                  >
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={busy}
-                    className="font-semibold text-clay disabled:opacity-50"
-                  >
-                    Sí, eliminar
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              disabled={busy}
-              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
-            >
-              Eliminar pago
-            </button>
-          ))}
-      </form>
+        {editing && (
+          <ConfirmAction
+            label="Eliminar pago"
+            question="¿Eliminar este pago?"
+            detail="Es permanente."
+            busy={busy}
+            onConfirm={handleDelete}
+          />
+        )}
     </FormSheet>
     <LiquidModal
       open={reconcileOpen}

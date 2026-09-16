@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createAccountTransfer } from '../../lib/accountTransfers.js'
 import { createTransaction } from '../../lib/transactions.js'
 import { getSystemCategory } from '../../lib/categories.js'
-import { todayISO } from '../../lib/format.js'
+import { formatByCurrency, todayISO } from '../../lib/format.js'
 import { round } from '../../lib/money.js'
 import FormSheet from '../FormSheet.jsx'
 import BinaryChoice from '../form/BinaryChoice.jsx'
@@ -12,6 +12,7 @@ import MissingHint from '../form/MissingHint.jsx'
 import AccountField from '../form/AccountField.jsx'
 import ExchangeRateField from '../contribution/ExchangeRateField.jsx'
 import { OUTSIDE_ENTRY_HELP, OUTSIDE_EXIT_HELP } from '../contribution/copy.js'
+import { showToast } from '../Toast.jsx'
 
 // Aportar/Retirar de una cuenta de ahorro: mismo patrón de "¿de dónde sale? /
 // ¿a dónde va?" que ContributionFormModal para un activo, pero para una
@@ -149,6 +150,8 @@ function SavingsMovementModal({
           toAmount: dailyAmount,
         })
       }
+      const moved = origin === 'outside' ? outsideAmount : savingsAmount
+      showToast(`${operation === 'contribution' ? 'Aporte' : 'Retiro'} guardado · ${formatByCurrency(account.currency, moved)}`)
       onSaved()
     } catch (e) {
       setError({ message: `No se pudo guardar el ${copy.entity}.`, detail: e })
@@ -162,18 +165,10 @@ function SavingsMovementModal({
     <FormSheet
       title={copy.title(account.name)}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="savings-movement-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
     >
-      <form id="savings-movement-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           <div className="px-4 py-3">
             <p className="mb-2 text-subhead">{copy.originLabel}</p>
@@ -248,7 +243,6 @@ function SavingsMovementModal({
 
         <FormError message={error?.message} detail={error?.detail} />
         <MissingHint missing={missing} />
-      </form>
     </FormSheet>
   )
 }

@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
-import RingsMark from './RingsMark.jsx'
+import AppLoading from './AppLoading.jsx'
 
 function ProtectedRoute() {
   const { user, loading } = useAuth()
@@ -8,10 +8,7 @@ function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-paper">
-        <RingsMark className="h-8 w-8 animate-pulse text-accent-ink" />
-        <span className="sr-only">Cargando</span>
-      </div>
+      <AppLoading />
     )
   }
 

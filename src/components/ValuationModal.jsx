@@ -77,23 +77,15 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
       title="Actualizar valuación"
       subtitle={subtitle}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="valuation-form"
-          disabled={filled.length === 0 || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={filled.length > 0}
+      busy={busy}
     >
       <p className="mb-3 px-1 text-footnote text-ink-soft">
         ¿Cuánto vale hoy en total, en dólares? No es el precio de una unidad. Los que dejes
         vacíos no se tocan.
       </p>
 
-      <form id="valuation-form" onSubmit={handleSubmit} className="space-y-3">
           <div className="list">
             <CollapsedDateField value={date} onChange={setDate} />
             {assets.map((asset) => {
@@ -139,7 +131,6 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
           </div>
 
           <FormError message={error?.message} detail={error?.detail} />
-      </form>
     </FormSheet>
   )
 }

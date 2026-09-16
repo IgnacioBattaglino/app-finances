@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { validateInvite, registerWithInvite } from '../lib/invitations.js'
 import RingsMark from '../components/RingsMark.jsx'
 import FormError from '../components/form/FormError.jsx'
+import AppLoading from '../components/AppLoading.jsx'
 
 // El mínimo lo pone Supabase (6 caracteres) — se repite acá solo para avisar
 // antes de mandar el pedido, mismo criterio que ResetPassword.
@@ -70,10 +71,7 @@ function Register() {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-paper">
-        <RingsMark className="h-8 w-8 animate-pulse text-accent-ink" />
-        <span className="sr-only">Cargando</span>
-      </div>
+      <AppLoading />
     )
   }
 

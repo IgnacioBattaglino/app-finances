@@ -26,6 +26,7 @@ import BinaryChoice from '../../components/form/BinaryChoice.jsx'
 import SavingsMovementModal from '../../components/account/SavingsMovementModal.jsx'
 import AccountHistory from '../../components/account/AccountHistory.jsx'
 import TransactionFormModal from '../../components/TransactionFormModal.jsx'
+import ConfirmAction from '../../components/form/ConfirmAction.jsx'
 
 const PAGE_SIZE = 20
 
@@ -58,7 +59,6 @@ function AccountDetail() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [movement, setMovement] = useState(null) // 'contribution' | 'withdrawal' | null
   const [history, setHistory] = useState([]) // página visible del historial
   const [hasMoreHistory, setHasMoreHistory] = useState(false)
@@ -196,7 +196,6 @@ function AccountDetail() {
     } catch (e) {
       setError({ message: 'No se pudo eliminar la cuenta.', detail: e })
       setBusy(false)
-      setConfirmingDelete(false)
     }
   }
 
@@ -313,52 +312,22 @@ function AccountDetail() {
       </SettingsGroup>
 
       <SettingsGroup>
-        {confirmingDelete ? (
-          <div className="space-y-1.5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3 text-subhead">
-              <span className="min-w-0 truncate">¿Eliminar «{account.name}»?</span>
-              <div className="flex shrink-0 items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDelete(false)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={busy}
-                  className="font-semibold text-clay disabled:opacity-50"
-                >
-                  {hasBalance ? 'Sí, vaciar y eliminar' : 'Sí, eliminar'}
-                </button>
-              </div>
-            </div>
-            {/* Con saldo, decir en plata concreta qué va a pasar: no es un
-                gasto, es un ajuste — la misma distinción que hace "Contar mi
-                plata" — y recién con eso en $0 se intenta borrar de verdad. */}
-            {hasBalance ? (
-              <p className="text-footnote text-ink-soft">
-                Tiene {formatByCurrency(account.currency, balance.amount)}. Antes de eliminarla, ese
-                saldo se registra como un ajuste de saldo (no como un gasto) para dejarla en cero, y
-                recién ahí se elimina.
-              </p>
-            ) : (
-              <p className="text-footnote text-ink-soft">
-                Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.
-              </p>
-            )}
-          </div>
-        ) : (
-          <SettingsButtonRow
-            onClick={() => setConfirmingDelete(true)}
-            label="Eliminar cuenta"
-            tone="danger"
-            disabled={busy}
-          />
-        )}
+        {/* Con saldo, se dice en plata concreta qué va a pasar: no es un
+            gasto, es un ajuste — la misma distinción que hace "Contar mi
+            plata" — y recién con eso en $0 se intenta borrar de verdad. */}
+        <ConfirmAction
+          variant="row"
+          label="Eliminar cuenta"
+          question={`¿Eliminar «${account.name}»?`}
+          detail={
+            hasBalance
+              ? `Tiene ${formatByCurrency(account.currency, balance.amount)}. Antes de eliminarla, ese saldo se registra como un ajuste de saldo (no como un gasto) para dejarla en cero, y recién ahí se elimina.`
+              : 'Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.'
+          }
+          confirmLabel={hasBalance ? 'Sí, vaciar y eliminar' : 'Sí, eliminar'}
+          busy={busy}
+          onConfirm={handleDelete}
+        />
       </SettingsGroup>
 
       <SavingsMovementModal

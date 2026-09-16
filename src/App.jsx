@@ -10,6 +10,7 @@ import {
   useParams,
 } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth.jsx'
+import AppLoading from './components/AppLoading.jsx'
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import Login from './pages/Login.jsx'
@@ -66,7 +67,7 @@ function Root() {
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route element={<Root />} hydrateFallbackElement={null}>
+    <Route element={<Root />} hydrateFallbackElement={<AppLoading />}>
       <Route path="/nueva-contrasena" lazy={page(() => import('./pages/ResetPassword.jsx'))} />
       <Route path="/login" element={<Login />} />
       <Route path="/registro" lazy={page(() => import('./pages/Register.jsx'))} />

@@ -95,18 +95,11 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
       title="Confirmar el pago"
       subtitle={occurrenceTitle(occurrence)}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="confirm-charge-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Confirmar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
+      submitLabel="Confirmar"
     >
-      <form id="confirm-charge-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           <label className="row">
             <span className="text-body">Monto</span>
@@ -150,7 +143,6 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
 
         <MissingHint missing={missing} />
         <FormError {...(error ?? {})} />
-      </form>
     </FormSheet>
   )
 }

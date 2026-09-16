@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
 import RingsMark from '../components/RingsMark.jsx'
 import FormError from '../components/form/FormError.jsx'
+import AppLoading from '../components/AppLoading.jsx'
 
 function Login() {
   const { user, loading, signIn } = useAuth()
@@ -14,9 +15,7 @@ function Login() {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-paper">
-        <RingsMark className="h-8 w-8 animate-pulse text-accent-ink" />
-      </div>
+      <AppLoading />
     )
   }
 

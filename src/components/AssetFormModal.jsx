@@ -6,6 +6,7 @@ import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
 import Switch from './form/Switch.jsx'
 import InstrumentPicker from './asset/InstrumentPicker.jsx'
+import ConfirmAction from './form/ConfirmAction.jsx'
 
 const VALUATION_MODES = [
   ['manual', 'Valuación manual', 'Vos cargás cada tanto cuánto vale en total.'],
@@ -40,7 +41,6 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   const [yieldsFlag, setYieldsFlag] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [confirmArchive, setConfirmArchive] = useState(false)
 
   // "+ Nuevo grupo" embebido: el resto de la gestión (renombrar, archivar,
   // restaurar, eliminar) vive en Ajustes.
@@ -69,7 +69,6 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
     setInstrument(initial?.instrument ?? null)
     setYieldsFlag(initial ? initial.yields !== false : true)
     setError(null)
-    setConfirmArchive(false)
     setBusy(false)
     setCreatingBolsa(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,18 +156,10 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
     <FormSheet
       title={editing ? 'Editar activo' : 'Nuevo activo'}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="asset-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
     >
-      <form id="asset-form" onSubmit={handleSubmit} className="space-y-3">
           <div className="list">
             <label className="row">
               <span className="text-body">Nombre</span>
@@ -264,45 +255,17 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />
 
-          {editing &&
-            (confirmArchive ? (
-              <div className="space-y-2 rounded-[16px] bg-mist px-4 py-3 text-subhead">
-                <div className="flex items-center justify-between">
-                  <span>¿Archivar este activo?</span>
-                  <div className="flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmArchive(false)}
-                      disabled={busy}
-                      className="text-ink-soft"
-                    >
-                      No
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleArchive}
-                      disabled={busy}
-                      className="font-semibold text-accent-ink disabled:opacity-50"
-                    >
-                      Sí, archivar
-                    </button>
-                  </div>
-                </div>
-                <p className="text-footnote text-ink-soft">
-                  Podés restaurarlo después desde «Archivados», al final de Inversiones.
-                </p>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmArchive(true)}
-                disabled={busy}
-                className="w-full surface px-4 py-3.5 text-body font-medium transition active:bg-mist"
-              >
-                Archivar activo
-              </button>
-            ))}
-      </form>
+          {editing && (
+            <ConfirmAction
+              label="Archivar activo"
+              question="¿Archivar este activo?"
+              detail="Podés restaurarlo después desde «Archivados», al final de Inversiones."
+              confirmLabel="Sí, archivar"
+              tone="neutral"
+              busy={busy}
+              onConfirm={handleArchive}
+            />
+          )}
     </FormSheet>
   )
 }

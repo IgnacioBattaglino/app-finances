@@ -5,9 +5,9 @@ import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
   SettingsGroup,
   SettingsValueRow,
-  SettingsButtonRow,
 } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
+import ConfirmAction from '../../components/form/ConfirmAction.jsx'
 
 function CategoryDetail() {
   const { categoryId } = useParams()
@@ -17,7 +17,6 @@ function CategoryDetail() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -63,7 +62,6 @@ function CategoryDetail() {
     } catch (e) {
       setError({ message: 'No se pudo eliminar la categoría.', detail: e })
       setBusy(false)
-      setConfirmingDelete(false)
     }
   }
 
@@ -131,42 +129,14 @@ function CategoryDetail() {
               borrar. deleteCategory ya decide sola si borra de verdad o
               oculta, según si algún movimiento la usa. */}
           <SettingsGroup>
-            {confirmingDelete ? (
-              <div className="space-y-1.5 px-4 py-3">
-                <div className="flex items-center justify-between gap-3 text-subhead">
-                  <span className="min-w-0 truncate">¿Eliminar «{category.name}»?</span>
-                  <div className="flex shrink-0 items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingDelete(false)}
-                      disabled={busy}
-                      className="text-ink-soft"
-                    >
-                      No
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={busy}
-                      className="font-semibold text-clay disabled:opacity-50"
-                    >
-                      Sí, eliminar
-                    </button>
-                  </div>
-                </div>
-                <p className="text-footnote text-ink-soft">
-                  Si ningún movimiento la usa, se elimina para siempre. Si tiene movimientos,
-                  dejará de ofrecerse en vez de eliminarse.
-                </p>
-              </div>
-            ) : (
-              <SettingsButtonRow
-                onClick={() => setConfirmingDelete(true)}
-                label="Eliminar categoría"
-                tone="danger"
-                disabled={busy}
-              />
-            )}
+            <ConfirmAction
+              variant="row"
+              label="Eliminar categoría"
+              question={`¿Eliminar «${category.name}»?`}
+              detail="Si ningún movimiento la usa, se elimina para siempre. Si tiene movimientos, dejará de ofrecerse en vez de eliminarse."
+              busy={busy}
+              onConfirm={handleDelete}
+            />
           </SettingsGroup>
         </>
       )}

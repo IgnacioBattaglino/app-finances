@@ -33,6 +33,7 @@ import {
   planTotal,
 } from '../lib/commitmentSchedule.js'
 import { formatByCurrency, formatDayYear, todayISO } from '../lib/format.js'
+import ConfirmAction from '../components/form/ConfirmAction.jsx'
 
 // Detalle de un plan: primero cuánto falta, después la lista de vencimientos
 // uno por uno, y al pie las dos acciones que lo apagan.
@@ -135,8 +136,6 @@ function CommitmentDetail() {
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
   const [adjusting, setAdjusting] = useState(null)
-  const [confirmingFinish, setConfirmingFinish] = useState(false)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -307,50 +306,22 @@ function CommitmentDetail() {
             tone="neutral"
             disabled={busy}
           />
-        ) : confirmingFinish ? (
-          <div className="space-y-1.5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3 text-subhead">
-              <span className="min-w-0 truncate">¿Terminar «{plan.name}»?</span>
-              <div className="flex shrink-0 items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setConfirmingFinish(false)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    run(async () => {
-                      await finishCommitment(plan.id, today)
-                      setConfirmingFinish(false)
-                    }, 'No se pudo terminar el plan.')
-                  }
-                  disabled={busy}
-                  className="font-semibold text-accent-ink disabled:opacity-50"
-                >
-                  Sí, terminarlo
-                </button>
-              </div>
-            </div>
-            <p className="text-footnote text-ink-soft">
-              Deja de generar vencimientos a partir de hoy. Los{' '}
-              {confirmedCount === 1 ? 'que ya confirmaste queda' : `${confirmedCount} que ya confirmaste quedan`}{' '}
-              como gastos tuyos y no se tocan.
-              {openCount > 0
-                ? ` Los ${openCount} que vencieron y no confirmaste siguen pendientes: si no los vas a pagar, marcá "No lo pagué" en cada uno.`
-                : ''}{' '}
-              El plan baja a «Terminados», con su historial entero, y se puede volver a activar.
-            </p>
-          </div>
         ) : (
-          <SettingsButtonRow
-            onClick={() => setConfirmingFinish(true)}
-            label={plan.kind === 'subscription' ? 'Dar de baja' : 'Terminar este plan'}
+          <ConfirmAction
+            variant="row"
             tone="neutral"
-            disabled={busy}
+            label={plan.kind === 'subscription' ? 'Dar de baja' : 'Terminar este plan'}
+            question={`¿Terminar «${plan.name}»?`}
+            detail={`Deja de generar vencimientos a partir de hoy. ${
+              confirmedCount === 1 ? 'El que ya confirmaste queda' : `Los ${confirmedCount} que ya confirmaste quedan`
+            } como gastos tuyos y no se tocan.${
+              openCount > 0
+                ? ` Los ${openCount} que vencieron y no confirmaste siguen pendientes: si no los vas a pagar, marcá "No lo pagué" en cada uno.`
+                : ''
+            } El plan baja a «Terminados», con su historial entero, y se puede volver a activar.`}
+            confirmLabel="Sí, terminarlo"
+            busy={busy}
+            onConfirm={() => run(() => finishCommitment(plan.id, today), 'No se pudo terminar el plan.')}
           />
         )}
       </SettingsGroup>
@@ -368,47 +339,24 @@ function CommitmentDetail() {
       >
         {confirmedCount > 0 ? (
           <SettingsButtonRow label="Eliminar este plan" tone="danger" disabled onClick={() => {}} />
-        ) : confirmingDelete ? (
-          <div className="space-y-1.5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3 text-subhead">
-              <span className="min-w-0 truncate">¿Eliminar «{plan.name}»?</span>
-              <div className="flex shrink-0 items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDelete(false)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setBusy(true)
-                    setError(null)
-                    try {
-                      await deleteCommitment(plan.id)
-                      navigate('/compromisos', { viewTransition: true })
-                    } catch (e) {
-                      setError({ message: 'No se pudo eliminar el plan.', detail: e })
-                      setBusy(false)
-                    }
-                  }}
-                  disabled={busy}
-                  className="font-semibold text-clay disabled:opacity-50"
-                >
-                  Sí, eliminar
-                </button>
-              </div>
-            </div>
-            <p className="text-footnote text-ink-soft">Es permanente: el plan y sus fechas se borran.</p>
-          </div>
         ) : (
-          <SettingsButtonRow
-            onClick={() => setConfirmingDelete(true)}
+          <ConfirmAction
+            variant="row"
             label="Eliminar este plan"
-            tone="danger"
-            disabled={busy}
+            question={`¿Eliminar «${plan.name}»?`}
+            detail="Es permanente: el plan y sus fechas se borran."
+            busy={busy}
+            onConfirm={async () => {
+              setBusy(true)
+              setError(null)
+              try {
+                await deleteCommitment(plan.id)
+                navigate('/compromisos', { viewTransition: true })
+              } catch (e) {
+                setError({ message: 'No se pudo eliminar el plan.', detail: e })
+                setBusy(false)
+              }
+            }}
           />
         )}
       </SettingsGroup>

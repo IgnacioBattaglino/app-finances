@@ -99,18 +99,10 @@ function AccountTransferModal({ open, accounts, onClose, onSaved }) {
     <FormSheet
       title="Transferir entre cuentas"
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="account-transfer-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
     >
-      <form id="account-transfer-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           <label className="row">
             <span className="text-body">Desde</span>
@@ -188,7 +180,6 @@ function AccountTransferModal({ open, accounts, onClose, onSaved }) {
 
         <FormError message={error?.message} detail={error?.detail} />
         <MissingHint missing={missing} />
-      </form>
     </FormSheet>
   )
 }

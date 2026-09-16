@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation, useMatches } from 'react-router-dom'
 import RingsMark from './RingsMark.jsx'
+import { Toaster } from './Toast.jsx'
 import { SETTINGS_PATH } from './Icons.jsx'
 
 // Las dos navegaciones de la app son la misma lista con dos formas:
@@ -125,6 +126,8 @@ function Layout() {
           </div>
         </nav>
       </aside>
+
+      <Toaster />
 
       <main className="w-full min-w-0 flex-1">
         {/* El padding inferior del celular deja pasar la barra flotante. */}

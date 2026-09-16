@@ -229,18 +229,10 @@ function CommitmentFormModal({
       title={editing ? 'Editar' : isInstallments ? 'Nueva compra en cuotas' : 'Nueva suscripción'}
       subtitle={editing ? initial.name : card ? card.name : undefined}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="commitment-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
     >
-      <form id="commitment-form" onSubmit={handleSubmit} className="space-y-3">
         {/* Al editar, el tipo no se cambia: una suscripción convertida en
             cuotas sería otro plan, con otros vencimientos, y los que ya se
             confirmaron quedarían colgados. */}
@@ -435,7 +427,6 @@ function CommitmentFormModal({
 
         <MissingHint missing={missing} />
         <FormError {...(error ?? {})} />
-      </form>
     </FormSheet>
   )
 }

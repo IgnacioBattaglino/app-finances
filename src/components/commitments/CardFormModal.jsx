@@ -129,18 +129,10 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
     <FormSheet
       title={editing ? 'Editar la tarjeta' : 'Nueva tarjeta'}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="card-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
     >
-      <form id="card-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           <label className="row">
             <span className="shrink-0 text-body">Nombre</span>
@@ -213,7 +205,6 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
 
         <MissingHint missing={missing} />
         <FormError {...(error ?? {})} />
-      </form>
     </FormSheet>
   )
 }

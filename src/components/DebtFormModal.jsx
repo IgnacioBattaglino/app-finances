@@ -5,6 +5,7 @@ import FormSheet from './FormSheet.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
+import ConfirmAction from './form/ConfirmAction.jsx'
 
 // Alta y edición de una deuda. Los pagos no se tocan acá: se registran desde
 // la deuda ya creada (ver DebtPaymentModal), igual que los aportes nacen del
@@ -15,7 +16,6 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
   const [startDate, setStartDate] = useState(todayISO())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const editing = Boolean(initial?.id)
 
@@ -25,7 +25,6 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
     setAmount(initial ? toDecimalInput(Number(initial.original_amount_usd)) : '')
     setStartDate(initial?.start_date ?? todayISO())
     setError(null)
-    setConfirmDelete(false)
     setBusy(false)
   }, [open, initial])
 
@@ -64,7 +63,6 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
     } catch (e) {
       setError({ message: 'No se pudo eliminar la deuda.', detail: e })
       setBusy(false)
-      setConfirmDelete(false)
     }
   }
 
@@ -72,18 +70,10 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
     <FormSheet
       title={editing ? 'Editar deuda' : 'Nueva deuda'}
       onClose={onClose}
-      action={
-        <button
-          type="submit"
-          form="debt-form"
-          disabled={!valid || busy}
-          className="btn-text text-subhead text-accent-ink"
-        >
-          {busy ? 'Guardando…' : 'Guardar'}
-        </button>
-      }
+      onSubmit={handleSubmit}
+      canSubmit={valid}
+      busy={busy}
     >
-      <form id="debt-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           <label className="row">
             <span className="text-body">¿A quién le debés?</span>
@@ -122,40 +112,15 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
         <FormError message={error?.message} detail={error?.detail} />
         <MissingHint missing={missing} />
 
-        {editing &&
-          (confirmDelete ? (
-            <div className="flex items-center justify-between notice text-subhead">
-              <span className="text-clay">¿Eliminar esta deuda? Es permanente.</span>
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(false)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={busy}
-                  className="font-semibold text-clay disabled:opacity-50"
-                >
-                  Sí, eliminar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              disabled={busy}
-              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
-            >
-              Eliminar deuda
-            </button>
-          ))}
-      </form>
+        {editing && (
+          <ConfirmAction
+            label="Eliminar deuda"
+            question="¿Eliminar esta deuda?"
+            detail="Es permanente."
+            busy={busy}
+            onConfirm={handleDelete}
+          />
+        )}
     </FormSheet>
   )
 }

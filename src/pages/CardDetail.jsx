@@ -14,6 +14,7 @@ import { getCategories } from '../lib/categories.js'
 import { isFinished, planRemaining } from '../lib/commitmentSchedule.js'
 import { formatByCurrency, formatPercent, todayISO } from '../lib/format.js'
 import { ChevronRight } from '../components/Icons.jsx'
+import ConfirmAction from '../components/form/ConfirmAction.jsx'
 
 // Detalle de una tarjeta: lo que te va a llegar en el próximo resumen, las
 // compras que lo componen, y al pie sus datos.
@@ -36,7 +37,6 @@ function CardDetail() {
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
   const [newPurchase, setNewPurchase] = useState(false)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -183,50 +183,24 @@ function CardDetail() {
             : undefined
         }
       >
-        {confirmingDelete ? (
-          <div className="space-y-1.5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3 text-subhead">
-              <span className="min-w-0 truncate">¿Eliminar «{card.name}»?</span>
-              <div className="flex shrink-0 items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDelete(false)}
-                  disabled={busy}
-                  className="text-ink-soft"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setBusy(true)
-                    setError(null)
-                    try {
-                      await deleteCard(card.id)
-                      navigate('/compromisos', { viewTransition: true })
-                    } catch (e) {
-                      setError({ message: 'No se pudo eliminar la tarjeta.', detail: e })
-                      setBusy(false)
-                      setConfirmingDelete(false)
-                    }
-                  }}
-                  disabled={busy}
-                  className="font-semibold text-clay disabled:opacity-50"
-                >
-                  Sí, eliminar
-                </button>
-              </div>
-            </div>
-            <p className="text-footnote text-ink-soft">Es permanente.</p>
-          </div>
-        ) : (
-          <SettingsButtonRow
-            onClick={() => setConfirmingDelete(true)}
-            label="Eliminar la tarjeta"
-            tone="danger"
-            disabled={busy}
-          />
-        )}
+        <ConfirmAction
+          variant="row"
+          label="Eliminar la tarjeta"
+          question={`¿Eliminar «${card.name}»?`}
+          detail="Es permanente."
+          busy={busy}
+          onConfirm={async () => {
+            setBusy(true)
+            setError(null)
+            try {
+              await deleteCard(card.id)
+              navigate('/compromisos', { viewTransition: true })
+            } catch (e) {
+              setError({ message: 'No se pudo eliminar la tarjeta.', detail: e })
+              setBusy(false)
+            }
+          }}
+        />
       </SettingsGroup>
 
       <CardFormModal
