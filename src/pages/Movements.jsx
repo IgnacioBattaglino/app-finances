@@ -38,7 +38,8 @@ import {
   monthRange,
   shift,
 } from '../lib/dateRange.js'
-import { ChevronLeft, ChevronRight, Pencil, Plus } from '../components/Icons.jsx'
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from '../components/Icons.jsx'
+import ListSkeleton from '../components/ListSkeleton.jsx'
 
 const now = new Date()
 
@@ -49,8 +50,12 @@ const now = new Date()
 // dibuja, nunca lo que se cuenta.
 const PAGE = 100
 
-// Las dos filas de la lista comparten caja: son el mismo tipo de renglón, lo
-// que cambia es qué pasa al tocarlas.
+// Las filas de la lista comparten caja: son el mismo tipo de renglón, lo que
+// cambia es qué pasa al tocarlas. La señal va siempre en el mismo lugar, al
+// final de la fila: un chevron si lleva a otra pantalla (una inversión, una
+// cuenta de ahorro); nada si abre el movimiento acá mismo, que es lo que
+// espera cualquier lista de iOS. Antes el lápiz y el chevron iban pegados al
+// título, en un lugar distinto según el largo del texto.
 const ROW_CLASS =
   'flex w-full items-center justify-between gap-3 px-4 py-3 text-left pressable'
 
@@ -70,7 +75,6 @@ function TransactionRow({ tx, onEdit }) {
             {tx.category?.name ?? 'Sin categoría'}
             {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
           </span>
-          <Pencil />
         </p>
         <p className="mt-0.5 truncate text-footnote text-ink-soft">
           {formatDay(tx.date)}
@@ -134,13 +138,13 @@ export function InvestmentRow({ contribution: c }) {
             {contributionLabel(c)}
             <span className="text-ink-soft"> · {c.asset?.name ?? 'Activo'}</span>
           </span>
-          <span className="shrink-0 text-ink-faint">
-            <ChevronRight className="h-4 w-4" />
-          </span>
         </p>
         <p className="mt-0.5 text-footnote text-ink-soft">{formatDay(c.date)}</p>
       </div>
-      {amount}
+      <span className="flex shrink-0 items-center gap-1.5">
+        {amount}
+        <ChevronRight />
+      </span>
     </Link>
   )
 }
@@ -168,18 +172,18 @@ function SavingsRow({ tx }) {
             {tx.category?.name ?? 'Sin categoría'}
             {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
           </span>
-          <span className="shrink-0 text-ink-faint">
-            <ChevronRight className="h-4 w-4" />
-          </span>
         </p>
         <p className="mt-0.5 truncate text-footnote text-ink-soft">
           {formatDay(tx.date)}
           {tx.account?.name && ` · ${tx.account.name}`}
         </p>
       </div>
-      <span className="font-money shrink-0 text-body font-medium">
-        {tx.kind === 'expense' ? '−' : '+'}
-        {formatByCurrency(transactionCurrencyOf(tx), tx.amount)}
+      <span className="flex shrink-0 items-center gap-1.5">
+        <span className="font-money text-body font-medium">
+          {tx.kind === 'expense' ? '−' : '+'}
+          {formatByCurrency(transactionCurrencyOf(tx), tx.amount)}
+        </span>
+        <ChevronRight />
       </span>
     </Link>
   )
@@ -243,12 +247,14 @@ function TransferRow({ transfer, onOpen }) {
 // Con gastos en una sola moneda —el caso normal— la columna tiene una línea
 // sola y la fila es idéntica a la de siempre.
 function TotalRow({ label, lines, labelClass = 'text-subhead text-ink-soft', amountClass = '' }) {
+  // El color del significado solo con plata: un $ 0 en rojo se lee como alarma.
+  const tone = lines.some((line) => line.amount !== 0) ? amountClass : ''
   return (
     <div className="flex items-baseline justify-between gap-3 px-4 py-3">
       <span className={labelClass}>{label}</span>
       <span className="shrink-0 text-right">
         {lines.map((line) => (
-          <span key={line.currency} className={`font-money block text-body font-semibold ${amountClass}`}>
+          <span key={line.currency} className={`font-money block text-body font-semibold ${tone}`}>
             {formatByCurrency(line.currency, line.amount)}
           </span>
         ))}
@@ -452,12 +458,11 @@ function Movements() {
               nombre ocupa la fila entera; los huecos las reemplazan para que
               el título no se corra de lugar al cambiar de modo.
 
-              El nombre va RELLENO con el acento, como un chip elegido: un
-              texto que solo se tiñe al pasarle el mouse no se ve tocable en un
-              teléfono, donde no hay hover. Es el mismo tratamiento que el chip
-              activo de FilterChips —relleno de acento con blanco encima, que
-              es para lo que existe ese token— así que los dos controles de
-              esta columna se leen con la misma gramática. */}
+              El nombre va en la pastilla gris con flecha hacia abajo
+              (`.value-button`): la forma que usa toda la app para "tocá para
+              cambiar este valor", la misma de la fecha y del tipo de cambio.
+              Antes era un relleno de acento que competía con el chip activo
+              de los filtros de abajo por ser lo más fuerte de la columna. */}
           <div className="surface flex items-center justify-between px-2 py-1.5">
             {canShift(range) ? (
               <button
@@ -474,9 +479,11 @@ function Movements() {
             <button
               type="button"
               onClick={() => setRangeOpen(true)}
-              className="min-w-0 truncate rounded-full bg-accent px-3.5 py-1.5 text-body font-semibold text-white transition active:bg-accent-deep md:hover:bg-accent-deep"
+              aria-haspopup="dialog"
+              className="value-button min-w-0 font-semibold"
             >
-              {rangeLabel(range)}
+              <span className="truncate">{rangeLabel(range)}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-ink-soft" />
             </button>
             {canShift(range) ? (
               <button
@@ -504,7 +511,7 @@ function Movements() {
                   tampoco, porque es una resta y su signo ya lo dice.
                   "Ahorrado" va pegado a "Invertido" porque se miden igual:
                   plata que salió del disponible y no se gastó. */}
-              <div className="surface divide-y divide-line">
+              <div className="list">
                 <TotalRow label="Gastos" lines={expenses} amountClass="text-clay" />
                 <TotalRow label="Ingresos" lines={incomes} amountClass="text-gain" />
                 <TotalRow label="Invertido" lines={invested} />
@@ -519,7 +526,7 @@ function Movements() {
                   una, porque ahí sí hace falta. */}
               {categoryBreakdown.length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="eyebrow px-1">Gastos por categoría:</h2>
+                  <h2 className="eyebrow px-1">Gastos por categoría</h2>
                   {categoryBreakdown.map((group) => (
                     <div key={group.currency}>
                       {categoryBreakdown.length > 1 && (
@@ -583,7 +590,7 @@ function Movements() {
           </div>
 
           {loading ? (
-            <p className="px-1 text-subhead text-ink-soft">Cargando…</p>
+            <ListSkeleton />
           ) : items.length === 0 && !error ? (
             <p className="surface px-4 py-10 text-center text-subhead text-ink-soft">
               {hasExtraFilters
@@ -641,7 +648,7 @@ function Movements() {
         type="button"
         onClick={() => setModalOpen(true)}
         aria-label="Nuevo movimiento"
-        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 flex h-15 w-15 items-center justify-center rounded-full bg-accent text-white shadow-[0_8px_24px_rgb(16_18_24/0.22)] transition active:scale-95 active:bg-accent-deep md:hidden"
+        className="fab"
       >
         <Plus />
       </button>

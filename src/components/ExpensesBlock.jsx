@@ -25,6 +25,18 @@ import { currencyLines } from '../lib/currencyTotals.js'
 // Los colores del gráfico salen de las variables CSS del tema, igual que en
 // la curva del portafolio (ver lib/chartColors.js).
 
+// El encabezado va FUERA de la tarjeta y a la misma altura que el de la curva
+// del portafolio (`min-h-11`, el alto de su segmentado): en desktop los dos
+// bloques van lado a lado y las tarjetas tienen que arrancar alineadas.
+function Section({ children }) {
+  return (
+    <section>
+      <h2 className="eyebrow flex min-h-11 items-center">Gastos del mes</h2>
+      <div className="mt-3">{children}</div>
+    </section>
+  )
+}
+
 function BarTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
   const point = payload[0].payload
@@ -116,26 +128,30 @@ function ExpensesBlock({ reloadToken = 0 }) {
 
   if (loading) {
     return (
-      <div className="surface flex h-[140px] items-center justify-center text-subhead text-ink-soft">
-        Calculando…
-      </div>
+      <Section>
+        <div className="surface h-[140px] animate-pulse" aria-busy="true" aria-label="Calculando" />
+      </Section>
     )
   }
 
   if (error) {
     return (
-      <ErrorNotice error={error} onRetry={load} />
+      <Section>
+        <ErrorNotice error={error} onRetry={load} />
+      </Section>
     )
   }
 
   if (expenses.length === 0) {
     return (
-      <div className="surface px-5 py-8 text-center">
-        <p className="text-subhead text-ink-soft">
-          Todavía no cargaste ningún gasto. Cuando registres el primero, acá vas a ver en qué se te va
-          la plata.
-        </p>
-      </div>
+      <Section>
+        <div className="surface px-5 py-8 text-center">
+          <p className="text-subhead text-ink-soft">
+            Todavía no cargaste ningún gasto. Cuando registres el primero, acá vas a ver en qué se te va
+            la plata.
+          </p>
+        </div>
+      </Section>
     )
   }
 
@@ -154,9 +170,10 @@ function ExpensesBlock({ reloadToken = 0 }) {
   const breakdown = groupByCategory(currentMonthExpenses)
 
   return (
+    <Section>
     <div className="surface px-5 py-4">
-      <span className="eyebrow">Gastos del mes</span>
-      <MoneyStack lines={totalLines} className="mt-2 text-clay" />
+      {/* Rojo solo si hubo gastos: un $ 0 en rojo se lee como una alarma. */}
+      <MoneyStack lines={totalLines} className={currentMonthExpenses.length > 0 ? 'text-clay' : ''} />
       {pct !== null && (
         <p className="mt-2 text-footnote text-ink-soft">
           {formatPercent(Math.abs(pct), 0)} {pct >= 0 ? 'más' : 'menos'} que en{' '}
@@ -177,7 +194,7 @@ function ExpensesBlock({ reloadToken = 0 }) {
         breakdown.map((group) => (
           <div key={group.currency} className="mt-4 space-y-2.5 border-t border-line pt-3.5">
             {breakdown.length > 1 && (
-              <p className="text-footnote text-ink-faint">
+              <p className="text-footnote text-ink-soft">
                 {group.currency === 'ARS' ? 'En pesos' : 'En dólares'}
               </p>
             )}
@@ -191,7 +208,7 @@ function ExpensesBlock({ reloadToken = 0 }) {
                 </div>
                 <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-clay/15">
                   <div
-                    className="h-full rounded-full bg-clay"
+                    className="animate-grow-x h-full origin-left rounded-full bg-clay"
                     style={{ width: `${(cat.total / group.categories[0].total) * 100}%` }}
                   />
                 </div>
@@ -250,6 +267,7 @@ function ExpensesBlock({ reloadToken = 0 }) {
         </div>
       )}
     </div>
+    </Section>
   )
 }
 

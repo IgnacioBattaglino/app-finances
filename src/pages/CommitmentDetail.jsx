@@ -34,6 +34,7 @@ import {
 } from '../lib/commitmentSchedule.js'
 import { formatByCurrency, formatDayYear, todayISO } from '../lib/format.js'
 import ConfirmAction from '../components/form/ConfirmAction.jsx'
+import ListSkeleton from '../components/ListSkeleton.jsx'
 
 // Detalle de un plan: primero cuánto falta, después la lista de vencimientos
 // uno por uno, y al pie las dos acciones que lo apagan.
@@ -177,7 +178,7 @@ function CommitmentDetail() {
   if (loading) {
     return (
       <SettingsPage title="Plan" backTo="/compromisos" backLabel="Compromisos">
-        <p className="px-1 text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       </SettingsPage>
     )
   }

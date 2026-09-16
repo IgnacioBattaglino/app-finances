@@ -15,6 +15,7 @@ import {
 } from '../lib/debts.js'
 import { formatUSD, formatDayYear, formatPercent } from '../lib/format.js'
 import { Pencil } from '../components/Icons.jsx'
+import ListSkeleton from '../components/ListSkeleton.jsx'
 
 // Barra de avance del pago. Es la única señal visual propia de esta pantalla:
 // la parte accent es lo ya pagado. Verde y no clay a propósito — pagar una deuda
@@ -191,7 +192,7 @@ function Debts() {
       />
 
       {loading ? (
-        <p className="text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       ) : error ? (
         <ErrorNotice error={error} onRetry={load} />
       ) : debts.length === 0 ? (

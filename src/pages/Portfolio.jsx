@@ -18,6 +18,41 @@ import {
 import { readStoredPortfolioSortId, storePortfolioSortId } from '../lib/portfolioSort.js'
 import { getArchivedAssets, restoreAsset } from '../lib/assets.js'
 import { formatUSD } from '../lib/format.js'
+import ListSkeleton from '../components/ListSkeleton.jsx'
+import { ChevronDown, ChevronRight } from '../components/Icons.jsx'
+
+// Gestión de grupos a la izquierda, orden a la derecha (ver el render).
+function ListToolbar({ sortId, onSortChange }) {
+  return (
+    <div className="flex min-h-11 items-center justify-between gap-3 px-1">
+      <Link
+        viewTransition
+        to="/inversiones/grupos"
+        className="btn-text inline-flex items-center gap-0.5 text-subhead text-accent-ink"
+      >
+        Grupos
+        <ChevronRight className="h-4 w-4 shrink-0" />
+      </Link>
+      {sortId && (
+        <label className="flex min-w-0 items-center gap-1.5 text-subhead">
+          <span className="shrink-0 text-ink-soft">Ordenar por</span>
+          <select
+            value={sortId}
+            onChange={(e) => onSortChange(e.target.value)}
+            className="min-w-0 appearance-none truncate bg-transparent font-semibold text-accent-ink outline-none"
+          >
+            {PORTFOLIO_SORTS.map((sort) => (
+              <option key={sort.id} value={sort.id}>
+                {sort.name}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="-ml-0.5 h-4 w-4 shrink-0 text-accent-ink" />
+        </label>
+      )}
+    </div>
+  )
+}
 
 function Portfolio() {
   // La carga y el cálculo viven en usePortfolio: Inicio necesita el mismo
@@ -146,22 +181,13 @@ function Portfolio() {
         }
       />
 
-      {/* Gestión de grupos (crear, renombrar, archivar): antes vivía en
-          Ajustes, ahora que un grupo es cosa de Inversiones necesita su
-          propio punto de entrada acá — el encabezado de cada grupo ya
-          linkea a su detalle, pero no a la lista completa. Siempre visible,
-          incluso sin activos todavía: los grupos existen aparte de ellos. */}
-      <div className="mb-4 flex justify-end">
-        <Link viewTransition to="/inversiones/grupos" className="eyebrow transition hover:text-ink">
-          Grupos de activos
-        </Link>
-      </div>
-
       {loading ? (
-        <p className="text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       ) : error ? (
         <ErrorNotice error={error} onRetry={load} />
       ) : assets.length === 0 ? (
+        <div className="space-y-3">
+        <ListToolbar sortId={null} />
         <div className="surface px-6 py-10 text-center">
           <p className="text-body font-semibold">Todavía no tenés activos</p>
           <p className="mx-auto mt-1.5 max-w-xs text-subhead text-ink-soft">
@@ -174,6 +200,7 @@ function Portfolio() {
           >
             Nuevo activo
           </button>
+        </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -243,28 +270,14 @@ function Portfolio() {
             </p>
           )}
 
-          {/* Selector de orden. Aparece recién con dos entradas: ordenar una
-              sola tarjeta no ordena nada. Un select nativo y no un segmentado:
-              cinco opciones no entran en el ancho de un teléfono. */}
-          {entries.length > 1 && (
-            <div className="flex items-center justify-end gap-2 px-1">
-              <label htmlFor="portfolio-sort" className="eyebrow">
-                Ordenar por
-              </label>
-              <select
-                id="portfolio-sort"
-                value={sortId}
-                onChange={(e) => handleSortChange(e.target.value)}
-                className="bg-transparent text-subhead font-medium text-accent-ink outline-none"
-              >
-                {PORTFOLIO_SORTS.map((sort) => (
-                  <option key={sort.id} value={sort.id}>
-                    {sort.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* LA FILA DE HERRAMIENTAS DE LA LISTA: las dos cosas que organizan
+              lo que viene abajo, juntas. A la izquierda la gestión de grupos
+              (antes una etiqueta gris flotando arriba a la derecha, que se
+              leía como un título y no como un link); a la derecha el orden,
+              que aparece recién con dos entradas — ordenar una sola tarjeta
+              no ordena nada. Un select nativo y no un segmentado: cinco
+              opciones no entran en el ancho de un teléfono. */}
+          <ListToolbar sortId={entries.length > 1 ? sortId : null} onSortChange={handleSortChange} />
 
           {/* Grupos y activos sueltos, al mismo nivel. En desktop entran de a
               dos: son bloques independientes, no una secuencia que haya que

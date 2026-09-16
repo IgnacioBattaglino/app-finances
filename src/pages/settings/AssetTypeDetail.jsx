@@ -27,6 +27,7 @@ import {
 import FormError from '../../components/form/FormError.jsx'
 import { ArrowDown, ArrowUp, Check } from '../../components/Icons.jsx'
 import ConfirmAction from '../../components/form/ConfirmAction.jsx'
+import ListSkeleton from '../../components/ListSkeleton.jsx'
 
 // El color del grupo, con la misma forma que el selector de color de la app
 // (Ajustes › Apariencia): círculos grandes, el elegido con un aro y un tilde.
@@ -219,7 +220,7 @@ function AssetTypeDetail() {
   if (loading) {
     return (
       <SettingsPage title="Grupo" {...backProps}>
-        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       </SettingsPage>
     )
   }

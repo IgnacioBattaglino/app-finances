@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { formatUSD, formatDay, formatQuantity } from '../lib/format.js'
+import { formatUSD, formatQuantity } from '../lib/format.js'
 import {
   computePortfolioGain,
   heldQuantity,
@@ -23,9 +23,10 @@ function secondLine(asset, valuation, own) {
       unitPrice !== null ? formatUSD(unitPrice) : '—'
     }`
   }
-  if (asset.valuation_mode === 'manual') {
-    return `Valuación manual · ${valuation.date ? formatDay(valuation.date) : 'sin valuar'}`
-  }
+  // Manual y "vale lo aportado": la fecha de la valuación ya la dice la línea
+  // de abajo (SourceTag, "Valuado 30 jun"); repetirla acá era la misma
+  // información dos veces. Lo que falta para leer el rendimiento es cuánto se
+  // puso.
   return `${formatUSD(valuation.contributed)} aportado`
 }
 
@@ -41,7 +42,8 @@ export function AssetRow({ asset, valuation, contributions }) {
   const neutral = asset.yields === false || asset.valuation_mode === 'contributed'
 
   return (
-    <Link viewTransition
+    <Link
+      viewTransition
       to={`/inversiones/${asset.id}`}
       className="block px-4 py-3.5 text-left pressable"
     >

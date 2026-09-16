@@ -6,7 +6,8 @@ import Money from '../components/Money.jsx'
 import MoneyStack from '../components/MoneyStack.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import FormSheet from '../components/FormSheet.jsx'
-import FormError from '../components/form/FormError.jsx'
+import { ErrorNotice } from '../components/form/FormError.jsx'
+import ListSkeleton from '../components/ListSkeleton.jsx'
 import InfoButton from '../components/InfoButton.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
 import {
@@ -35,11 +36,7 @@ const PortfolioEvolutionChart = lazy(() => loadCharts().then((m) => ({ default: 
 const ExpensesBlock = lazy(() => loadCharts().then((m) => ({ default: m.ExpensesBlock })))
 
 function ChartPlaceholder({ className = 'h-[380px]' }) {
-  return (
-    <div className={`surface flex items-center justify-center text-subhead text-ink-soft ${className}`}>
-      Calculando…
-    </div>
-  )
+  return <div className={`surface animate-pulse ${className}`} aria-busy="true" aria-label="Calculando" />
 }
 
 // Las tres tarjetas comparten componente a propósito: "Dinero disponible",
@@ -91,13 +88,9 @@ function SummaryCard({
 
   if (error) {
     return (
-      <div className={`notice space-y-2 ${className}`}>
+      <ErrorNotice error={error} onRetry={onRetry} className={className}>
         {heading}
-        <FormError message={error.message} detail={error.detail} />
-        <button type="button" onClick={onRetry} className="text-subhead font-semibold text-clay underline">
-          Reintentar
-        </button>
-      </div>
+      </ErrorNotice>
     )
   }
 
@@ -159,23 +152,20 @@ function SummaryCard({
 function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onToggle }) {
   if (error) {
     return (
-      <div className="notice mt-3 space-y-2">
+      <ErrorNotice error={error} onRetry={onRetry} className="mt-3">
         <span className="eyebrow">Total</span>
-        <FormError message={error.message} detail={error.detail} />
-        <button type="button" onClick={onRetry} className="text-subhead font-semibold text-clay underline">
-          Reintentar
-        </button>
-      </div>
+      </ErrorNotice>
     )
   }
 
   return (
-    <div className="surface mt-3 px-5 py-3">
+    <div className="surface mt-3 px-5 py-1">
       <button
         type="button"
         onClick={onToggle}
         disabled={loading}
-        className="flex w-full items-center justify-between gap-3 text-left"
+        aria-expanded={open}
+        className="flex min-h-11 w-full items-center justify-between gap-3 text-left"
       >
         <span className="eyebrow">Total</span>
         <span className="flex items-center gap-2">
@@ -187,18 +177,29 @@ function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onTo
           {!loading && <ChevronDown open={open} />}
         </span>
       </button>
-      {open && breakdown && breakdown.length > 0 && (
-        <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
-          {breakdown.map((row) => (
-            <li key={row.currency} className="flex items-baseline justify-between gap-3 text-footnote">
-              <span className="text-ink-soft">{row.currency === 'ARS' ? 'En pesos' : 'En dólares'}</span>
-              <span className="font-money text-ink">
-                {row.currency === 'ARS' ? formatARS(row.amount) : formatUSD(row.amount)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* El detalle se abre deslizando: una grilla de una fila que pasa de 0fr
+          a 1fr anima la altura real del contenido, sin medirlo con JS. */}
+      <div
+        className={`grid transition-[grid-template-rows] duration-[var(--duration-base)] ease-[var(--ease-ios)] ${
+          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+        inert={!open}
+      >
+        <div className="overflow-hidden">
+          {breakdown && breakdown.length > 0 && (
+            <ul className="mt-1 mb-2 space-y-1.5 border-t border-line pt-3">
+              {breakdown.map((row) => (
+                <li key={row.currency} className="flex items-baseline justify-between gap-3 text-footnote">
+                  <span className="text-ink-soft">{row.currency === 'ARS' ? 'En pesos' : 'En dólares'}</span>
+                  <span className="font-money text-ink">
+                    {row.currency === 'ARS' ? formatARS(row.amount) : formatUSD(row.amount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -570,7 +571,7 @@ function Dashboard() {
         type="button"
         onClick={openExpenseModal}
         aria-label="Nuevo gasto"
-        className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 flex h-15 w-15 items-center justify-center rounded-full bg-accent text-white shadow-[0_8px_24px_rgb(16_18_24/0.22)] transition active:scale-95 active:bg-accent-deep md:hidden"
+        className="fab"
       >
         <Plus />
       </button>
@@ -582,18 +583,9 @@ function Dashboard() {
       {expenseModalOpen && categories === null ? (
         <FormSheet title="Nuevo gasto" onClose={() => setExpenseModalOpen(false)}>
           {categoriesError ? (
-            <div className="space-y-2">
-              <FormError message={categoriesError.message} detail={categoriesError.detail} />
-              <button
-                type="button"
-                onClick={loadCategories}
-                className="text-subhead font-semibold text-clay underline"
-              >
-                Reintentar
-              </button>
-            </div>
+            <ErrorNotice error={categoriesError} onRetry={loadCategories} />
           ) : (
-            <p className="text-subhead text-ink-soft">Cargando…</p>
+            <ListSkeleton rows={4} />
           )}
         </FormSheet>
       ) : (

@@ -4,13 +4,14 @@ import { getAccounts, reorderAccounts } from '../../lib/liquidAccounts.js'
 import { getAccountBalances } from '../../lib/liquid.js'
 import { formatByCurrency } from '../../lib/format.js'
 import PageHeader from '../../components/PageHeader.jsx'
-import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
+import { SettingsGroup, SettingsCreateRow } from '../../components/settings/SettingsList.jsx'
+import ListSkeleton from '../../components/ListSkeleton.jsx'
 import { ErrorNotice } from '../../components/form/FormError.jsx'
 import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
 import { ReorderableRows } from '../../components/settings/ReorderableRows.jsx'
 import LiquidModal from '../../components/LiquidModal.jsx'
 import AccountTransferModal from '../../components/account/AccountTransferModal.jsx'
-import { Grip } from '../../components/Icons.jsx'
+import { ChevronRight, Grip } from '../../components/Icons.jsx'
 
 // Alta al pie de la lista, escondida hasta que se la pide: mismo patrón que
 // "Nueva categoría". `extended` le agrega moneda y tipo — acá, y solo acá, se
@@ -20,13 +21,7 @@ function NewAccountRow({ onCreated }) {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full px-4 py-3 text-left text-body font-medium text-accent-ink transition active:bg-mist"
-      >
-        Nueva cuenta
-      </button>
+      <SettingsCreateRow label="Nueva cuenta" onClick={() => setOpen(true)} />
     )
   }
 
@@ -62,11 +57,14 @@ function AccountRow({ account, dragHandlers }) {
       </button>
       <Link viewTransition
         to={`/plata/${account.id}`}
-        className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 transition active:opacity-60"
+        className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 py-3 pr-2 transition-opacity active:opacity-60"
       >
         <span className="min-w-0 truncate text-body">{account.name}</span>
-        <span className="font-money shrink-0 text-subhead text-ink-soft">
-          {formatByCurrency(account.currency, account.amount)}
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span className="font-money text-subhead text-ink-soft">
+            {formatByCurrency(account.currency, account.amount)}
+          </span>
+          <ChevronRight />
         </span>
       </Link>
     </div>
@@ -131,27 +129,34 @@ function Accounts() {
     <div className="page-narrow">
       <PageHeader
         title="Mi plata"
-        description="Dónde está la plata que contás como disponible: efectivo, billeteras, cuentas del banco."
+        description="Dónde está tu plata: efectivo, billeteras, cuentas del banco."
       />
 
       <div className="space-y-7">
-        {error && (
-          <ErrorNotice error={error} onRetry={load} />
-        )}
+        <ErrorNotice error={error} onRetry={load} />
+
+        {/* Las dos operaciones sobre las cuentas, juntas y arriba: la fila de
+            acciones rápidas de cualquier app de banco. Antes eran dos tarjetas
+            con un párrafo cada una, y las cuentas —lo que se viene a mirar—
+            quedaban recién en el tercer bloque. Qué hace cada una lo explica
+            su propio formulario al abrirse. */}
+        <div className="grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setReconcileOpen(true)} className="btn btn-secondary">
+            Contar mi plata
+          </button>
+          <button type="button" onClick={() => setTransferOpen(true)} className="btn btn-secondary">
+            Transferir
+          </button>
+        </div>
 
         {loading ? (
-          <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
+          <ListSkeleton rows={3} />
         ) : (
           <>
-            <SettingsGroup footer="Compará lo que la app calculó con lo que tenés de verdad, cuenta por cuenta.">
-              <SettingsButtonRow label="Contar mi plata" onClick={() => setReconcileOpen(true)} />
-            </SettingsGroup>
-
-            <SettingsGroup footer="Mové plata de una cuenta a otra, sin cargar un gasto y un ingreso por separado.">
-              <SettingsButtonRow label="Transferir entre cuentas" onClick={() => setTransferOpen(true)} />
-            </SettingsGroup>
-
-            <SettingsGroup footer="La primera de la lista es la que viene elegida al cargar un movimiento — arrastrá con la manija para cambiar el orden. Tu dinero disponible total no depende de cómo las repartas.">
+            <SettingsGroup
+              title="Disponible"
+              footer="La primera es la que viene elegida al cargar un movimiento. Arrastrá la manija para cambiar el orden."
+            >
               <ReorderableRows items={dailyAccounts} onCommit={commitOrder}>
                 {(account, dragHandlers) => (
                   <AccountRow account={account} dragHandlers={dragHandlers} />
@@ -169,6 +174,8 @@ function Accounts() {
               </SettingsGroup>
             )}
 
+            {/* Crear una cuenta es raro: va al final, donde va a aparecer la
+                cuenta nueva, y no en el botón "+" de las acciones frecuentes. */}
             <SettingsGroup>
               <NewAccountRow onCreated={(created) => setAccounts((prev) => [...prev, { ...created, amount: 0 }])} />
             </SettingsGroup>

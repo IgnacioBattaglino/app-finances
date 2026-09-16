@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getAssetTypes, getArchivedAssetTypes } from '../../lib/assetTypes.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
-import { SettingsGroup, SettingsLinkRow } from '../../components/settings/SettingsList.jsx'
+import { SettingsGroup, SettingsLinkRow, SettingsCreateRow } from '../../components/settings/SettingsList.jsx'
 import CreateAssetTypeForm from '../../components/CreateAssetTypeForm.jsx'
 import { ErrorNotice } from '../../components/form/FormError.jsx'
+import ListSkeleton from '../../components/ListSkeleton.jsx'
 
 // El alta arranca colapsada en una fila: con el form siempre desplegado (como
 // estaba), la lista de grupos terminaba en un bloque de campos que competía
@@ -13,13 +14,7 @@ function NewAssetTypeRow({ onCreated }) {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full px-4 py-3 text-left text-body font-medium text-accent-ink transition active:bg-mist"
-      >
-        Nuevo grupo
-      </button>
+      <SettingsCreateRow label="Nuevo grupo" onClick={() => setOpen(true)} />
     )
   }
 
@@ -78,7 +73,7 @@ function AssetTypes() {
       )}
 
       {loading ? (
-        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       ) : (
         <>
           <SettingsGroup footer="El orden es el mismo que ves en Inversiones.">

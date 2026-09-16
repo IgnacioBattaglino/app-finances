@@ -159,19 +159,21 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
   }
 
   return (
-    <div>
-      <span className="eyebrow">Evolución del portafolio</span>
-
-      {/* El selector de rango no se estira a lo ancho en desktop: son tres
-          opciones cortas y un segmentado de 700px se lee como una barra de
-          navegación, no como un control. Uno solo controla los dos gráficos. */}
-      <div className="mt-3 md:max-w-xs">
-        <BinaryChoice options={RANGE_OPTIONS} value={range} onChange={setRange} />
+    <section>
+      {/* Título y rango en la misma fila: el segmentado es del título (uno
+          solo controla los dos gráficos) y no se estira a lo ancho — tres
+          opciones cortas a 700px se leen como una barra de navegación. */}
+      <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 className="eyebrow">Evolución del portafolio</h2>
+        <div className="w-full sm:w-64">
+          <BinaryChoice options={RANGE_OPTIONS} value={range} onChange={setRange} />
+        </div>
       </div>
 
       {loading ? (
-        <div className="mt-3 flex h-[200px] items-center justify-center text-subhead text-ink-soft">
-          Calculando…
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" aria-busy="true" aria-label="Calculando">
+          <div className="surface h-[300px] animate-pulse" />
+          <div className="surface h-[300px] animate-pulse" />
         </div>
       ) : (
         // grid-cols-1 en la base es obligatorio, no decorativo: sin ella esta
@@ -216,7 +218,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
                   <button
                     type="button"
                     onClick={() => navigate('/inversiones', { viewTransition: true })}
-                    className="font-semibold underline"
+                    className="btn-text text-accent-ink"
                   >
                     Actualizar valuación
                   </button>
@@ -259,7 +261,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
           />
         </div>
       )}
-    </div>
+    </section>
   )
 }
 

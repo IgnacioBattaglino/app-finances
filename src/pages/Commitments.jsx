@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import MoneyStack from '../components/MoneyStack.jsx'
 import FormError from '../components/form/FormError.jsx'
-import { SettingsGroup, SettingsLinkRow } from '../components/settings/SettingsList.jsx'
+import { SettingsGroup, SettingsLinkRow, SettingsCreateRow } from '../components/settings/SettingsList.jsx'
 import CommitmentReminder from '../components/commitments/CommitmentReminder.jsx'
 import CommitmentFormModal from '../components/commitments/CommitmentFormModal.jsx'
 import CardFormModal from '../components/commitments/CardFormModal.jsx'
@@ -96,18 +96,6 @@ function PlanRow({ plan, chargesByPlan, today }) {
   )
 }
 
-function NewRow({ label, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full px-4 py-3 text-left text-body font-medium text-accent-ink pressable"
-    >
-      {label}
-    </button>
-  )
-}
-
 function Commitments() {
   const today = todayISO()
   const { plans, chargesByPlan, loading, error, reload } = useCommitments()
@@ -162,9 +150,14 @@ function Commitments() {
 
         <CommittedCard lines={committed} />
 
+        {/* Las notas al pie dicen qué ganás cargando algo, y solo mientras
+            no hay nada: con la lista llena, explicar el concepto es ruido. */}
         <SettingsGroup
           title="Tarjetas"
-          footer="Las compras de una misma tarjeta vencen todas el mismo día, como el resumen."
+          footer={
+            cards.length === 0 &&
+            'Cargá tus compras en cuotas en su tarjeta: vencen todas juntas, el día del resumen.'
+          }
         >
           {cards.map((card) => {
             const ofCard = active.filter((p) => p.card_id === card.id)
@@ -205,7 +198,7 @@ function Commitments() {
               </Link>
             )
           })}
-          <NewRow label="Nueva tarjeta" onClick={() => setCardModal(true)} />
+          <SettingsCreateRow label="Nueva tarjeta" onClick={() => setCardModal(true)} />
         </SettingsGroup>
 
         {/* Una compra en cuotas sin tarjeta es legítima (un plan del comercio,
@@ -221,12 +214,15 @@ function Commitments() {
 
         <SettingsGroup
           title="Suscripciones"
-          footer="No tienen final ni total: no le debés nada a Netflix el año que viene."
+          footer={
+            subscriptions.length === 0 &&
+            'Lo que pagás todos los meses sin fecha de fin, como el celular o el gimnasio.'
+          }
         >
           {subscriptions.map((plan) => (
             <PlanRow key={plan.id} plan={plan} chargesByPlan={chargesByPlan} today={today} />
           ))}
-          <NewRow
+          <SettingsCreateRow
             label="Nueva suscripción"
             onClick={() => setPlanModal({ kind: 'subscription', cardId: null })}
           />

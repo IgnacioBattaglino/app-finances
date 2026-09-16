@@ -601,6 +601,18 @@
   }
 }
 
+/* Una barra de proporción que crece desde cero al aparecer: el largo es el
+   dato, y verlo crecer es lo que lo hace comparable con las de al lado. */
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.animate-grow-x {
+  animation: grow-x var(--duration-slow) var(--ease-ios) both;
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;

@@ -12,6 +12,7 @@ import { formatDayShortYear } from '../../lib/format.js'
 import PageHeader from '../../components/PageHeader.jsx'
 import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
+import ListSkeleton from '../../components/ListSkeleton.jsx'
 
 const STATUS_LABEL = {
   valid: 'Vigente',
@@ -164,7 +165,7 @@ function Invitations() {
         </SettingsGroup>
 
         {loading ? (
-          <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
+          <ListSkeleton />
         ) : invitations.length === 0 ? (
           <p className="px-4 text-subhead text-ink-soft">Todavía no generaste ninguna invitación.</p>
         ) : (

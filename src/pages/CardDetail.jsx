@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import SettingsPage from '../components/settings/SettingsPage.jsx'
-import { SettingsGroup, SettingsButtonRow } from '../components/settings/SettingsList.jsx'
+import { SettingsGroup, SettingsButtonRow, SettingsCreateRow } from '../components/settings/SettingsList.jsx'
 import MoneyStack from '../components/MoneyStack.jsx'
 import FormError from '../components/form/FormError.jsx'
 import CardFormModal from '../components/commitments/CardFormModal.jsx'
@@ -15,6 +15,7 @@ import { isFinished, planRemaining } from '../lib/commitmentSchedule.js'
 import { formatByCurrency, formatPercent, todayISO } from '../lib/format.js'
 import { ChevronRight } from '../components/Icons.jsx'
 import ConfirmAction from '../components/form/ConfirmAction.jsx'
+import ListSkeleton from '../components/ListSkeleton.jsx'
 
 // Detalle de una tarjeta: lo que te va a llegar en el próximo resumen, las
 // compras que lo componen, y al pie sus datos.
@@ -66,7 +67,7 @@ function CardDetail() {
   if (loading) {
     return (
       <SettingsPage title="Tarjeta" backTo="/compromisos" backLabel="Compromisos">
-        <p className="px-1 text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       </SettingsPage>
     )
   }
@@ -154,7 +155,7 @@ function CardDetail() {
             </Link>
           )
         })}
-        <SettingsButtonRow label="Nueva compra en cuotas" onClick={() => setNewPurchase(true)} />
+        <SettingsCreateRow label="Nueva compra en cuotas" onClick={() => setNewPurchase(true)} />
       </SettingsGroup>
 
       {done.length > 0 && (

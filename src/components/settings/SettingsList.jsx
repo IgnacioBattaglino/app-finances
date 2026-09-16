@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import Switch from '../form/Switch.jsx'
-import { ChevronRight } from '../Icons.jsx'
+import { ChevronRight, Plus } from '../Icons.jsx'
 
 // Piezas de la lista agrupada de Ajustes (modelo iOS): la pantalla raíz lista
 // categorías de ajustes y cada una entra a sus opciones específicas, en vez
@@ -87,5 +87,21 @@ export function SettingsSwitchRow({ label, checked, onChange, disabled = false }
       <span className="text-body">{label}</span>
       <Switch checked={checked} onChange={onChange} disabled={disabled} label={label} />
     </div>
+  )
+}
+
+// Crear algo nuevo al pie de la lista donde va a aparecer. Una sola forma para
+// todas las altas (cuenta, categoría, grupo, tarjeta, suscripción, compra): el
+// "+" y el acento dicen "agrega" antes de leer la etiqueta.
+export function SettingsCreateRow({ label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="row w-full justify-start gap-2 text-left text-body font-medium text-accent-ink pressable"
+    >
+      <Plus className="h-5 w-5 shrink-0" />
+      {label}
+    </button>
   )
 }

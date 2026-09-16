@@ -8,6 +8,7 @@ import {
 } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 import ConfirmAction from '../../components/form/ConfirmAction.jsx'
+import ListSkeleton from '../../components/ListSkeleton.jsx'
 
 function CategoryDetail() {
   const { categoryId } = useParams()
@@ -68,7 +69,7 @@ function CategoryDetail() {
   if (loading) {
     return (
       <SettingsPage title="Categoría" backTo="/ajustes/categorias" backLabel="Categorías">
-        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       </SettingsPage>
     )
   }

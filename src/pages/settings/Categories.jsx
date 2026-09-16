@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getCategories, createCategory, reorderCategories } from '../../lib/categories.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
-import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
+import { SettingsGroup, SettingsCreateRow } from '../../components/settings/SettingsList.jsx'
 import { ErrorNotice } from '../../components/form/FormError.jsx'
 import InlineCreate from '../../components/form/InlineCreate.jsx'
 import { ReorderableRows } from '../../components/settings/ReorderableRows.jsx'
 import { Grip } from '../../components/Icons.jsx'
+import ListSkeleton from '../../components/ListSkeleton.jsx'
 
 // Alta al pie del grupo al que va a pertenecer: antes el form de alta vivía
 // suelto entre las dos listas con un segmentado Gasto/Ingreso adentro, y no
@@ -21,13 +22,7 @@ function NewCategoryRow({ kind, onCreated }) {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="row w-full text-left text-body font-medium text-accent-ink pressable"
-      >
-        Nueva categoría
-      </button>
+      <SettingsCreateRow label="Nueva categoría" onClick={() => setOpen(true)} />
     )
   }
 
@@ -163,7 +158,7 @@ function Categories() {
       )}
 
       {loading ? (
-        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       ) : (
         <>
           {renderGroup('Gastos', expenses, 'expense')}

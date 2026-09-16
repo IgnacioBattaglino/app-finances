@@ -27,6 +27,7 @@ import SavingsMovementModal from '../../components/account/SavingsMovementModal.
 import AccountHistory from '../../components/account/AccountHistory.jsx'
 import TransactionFormModal from '../../components/TransactionFormModal.jsx'
 import ConfirmAction from '../../components/form/ConfirmAction.jsx'
+import ListSkeleton from '../../components/ListSkeleton.jsx'
 
 const PAGE_SIZE = 20
 
@@ -202,7 +203,7 @@ function AccountDetail() {
   if (loading) {
     return (
       <SettingsPage title="Cuenta" backTo="/plata" backLabel="Mi plata">
-        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       </SettingsPage>
     )
   }

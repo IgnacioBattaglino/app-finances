@@ -29,6 +29,7 @@ import LiquidatePositionModal from '../components/contribution/LiquidatePosition
 import ValuationModal from '../components/ValuationModal.jsx'
 import { Pencil } from '../components/Icons.jsx'
 import BackLink from '../components/BackLink.jsx'
+import ListSkeleton from '../components/ListSkeleton.jsx'
 
 const PAGE_SIZE = 20
 
@@ -232,8 +233,13 @@ function AssetDetail() {
       <div className="mb-5 flex items-start justify-between gap-4 md:mb-7">
         <p className="flex min-w-0 items-center gap-2">
           <span className="title-page truncate">{asset?.name}</span>
-          <button type="button" onClick={() => setAssetFormModal(true)} aria-label="Editar activo">
-            <Pencil className="h-4 w-4 shrink-0 text-ink-soft" />
+          <button
+            type="button"
+            onClick={() => setAssetFormModal(true)}
+            aria-label="Editar activo"
+            className="-m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors active:bg-mist"
+          >
+            <Pencil className="h-[18px] w-[18px] text-ink-soft" />
           </button>
         </p>
         <div className="hidden shrink-0 gap-2 pt-1 md:flex">
@@ -261,7 +267,7 @@ function AssetDetail() {
       </div>
 
       {loading ? (
-        <p className="text-subhead text-ink-soft">Cargando…</p>
+        <ListSkeleton />
       ) : error ? (
         <ErrorNotice error={error} onRetry={() => load()} />
       ) : (
@@ -284,13 +290,25 @@ function AssetDetail() {
                 rendimiento compara un valor viejo contra un aportado de hoy:
                 el número no es impreciso, es falso. No se muestra —ni tachado
                 ni con asterisco— y en su lugar va el aviso con la salida
-                ("Actualizar valuación", más abajo en esta misma pantalla). */}
+                (el botón "Actualizar valuación" al lado). */}
             {valuation?.outdated ? (
-              <p className="mt-2 text-subhead text-clay">
-                Rendimiento no disponible: cargaste operaciones después de la última valuación
-                {valuation.date ? ` (${formatDayYear(valuation.date)})` : ''}. Actualizala para
-                volver a verlo.
-              </p>
+              <div className="mt-2.5 space-y-1.5">
+                <p className="text-subhead text-clay">
+                  Rendimiento no disponible: cargaste operaciones después de la última valuación
+                  {valuation.date ? ` (${formatDayYear(valuation.date)})` : ''}.
+                </p>
+                {/* D4: el aviso lleva a la salida en vez de mandar a buscarla
+                    más abajo en la pantalla. */}
+                {asset.valuation_mode === 'manual' && (
+                  <button
+                    type="button"
+                    onClick={() => setValuationModal(true)}
+                    className="btn-text text-subhead text-accent-ink"
+                  >
+                    Actualizar valuación
+                  </button>
+                )}
+              </div>
             ) : (
               <Gain
                 value={gain}
