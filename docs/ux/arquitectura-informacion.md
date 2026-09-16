@@ -385,6 +385,12 @@ Objetivo tiene que salir igual.
 > y suscripciones no suma nada con nada — Compromisos no muestra un total
 > único, muestra el saldo de las deudas en USD por un lado y lo comprometido
 > del mes por moneda por el otro. Ver ADR-019.
+>
+> **Actualización (2026-09-16).** La barra del celular vuelve a cinco:
+> Ajustes sale y se entra desde un botón en Inicio. Con seis pestañas los
+> nombres ("Inversiones", "Compromisos") no entraban en un teléfono, y Ajustes
+> es la única que no es plata — la regla de 3.1 aplicada hasta el final. En
+> desktop sigue en la columna lateral, al pie.
 
 ### 2 · Los movimientos de ahorro, ¿entran a Movimientos?
 

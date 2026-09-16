@@ -136,6 +136,8 @@ La pestaña de **lo que ya está comprometido y todavía no salió de tu plata**
 
 ### 6. Ajustes 🟡
 
+**Cómo se llega**: en el celular Ajustes NO es una pestaña (la barra tiene cinco destinos, todos plata): se entra desde el botón de reguladores arriba a la derecha de Inicio, y la pantalla lleva un link de vuelta a Inicio. En desktop sigue en la columna lateral, separado al pie. Se usa poco (el tema se elige una vez) y con seis pestañas los nombres no entraban en un teléfono.
+
 **Modelo de navegación iOS**: `/ajustes` es solo una LISTA de temas agrupada; el único control en la raíz misma es el pie (email y cerrar sesión, sin pantalla propia). Cada tema entra a su propia pantalla (`/ajustes/apariencia`, `/ajustes/categorias`), y la lista de categorías entra a su vez al detalle de un ítem (`/ajustes/categorias/:id`), que es donde están sus opciones específicas y sus acciones. Las piezas de la lista agrupada (grupo con título + tarjeta + nota al pie, fila que navega, fila de valor, fila de acción, fila con switch) están en `components/settings/SettingsList.jsx`, y `SettingsPage` envuelve toda subpantalla con su link de vuelta. Cuentas del disponible y Grupos de activos dejaron de vivir acá: son la pestaña Mi plata (`/plata`) y parte de Inversiones (`/inversiones/grupos`) respectivamente — si una pantalla muestra un saldo o mueve plata, no es un ajuste (ver sección 1 del informe de arquitectura de información, `docs/ux/arquitectura-informacion.md`).
 
 La explicación de un control va en la NOTA AL PIE de su grupo, una sola vez — no repetida en cada fila, como estaba en grupos de activos (5 grupos = 5 párrafos idénticos).
