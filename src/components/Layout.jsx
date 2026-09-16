@@ -80,7 +80,7 @@ function Layout() {
       <nav className="sticky top-0 hidden h-dvh w-62 shrink-0 flex-col border-r border-line px-3 py-7 md:flex">
         <div className="mb-8 flex items-center gap-2.5 px-3">
           <RingsMark className="h-7 w-7 text-accent-ink" />
-          <span className="text-[17px] font-semibold tracking-tight">finanzas</span>
+          <span className="text-body font-semibold tracking-tight">finanzas</span>
         </div>
         <div className="flex flex-col gap-0.5">
           {tabs.map(({ to, label, icon }) => (
@@ -89,7 +89,7 @@ function Layout() {
               to={to}
               end={to === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-[10px] px-3 py-2 text-[15px] transition ${
+                `flex items-center gap-3 rounded-field px-3 py-2 text-subhead transition ${
                   isActive
                     ? 'bg-accent/10 font-semibold text-accent-ink'
                     : 'text-ink-soft hover:bg-mist hover:text-ink'

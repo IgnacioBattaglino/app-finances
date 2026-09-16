@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { getCategories, createCategory, reorderCategories } from '../../lib/categories.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup } from '../../components/settings/SettingsList.jsx'
-import FormError from '../../components/form/FormError.jsx'
+import FormError, { ErrorNotice } from '../../components/form/FormError.jsx'
 import { ReorderableRows, GripIcon } from '../../components/settings/ReorderableRows.jsx'
 
 // Alta al pie del grupo al que va a pertenecer: antes el form de alta vivía
@@ -47,7 +47,7 @@ function NewCategoryRow({ kind, onCreated }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full px-4 py-3 text-left text-[17px] font-medium text-accent-ink transition active:bg-mist"
+        className="w-full px-4 py-3 text-left text-body font-medium text-accent-ink transition active:bg-mist"
       >
         Nueva categoría
       </button>
@@ -63,10 +63,10 @@ function NewCategoryRow({ kind, onCreated }) {
         placeholder={kind === 'expense' ? 'ej: Comida, Transporte' : 'ej: Sueldo, Freelance'}
         autoFocus
         disabled={busy}
-        className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none placeholder:text-ink-faint"
+        className="field"
       />
       <FormError message={error?.message} detail={error?.detail} />
-      <div className="flex items-center justify-end gap-4 text-[15px]">
+      <div className="flex items-center justify-end gap-4 text-subhead">
         <button type="button" onClick={close} disabled={busy} className="text-ink-soft">
           Cancelar
         </button>
@@ -91,8 +91,8 @@ function CategoryRow({ category, dragHandlers }) {
     return (
       <div className="flex w-full items-center gap-3 px-4 py-3">
         <span className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span className="truncate text-[17px]">{category.name}</span>
-          <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-[11px] tracking-wide text-ink-soft uppercase">
+          <span className="truncate text-body">{category.name}</span>
+          <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-caption tracking-wide text-ink-soft uppercase">
             del sistema
           </span>
         </span>
@@ -112,7 +112,7 @@ function CategoryRow({ category, dragHandlers }) {
       </button>
       <Link
         to={`/ajustes/categorias/${category.id}`}
-        className="min-w-0 flex-1 truncate py-3 text-[17px] transition active:opacity-60"
+        className="min-w-0 flex-1 truncate py-3 text-body transition active:opacity-60"
       >
         {category.name}
       </Link>
@@ -195,20 +195,11 @@ function Categories() {
       description="Con qué etiquetás tus gastos e ingresos al cargarlos."
     >
       {error && (
-        <div className="notice space-y-2">
-          <FormError message={error.message} detail={error.detail} />
-          <button
-            type="button"
-            onClick={load}
-            className="text-[15px] font-semibold text-clay underline"
-          >
-            Reintentar
-          </button>
-        </div>
+        <ErrorNotice error={error} onRetry={load} />
       )}
 
       {loading ? (
-        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
+        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
       ) : (
         <>
           {renderGroup('Gastos', expenses, 'expense')}

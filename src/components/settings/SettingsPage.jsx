@@ -45,14 +45,14 @@ function SettingsPage({
         <button
           type="button"
           onClick={onBack}
-          className="mb-3 -ml-1 inline-flex items-center gap-0.5 text-[17px] text-accent-ink"
+          className="mb-3 -ml-1 inline-flex items-center gap-0.5 text-body text-accent-ink"
         >
           {backContent}
         </button>
       ) : (
         <Link
           to={backTo}
-          className="mb-3 -ml-1 inline-flex items-center gap-0.5 text-[17px] text-accent-ink"
+          className="mb-3 -ml-1 inline-flex items-center gap-0.5 text-body text-accent-ink"
         >
           {backContent}
         </Link>

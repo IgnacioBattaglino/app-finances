@@ -167,7 +167,7 @@ function SavingsMovementModal({
           type="submit"
           form="savings-movement-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -176,9 +176,9 @@ function SavingsMovementModal({
       <form id="savings-movement-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           <div className="px-4 py-3">
-            <p className="mb-2 text-[15px]">{copy.originLabel}</p>
+            <p className="mb-2 text-subhead">{copy.originLabel}</p>
             <BinaryChoice options={copy.originOptions} value={origin} onChange={setOrigin} />
-            <p className="mt-1.5 text-[13px] text-ink-soft">
+            <p className="mt-1.5 text-footnote text-ink-soft">
               {copy.originOptions.find((o) => o.value === origin)?.help}
             </p>
           </div>
@@ -194,34 +194,34 @@ function SavingsMovementModal({
           )}
 
           {origin === 'outside' && (
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Monto</span>
+            <label className="row">
+              <span className="text-body">Monto</span>
               <div className="flex items-center gap-1">
-                <span className="text-[15px] text-ink-soft">{symbol}</span>
+                <span className="text-subhead text-ink-soft">{symbol}</span>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"
                   placeholder="0"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="font-money w-28 input-inline"
                 />
               </div>
             </label>
           )}
 
           {origin === 'liquid' && dailyAccount && sameCurrency && (
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Monto</span>
+            <label className="row">
+              <span className="text-body">Monto</span>
               <div className="flex items-center gap-1">
-                <span className="text-[15px] text-ink-soft">{symbol}</span>
+                <span className="text-subhead text-ink-soft">{symbol}</span>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"
                   placeholder="0"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="font-money w-28 input-inline"
                 />
               </div>
             </label>
@@ -237,7 +237,7 @@ function SavingsMovementModal({
           )}
 
           {unsupportedPair && (
-            <p className="px-4 py-3 text-[13px] text-ink-soft">
+            <p className="px-4 py-3 text-footnote text-ink-soft">
               Esta cuenta y «{dailyAccount.name}» están en monedas que la app no sabe convertir
               automáticamente. Por ahora, elegí una cuenta en pesos o en dólares.
             </p>

@@ -35,7 +35,7 @@ const ExpensesBlock = lazy(() => loadCharts().then((m) => ({ default: m.Expenses
 
 function ChartPlaceholder({ className = 'h-[380px]' }) {
   return (
-    <div className={`surface flex items-center justify-center text-[15px] text-ink-soft ${className}`}>
+    <div className={`surface flex items-center justify-center text-subhead text-ink-soft ${className}`}>
       Calculando…
     </div>
   )
@@ -146,7 +146,7 @@ function SummaryCard({
       <div className={`notice space-y-2 ${className}`}>
         {heading}
         <FormError message={error.message} detail={error.detail} />
-        <button type="button" onClick={onRetry} className="text-[15px] font-semibold text-clay underline">
+        <button type="button" onClick={onRetry} className="text-subhead font-semibold text-clay underline">
           Reintentar
         </button>
       </div>
@@ -163,12 +163,12 @@ function SummaryCard({
       >
         <span className="min-w-0">
           {loading || !lines ? (
-            <span className="block text-[17px] text-ink-soft">Calculando…</span>
+            <span className="block text-body text-ink-soft">Calculando…</span>
           ) : (
             <MoneyStack lines={lines} />
           )}
-          {note && <span className="mt-2 block text-[13px] text-ink-soft">{note}</span>}
-          {hint && <span className="mt-2 block text-[13px] font-medium text-accent-ink">{hint}</span>}
+          {note && <span className="mt-2 block text-footnote text-ink-soft">{note}</span>}
+          {hint && <span className="mt-2 block text-footnote font-medium text-accent-ink">{hint}</span>}
         </span>
         <Chevron />
       </button>
@@ -179,7 +179,7 @@ function SummaryCard({
       {breakdown && breakdown.length > 0 && (
         <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
           {breakdown.map((row) => (
-            <li key={row.key} className="flex items-baseline justify-between gap-3 text-[13px]">
+            <li key={row.key} className="flex items-baseline justify-between gap-3 text-footnote">
               <span className="min-w-0 truncate text-ink-soft">{row.name}</span>
               <span className="font-money shrink-0 text-ink">
                 {(row.currency ?? 'ARS') === 'ARS' ? formatARS(row.amount) : formatUSD(row.amount)}
@@ -189,7 +189,7 @@ function SummaryCard({
         </ul>
       )}
       {infoOpen && info && (
-        <p className="mt-3 rounded-[14px] bg-mist px-3.5 py-2.5 text-left text-[13px] leading-relaxed text-ink-soft">
+        <p className="callout mt-3 text-left">
           {info}
         </p>
       )}
@@ -214,7 +214,7 @@ function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onTo
       <div className="notice mt-3 space-y-2">
         <span className="eyebrow">Total</span>
         <FormError message={error.message} detail={error.detail} />
-        <button type="button" onClick={onRetry} className="text-[15px] font-semibold text-clay underline">
+        <button type="button" onClick={onRetry} className="text-subhead font-semibold text-clay underline">
           Reintentar
         </button>
       </div>
@@ -232,7 +232,7 @@ function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onTo
         <span className="eyebrow">Total</span>
         <span className="flex items-center gap-2">
           {loading ? (
-            <span className="text-[15px] text-ink-soft">Calculando…</span>
+            <span className="text-subhead text-ink-soft">Calculando…</span>
           ) : (
             <Money value={totalUsd} className="text-[22px] font-semibold" />
           )}
@@ -242,7 +242,7 @@ function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onTo
       {open && breakdown && breakdown.length > 0 && (
         <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
           {breakdown.map((row) => (
-            <li key={row.currency} className="flex items-baseline justify-between gap-3 text-[13px]">
+            <li key={row.currency} className="flex items-baseline justify-between gap-3 text-footnote">
               <span className="text-ink-soft">{row.currency === 'ARS' ? 'En pesos' : 'En dólares'}</span>
               <span className="font-money text-ink">
                 {row.currency === 'ARS' ? formatARS(row.amount) : formatUSD(row.amount)}
@@ -584,7 +584,7 @@ function Dashboard() {
               <ChartPlaceholder />
             ) : contributions.length === 0 ? (
               <div className="surface px-5 py-8 text-center">
-                <p className="text-[15px] text-ink-soft">
+                <p className="text-subhead text-ink-soft">
                   Todavía no cargaste ningún aporte. Cuando registres el primero, acá vas a ver cómo
                   evoluciona tu portafolio.
                 </p>
@@ -628,13 +628,13 @@ function Dashboard() {
               <button
                 type="button"
                 onClick={loadCategories}
-                className="text-[15px] font-semibold text-clay underline"
+                className="text-subhead font-semibold text-clay underline"
               >
                 Reintentar
               </button>
             </div>
           ) : (
-            <p className="text-[15px] text-ink-soft">Cargando…</p>
+            <p className="text-subhead text-ink-soft">Cargando…</p>
           )}
         </FormSheet>
       ) : (

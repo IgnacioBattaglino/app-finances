@@ -60,15 +60,15 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
       {/* El monto arriba a la derecha, a la misma altura que el nombre: son
           las dos cosas que se leen de un vistazo. */}
       <div className="flex items-baseline justify-between gap-3">
-        <p className={`min-w-0 truncate text-[15px] font-semibold ${overdue ? '' : 'text-ink'}`}>
+        <p className={`min-w-0 truncate text-subhead font-semibold ${overdue ? '' : 'text-ink'}`}>
           {occurrenceTitle(next)}
         </p>
-        <p className="font-money shrink-0 text-[15px] font-semibold">
+        <p className="font-money shrink-0 text-subhead font-semibold">
           {formatByCurrency(next.currency, next.amount)}
         </p>
       </div>
 
-      <p className={`mt-0.5 text-[13px] ${overdue ? '' : 'text-ink-soft'}`}>
+      <p className={`mt-0.5 text-footnote ${overdue ? '' : 'text-ink-soft'}`}>
         {lateLabel(next)}
         {next.plan.account?.name ? ` · ${next.plan.account.name}` : ''}
       </p>
@@ -81,7 +81,7 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
           // Baja en desktop igual que `.btn`, y por el mismo motivo: 42px es
           // la medida del pulgar, no la del mouse. La diferencia
           // celular/desktop sigue viviendo en un solo breakpoint.
-          className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-[15px] font-semibold text-white transition active:scale-[0.975] disabled:opacity-40 md:px-4 md:py-1.5 md:text-[14px]"
+          className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-subhead font-semibold text-white transition active:scale-[0.975] disabled:opacity-40 md:px-4 md:py-1.5 md:text-[14px]"
         >
           {busy ? 'Guardando…' : 'Confirmar'}
         </button>
@@ -91,7 +91,7 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
           type="button"
           onClick={() => onAdjust(next)}
           disabled={busy}
-          className={`text-[13px] underline decoration-dotted underline-offset-4 disabled:opacity-40 ${
+          className={`text-footnote underline decoration-dotted underline-offset-4 disabled:opacity-40 ${
             overdue ? '' : 'text-ink-soft'
           }`}
         >
@@ -102,7 +102,7 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
       {rest.length > 0 && (
         <Link
           to="/compromisos"
-          className={`mt-3 flex items-center justify-between gap-2 text-[13px] ${
+          className={`mt-3 flex items-center justify-between gap-2 text-footnote ${
             overdue ? '' : 'text-ink-soft'
           }`}
         >

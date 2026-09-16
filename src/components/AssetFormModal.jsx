@@ -162,7 +162,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
           type="submit"
           form="asset-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -170,25 +170,25 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
     >
       <form id="asset-form" onSubmit={handleSubmit} className="space-y-3">
           <div className="list">
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Nombre</span>
+            <label className="row">
+              <span className="text-body">Nombre</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="¿Qué activo es? ej: Bitcoin, Dólares en casa"
                 required
-                className="min-w-0 flex-1 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                className="min-w-0 flex-1 input-inline"
               />
             </label>
 
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[17px]">Grupo de activos</span>
+                <span className="text-body">Grupo de activos</span>
                 {!creatingBolsa && (
                   <select
                     value={assetTypeId}
                     onChange={(e) => handleAssetTypeChange(e.target.value)}
-                    className="max-w-[60%] bg-transparent text-right text-[17px] outline-none"
+                    className="max-w-[60%] input-inline"
                   >
                     <option value="">Sin grupo</option>
                     {assetTypes.map((at) => (
@@ -202,7 +202,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
               </div>
 
               {!creatingBolsa && (
-                <p className="mt-1.5 text-[13px] text-ink-soft">
+                <p className="mt-1.5 text-footnote text-ink-soft">
                   Agrupá tus activos por categoría (cripto, efectivo, acciones) para ver cómo
                   rinde cada grupo. Sin grupo el activo aparece solo, con su propio valor.
                   Renombrar y archivar grupos: en Inversiones.
@@ -221,9 +221,9 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
 
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[17px]">¿De dónde sale el valor de este activo?</span>
+                <span className="text-body">¿De dónde sale el valor de este activo?</span>
               </div>
-              <div className="mt-2 flex rounded-lg bg-mist p-0.5 text-[13px] font-medium">
+              <div className="mt-2 flex rounded-lg bg-mist p-0.5 text-footnote font-medium">
                 {VALUATION_MODES.map(([value, label]) => (
                   <button
                     key={value}
@@ -237,7 +237,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                   </button>
                 ))}
               </div>
-              <p className="mt-1 text-[13px] text-ink-soft">
+              <p className="mt-1 text-footnote text-ink-soft">
                 {VALUATION_MODES.find(([value]) => value === valuationMode)?.[2]}
               </p>
             </div>
@@ -247,14 +247,14 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
             )}
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[17px]">Cuenta en el rendimiento</span>
+                <span className="text-body">Cuenta en el rendimiento</span>
                 <Switch
                   checked={yieldsFlag}
                   onChange={setYieldsFlag}
                   label="Cuenta en el rendimiento"
                 />
               </div>
-              <p className="mt-1 text-[13px] text-ink-soft">
+              <p className="mt-1 text-footnote text-ink-soft">
                 Apagalo si no querés que este activo modifique el % de rendimiento de tu
                 portafolio ni el de su grupo.
               </p>
@@ -266,7 +266,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
 
           {editing &&
             (confirmArchive ? (
-              <div className="space-y-2 rounded-[16px] bg-mist px-4 py-3 text-[15px]">
+              <div className="space-y-2 rounded-[16px] bg-mist px-4 py-3 text-subhead">
                 <div className="flex items-center justify-between">
                   <span>¿Archivar este activo?</span>
                   <div className="flex items-center gap-4">
@@ -288,7 +288,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                     </button>
                   </div>
                 </div>
-                <p className="text-[13px] text-ink-soft">
+                <p className="text-footnote text-ink-soft">
                   Podés restaurarlo después desde «Archivados», al final de Inversiones.
                 </p>
               </div>
@@ -297,7 +297,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
                 type="button"
                 onClick={() => setConfirmArchive(true)}
                 disabled={busy}
-                className="w-full surface px-4 py-3.5 text-[17px] font-medium transition active:bg-mist"
+                className="w-full surface px-4 py-3.5 text-body font-medium transition active:bg-mist"
               >
                 Archivar activo
               </button>

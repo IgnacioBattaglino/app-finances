@@ -100,7 +100,7 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
           type="submit"
           form="confirm-charge-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Confirmar'}
         </button>
@@ -108,17 +108,17 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
     >
       <form id="confirm-charge-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">Monto</span>
+          <label className="row">
+            <span className="text-body">Monto</span>
             <div className="flex items-center gap-1">
-              <span className="text-[15px] text-ink-soft">{symbol}</span>
+              <span className="text-subhead text-ink-soft">{symbol}</span>
               <input
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 inputMode="decimal"
                 placeholder="0"
                 required
-                className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                className="font-money w-28 input-inline"
               />
             </div>
           </label>
@@ -135,14 +135,14 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
         </div>
 
         {currencyChanged && (
-          <div className="notice text-[13px]">
+          <div className="notice text-footnote">
             Esta cuenta está en {currency} y el plan quedó cargado en {planCurrency}. Escribí de nuevo
             cuánto te debitaron, en {currency}: la app no convierte monedas por su cuenta.
           </div>
         )}
 
         {!currencyChanged && value != null && value !== occurrence.amount && (
-          <p className="px-1 text-[13px] text-ink-soft">
+          <p className="px-1 text-footnote text-ink-soft">
             El plan decía {formatByCurrency(planCurrency, occurrence.amount)}. Se guarda lo que
             escribiste acá; el plan queda como está.
           </p>

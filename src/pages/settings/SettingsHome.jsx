@@ -48,7 +48,7 @@ function SettingsHome() {
         </SettingsGroup>
 
         {/* Marca de versión para confirmar a ojo si un deploy se aplicó */}
-        <p className="px-1 text-[13px] text-ink-faint">versión {APP_VERSION}</p>
+        <p className="px-1 text-footnote text-ink-faint">versión {APP_VERSION}</p>
       </div>
     </div>
   )

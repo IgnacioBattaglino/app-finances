@@ -6,7 +6,7 @@ import {
   instrumentKindLabel,
 } from '../../lib/instruments.js'
 import { formatARS, formatUSD, formatDay } from '../../lib/format.js'
-import FormError from '../form/FormError.jsx'
+import { ErrorNotice } from '../form/FormError.jsx'
 
 // Elige a qué activo de mercado está enganchado este activo tuyo. Reemplaza
 // al campo de texto libre donde había que escribir de memoria un
@@ -34,12 +34,12 @@ function InstrumentRow({ instrument, onPick }) {
       className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition active:bg-mist"
     >
       <span className="min-w-0">
-        <span className="block truncate text-[15px]">{instrument.name}</span>
-        <span className="block text-[13px] text-ink-soft">
+        <span className="block truncate text-subhead">{instrument.name}</span>
+        <span className="block text-footnote text-ink-soft">
           {instrument.symbol} · {instrumentKindLabel(instrument.kind)}
         </span>
       </span>
-      <span className="shrink-0 text-[13px] text-accent-ink">Elegir</span>
+      <span className="shrink-0 text-footnote text-accent-ink">Elegir</span>
     </button>
   )
 }
@@ -101,11 +101,8 @@ function InstrumentPicker({ value, onChange }) {
 
   if (loadError) {
     return (
-      <div className="space-y-2 px-4 py-3">
-        <FormError message={loadError.message} detail={loadError.detail} />
-        <button type="button" onClick={load} className="text-[15px] font-semibold text-clay underline">
-          Reintentar
-        </button>
+      <div className="px-4 py-3">
+        <ErrorNotice error={loadError} onRetry={load} />
       </div>
     )
   }
@@ -115,21 +112,21 @@ function InstrumentPicker({ value, onChange }) {
     return (
       <div className="px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[17px]">¿Qué activo de mercado es?</span>
+          <span className="text-body">¿Qué activo de mercado es?</span>
           <button
             type="button"
             onClick={startSearching}
-            className="text-[13px] text-ink-soft underline decoration-dotted"
+            className="text-footnote text-ink-soft underline decoration-dotted"
           >
             cambiar
           </button>
         </div>
         <div className="mt-2 rounded-[12px] bg-mist px-3 py-2">
-          <p className="text-[15px]">{value.name}</p>
-          <p className="text-[13px] text-ink-soft">
+          <p className="text-subhead">{value.name}</p>
+          <p className="text-footnote text-ink-soft">
             {value.symbol} · {instrumentKindLabel(value.kind)}
           </p>
-          <p className="mt-1 text-[13px] text-ink-soft">
+          <p className="mt-1 text-footnote text-ink-soft">
             {latest
               ? `Último precio conocido: ${priceLabel(latest)}`
               : 'Todavía sin precio guardado para este activo.'}
@@ -145,14 +142,14 @@ function InstrumentPicker({ value, onChange }) {
   return (
     <div className="px-4 py-3">
       <label className="flex items-center justify-between gap-3">
-        <span className="text-[17px]">¿Qué activo de mercado es?</span>
+        <span className="text-body">¿Qué activo de mercado es?</span>
         <input
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={catalog ? 'Buscá por nombre o símbolo' : 'Cargando…'}
           disabled={!catalog}
-          className="min-w-0 flex-1 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+          className="min-w-0 flex-1 input-inline"
         />
       </label>
 
@@ -160,7 +157,7 @@ function InstrumentPicker({ value, onChange }) {
         <button
           type="button"
           onClick={() => setSearching(false)}
-          className="mt-1 text-[13px] text-ink-soft underline decoration-dotted"
+          className="mt-1 text-footnote text-ink-soft underline decoration-dotted"
         >
           volver a «{value.name}»
         </button>
@@ -175,13 +172,13 @@ function InstrumentPicker({ value, onChange }) {
       )}
 
       {noResults ? (
-        <p className="mt-2 rounded-[12px] bg-mist px-3 py-2 text-[13px] text-ink-soft">
+        <p className="callout mt-2">
           No encontramos «{query.trim()}» entre los activos con precio automático. Elegí
           «Valuación manual» arriba y cargale vos el valor cada tanto: funciona igual, solo que
           el número lo ponés vos.
         </p>
       ) : (
-        <p className="mt-1 text-[13px] text-ink-soft">
+        <p className="mt-1 text-footnote text-ink-soft">
           Buscá la cripto, el CEDEAR, la acción o el bono. Con eso su precio se actualiza solo y
           el historial queda bien calculado. Si no está en la lista, usá «Valuación manual».
         </p>

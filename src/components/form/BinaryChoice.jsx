@@ -5,7 +5,7 @@
 // switch, no esto.
 function BinaryChoice({ options, value, onChange }) {
   return (
-    <div className="flex rounded-[12px] bg-mist p-[3px] text-[15px] font-medium">
+    <div className="flex rounded-[12px] bg-mist p-[3px] text-subhead font-medium">
       {options.map((option) => (
         <button
           key={option.value}

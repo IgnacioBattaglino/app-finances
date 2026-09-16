@@ -146,7 +146,7 @@ function ContributionFormModal({
       : null
   const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
   const retroNotice = retro && (
-    <div className="notice space-y-1.5 text-[13px]">
+    <div className="notice space-y-1.5 text-footnote">
       <p>
         Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
         {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta.
@@ -199,29 +199,29 @@ function ContributionFormModal({
       >
         <div className="space-y-3">
           <div className="list">
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px] text-ink-soft">Monto</span>
-              <span className="font-money text-[15px]">{formatUSD(Number(initial.amount_usd))}</span>
+            <div className="row">
+              <span className="text-subhead text-ink-soft">Monto</span>
+              <span className="font-money text-subhead">{formatUSD(Number(initial.amount_usd))}</span>
             </div>
             {Number(initial.quantity) > 0 && (
-              <div className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[15px] text-ink-soft">Cantidad</span>
-                <span className="font-money text-[15px]">{formatQuantity(Number(initial.quantity))}</span>
+              <div className="row">
+                <span className="text-subhead text-ink-soft">Cantidad</span>
+                <span className="font-money text-subhead">{formatQuantity(Number(initial.quantity))}</span>
               </div>
             )}
             {initial.mep_rate != null && (
-              <div className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[15px] text-ink-soft">Tipo de cambio</span>
-                <span className="font-money text-[15px]">{formatARS(Number(initial.mep_rate))}</span>
+              <div className="row">
+                <span className="text-subhead text-ink-soft">Tipo de cambio</span>
+                <span className="font-money text-subhead">{formatARS(Number(initial.mep_rate))}</span>
               </div>
             )}
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px] text-ink-soft">Fecha</span>
-              <span className="text-[17px]">{formatDayYear(initial.date)}</span>
+            <div className="row">
+              <span className="text-subhead text-ink-soft">Fecha</span>
+              <span className="text-body">{formatDayYear(initial.date)}</span>
             </div>
           </div>
 
-          <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+          <p className="callout">
             {transferSibling
               ? `Parte de una transferencia con «${transferSibling}». `
               : 'Parte de una transferencia. '}
@@ -231,7 +231,7 @@ function ContributionFormModal({
           <FormError message={error?.message} detail={error?.detail} />
 
           {confirmDeleteTransfer ? (
-            <div className="flex items-center justify-between notice text-[15px]">
+            <div className="flex items-center justify-between notice text-subhead">
               <span className="text-clay">
                 ¿Eliminar esta transferencia? Se borran las dos partes
                 {transferSibling ? `: esta operación y la de «${transferSibling}»` : ''}. Es
@@ -261,7 +261,7 @@ function ContributionFormModal({
               type="button"
               onClick={() => setConfirmDeleteTransfer(true)}
               disabled={busy}
-              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
+              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
             >
               Eliminar transferencia
             </button>
@@ -417,7 +417,7 @@ function ContributionFormModal({
           type="submit"
           form="contribution-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -428,29 +428,29 @@ function ContributionFormModal({
             {editing && (
               <>
                 {isLive && (
-                  <label className="flex items-center justify-between gap-3 px-4 py-3">
-                    <span className="text-[17px]">{copy.quantity}</span>
+                  <label className="row">
+                    <span className="text-body">{copy.quantity}</span>
                     <input
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
                       inputMode="decimal"
                       placeholder="ej: 0,001"
                       required
-                      className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                      className="font-money w-28 input-inline"
                     />
                   </label>
                 )}
-                <label className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span className="text-[17px]">Monto</span>
+                <label className="row">
+                  <span className="text-body">Monto</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-[15px] text-ink-soft">US$</span>
+                    <span className="text-subhead text-ink-soft">US$</span>
                     <input
                       value={amountUsd}
                       onChange={(e) => setAmountUsd(e.target.value)}
                       inputMode="decimal"
                       placeholder="0"
                       required
-                      className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                      className="font-money w-28 input-inline"
                     />
                   </div>
                 </label>
@@ -489,23 +489,23 @@ function ContributionFormModal({
             />
 
             {!editing && !linkedMode && isLive && (
-              <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[17px]">{copy.quantity}</span>
+              <label className="row">
+                <span className="text-body">{copy.quantity}</span>
                 <input
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   inputMode="decimal"
                   placeholder="ej: 0,001"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="font-money w-28 input-inline"
                 />
               </label>
             )}
 
             <div className="px-4 py-3">
-              <p className="mb-2 text-[15px]">{copy.originLabel}</p>
+              <p className="mb-2 text-subhead">{copy.originLabel}</p>
               <BinaryChoice options={copy.originOptions} value={origin} onChange={setOrigin} />
-              <p className="mt-1.5 text-[13px] text-ink-soft">
+              <p className="mt-1.5 text-footnote text-ink-soft">
                 {copy.originOptions.find((o) => o.value === origin)?.help}
               </p>
             </div>
@@ -527,7 +527,7 @@ function ContributionFormModal({
           </div>
 
           {valueWarning && (
-            <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">{valueWarning}</p>
+            <p className="callout">{valueWarning}</p>
           )}
           {/* Mismo aviso arriba (mientras se edita) y dentro de la
               confirmación de borrado — nunca los dos a la vez. */}
@@ -539,7 +539,7 @@ function ContributionFormModal({
             (confirmDelete ? (
               <div className="space-y-2">
                 {retroNotice}
-                <div className="flex items-center justify-between notice text-[15px]">
+                <div className="flex items-center justify-between notice text-subhead">
                   <span className="text-clay">¿Eliminar este {copy.entity}? Es permanente.</span>
                   <div className="flex items-center gap-4">
                     <button
@@ -566,7 +566,7 @@ function ContributionFormModal({
                 type="button"
                 onClick={() => setConfirmDelete(true)}
                 disabled={busy}
-                className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
+                className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
               >
                 Eliminar {copy.entity}
               </button>

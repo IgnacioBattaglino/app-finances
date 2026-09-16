@@ -31,7 +31,7 @@ function AccountField({ accounts = [], value, onChange, label = '¿De qué cuent
   return (
     <div className="px-4 py-3">
       <label className="flex items-center justify-between gap-3">
-        <span className="text-[17px]">{label}</span>
+        <span className="text-body">{label}</span>
         <select
           value={creating ? '__new__' : (value ?? '')}
           onChange={(e) => {
@@ -43,7 +43,7 @@ function AccountField({ accounts = [], value, onChange, label = '¿De qué cuent
             setCreating(false)
             onChange(next || null)
           }}
-          className="max-w-[55%] bg-transparent text-right text-[17px] outline-none"
+          className="max-w-[55%] input-inline"
         >
           {/* Sin cuentas no hay nada que elegir todavía; con cuentas, esta
               opción es la que deja una operación sin asignar a propósito. */}

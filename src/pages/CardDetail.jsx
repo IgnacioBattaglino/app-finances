@@ -65,7 +65,7 @@ function CardDetail() {
   if (loading) {
     return (
       <SettingsPage title="Tarjeta" backTo="/compromisos" backLabel="Compromisos">
-        <p className="px-1 text-[15px] text-ink-soft">Cargando…</p>
+        <p className="px-1 text-subhead text-ink-soft">Cargando…</p>
       </SettingsPage>
     )
   }
@@ -105,7 +105,7 @@ function CardDetail() {
       <section className="surface p-4 md:p-5">
         <p className="eyebrow mb-1.5">Por resumen</p>
         <MoneyStack lines={[{ currency: card.currency, amount: perMonth }]} />
-        <div className="mt-3 space-y-1 text-[13px] text-ink-soft">
+        <div className="mt-3 space-y-1 text-footnote text-ink-soft">
           <p>
             {card.due_day ? `Vence el ${card.due_day} de cada mes. ` : 'Sin día de vencimiento: cada compra usa su propia fecha. '}
             Te falta pagar {formatByCurrency(card.currency, owed)} en total.
@@ -124,7 +124,7 @@ function CardDetail() {
         footer="Todas vencen el mismo día que la tarjeta, porque se pagan en el mismo resumen."
       >
         {active.length === 0 && (
-          <p className="px-4 py-3 text-[15px] text-ink-soft">Todavía no cargaste ninguna compra.</p>
+          <p className="px-4 py-3 text-subhead text-ink-soft">Todavía no cargaste ninguna compra.</p>
         )}
         {active.map((plan) => {
           const remaining = planRemaining({
@@ -136,17 +136,17 @@ function CardDetail() {
             <Link
               key={plan.id}
               to={`/compromisos/planes/${plan.id}`}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[17px]">{plan.name}</span>
-                <span className="block truncate text-[13px] text-ink-soft">
+                <span className="block truncate text-body">{plan.name}</span>
+                <span className="block truncate text-footnote text-ink-soft">
                   {remaining && remaining.count > 0
                     ? `Quedan ${remaining.count} de ${plan.installments} · ${formatByCurrency(plan.currency, remaining.amount)}`
                     : 'Todas confirmadas'}
                 </span>
               </span>
-              <span className="font-money shrink-0 text-[17px] text-ink-soft">
+              <span className="font-money shrink-0 text-body text-ink-soft">
                 {formatByCurrency(plan.currency, plan.amount)}
               </span>
               <span aria-hidden="true" className="shrink-0 text-ink-faint">
@@ -164,9 +164,9 @@ function CardDetail() {
             <Link
               key={plan.id}
               to={`/compromisos/planes/${plan.id}`}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
             >
-              <span className="min-w-0 flex-1 truncate text-[17px] text-ink-soft">{plan.name}</span>
+              <span className="min-w-0 flex-1 truncate text-body text-ink-soft">{plan.name}</span>
               <span aria-hidden="true" className="shrink-0 text-ink-faint">
                 ›
               </span>
@@ -188,7 +188,7 @@ function CardDetail() {
       >
         {confirmingDelete ? (
           <div className="space-y-1.5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3 text-[15px]">
+            <div className="flex items-center justify-between gap-3 text-subhead">
               <span className="min-w-0 truncate">¿Eliminar «{card.name}»?</span>
               <div className="flex shrink-0 items-center gap-4">
                 <button
@@ -220,7 +220,7 @@ function CardDetail() {
                 </button>
               </div>
             </div>
-            <p className="text-[13px] text-ink-soft">Es permanente.</p>
+            <p className="text-footnote text-ink-soft">Es permanente.</p>
           </div>
         ) : (
           <SettingsButtonRow

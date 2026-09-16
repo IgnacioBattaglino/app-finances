@@ -70,7 +70,7 @@ function CategoryDetail() {
   if (loading) {
     return (
       <SettingsPage title="Categoría" backTo="/ajustes/categorias" backLabel="Categorías">
-        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
+        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
       </SettingsPage>
     )
   }
@@ -106,7 +106,7 @@ function CategoryDetail() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={busy}
-                  className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none"
+                  className="field"
                 />
               </div>
               {/* El tipo no se edita: cambiarlo mudaría de lado todos los
@@ -118,7 +118,7 @@ function CategoryDetail() {
                 <button
                   type="submit"
                   disabled={busy || !name.trim()}
-                  className="w-full px-4 py-3 text-left text-[17px] font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
+                  className="w-full px-4 py-3 text-left text-body font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
                 >
                   Guardar
                 </button>
@@ -133,7 +133,7 @@ function CategoryDetail() {
           <SettingsGroup>
             {confirmingDelete ? (
               <div className="space-y-1.5 px-4 py-3">
-                <div className="flex items-center justify-between gap-3 text-[15px]">
+                <div className="flex items-center justify-between gap-3 text-subhead">
                   <span className="min-w-0 truncate">¿Eliminar «{category.name}»?</span>
                   <div className="flex shrink-0 items-center gap-4">
                     <button
@@ -154,7 +154,7 @@ function CategoryDetail() {
                     </button>
                   </div>
                 </div>
-                <p className="text-[13px] text-ink-soft">
+                <p className="text-footnote text-ink-soft">
                   Si ningún movimiento la usa, se elimina para siempre. Si tiene movimientos,
                   dejará de ofrecerse en vez de eliminarse.
                 </p>

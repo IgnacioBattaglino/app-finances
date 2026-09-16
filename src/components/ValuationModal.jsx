@@ -82,13 +82,13 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
           type="submit"
           form="valuation-form"
           disabled={filled.length === 0 || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
       }
     >
-      <p className="mb-3 px-1 text-[13px] text-ink-soft">
+      <p className="mb-3 px-1 text-footnote text-ink-soft">
         ¿Cuánto vale hoy en total, en dólares? No es el precio de una unidad. Los que dejes
         vacíos no se tocan.
       </p>
@@ -106,23 +106,23 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
               return (
                 <label
                   key={asset.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3"
+                  className="row"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-[15px]">{asset.name}</span>
-                    <span className="block text-[13px] text-ink-soft">
+                    <span className="block truncate text-subhead">{asset.name}</span>
+                    <span className="block text-footnote text-ink-soft">
                       {last
                         ? `Último: ${formatUSD(last.value_usd)} (${formatDay(last.date)})`
                         : 'Nunca lo valuaste'}
                     </span>
                     {willReplace && (
-                      <span className="block text-[13px] text-clay">
+                      <span className="block text-footnote text-clay">
                         Ya tenés una valuación en esta fecha — la vas a reemplazar.
                       </span>
                     )}
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="text-[15px] text-ink-soft">US$</span>
+                    <span className="text-subhead text-ink-soft">US$</span>
                     <input
                       value={values[asset.id] ?? ''}
                       onChange={(e) =>
@@ -130,7 +130,7 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
                       }
                       inputMode="decimal"
                       placeholder={last ? String(Number(last.value_usd)) : '0'}
-                      className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-soft/40"
+                      className="font-money w-28 input-inline placeholder:text-ink-soft/40"
                     />
                   </div>
                 </label>

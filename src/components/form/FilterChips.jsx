@@ -35,7 +35,7 @@ function FilterChips({ options, value, onChange, label }) {
           type="button"
           onClick={() => onChange(option.value)}
           aria-pressed={value === option.value}
-          className={`shrink-0 rounded-full px-3.5 py-2 text-[15px] transition ${
+          className={`shrink-0 rounded-full px-3.5 py-2 text-subhead transition ${
             value === option.value
               ? 'bg-accent font-semibold text-white'
               : 'bg-mist text-ink-soft active:bg-line md:hover:bg-line'

@@ -14,8 +14,8 @@ export function readChartColors() {
     accent: read('--color-accent-ink', '#0a7a55'),
     gain: read('--color-gain', '#0e7a4e'),
     clay: read('--color-clay', '#c3372b'),
-    inkSoft: read('--color-ink-soft', '#6b7180'),
-    inkFaint: read('--color-ink-faint', '#99a0ad'),
+    inkSoft: read('--color-ink-soft', '#636978'),
+    inkFaint: read('--color-ink-faint', '#7a808d'),
     line: read('--color-line', '#e3e5ec'),
   }
 }

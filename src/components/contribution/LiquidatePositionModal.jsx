@@ -138,7 +138,7 @@ function LiquidatePositionModal({
           type="submit"
           form="liquidate-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Liquidando…' : 'Liquidar'}
         </button>
@@ -148,20 +148,20 @@ function LiquidatePositionModal({
           <div className="list">
             <div className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[17px]">Monto</span>
+                <span className="text-body">Monto</span>
                 <div className="flex items-center gap-1">
-                  <span className="text-[15px] text-ink-soft">US$</span>
+                  <span className="text-subhead text-ink-soft">US$</span>
                   <input
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     inputMode="decimal"
                     placeholder="0"
                     required
-                    className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                    className="font-money w-28 input-inline"
                   />
                 </div>
               </div>
-              <p className="mt-1 text-[13px] text-ink-soft">
+              <p className="mt-1 text-footnote text-ink-soft">
                 {valuation?.source === 'none'
                   ? 'Sin valuación conocida — indicá el monto.'
                   : valuation?.outdated
@@ -176,10 +176,10 @@ function LiquidatePositionModal({
                 se lee como "no vas a ganar nada", que es una afirmación, no un
                 campo vacío. */}
             {amountValue > 0 && (
-              <div className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[17px]">Ganancia realizada</span>
+              <div className="row">
+                <span className="text-body">Ganancia realizada</span>
                 <span
-                  className={`font-money text-[15px] ${realizedGain < 0 ? 'text-clay' : 'text-gain'}`}
+                  className={`font-money text-subhead ${realizedGain < 0 ? 'text-clay' : 'text-gain'}`}
                 >
                   {realizedGain >= 0 ? '+' : '−'}
                   {formatUSD(Math.abs(realizedGain))}
@@ -188,15 +188,15 @@ function LiquidatePositionModal({
             )}
 
             {asset.valuation_mode === 'live' && (
-              <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[17px]">Cantidad</span>
+              <label className="row">
+                <span className="text-body">Cantidad</span>
                 <input
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   inputMode="decimal"
                   placeholder="0"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="font-money w-28 input-inline"
                 />
               </label>
             )}
@@ -215,13 +215,13 @@ function LiquidatePositionModal({
             />
 
             <div className="px-4 py-3">
-              <p className="mb-2 text-[15px]">¿A dónde va?</p>
+              <p className="mb-2 text-subhead">¿A dónde va?</p>
               <BinaryChoice
                 options={DESTINATION_OPTIONS}
                 value={destination}
                 onChange={setDestination}
               />
-              <p className="mt-1.5 text-[13px] text-ink-soft">
+              <p className="mt-1.5 text-footnote text-ink-soft">
                 {DESTINATION_OPTIONS.find((o) => o.value === destination)?.help}
               </p>
             </div>
@@ -240,8 +240,8 @@ function LiquidatePositionModal({
               />
             )}
 
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Archivar el activo</span>
+            <label className="row">
+              <span className="text-body">Archivar el activo</span>
               <input
                 type="checkbox"
                 checked={archiveAfter}
@@ -254,7 +254,7 @@ function LiquidatePositionModal({
           </div>
 
           {valueWarning && (
-            <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">{valueWarning}</p>
+            <p className="callout">{valueWarning}</p>
           )}
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />

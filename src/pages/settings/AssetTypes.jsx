@@ -3,7 +3,7 @@ import { getAssetTypes, getArchivedAssetTypes } from '../../lib/assetTypes.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup, SettingsLinkRow } from '../../components/settings/SettingsList.jsx'
 import CreateAssetTypeForm from '../../components/CreateAssetTypeForm.jsx'
-import FormError from '../../components/form/FormError.jsx'
+import { ErrorNotice } from '../../components/form/FormError.jsx'
 
 // El alta arranca colapsada en una fila: con el form siempre desplegado (como
 // estaba), la lista de grupos terminaba en un bloque de campos que competía
@@ -16,7 +16,7 @@ function NewAssetTypeRow({ onCreated }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full px-4 py-3 text-left text-[17px] font-medium text-accent-ink transition active:bg-mist"
+        className="w-full px-4 py-3 text-left text-body font-medium text-accent-ink transition active:bg-mist"
       >
         Nuevo grupo
       </button>
@@ -74,20 +74,11 @@ function AssetTypes() {
       backLabel="Inversiones"
     >
       {error && (
-        <div className="notice space-y-2">
-          <FormError message={error.message} detail={error.detail} />
-          <button
-            type="button"
-            onClick={load}
-            className="text-[15px] font-semibold text-clay underline"
-          >
-            Reintentar
-          </button>
-        </div>
+        <ErrorNotice error={error} onRetry={load} />
       )}
 
       {loading ? (
-        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
+        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
       ) : (
         <>
           <SettingsGroup footer="El orden es el mismo que ves en Inversiones.">

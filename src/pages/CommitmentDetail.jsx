@@ -62,22 +62,22 @@ function OccurrenceRow({ occurrence, onConfirm, onAdjust, onUndo, onDismiss, bus
     <div className="px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <span className="min-w-0">
-          <span className="block truncate text-[17px]">
+          <span className="block truncate text-body">
             {number && of ? `Cuota ${number} de ${of}` : formatDayYear(dueDate)}
           </span>
           <span
-            className={`block truncate text-[13px] ${status === OVERDUE ? 'text-clay' : 'text-ink-soft'}`}
+            className={`block truncate text-footnote ${status === OVERDUE ? 'text-clay' : 'text-ink-soft'}`}
           >
             {number && of ? `${formatDayYear(dueDate)} · ` : ''}
             {STATUS_LABEL[status]}
           </span>
         </span>
-        <span className="font-money shrink-0 text-[17px]">
+        <span className="font-money shrink-0 text-body">
           {formatByCurrency(currency, amount)}
         </span>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-footnote">
         {resolved ? (
           <button
             type="button"
@@ -178,7 +178,7 @@ function CommitmentDetail() {
   if (loading) {
     return (
       <SettingsPage title="Plan" backTo="/compromisos" backLabel="Compromisos">
-        <p className="px-1 text-[15px] text-ink-soft">Cargando…</p>
+        <p className="px-1 text-subhead text-ink-soft">Cargando…</p>
       </SettingsPage>
     )
   }
@@ -209,7 +209,7 @@ function CommitmentDetail() {
       <section className="surface p-4 md:p-5">
         <p className="eyebrow mb-1.5">{remaining ? 'Te falta pagar' : 'Cada vez'}</p>
         <MoneyStack lines={headline} />
-        <div className="mt-3 space-y-1 text-[13px] text-ink-soft">
+        <div className="mt-3 space-y-1 text-footnote text-ink-soft">
           {remaining ? (
             <>
               <p>
@@ -254,7 +254,7 @@ function CommitmentDetail() {
         footer="Confirmar carga el gasto en tu categoría, como cualquier otro. Hasta que lo confirmes no cuenta en ningún total ni toca tu disponible."
       >
         {occurrences.length === 0 ? (
-          <p className="px-4 py-3 text-[15px] text-ink-soft">Este plan no genera vencimientos.</p>
+          <p className="px-4 py-3 text-subhead text-ink-soft">Este plan no genera vencimientos.</p>
         ) : (
           occurrences.map((occurrence) => (
             <OccurrenceRow
@@ -309,7 +309,7 @@ function CommitmentDetail() {
           />
         ) : confirmingFinish ? (
           <div className="space-y-1.5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3 text-[15px]">
+            <div className="flex items-center justify-between gap-3 text-subhead">
               <span className="min-w-0 truncate">¿Terminar «{plan.name}»?</span>
               <div className="flex shrink-0 items-center gap-4">
                 <button
@@ -335,7 +335,7 @@ function CommitmentDetail() {
                 </button>
               </div>
             </div>
-            <p className="text-[13px] text-ink-soft">
+            <p className="text-footnote text-ink-soft">
               Deja de generar vencimientos a partir de hoy. Los{' '}
               {confirmedCount === 1 ? 'que ya confirmaste queda' : `${confirmedCount} que ya confirmaste quedan`}{' '}
               como gastos tuyos y no se tocan.
@@ -370,7 +370,7 @@ function CommitmentDetail() {
           <SettingsButtonRow label="Eliminar este plan" tone="danger" disabled onClick={() => {}} />
         ) : confirmingDelete ? (
           <div className="space-y-1.5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3 text-[15px]">
+            <div className="flex items-center justify-between gap-3 text-subhead">
               <span className="min-w-0 truncate">¿Eliminar «{plan.name}»?</span>
               <div className="flex shrink-0 items-center gap-4">
                 <button
@@ -401,7 +401,7 @@ function CommitmentDetail() {
                 </button>
               </div>
             </div>
-            <p className="text-[13px] text-ink-soft">Es permanente: el plan y sus fechas se borran.</p>
+            <p className="text-footnote text-ink-soft">Es permanente: el plan y sus fechas se borran.</p>
           </div>
         ) : (
           <SettingsButtonRow

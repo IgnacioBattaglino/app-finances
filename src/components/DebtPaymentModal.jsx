@@ -94,7 +94,7 @@ function DebtPaymentModal({
       : null
   const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
   const retroNotice = retro && (
-    <div className="notice space-y-1.5 text-[13px]">
+    <div className="notice space-y-1.5 text-footnote">
       <p>
         Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
         {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta.
@@ -166,7 +166,7 @@ function DebtPaymentModal({
           type="submit"
           form="debt-payment-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -175,17 +175,17 @@ function DebtPaymentModal({
       <form id="debt-payment-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
           {editing && (
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Monto</span>
+            <label className="row">
+              <span className="text-body">Monto</span>
               <div className="flex items-center gap-1">
-                <span className="text-[15px] text-ink-soft">US$</span>
+                <span className="text-subhead text-ink-soft">US$</span>
                 <input
                   value={amountUsd}
                   onChange={(e) => setAmountUsd(e.target.value)}
                   inputMode="decimal"
                   placeholder="0"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="font-money w-28 input-inline"
                 />
               </div>
             </label>
@@ -213,9 +213,9 @@ function DebtPaymentModal({
           />
 
           <div className="px-4 py-3">
-            <p className="mb-2 text-[15px]">¿De dónde sale?</p>
+            <p className="mb-2 text-subhead">¿De dónde sale?</p>
             <BinaryChoice options={ORIGIN_OPTIONS} value={origin} onChange={setOrigin} />
-            <p className="mt-1.5 text-[13px] text-ink-soft">
+            <p className="mt-1.5 text-footnote text-ink-soft">
               {ORIGIN_OPTIONS.find((o) => o.value === origin)?.help}
             </p>
           </div>
@@ -236,7 +236,7 @@ function DebtPaymentModal({
         </div>
 
         {excess && (
-          <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+          <p className="callout">
             Es más de lo que queda ({formatUSD(balanceBefore)}). La deuda queda saldada, sin saldo
             a favor.
           </p>
@@ -252,7 +252,7 @@ function DebtPaymentModal({
           (confirmDelete ? (
             <div className="space-y-2">
               {retroNotice}
-              <div className="flex items-center justify-between notice text-[15px]">
+              <div className="flex items-center justify-between notice text-subhead">
                 <span className="text-clay">¿Eliminar este pago? Es permanente.</span>
                 <div className="flex items-center gap-4">
                   <button
@@ -279,7 +279,7 @@ function DebtPaymentModal({
               type="button"
               onClick={() => setConfirmDelete(true)}
               disabled={busy}
-              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
+              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
             >
               Eliminar pago
             </button>

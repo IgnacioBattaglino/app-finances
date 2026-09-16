@@ -30,35 +30,35 @@ function AccountRow({ account, value, onChange }) {
     <div className="px-4 py-3">
       <label className="flex items-center justify-between gap-3">
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[17px]">{account.name}</span>
-          <span className="block text-[13px] text-ink-soft">
+          <span className="block truncate text-body">{account.name}</span>
+          <span className="block text-footnote text-ink-soft">
             Según la app: <span className="font-money">{formatByCurrency(currency, account.amount)}</span>
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
-          <span className="text-[15px] text-ink-soft">{currency === 'USD' ? 'US$' : '$'}</span>
+          <span className="text-subhead text-ink-soft">{currency === 'USD' ? 'US$' : '$'}</span>
           <input
             value={value}
             onChange={(e) => onChange(e.target.value)}
             inputMode="decimal"
             placeholder="—"
-            className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+            className="font-money w-28 input-inline"
           />
         </span>
       </label>
 
       {decision && (
-        <p className={`mt-1.5 text-[13px] ${difference > 0 ? 'text-accent-ink' : 'text-clay'}`}>
+        <p className={`mt-1.5 text-footnote ${difference > 0 ? 'text-accent-ink' : 'text-clay'}`}>
           {difference > 0 ? '+' : '−'}
           <span className="font-money">{formatByCurrency(currency, Math.abs(difference))}</span>{' '}
           respecto de lo que calculó la app.
         </p>
       )}
       {filled && !decision && (
-        <p className="mt-1.5 text-[13px] text-ink-soft">Coincide: no hay nada que corregir.</p>
+        <p className="mt-1.5 text-footnote text-ink-soft">Coincide: no hay nada que corregir.</p>
       )}
       {!filled && account.last && (
-        <p className="mt-1.5 text-[13px] text-ink-faint">
+        <p className="mt-1.5 text-footnote text-ink-faint">
           Reconciliada el {formatDayYear(account.last.date)}.
         </p>
       )}
@@ -81,14 +81,14 @@ function Summary({ plan }) {
   const nothing = plan.currencies.every((c) => Math.abs(c.net) < 0.01) && !moved
   if (nothing) {
     return (
-      <p className="notice px-4 py-3 text-[15px]">
+      <p className="notice px-4 py-3 text-subhead">
         Todo coincide con lo que calculó la app: no se registra ningún movimiento.
       </p>
     )
   }
 
   return (
-    <div className="notice space-y-1.5 px-4 py-3 text-[15px]">
+    <div className="notice space-y-1.5 px-4 py-3 text-subhead">
       {plan.currencies.map(({ currency, net }) =>
         Math.abs(net) < 0.01 ? (
           <p key={currency}>
@@ -104,7 +104,7 @@ function Summary({ plan }) {
         ),
       )}
       {moved && (
-        <p className="text-[13px] text-ink-soft">
+        <p className="text-footnote text-ink-soft">
           El resto es plata que estaba en otra cuenta: se anota como transferencia y no cuenta como
           gasto ni como ingreso.
         </p>
@@ -220,7 +220,7 @@ function LiquidModal({ open, onClose, onSaved }) {
           type="submit"
           form="liquid-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -228,7 +228,7 @@ function LiquidModal({ open, onClose, onSaved }) {
     >
       <form id="liquid-form" onSubmit={handleSubmit} className="space-y-3">
         {state === null ? (
-          <p className="surface px-4 py-3 text-[15px] text-ink-soft">
+          <p className="surface px-4 py-3 text-subhead text-ink-soft">
             Calculando cuánto tenés según la app…
           </p>
         ) : (
@@ -237,7 +237,7 @@ function LiquidModal({ open, onClose, onSaved }) {
                 quedar cuadrado cuenta por cuenta. Explica, en una línea, qué
                 hace esta pantalla: la app calcula sola a partir de lo que se
                 fue cargando, y acá se corrige contra la plata real. */}
-            <p className="surface px-4 py-3 text-[15px] text-ink-soft">
+            <p className="surface px-4 py-3 text-subhead text-ink-soft">
               Según lo que fuiste cargando, la app calcula que tenés{' '}
               <span className="font-money text-ink">{totalsText}</span> en total. Contá cada cuenta
               y escribí cuánto hay de verdad: la diferencia se corrige sola.
@@ -259,7 +259,7 @@ function LiquidModal({ open, onClose, onSaved }) {
                 no es una cuenta, es lo que ninguna migración alcanzó a
                 asignar. */}
             {accounts.length > 0 && Math.abs(state.unassigned) >= 0.01 && (
-              <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+              <p className="callout">
                 Además hay <span className="font-money">{formatARS(state.unassigned)}</span> en
                 movimientos sin cuenta asignada. Suman a tu total, pero no se reconcilian acá:
                 asignales una cuenta desde el movimiento.
@@ -289,7 +289,7 @@ function LiquidModal({ open, onClose, onSaved }) {
 
             <Summary plan={plan} />
 
-            <p className="px-1 text-[13px] text-ink-soft">
+            <p className="px-1 text-footnote text-ink-soft">
               Las cuentas que dejes vacías quedan como están: no se reconcilian ni generan ajuste.
             </p>
           </>

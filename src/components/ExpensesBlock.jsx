@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useTheme } from '../hooks/useTheme.jsx'
 import { readChartColors } from '../lib/chartColors.js'
-import FormError from './form/FormError.jsx'
+import { ErrorNotice } from './form/FormError.jsx'
 import MoneyStack from './MoneyStack.jsx'
 import { getExpenses } from '../lib/transactions.js'
 import {
@@ -29,7 +29,7 @@ function BarTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
   const point = payload[0].payload
   return (
-    <div className="surface px-3 py-2.5 text-[13px] shadow-[var(--shadow-raised)]">
+    <div className="surface px-3 py-2.5 text-footnote shadow-[var(--shadow-raised)]">
       <p className="mb-1 font-semibold">
         {fullMonthName(point)[0].toUpperCase() + fullMonthName(point).slice(1)} {point.year}
       </p>
@@ -116,7 +116,7 @@ function ExpensesBlock({ reloadToken = 0 }) {
 
   if (loading) {
     return (
-      <div className="surface flex h-[140px] items-center justify-center text-[15px] text-ink-soft">
+      <div className="surface flex h-[140px] items-center justify-center text-subhead text-ink-soft">
         Calculando…
       </div>
     )
@@ -124,19 +124,14 @@ function ExpensesBlock({ reloadToken = 0 }) {
 
   if (error) {
     return (
-      <div className="notice space-y-2">
-        <FormError message={error.message} detail={error.detail} />
-        <button type="button" onClick={load} className="text-[15px] font-semibold text-clay underline">
-          Reintentar
-        </button>
-      </div>
+      <ErrorNotice error={error} onRetry={load} />
     )
   }
 
   if (expenses.length === 0) {
     return (
       <div className="surface px-5 py-8 text-center">
-        <p className="text-[15px] text-ink-soft">
+        <p className="text-subhead text-ink-soft">
           Todavía no cargaste ningún gasto. Cuando registres el primero, acá vas a ver en qué se te va
           la plata.
         </p>
@@ -163,7 +158,7 @@ function ExpensesBlock({ reloadToken = 0 }) {
       <span className="eyebrow">Gastos del mes</span>
       <MoneyStack lines={totalLines} className="mt-2 text-clay" />
       {pct !== null && (
-        <p className="mt-2 text-[13px] text-ink-soft">
+        <p className="mt-2 text-footnote text-ink-soft">
           {formatPercent(Math.abs(pct), 0)} {pct >= 0 ? 'más' : 'menos'} que en{' '}
           {fullMonthName(previousMonth)} a esta altura{mixed ? ', en pesos' : ''}
         </p>
@@ -175,20 +170,20 @@ function ExpensesBlock({ reloadToken = 0 }) {
           con dólares no dice nada. Con gastos en una sola moneda es exactamente
           el desglose de siempre, sin encabezado que lo anuncie. */}
       {breakdown.length === 0 ? (
-        <p className="mt-4 border-t border-line pt-3.5 text-[15px] text-ink-soft">
+        <p className="mt-4 border-t border-line pt-3.5 text-subhead text-ink-soft">
           Sin gastos este mes.
         </p>
       ) : (
         breakdown.map((group) => (
           <div key={group.currency} className="mt-4 space-y-2.5 border-t border-line pt-3.5">
             {breakdown.length > 1 && (
-              <p className="text-[13px] text-ink-faint">
+              <p className="text-footnote text-ink-faint">
                 {group.currency === 'ARS' ? 'En pesos' : 'En dólares'}
               </p>
             )}
             {group.categories.map((cat) => (
               <div key={cat.name}>
-                <div className="flex items-baseline justify-between gap-2 text-[13px]">
+                <div className="flex items-baseline justify-between gap-2 text-footnote">
                   <span className="truncate text-ink-soft">{cat.name}</span>
                   <span className="font-money shrink-0 font-medium">
                     {formatByCurrency(group.currency, cat.total)}
@@ -210,13 +205,13 @@ function ExpensesBlock({ reloadToken = 0 }) {
           desglose de arriba ya se vieron y se quedan donde están. */}
       {usdError && (
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5">
-          <span className="text-[13px] text-ink-soft">
+          <span className="text-footnote text-ink-soft">
             No se pudo convertir tus gastos a dólares.
           </span>
           <button
             type="button"
             onClick={loadUsd}
-            className="shrink-0 text-[13px] font-semibold text-accent-ink underline"
+            className="btn-text shrink-0 text-footnote text-accent-ink underline"
           >
             Reintentar
           </button>

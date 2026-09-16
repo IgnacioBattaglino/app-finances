@@ -55,7 +55,7 @@ function ColorChoice({ value, onChange, disabled }) {
                   : undefined
               }
             />
-            <span className={`text-[13px] ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}>
+            <span className={`text-footnote ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}>
               {option.name}
             </span>
           </button>
@@ -134,7 +134,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
           type="submit"
           form="card-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -142,37 +142,37 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
     >
       <form id="card-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="shrink-0 text-[17px]">Nombre</span>
+          <label className="row">
+            <span className="shrink-0 text-body">Nombre</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Visa del banco"
               required
-              className="min-w-0 flex-1 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+              className="min-w-0 flex-1 input-inline"
             />
           </label>
 
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">Moneda</span>
+          <label className="row">
+            <span className="text-body">Moneda</span>
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="bg-transparent text-right text-[17px] outline-none"
+              className="input-inline"
             >
               <option value="ARS">Pesos</option>
               <option value="USD">Dólares</option>
             </select>
           </label>
 
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">Últimos 4 dígitos</span>
+          <label className="row">
+            <span className="text-body">Últimos 4 dígitos</span>
             <input
               value={last4}
               onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
               inputMode="numeric"
               placeholder="Opcional"
-              className="font-money w-24 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+              className="font-money w-24 input-inline"
             />
           </label>
         </div>
@@ -185,27 +185,27 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
         </div>
 
         <div className="list">
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">Día de pago</span>
+          <label className="row">
+            <span className="text-body">Día de pago</span>
             <input
               value={dueDay}
               onChange={(e) => setDueDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
               inputMode="numeric"
               placeholder="Opcional"
-              className="font-money w-24 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+              className="font-money w-24 input-inline"
             />
           </label>
 
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">Límite</span>
+          <label className="row">
+            <span className="text-body">Límite</span>
             <div className="flex items-center gap-1">
-              <span className="text-[15px] text-ink-soft">{symbol}</span>
+              <span className="text-subhead text-ink-soft">{symbol}</span>
               <input
                 value={limit}
                 onChange={(e) => setLimit(e.target.value)}
                 inputMode="decimal"
                 placeholder="Opcional"
-                className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                className="font-money w-28 input-inline"
               />
             </div>
           </label>

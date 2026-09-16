@@ -5,7 +5,7 @@ import { getAccountBalances } from '../../lib/liquid.js'
 import { formatByCurrency } from '../../lib/format.js'
 import PageHeader from '../../components/PageHeader.jsx'
 import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
-import FormError from '../../components/form/FormError.jsx'
+import { ErrorNotice } from '../../components/form/FormError.jsx'
 import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
 import { ReorderableRows, GripIcon } from '../../components/settings/ReorderableRows.jsx'
 import LiquidModal from '../../components/LiquidModal.jsx'
@@ -22,7 +22,7 @@ function NewAccountRow({ onCreated }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full px-4 py-3 text-left text-[17px] font-medium text-accent-ink transition active:bg-mist"
+        className="w-full px-4 py-3 text-left text-body font-medium text-accent-ink transition active:bg-mist"
       >
         Nueva cuenta
       </button>
@@ -63,8 +63,8 @@ function AccountRow({ account, dragHandlers }) {
         to={`/plata/${account.id}`}
         className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 transition active:opacity-60"
       >
-        <span className="min-w-0 truncate text-[17px]">{account.name}</span>
-        <span className="font-money shrink-0 text-[15px] text-ink-soft">
+        <span className="min-w-0 truncate text-body">{account.name}</span>
+        <span className="font-money shrink-0 text-subhead text-ink-soft">
           {formatByCurrency(account.currency, account.amount)}
         </span>
       </Link>
@@ -135,20 +135,11 @@ function Accounts() {
 
       <div className="space-y-7">
         {error && (
-          <div className="notice space-y-2">
-            <FormError message={error.message} detail={error.detail} />
-            <button
-              type="button"
-              onClick={load}
-              className="text-[15px] font-semibold text-clay underline"
-            >
-              Reintentar
-            </button>
-          </div>
+          <ErrorNotice error={error} onRetry={load} />
         )}
 
         {loading ? (
-          <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
+          <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
         ) : (
           <>
             <SettingsGroup footer="Compará lo que la app calculó con lo que tenés de verdad, cuenta por cuenta.">

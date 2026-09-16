@@ -234,7 +234,7 @@ function CommitmentFormModal({
           type="submit"
           form="commitment-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -247,9 +247,9 @@ function CommitmentFormModal({
         {!editing && (
           <div className="list">
             <div className="px-4 py-3">
-              <p className="mb-2 text-[15px]">Tipo</p>
+              <p className="mb-2 text-subhead">Tipo</p>
               <BinaryChoice options={KINDS} value={kind} onChange={setKind} />
-              <p className="mt-1.5 text-[13px] text-ink-soft">
+              <p className="mt-1.5 text-footnote text-ink-soft">
                 {isInstallments
                   ? 'Una compra que se paga en varias cuotas y se termina.'
                   : 'Algo que se debita solo, cada tanto, y no se termina.'}
@@ -259,24 +259,24 @@ function CommitmentFormModal({
         )}
 
         <div className="list">
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="shrink-0 text-[17px]">Nombre</span>
+          <label className="row">
+            <span className="shrink-0 text-body">Nombre</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={isInstallments ? 'Heladera' : 'Netflix'}
               required
-              className="min-w-0 flex-1 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+              className="min-w-0 flex-1 input-inline"
             />
           </label>
 
           {isInstallments && (
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Tarjeta</span>
+            <label className="row">
+              <span className="text-body">Tarjeta</span>
               <select
                 value={cardId ?? ''}
                 onChange={(e) => changeCard(e.target.value)}
-                className="max-w-[55%] bg-transparent text-right text-[17px] outline-none"
+                className="max-w-[55%] input-inline"
               >
                 <option value="">Sin tarjeta</option>
                 {cards.map((c) => (
@@ -292,64 +292,64 @@ function CommitmentFormModal({
         <div className="list">
           {isInstallments && (
             <div className="px-4 py-3">
-              <p className="mb-2 text-[15px]">Monto que conocés</p>
+              <p className="mb-2 text-subhead">Monto que conocés</p>
               <BinaryChoice options={AMOUNT_MODES} value={amountMode} onChange={setAmountMode} />
             </div>
           )}
 
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="shrink-0 text-[17px]">
+          <label className="row">
+            <span className="shrink-0 text-body">
               {!isInstallments ? 'Monto' : amountMode === BY_TOTAL ? 'Total' : 'Monto de la cuota'}
             </span>
             <div className="flex items-center gap-1">
-              <span className="text-[15px] text-ink-soft">{symbol}</span>
+              <span className="text-subhead text-ink-soft">{symbol}</span>
               <input
                 value={amountText}
                 onChange={(e) => setAmountText(e.target.value)}
                 inputMode="decimal"
                 placeholder="0"
                 required
-                className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                className="font-money w-28 input-inline"
               />
             </div>
           </label>
 
           {isInstallments ? (
             <>
-              <label className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="text-[17px]">Cantidad de cuotas</span>
+              <label className="row">
+                <span className="text-body">Cantidad de cuotas</span>
                 <input
                   value={installments}
                   onChange={(e) => setInstallments(e.target.value.replace(/\D/g, ''))}
                   inputMode="numeric"
                   placeholder="6"
                   required
-                  className="font-money w-16 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="font-money w-16 input-inline"
                 />
               </label>
               <div className="px-4 py-3">
                 <label className="flex items-center justify-between gap-3">
-                  <span className="text-[17px]">Primera cuota</span>
+                  <span className="text-body">Primera cuota</span>
                   <input
                     value={firstInstallment}
                     onChange={(e) => setFirstInstallment(e.target.value.replace(/\D/g, ''))}
                     inputMode="numeric"
-                    className="font-money w-16 bg-transparent text-right text-[17px] outline-none"
+                    className="font-money w-16 input-inline"
                   />
                 </label>
-                <p className="mt-1.5 text-[13px] text-ink-soft">
+                <p className="mt-1.5 text-footnote text-ink-soft">
                   Si ya pagaste algunas antes de cargar esto, poné la próxima que te toca. Las
                   anteriores no se cargan: se pagaron afuera de la app.
                 </p>
               </div>
             </>
           ) : (
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Frecuencia</span>
+            <label className="row">
+              <span className="text-body">Frecuencia</span>
               <select
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value)}
-                className="max-w-[55%] bg-transparent text-right text-[17px] outline-none"
+                className="max-w-[55%] input-inline"
               >
                 {FREQUENCIES.map((f) => (
                   <option key={f.value} value={f.value}>
@@ -374,8 +374,8 @@ function CommitmentFormModal({
         {/* EL REPARTO, ANTES DE GUARDAR. Un centavo que aparece solo, sin
             avisar, es peor que el centavo. */}
         {isInstallments && total != null && count > 0 && (
-          <div className="surface space-y-0.5 px-4 py-3 text-[13px] text-ink-soft">
-            <p className="text-[15px] text-ink">
+          <div className="surface space-y-0.5 px-4 py-3 text-footnote text-ink-soft">
+            <p className="text-subhead text-ink">
               {firstAmount != null
                 ? `La primera, ${formatByCurrency(currency, firstAmount)}; las otras ${count - 1}, ${formatByCurrency(currency, perInstallment)}`
                 : `${count} ${count === 1 ? 'cuota' : 'cuotas'} de ${formatByCurrency(currency, perInstallment)}`}
@@ -393,20 +393,20 @@ function CommitmentFormModal({
         )}
 
         {!isInstallments && startDate && (
-          <p className="px-1 text-[13px] text-ink-soft">
+          <p className="px-1 text-footnote text-ink-soft">
             {frequencyLabel(frequency)}, a partir del {formatDayYear(startDate)}. No termina nunca:
             cuando la des de baja, terminala desde su pantalla.
           </p>
         )}
 
         <div className="list">
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">Categoría</span>
+          <label className="row">
+            <span className="text-body">Categoría</span>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
               required
-              className="max-w-[55%] bg-transparent text-right text-[17px] outline-none"
+              className="max-w-[55%] input-inline"
             >
               <option value="" disabled>
                 Elegir…
@@ -428,7 +428,7 @@ function CommitmentFormModal({
           />
         </div>
 
-        <p className="px-1 text-[13px] text-ink-soft">
+        <p className="px-1 text-footnote text-ink-soft">
           Con esa categoría se va a cargar cada pago cuando lo confirmes, como un gasto más. Hasta
           entonces no cuenta en ningún total.
         </p>

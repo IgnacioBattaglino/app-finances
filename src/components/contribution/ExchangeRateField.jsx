@@ -57,7 +57,7 @@ export function applyRateChoice({ pesos, dolares, rate, keep }) {
 // ---------------------------------------------------------------------------
 
 const fieldInputClass =
-  'font-money w-full min-w-0 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint'
+  'input-inline font-money w-full'
 
 // Un monto dentro del par pesos/dólares: los dos se dibujan exactamente igual
 // (mismo relleno, mismo tamaño, misma altura) porque ninguno de los dos es el
@@ -65,9 +65,9 @@ const fieldInputClass =
 function PairedAmount({ label, symbol, value, onChange, placeholder = '0' }) {
   return (
     <label className="flex min-w-0 flex-col gap-1">
-      <span className="text-[13px] text-ink-soft">{label}</span>
+      <span className="text-footnote text-ink-soft">{label}</span>
       <span className="flex items-center gap-1 rounded-[10px] bg-mist px-3 py-2">
-        <span className="shrink-0 text-[15px] text-ink-soft">{symbol}</span>
+        <span className="shrink-0 text-subhead text-ink-soft">{symbol}</span>
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -103,17 +103,17 @@ function RateControl({
   children,
 }) {
   if (loading) {
-    return <p className="px-4 py-3 text-[13px] text-ink-soft">Buscando cotización…</p>
+    return <p className="px-4 py-3 text-footnote text-ink-soft">Buscando cotización…</p>
   }
 
   if (!expanded) {
     return (
       <div className="px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[17px]">Tipo de cambio</span>
-          <span className="font-money text-[17px]">{value > 0 ? formatARS(value) : '—'}</span>
+          <span className="text-body">Tipo de cambio</span>
+          <span className="font-money text-body">{value > 0 ? formatARS(value) : '—'}</span>
         </div>
-        <p className="mt-1 text-[13px] text-ink-soft">{caption}</p>
+        <p className="mt-1 text-footnote text-ink-soft">{caption}</p>
         <button type="button" onClick={onExpand} className="btn btn-quiet mt-2.5 w-full md:w-auto">
           {changeLabel}
         </button>
@@ -124,9 +124,9 @@ function RateControl({
   return (
     <div className="px-4 py-3">
       <label className="flex items-center justify-between gap-3">
-        <span className="text-[17px]">Tipo de cambio</span>
+        <span className="text-body">Tipo de cambio</span>
         <span className="flex items-center gap-1">
-          <span className="text-[15px] text-ink-soft">$</span>
+          <span className="text-subhead text-ink-soft">$</span>
           <input
             value={draft}
             onChange={(e) => onDraft(e.target.value)}
@@ -135,11 +135,11 @@ function RateControl({
             // Autofocus permitido: el input se revela por una acción explícita
             // del usuario (tocó el botón), no al abrir el formulario.
             autoFocus
-            className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+            className="font-money w-28 input-inline"
           />
         </span>
       </label>
-      <p className="mt-1 text-[13px] text-ink-soft">{editCaption}</p>
+      <p className="mt-1 text-footnote text-ink-soft">{editCaption}</p>
       {children}
       {resetLabel && (
         <button type="button" onClick={onReset} className="btn btn-quiet mt-2.5 w-full md:w-auto">
@@ -163,7 +163,7 @@ function RateChoice({ pesos, dolares, value, onChange }) {
       label: (
         <span className="flex flex-col leading-tight">
           <span>Los pesos</span>
-          <span className="font-money text-[13px] font-normal">{formatARS(pesos)}</span>
+          <span className="font-money text-footnote font-normal">{formatARS(pesos)}</span>
         </span>
       ),
     },
@@ -172,7 +172,7 @@ function RateChoice({ pesos, dolares, value, onChange }) {
       label: (
         <span className="flex flex-col leading-tight">
           <span>Los dólares</span>
-          <span className="font-money text-[13px] font-normal">{formatUSD(dolares)}</span>
+          <span className="font-money text-footnote font-normal">{formatUSD(dolares)}</span>
         </span>
       ),
     },
@@ -180,11 +180,11 @@ function RateChoice({ pesos, dolares, value, onChange }) {
 
   return (
     <div className="mt-3">
-      <p className="mb-2 text-[15px]">
+      <p className="mb-2 text-subhead">
         Cambiaste el tipo de cambio, así que uno de los dos montos ya no cuadra. ¿Cuál está bien?
       </p>
       <BinaryChoice options={options} value={value} onChange={onChange} />
-      <p className="mt-1.5 text-[13px] text-ink-soft">
+      <p className="mt-1.5 text-footnote text-ink-soft">
         {value === 'pesos'
           ? 'Dejamos los pesos como los cargaste y recalculamos los dólares.'
           : 'Dejamos los dólares como los cargaste y recalculamos los pesos.'}
@@ -332,16 +332,16 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, askPesos, required, o
   return (
     <>
       {askPesos && (
-        <label className="flex items-center justify-between gap-3 px-4 py-3">
-          <span className="text-[17px]">{pesosQuestion}</span>
+        <label className="row">
+          <span className="text-body">{pesosQuestion}</span>
           <span className="flex items-center gap-1">
-            <span className="text-[15px] text-ink-soft">$</span>
+            <span className="text-subhead text-ink-soft">$</span>
             <input
               value={shownPesos}
               onChange={(e) => handlePesos(e.target.value)}
               inputMode="decimal"
               placeholder="0"
-              className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+              className="font-money w-28 input-inline"
             />
           </span>
         </label>
@@ -490,12 +490,12 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
   return (
     <>
       <div className="px-4 py-3">
-        <p className="mb-2 text-[15px]">{amountLabel}</p>
+        <p className="mb-2 text-subhead">{amountLabel}</p>
         <div className="grid grid-cols-2 gap-3">
           <PairedAmount label={pesosLabel} symbol="$" value={pesos} onChange={handlePesos} />
           <PairedAmount label={dolaresLabel} symbol="US$" value={dolares} onChange={handleDolares} />
         </div>
-        <p className="mt-1.5 text-[13px] text-ink-soft">
+        <p className="mt-1.5 text-footnote text-ink-soft">
           {rate > 0
             ? 'Cargá el que sepas: el otro se calcula con el tipo de cambio de abajo.'
             : 'Sin tipo de cambio no se puede pasar de uno al otro: cargá los dólares, o poné la cotización abajo.'}

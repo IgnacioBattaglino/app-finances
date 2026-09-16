@@ -150,7 +150,7 @@ function TransactionFormModal({
     : null
   const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
   const retroNotice = retro && (
-    <div className="notice space-y-1.5 text-[13px]">
+    <div className="notice space-y-1.5 text-footnote">
       <p>
         Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
         {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta.
@@ -185,7 +185,7 @@ function TransactionFormModal({
   // transferencia) porque ahora también la usa el branch de solo lectura de
   // un conteo, más abajo.
   const reconciliationNotice = reconciliation && (
-    <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+    <p className="callout">
       Esto lo escribió «Contar mi plata» el {formatDayYear(reconciliation.date)}
       {reconciliation.movements > 1
         ? `, junto con ${reconciliation.movements - 1} ${
@@ -222,19 +222,19 @@ function TransactionFormModal({
       >
         <div className="space-y-3">
           <div className="list">
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px] text-ink-soft">Monto</span>
-              <span className="font-money text-[15px]">
+            <div className="row">
+              <span className="text-subhead text-ink-soft">Monto</span>
+              <span className="font-money text-subhead">
                 {formatByCurrency(initial.currency, Number(initial.amount))}
               </span>
             </div>
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px] text-ink-soft">Fecha</span>
-              <span className="text-[17px]">{formatDayYear(initial.date)}</span>
+            <div className="row">
+              <span className="text-subhead text-ink-soft">Fecha</span>
+              <span className="text-body">{formatDayYear(initial.date)}</span>
             </div>
           </div>
 
-          <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+          <p className="callout">
             {transferSibling
               ? `Parte de una transferencia con «${transferSibling}». `
               : 'Parte de una transferencia. '}
@@ -246,7 +246,7 @@ function TransactionFormModal({
           {confirmDeleteTransfer ? (
             <div className="space-y-2">
               {retroNotice}
-              <div className="flex items-center justify-between notice text-[15px]">
+              <div className="flex items-center justify-between notice text-subhead">
                 <span className="text-clay">
                   ¿Eliminar esta transferencia? Se borran las dos partes
                   {transferSibling ? `: esta operación y la de «${transferSibling}»` : ''}. Es
@@ -277,7 +277,7 @@ function TransactionFormModal({
               type="button"
               onClick={() => setConfirmDeleteTransfer(true)}
               disabled={busy}
-              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
+              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
             >
               Eliminar transferencia
             </button>
@@ -312,22 +312,22 @@ function TransactionFormModal({
       >
         <div className="space-y-3">
           <div className="list">
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px] text-ink-soft">Monto</span>
-              <span className="font-money text-[15px]">
+            <div className="row">
+              <span className="text-subhead text-ink-soft">Monto</span>
+              <span className="font-money text-subhead">
                 {formatByCurrency(initial.currency, Number(initial.amount))}
               </span>
             </div>
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[15px] text-ink-soft">Fecha</span>
-              <span className="text-[17px]">{formatDayYear(initial.date)}</span>
+            <div className="row">
+              <span className="text-subhead text-ink-soft">Fecha</span>
+              <span className="text-body">{formatDayYear(initial.date)}</span>
             </div>
           </div>
 
           {loaded ? (
             reconciliationNotice
           ) : (
-            <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+            <p className="callout">
               Confirmando si es parte de un conteo…
             </p>
           )}
@@ -338,7 +338,7 @@ function TransactionFormModal({
           {confirmDelete ? (
             <div className="space-y-2">
               {retroNotice}
-              <div className="flex items-center justify-between notice text-[15px]">
+              <div className="flex items-center justify-between notice text-subhead">
                 <span className="text-clay">
                   {`¿Eliminar este conteo? Se ${
                     reconciliation.movements === 1
@@ -371,7 +371,7 @@ function TransactionFormModal({
               type="button"
               onClick={() => setConfirmDelete(true)}
               disabled={busy || !loaded}
-              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist disabled:opacity-50"
+              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist disabled:opacity-50"
             >
               Eliminar el conteo
             </button>
@@ -480,7 +480,7 @@ function TransactionFormModal({
           type="submit"
           form="transaction-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -497,10 +497,10 @@ function TransactionFormModal({
           />
 
           <div className="list">
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Monto</span>
+            <label className="row">
+              <span className="text-body">Monto</span>
               <div className="flex items-center gap-1">
-                <span className="text-[15px] text-ink-soft">{currency === 'USD' ? 'US$' : '$'}</span>
+                <span className="text-subhead text-ink-soft">{currency === 'USD' ? 'US$' : '$'}</span>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -508,13 +508,13 @@ function TransactionFormModal({
                   placeholder="0"
                   required
                   autoFocus
-                  className="font-money w-32 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="font-money w-32 input-inline"
                 />
               </div>
             </label>
             <div className="px-4 py-3">
               <label className="flex items-center justify-between gap-3">
-                <span className="text-[17px]">Categoría</span>
+                <span className="text-body">Categoría</span>
                 {/* El orden de las opciones es el que el usuario arrastró en
                     Ajustes (categories viene ordenado por position), no el
                     alfabético: acá es donde se elige una decenas de veces. */}
@@ -531,7 +531,7 @@ function TransactionFormModal({
                     setCategoryId(value)
                   }}
                   required={!creatingCategory}
-                  className="max-w-[55%] bg-transparent text-right text-[17px] outline-none"
+                  className="max-w-[55%] input-inline"
                 >
                   <option value="" disabled>
                     Elegir…
@@ -565,10 +565,10 @@ function TransactionFormModal({
                     placeholder={kind === 'expense' ? 'ej: Comida, Transporte' : 'ej: Sueldo, Freelance'}
                     autoFocus
                     disabled={categoryBusy}
-                    className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none placeholder:text-ink-faint"
+                    className="field"
                   />
                   <FormError message={categoryError?.message} detail={categoryError?.detail} />
-                  <div className="flex items-center justify-end gap-4 text-[15px]">
+                  <div className="flex items-center justify-end gap-4 text-subhead">
                     <button
                       type="button"
                       onClick={() => {
@@ -606,15 +606,15 @@ function TransactionFormModal({
             <CollapsedDateField value={date} onChange={setDate} />
             <div className="px-4 py-3">
               <label className="flex items-center justify-between gap-3">
-                <span className="text-[17px]">Descripción</span>
+                <span className="text-body">Descripción</span>
                 <input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Opcional — ej: super, alquiler"
-                  className="min-w-0 flex-1 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="min-w-0 flex-1 input-inline"
                 />
               </label>
-              <p className="mt-1.5 text-[13px] text-ink-soft">
+              <p className="mt-1.5 text-footnote text-ink-soft">
                 Se ve en la lista, al lado de la categoría.
               </p>
             </div>
@@ -633,7 +633,7 @@ function TransactionFormModal({
             (confirmDelete ? (
               <div className="space-y-2">
                 {retroNotice}
-                <div className="flex items-center justify-between notice text-[15px]">
+                <div className="flex items-center justify-between notice text-subhead">
                   <span className="text-clay">¿Eliminar este movimiento? Es permanente.</span>
                   <div className="flex items-center gap-4">
                     <button
@@ -660,7 +660,7 @@ function TransactionFormModal({
                 type="button"
                 onClick={() => setConfirmDelete(true)}
                 disabled={busy}
-                className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
+                className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
               >
                 Eliminar movimiento
               </button>

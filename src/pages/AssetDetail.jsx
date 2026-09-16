@@ -21,7 +21,7 @@ import EditIcon from '../components/EditIcon.jsx'
 import MetricCard from '../components/assetDetail/MetricCard.jsx'
 import AssetHistory from '../components/assetDetail/AssetHistory.jsx'
 import AssetFormModal from '../components/AssetFormModal.jsx'
-import FormError from '../components/form/FormError.jsx'
+import { ErrorNotice } from '../components/form/FormError.jsx'
 import ContributionFormModal from '../components/ContributionFormModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
@@ -229,7 +229,7 @@ function AssetDetail() {
       <button
         type="button"
         onClick={goBack}
-        className="-ml-1 mb-3 inline-flex items-center gap-0.5 text-[17px] text-accent-ink"
+        className="-ml-1 mb-3 inline-flex items-center gap-0.5 text-body text-accent-ink"
       >
         <svg
           viewBox="0 0 24 24"
@@ -278,14 +278,9 @@ function AssetDetail() {
       </div>
 
       {loading ? (
-        <p className="text-[15px] text-ink-soft">Cargando…</p>
+        <p className="text-subhead text-ink-soft">Cargando…</p>
       ) : error ? (
-        <div className="notice space-y-2">
-          <FormError message={error?.message} detail={error?.detail} />
-          <button type="button" onClick={() => load()} className="text-[15px] font-semibold text-clay underline">
-            Reintentar
-          </button>
-        </div>
+        <ErrorNotice error={error} onRetry={() => load()} />
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
           <div className="space-y-3">
@@ -298,7 +293,7 @@ function AssetDetail() {
             </p>
             <div className="mt-2.5">{valuation && <SourceTag valuation={valuation} />}</div>
             {asset.valuation_mode === 'live' && (
-              <p className="mt-1.5 text-[13px] text-ink-soft">
+              <p className="mt-1.5 text-footnote text-ink-soft">
                 Equivale a {formatQuantity(heldQty)} {asset.name}
               </p>
             )}
@@ -308,7 +303,7 @@ function AssetDetail() {
                 ni con asterisco— y en su lugar va el aviso con la salida
                 ("Actualizar valuación", más abajo en esta misma pantalla). */}
             {valuation?.outdated ? (
-              <p className="mt-2 text-[15px] text-clay">
+              <p className="mt-2 text-subhead text-clay">
                 Rendimiento no disponible: cargaste operaciones después de la última valuación
                 {valuation.date ? ` (${formatDayYear(valuation.date)})` : ''}. Actualizala para
                 volver a verlo.
@@ -361,7 +356,7 @@ function AssetDetail() {
             />
           </div>
           {expandedMetric && (
-            <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] leading-relaxed text-ink-soft">
+            <p className="callout">
               {METRIC_EXPLANATIONS[expandedMetric === 'current' && isLive ? 'currentUnit' : expandedMetric]}
             </p>
           )}
@@ -372,10 +367,10 @@ function AssetDetail() {
             <button
               type="button"
               onClick={() => setTransferModal(true)}
-              className="block w-full px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+              className="block w-full px-4 py-3 text-left pressable"
             >
-              <span className="text-[17px] font-medium text-accent-ink">Transferir</span>
-              <p className="mt-0.5 text-[13px] text-ink-soft">
+              <span className="text-body font-medium text-accent-ink">Transferir</span>
+              <p className="mt-0.5 text-footnote text-ink-soft">
                 Mover valor de este activo a otro tuyo.
               </p>
             </button>
@@ -383,10 +378,10 @@ function AssetDetail() {
               <button
                 type="button"
                 onClick={() => setLiquidateModal(true)}
-                className="block w-full px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+                className="block w-full px-4 py-3 text-left pressable"
               >
-                <span className="text-[17px] font-medium text-accent-ink">Liquidar</span>
-                <p className="mt-0.5 text-[13px] text-ink-soft">
+                <span className="text-body font-medium text-accent-ink">Liquidar</span>
+                <p className="mt-0.5 text-footnote text-ink-soft">
                   Vender todo y cerrar la posición. Para vender una parte, usá Retirar.
                 </p>
               </button>
@@ -395,10 +390,10 @@ function AssetDetail() {
               <button
                 type="button"
                 onClick={() => setValuationModal(true)}
-                className="block w-full px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+                className="block w-full px-4 py-3 text-left pressable"
               >
-                <span className="text-[17px] font-medium text-accent-ink">Actualizar valuación</span>
-                <p className="mt-0.5 text-[13px] text-ink-soft">
+                <span className="text-body font-medium text-accent-ink">Actualizar valuación</span>
+                <p className="mt-0.5 text-footnote text-ink-soft">
                   Cargar cuánto vale hoy este activo.
                 </p>
               </button>
@@ -437,7 +432,7 @@ function AssetDetail() {
           onClick={() =>
             setContributionModal({ open: true, operation: 'withdrawal', editing: null })
           }
-          className="btn btn-quiet h-13 flex-1 rounded-[14px] text-[17px]"
+          className="btn btn-quiet flex-1"
         >
           Retirar
         </button>
@@ -447,7 +442,7 @@ function AssetDetail() {
           onClick={() =>
             setContributionModal({ open: true, operation: 'contribution', editing: null })
           }
-          className="btn btn-primary h-13 flex-1 rounded-[14px] text-[17px]"
+          className="btn btn-primary flex-1"
         >
           Aportar
         </button>

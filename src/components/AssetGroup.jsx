@@ -61,17 +61,17 @@ export function AssetRow({ asset, valuation, contributions }) {
   return (
     <Link
       to={`/inversiones/${asset.id}`}
-      className="block px-4 py-3.5 text-left transition active:bg-mist md:hover:bg-mist"
+      className="block px-4 py-3.5 text-left pressable"
     >
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate text-[17px] font-medium">{asset.name}</span>
+          <span className="truncate text-body font-medium">{asset.name}</span>
         </span>
-        <span className="font-money shrink-0 text-[17px] font-medium">
+        <span className="font-money shrink-0 text-body font-medium">
           {valuation.value !== null ? formatUSD(valuation.value) : '—'}
         </span>
       </div>
-      <p className="mt-0.5 truncate text-[13px] text-ink-soft">{secondLine(asset, valuation, own)}</p>
+      <p className="mt-0.5 truncate text-footnote text-ink-soft">{secondLine(asset, valuation, own)}</p>
       <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <SourceTag valuation={valuation} />
         {/* Con la valuación vieja el porcentaje no es impreciso, es falso
@@ -80,11 +80,11 @@ export function AssetRow({ asset, valuation, contributions }) {
             detalle, que es donde vive "Actualizar valuación" — por eso acá va
             solo el aviso y no un botón (sería un botón adentro de un link). */}
         {valuation.outdated ? (
-          <span className="text-[13px] text-clay">
+          <span className="text-footnote text-clay">
             Valuación desactualizada — hay operaciones posteriores
           </span>
         ) : (
-          <Gain value={gain} base={valuation.contributed} neutral={neutral} className="text-[13px]" />
+          <Gain value={gain} base={valuation.contributed} neutral={neutral} className="text-footnote" />
         )}
       </div>
     </Link>
@@ -135,7 +135,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
         className={`block px-4 py-3 transition active:opacity-90 ${color ? 'group-tint' : 'bg-mist'}`}
       >
         <div className="flex items-baseline justify-between gap-3">
-          <span className="flex items-center gap-1.5 text-[15px] font-semibold">
+          <span className="flex items-center gap-1.5 text-subhead font-semibold">
             {assetType.name}
             <Chevron />
             {outOfTotal && (
@@ -149,11 +149,11 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
               </span>
             )}
           </span>
-          <span className="font-money text-[15px] font-semibold">
+          <span className="font-money text-subhead font-semibold">
             {allUnvalued ? <span className="text-clay">sin valuación</span> : formatUSD(value)}
           </span>
         </div>
-        <div className="mt-1 flex items-center justify-between gap-3 text-[13px]">
+        <div className="mt-1 flex items-center justify-between gap-3 text-footnote">
           <span className="text-ink-soft">
             aportado <span className="font-money">{formatUSD(contributed)}</span>
           </span>
@@ -162,18 +162,18 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
               agregado da 0 y un "+US$ 0" se leería como "no ganaste nada",
               que es distinto de "no hay con qué calcularlo". */}
           {valuedContributed > 0 && (
-            <Gain value={gain} base={valuedContributed} className="text-[13px]" />
+            <Gain value={gain} base={valuedContributed} className="text-footnote" />
           )}
         </div>
         {archivedGroup && (
-          <p className="mt-1.5 text-[13px] text-ink-soft">
+          <p className="mt-1.5 text-footnote text-ink-soft">
             Este grupo está archivado pero todavía tiene activos sin archivar, así que se
             muestra: su valor sigue contando en el total. Movelos a otro grupo, o restaurá el
             grupo desde su detalle.
           </p>
         )}
         {outOfTotal && (
-          <p className="mt-1.5 text-[13px] text-ink-soft">
+          <p className="mt-1.5 text-footnote text-ink-soft">
             Este grupo se ve, pero no suma al valor total.
           </p>
         )}

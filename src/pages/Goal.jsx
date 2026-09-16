@@ -14,8 +14,8 @@ function Goal() {
       />
 
       <div className="surface px-6 py-10 text-center">
-        <p className="text-[17px] font-semibold">Todavía en construcción</p>
-        <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-ink-soft">
+        <p className="text-body font-semibold">Todavía en construcción</p>
+        <p className="mx-auto mt-2 max-w-sm text-subhead leading-relaxed text-ink-soft">
           Acá va a estar tu número: cuánto capital necesitás para vivir de tus inversiones, cuánto
           llevás, y en cuántos años llegás al ritmo al que venís aportando.
         </p>

@@ -13,7 +13,7 @@ function PageHeader({ title, description, action }) {
       <div className="min-w-0">
         <h1 className="title-page">{title}</h1>
         {description && (
-          <p className="mt-1.5 max-w-prose text-[15px] text-ink-soft">{description}</p>
+          <p className="mt-1.5 max-w-prose text-subhead text-ink-soft">{description}</p>
         )}
       </div>
       {action && <div className="shrink-0 pt-1">{action}</div>}

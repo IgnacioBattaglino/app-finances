@@ -56,7 +56,7 @@ function ResetPassword() {
         <div className="mb-9 flex flex-col items-center text-center">
           <RingsMark className="mb-5 h-14 w-14 text-accent-ink" />
           <h1 className="text-[28px] font-bold tracking-[-0.02em]">finanzas</h1>
-          <p className="mt-1 text-[15px] text-ink-soft">
+          <p className="mt-1 text-subhead text-ink-soft">
             {done ? 'Contraseña actualizada' : 'Elegí tu contraseña nueva'}
           </p>
         </div>
@@ -67,26 +67,26 @@ function ResetPassword() {
         {!user ? (
           <div className="space-y-4">
             <div className="notice space-y-1">
-              <p className="text-[15px]">El enlace expiró. Pedí uno nuevo para volver a intentar.</p>
-              {recoveryLinkError && <p className="text-[13px] opacity-70">{recoveryLinkError}</p>}
+              <p className="text-subhead">El enlace expiró. Pedí uno nuevo para volver a intentar.</p>
+              {recoveryLinkError && <p className="text-footnote opacity-70">{recoveryLinkError}</p>}
             </div>
             <button
               type="button"
               onClick={endPasswordRecovery}
-              className="btn btn-secondary h-13 w-full rounded-[16px] text-[17px]"
+              className="btn btn-lg btn-secondary w-full"
             >
               Ir al inicio de sesión
             </button>
           </div>
         ) : done ? (
           <div className="space-y-4">
-            <p className="px-1 text-[15px] text-ink-soft">
+            <p className="px-1 text-subhead text-ink-soft">
               Ya podés usar la app con tu contraseña nueva.
             </p>
             <button
               type="button"
               onClick={endPasswordRecovery}
-              className="btn btn-primary h-13 w-full rounded-[16px] text-[17px]"
+              className="btn btn-lg btn-primary w-full"
             >
               Entrar
             </button>
@@ -102,7 +102,7 @@ function ResetPassword() {
                 autoComplete="new-password"
                 minLength={MIN_LENGTH}
                 required
-                className="w-full bg-transparent px-4 py-3.5 text-[17px] outline-none placeholder:text-ink-faint"
+                className="w-full bg-transparent px-4 py-3.5 text-body outline-none"
               />
               <input
                 type="password"
@@ -112,7 +112,7 @@ function ResetPassword() {
                 autoComplete="new-password"
                 minLength={MIN_LENGTH}
                 required
-                className="w-full bg-transparent px-4 py-3.5 text-[17px] outline-none placeholder:text-ink-faint"
+                className="w-full bg-transparent px-4 py-3.5 text-body outline-none"
               />
             </div>
 
@@ -123,7 +123,7 @@ function ResetPassword() {
             <button
               type="submit"
               disabled={submitting}
-              className="btn btn-primary h-13 w-full rounded-[16px] text-[17px]"
+              className="btn btn-lg btn-primary w-full"
             >
               {submitting ? 'Guardando…' : 'Guardar'}
             </button>

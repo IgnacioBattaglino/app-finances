@@ -6,7 +6,7 @@ import AssetFormModal from '../components/AssetFormModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
 import Gain from '../components/Gain.jsx'
 import Money from '../components/Money.jsx'
-import FormError from '../components/form/FormError.jsx'
+import { ErrorNotice } from '../components/form/FormError.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
 import { useScrollRestoration } from '../hooks/useScrollRestoration.js'
 import {
@@ -158,18 +158,13 @@ function Portfolio() {
       </div>
 
       {loading ? (
-        <p className="text-[15px] text-ink-soft">Cargando…</p>
+        <p className="text-subhead text-ink-soft">Cargando…</p>
       ) : error ? (
-        <div className="notice space-y-2">
-          <FormError message={error?.message} detail={error?.detail} />
-          <button type="button" onClick={load} className="text-[15px] font-semibold text-clay underline">
-            Reintentar
-          </button>
-        </div>
+        <ErrorNotice error={error} onRetry={load} />
       ) : assets.length === 0 ? (
         <div className="surface px-6 py-10 text-center">
-          <p className="text-[17px] font-semibold">Todavía no tenés activos</p>
-          <p className="mx-auto mt-1.5 max-w-xs text-[15px] text-ink-soft">
+          <p className="text-body font-semibold">Todavía no tenés activos</p>
+          <p className="mx-auto mt-1.5 max-w-xs text-subhead text-ink-soft">
             Creá el primero para empezar a seguir tus inversiones.
           </p>
           <button
@@ -196,14 +191,14 @@ function Portfolio() {
                   <Money value={totalValue} />
                 </p>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 text-[13px] md:mt-0 md:justify-end">
+              <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 text-footnote md:mt-0 md:justify-end">
                 <span className="text-ink-soft">
                   Aportado{' '}
                   <span className="font-money font-medium text-ink">{formatUSD(totalContributed)}</span>
                 </span>
                 {valuedContributed > 0 && (
                   <span className="text-ink-soft">
-                    Rendimiento <Gain value={totalGain} base={valuedContributed} className="text-[13px]" />
+                    Rendimiento <Gain value={totalGain} base={valuedContributed} className="text-footnote" />
                   </span>
                 )}
               </div>
@@ -216,7 +211,7 @@ function Portfolio() {
               <button
                 type="button"
                 onClick={() => setAssetModal({ open: true, editing: null })}
-                className="flex-1 py-3.5 text-[15px] font-semibold text-accent-ink transition active:bg-mist"
+                className="flex-1 py-3.5 text-subhead font-semibold text-accent-ink transition active:bg-mist"
               >
                 Nuevo activo
               </button>
@@ -224,7 +219,7 @@ function Portfolio() {
                 <button
                   type="button"
                   onClick={() => setValuationModal({ open: true, assets: manualAssets })}
-                  className="flex-1 border-l border-line py-3.5 text-[15px] font-semibold text-accent-ink transition active:bg-mist"
+                  className="flex-1 border-l border-line py-3.5 text-subhead font-semibold text-accent-ink transition active:bg-mist"
                 >
                   Actualizar valuaciones
                 </button>
@@ -234,13 +229,13 @@ function Portfolio() {
 
           {/* Avisos */}
           {pricesFailed && (
-            <p className="notice text-[13px]">
+            <p className="notice text-footnote">
               No se pudieron traer los precios del momento. Se muestra el último valor disponible de
               cada activo.
             </p>
           )}
           {unvalued.length > 0 && (
-            <p className="notice text-[13px]">
+            <p className="notice text-footnote">
               {unvalued.length === 1
                 ? `«${unvalued[0].name}» todavía no tiene valuación, así que no suma al total.`
                 : `${unvalued.length} activos todavía no tienen valuación, así que no suman al total.`}{' '}
@@ -260,7 +255,7 @@ function Portfolio() {
                 id="portfolio-sort"
                 value={sortId}
                 onChange={(e) => handleSortChange(e.target.value)}
-                className="bg-transparent text-[15px] font-medium text-accent-ink outline-none"
+                className="bg-transparent text-subhead font-medium text-accent-ink outline-none"
               >
                 {PORTFOLIO_SORTS.map((sort) => (
                   <option key={sort.id} value={sort.id}>
@@ -303,18 +298,7 @@ function Portfolio() {
       {/* Archivados: mismo patrón visual que "Archivadas (N)" de Ajustes.
           Se muestra siempre que haya alguno, independiente del estado de los
           activos activos (incluido el portafolio vacío). */}
-      {archivedError && (
-        <div className="notice mt-4 space-y-2">
-          <FormError message={archivedError.message} detail={archivedError.detail} />
-          <button
-            type="button"
-            onClick={loadArchived}
-            className="text-[15px] font-semibold text-clay underline"
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      <ErrorNotice error={archivedError} onRetry={loadArchived} className="mt-4" />
       {archivedAssets.length > 0 && (
         <div className="mt-8">
           <button
@@ -327,11 +311,11 @@ function Portfolio() {
           {showArchived && (
             <div className="list mt-2">
               {archivedAssets.map((asset) => (
-                <div key={asset.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span className="text-[15px] text-ink-soft">
+                <div key={asset.id} className="row">
+                  <span className="text-subhead text-ink-soft">
                     {asset.name}
                     {asset.asset_type?.name && (
-                      <span className="ml-2 text-[11px] text-ink-faint uppercase">
+                      <span className="ml-2 text-caption text-ink-faint uppercase">
                         {asset.asset_type.name}
                       </span>
                     )}
@@ -339,7 +323,7 @@ function Portfolio() {
                   <button
                     type="button"
                     onClick={() => handleRestore(asset.id)}
-                    className="text-[15px] font-medium text-accent-ink"
+                    className="text-subhead font-medium text-accent-ink"
                   >
                     Restaurar
                   </button>

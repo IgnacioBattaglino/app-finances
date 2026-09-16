@@ -77,7 +77,7 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
           type="submit"
           form="debt-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -85,33 +85,33 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
     >
       <form id="debt-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">¿A quién le debés?</span>
+          <label className="row">
+            <span className="text-body">¿A quién le debés?</span>
             <input
               value={creditor}
               onChange={(e) => setCreditor(e.target.value)}
               placeholder="ej: Papá, Banco"
               required
-              className="min-w-0 flex-1 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+              className="min-w-0 flex-1 input-inline"
             />
           </label>
 
           <div className="px-4 py-3">
             <label className="flex items-center justify-between gap-3">
-              <span className="text-[17px]">¿Cuánto pediste?</span>
+              <span className="text-body">¿Cuánto pediste?</span>
               <div className="flex items-center gap-1">
-                <span className="text-[15px] text-ink-soft">US$</span>
+                <span className="text-subhead text-ink-soft">US$</span>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"
                   placeholder="0"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="font-money w-28 input-inline"
                 />
               </div>
             </label>
-            <p className="mt-1.5 text-[13px] text-ink-soft">
+            <p className="mt-1.5 text-footnote text-ink-soft">
               El monto original, en dólares. Los pagos se registran después, uno por uno.
             </p>
           </div>
@@ -124,7 +124,7 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
 
         {editing &&
           (confirmDelete ? (
-            <div className="flex items-center justify-between notice text-[15px]">
+            <div className="flex items-center justify-between notice text-subhead">
               <span className="text-clay">¿Eliminar esta deuda? Es permanente.</span>
               <div className="flex items-center gap-4">
                 <button
@@ -150,7 +150,7 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
               type="button"
               onClick={() => setConfirmDelete(true)}
               disabled={busy}
-              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-[17px] font-semibold text-clay transition active:bg-mist"
+              className="w-full rounded-[16px] bg-clay/10 px-4 py-3.5 text-body font-semibold text-clay transition active:bg-mist"
             >
               Eliminar deuda
             </button>

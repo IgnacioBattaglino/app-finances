@@ -99,7 +99,7 @@ function ColorChoice({ value, onChange, disabled }) {
             >
               {selected && <Check />}
             </span>
-            <span className={`text-[13px] ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}>
+            <span className={`text-footnote ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}>
               {option.name}
             </span>
           </button>
@@ -252,7 +252,7 @@ function AssetTypeDetail() {
   if (loading) {
     return (
       <SettingsPage title="Grupo" {...backProps}>
-        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
+        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
       </SettingsPage>
     )
   }
@@ -285,7 +285,7 @@ function AssetTypeDetail() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={busy}
-              className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none"
+              className="field"
             />
           </div>
           <SettingsValueRow label="Activos" value={assetsLabel(counts)} />
@@ -293,7 +293,7 @@ function AssetTypeDetail() {
             <button
               type="submit"
               disabled={busy || !name.trim()}
-              className="w-full px-4 py-3 text-left text-[17px] font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
+              className="w-full px-4 py-3 text-left text-body font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
             >
               Guardar
             </button>
@@ -308,7 +308,7 @@ function AssetTypeDetail() {
       {(portfolioLoading || groupAssets.length > 0) && (
         <SettingsGroup title="Activos" footer="Tocá uno para ver su detalle y operar.">
           {portfolioLoading ? (
-            <p className="px-4 py-3 text-[15px] text-ink-soft">Cargando…</p>
+            <p className="px-4 py-3 text-subhead text-ink-soft">Cargando…</p>
           ) : (
             groupAssets.map((asset) => (
               <SettingsLinkRow
@@ -330,10 +330,10 @@ function AssetTypeDetail() {
 
       {canMove && (
         <SettingsGroup footer="Es el orden con el que los grupos aparecen en Inversiones.">
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[15px]">
+          <div className="row">
+            <span className="text-subhead">
               Orden en Inversiones
-              <span className="ml-2 text-[13px] text-ink-soft">
+              <span className="ml-2 text-footnote text-ink-soft">
                 {position + 1} de {siblings.length}
               </span>
             </span>
@@ -405,9 +405,9 @@ function AssetTypeDetail() {
       ) : action === 'archive' ? (
         <SettingsGroup footer="Archivar lo saca de Inversiones y de la lista al elegir grupo. Sus activos archivados quedan como están, y podés restaurarlo cuando quieras.">
           {confirm === 'archive' ? (
-            <div className="flex items-center justify-between gap-3 px-4 py-3 text-[15px]">
+            <div className="row text-subhead">
               <span>¿Archivar «{assetType.name}»?</span>
-              <div className="flex shrink-0 items-center gap-4 text-[15px]">
+              <div className="flex shrink-0 items-center gap-4 text-subhead">
                 <button
                   type="button"
                   onClick={() => setConfirm(null)}
@@ -439,10 +439,10 @@ function AssetTypeDetail() {
         <SettingsGroup footer="El grupo no tiene ningún activo, así que se puede eliminar del todo.">
           {confirm === 'delete' ? (
             <div className="space-y-2 px-4 py-3">
-              <p className="text-[15px] text-clay">
+              <p className="text-subhead text-clay">
                 ¿Eliminar «{assetType.name}»? Es permanente.
               </p>
-              <div className="flex items-center justify-end gap-4 text-[15px]">
+              <div className="flex items-center justify-end gap-4 text-subhead">
                 <button
                   type="button"
                   onClick={() => setConfirm(null)}

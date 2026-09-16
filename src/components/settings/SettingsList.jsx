@@ -36,7 +36,7 @@ export function SettingsGroup({ title, footer, children }) {
       <div className="list">
         {children}
       </div>
-      {footer && <p className="mt-2 px-1 text-[13px] leading-relaxed text-ink-soft">{footer}</p>}
+      {footer && <p className="mt-2 px-1 text-footnote leading-relaxed text-ink-soft">{footer}</p>}
     </section>
   )
 }
@@ -48,17 +48,17 @@ export function SettingsLinkRow({ to, label, value, badge }) {
   return (
     <Link
       to={to}
-      className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+      className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
     >
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
-        <span className="truncate text-[17px]">{label}</span>
+        <span className="truncate text-body">{label}</span>
         {badge && (
-          <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-[11px] tracking-wide text-ink-soft uppercase">
+          <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-caption tracking-wide text-ink-soft uppercase">
             {badge}
           </span>
         )}
       </span>
-      {value && <span className="shrink-0 truncate text-[17px] text-ink-soft">{value}</span>}
+      {value && <span className="shrink-0 truncate text-body text-ink-soft">{value}</span>}
       <Chevron />
     </Link>
   )
@@ -67,9 +67,9 @@ export function SettingsLinkRow({ to, label, value, badge }) {
 // Dato que se muestra y no se toca (el email de la cuenta).
 export function SettingsValueRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3">
-      <span className="shrink-0 text-[17px]">{label}</span>
-      <span className="truncate text-[17px] text-ink-soft">{value}</span>
+    <div className="row">
+      <span className="shrink-0 text-body">{label}</span>
+      <span className="truncate text-body text-ink-soft">{value}</span>
     </div>
   )
 }
@@ -90,7 +90,7 @@ export function SettingsButtonRow({ onClick, label, tone = 'accent', disabled = 
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`w-full px-4 py-3 text-left text-[17px] font-medium transition active:bg-mist disabled:opacity-40 md:hover:bg-mist ${color}`}
+      className={`w-full px-4 py-3 text-left text-body font-medium transition active:bg-mist disabled:opacity-40 md:hover:bg-mist ${color}`}
     >
       {label}
     </button>
@@ -100,7 +100,7 @@ export function SettingsButtonRow({ onClick, label, tone = 'accent', disabled = 
 export function SettingsSwitchRow({ label, checked, onChange, disabled = false }) {
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-      <span className="text-[17px]">{label}</span>
+      <span className="text-body">{label}</span>
       <Switch checked={checked} onChange={onChange} disabled={disabled} label={label} />
     </div>
   )

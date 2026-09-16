@@ -4,7 +4,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { useTheme } from '../hooks/useTheme.jsx'
 import { readChartColors } from '../lib/chartColors.js'
 import BinaryChoice from './form/BinaryChoice.jsx'
-import FormError from './form/FormError.jsx'
+import { ErrorNotice } from './form/FormError.jsx'
 import InfoButton from './InfoButton.jsx'
 import Money from './Money.jsx'
 import {
@@ -31,7 +31,7 @@ function ChartTooltip({ active, payload, label, color, seriesLabel, dataKey }) {
   if (!active || !payload?.length) return null
   const value = payload.find((p) => p.dataKey === dataKey)?.value
   return (
-    <div className="surface px-3 py-2.5 text-[13px] shadow-[var(--shadow-raised)]">
+    <div className="surface px-3 py-2.5 text-footnote shadow-[var(--shadow-raised)]">
       <p className="mb-1.5 font-semibold">{formatDayYear(label)}</p>
       <p className="flex items-center gap-1.5">
         <span className="inline-block h-0.5 w-3.5 rounded-full" style={{ backgroundColor: color }} />
@@ -77,7 +77,7 @@ function ChartCard({ eyebrow, data, dataKey, color, colors, seriesLabel, footer 
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="mt-3 flex h-[200px] items-center justify-center text-center text-[15px] text-ink-soft">
+        <div className="mt-3 flex h-[200px] items-center justify-center text-center text-subhead text-ink-soft">
           Todavía no hay suficientes puntos para graficar este rango.
         </div>
       )}
@@ -154,12 +154,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
 
   if (error) {
     return (
-      <div className="notice space-y-2">
-        <FormError message={error.message} detail={error.detail} />
-        <button type="button" onClick={load} className="text-[15px] font-semibold text-clay underline">
-          Reintentar
-        </button>
-      </div>
+      <ErrorNotice error={error} onRetry={load} />
     )
   }
 
@@ -175,7 +170,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
       </div>
 
       {loading ? (
-        <div className="mt-3 flex h-[200px] items-center justify-center text-[15px] text-ink-soft">
+        <div className="mt-3 flex h-[200px] items-center justify-center text-subhead text-ink-soft">
           Calculando…
         </div>
       ) : (
@@ -212,7 +207,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
             seriesLabel="Dinero invertido"
             footer={
               hasOutdated ? (
-                <div className="notice mt-4 space-y-2 text-[13px]">
+                <div className="notice mt-4 space-y-2 text-footnote">
                   <p>
                     {outdatedAssetNames.length === 1
                       ? `«${outdatedAssetNames[0]}» tiene una valuación vieja, así que no podemos calcular cuánto ganaste.`
@@ -244,13 +239,13 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
                           {formatPercent(Math.abs(pct))}
                         </span>
                       )}
-                      <span className={`text-[15px] font-semibold ${gainColor}`}>
+                      <span className={`text-subhead font-semibold ${gainColor}`}>
                         {gainPositive ? '+' : '−'}
                         {formatUSD(Math.abs(gain))}
                       </span>
                     </p>
                     {infoOpen && (
-                      <p className="mt-2.5 rounded-[14px] bg-mist px-3.5 py-2.5 text-left text-[13px] leading-relaxed text-ink-soft">
+                      <p className="callout mt-2.5 text-left">
                         Cuánto ganaste o perdiste sobre todo lo que aportaste, contando absolutamente todo
                         lo que tenés invertido (incluidos activos archivados o que no buscan rendimiento) —
                         por eso puede no coincidir con el "Rendimiento" de Inversiones, que mide un grupo más

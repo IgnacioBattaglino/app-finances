@@ -8,10 +8,10 @@ import InfoButton from '../InfoButton.jsx'
 // 10px hasta 15.
 function valueSizeClass(value) {
   const len = String(value).length
-  if (len <= 9) return 'text-[15px]'
-  if (len <= 11) return 'text-[13px]'
+  if (len <= 9) return 'text-subhead'
+  if (len <= 11) return 'text-footnote'
   if (len <= 12) return 'text-[12px]'
-  if (len <= 13) return 'text-[11px]'
+  if (len <= 13) return 'text-caption'
   return 'text-[10px]'
 }
 
@@ -33,7 +33,7 @@ function MetricCard({ label, value, active, onToggle }) {
   return (
     <div className="surface px-3.5 py-3">
       <div className="flex items-start justify-between gap-1.5">
-        <span className="text-[11px] leading-tight text-ink-soft">{label}</span>
+        <span className="text-caption leading-tight text-ink-soft">{label}</span>
         <InfoButton label={label} active={active} onToggle={onToggle} />
       </div>
       <p

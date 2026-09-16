@@ -203,7 +203,7 @@ function AccountDetail() {
   if (loading) {
     return (
       <SettingsPage title="Cuenta" backTo="/plata" backLabel="Mi plata">
-        <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
+        <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
       </SettingsPage>
     )
   }
@@ -270,14 +270,14 @@ function AccountDetail() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={busy}
-              className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none"
+              className="field"
             />
           </div>
           {dirty && (
             <button
               type="submit"
               disabled={busy || !name.trim()}
-              className="w-full px-4 py-3 text-left text-[17px] font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
+              className="w-full px-4 py-3 text-left text-body font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
             >
               Guardar
             </button>
@@ -315,7 +315,7 @@ function AccountDetail() {
       <SettingsGroup>
         {confirmingDelete ? (
           <div className="space-y-1.5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3 text-[15px]">
+            <div className="flex items-center justify-between gap-3 text-subhead">
               <span className="min-w-0 truncate">¿Eliminar «{account.name}»?</span>
               <div className="flex shrink-0 items-center gap-4">
                 <button
@@ -340,13 +340,13 @@ function AccountDetail() {
                 gasto, es un ajuste — la misma distinción que hace "Contar mi
                 plata" — y recién con eso en $0 se intenta borrar de verdad. */}
             {hasBalance ? (
-              <p className="text-[13px] text-ink-soft">
+              <p className="text-footnote text-ink-soft">
                 Tiene {formatByCurrency(account.currency, balance.amount)}. Antes de eliminarla, ese
                 saldo se registra como un ajuste de saldo (no como un gasto) para dejarla en cero, y
                 recién ahí se elimina.
               </p>
             ) : (
-              <p className="text-[13px] text-ink-soft">
+              <p className="text-footnote text-ink-soft">
                 Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.
               </p>
             )}

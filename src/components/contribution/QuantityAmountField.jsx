@@ -53,34 +53,34 @@ function QuantityAmountField({
 
   return (
     <>
-      <label className="flex items-center justify-between gap-3 px-4 py-3">
-        <span className="text-[17px]">{quantityLabel}</span>
+      <label className="row">
+        <span className="text-body">{quantityLabel}</span>
         <input
           value={value.quantity}
           onChange={(e) => handleQuantity(e.target.value)}
           inputMode="decimal"
           placeholder="0"
           required
-          className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+          className="font-money w-28 input-inline"
         />
       </label>
       <div className="px-4 py-3">
         <label className="flex items-center justify-between gap-3">
-          <span className="text-[17px]">{amountLabel}</span>
+          <span className="text-body">{amountLabel}</span>
           <div className="flex items-center gap-1">
-            <span className="text-[15px] text-ink-soft">US$</span>
+            <span className="text-subhead text-ink-soft">US$</span>
             <input
               value={value.amountUsd}
               onChange={(e) => handleAmount(e.target.value)}
               inputMode="decimal"
               placeholder="0"
               required
-              className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+              className="font-money w-28 input-inline"
             />
           </div>
         </label>
         {showMath && (
-          <p className="mt-1 text-right text-[13px] text-ink-soft">
+          <p className="mt-1 text-right text-footnote text-ink-soft">
             {formatQuantity(quantityValue)} un. ×{' '}
             <span className="font-money">{formatUSD(unitPrice)}</span>{' '}
             = <span className="font-money">{formatUSD(amountValue)}</span>

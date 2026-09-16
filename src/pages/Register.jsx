@@ -25,7 +25,7 @@ function Header({ subtitle }) {
     <div className="mb-9 flex flex-col items-center text-center">
       <RingsMark className="mb-5 h-14 w-14 text-accent-ink" />
       <h1 className="text-[28px] font-bold tracking-[-0.02em]">finanzas</h1>
-      <p className="mt-1 text-[15px] text-ink-soft">{subtitle}</p>
+      <p className="mt-1 text-subhead text-ink-soft">{subtitle}</p>
     </div>
   )
 }
@@ -145,7 +145,7 @@ function Register() {
       <Shell>
         <Header subtitle="No se pudo verificar la invitación" />
         <div className="notice">
-          <p className="text-[15px]">No se pudo conectar para revisar el link. Revisá tu conexión y volvé a abrirlo.</p>
+          <p className="text-subhead">No se pudo conectar para revisar el link. Revisá tu conexión y volvé a abrirlo.</p>
         </div>
       </Shell>
     )
@@ -156,8 +156,8 @@ function Register() {
       <Shell>
         <Header subtitle="No se puede registrar" />
         <div className="notice space-y-3">
-          <p className="text-[15px]">{INVITE_NOTICE[inviteStatus] ?? INVITE_NOTICE.not_found}</p>
-          <a href="/login" className="text-[15px] font-semibold text-accent-ink underline">
+          <p className="text-subhead">{INVITE_NOTICE[inviteStatus] ?? INVITE_NOTICE.not_found}</p>
+          <a href="/login" className="text-subhead font-semibold text-accent-ink underline">
             Ir a iniciar sesión
           </a>
         </div>
@@ -170,8 +170,8 @@ function Register() {
       <Shell>
         <Header subtitle="Ya existe una cuenta" />
         <div className="notice space-y-3">
-          <p className="text-[15px]">Ya hay una cuenta registrada con ese email.</p>
-          <a href="/login" className="text-[15px] font-semibold text-accent-ink underline">
+          <p className="text-subhead">Ya hay una cuenta registrada con ese email.</p>
+          <a href="/login" className="text-subhead font-semibold text-accent-ink underline">
             Ir a iniciar sesión
           </a>
         </div>
@@ -183,7 +183,7 @@ function Register() {
     return (
       <Shell>
         <Header subtitle="Revisá tu email" />
-        <p className="px-1 text-center text-[15px] text-ink-soft">
+        <p className="px-1 text-center text-subhead text-ink-soft">
           Te mandamos un link para confirmar {email}. Tocalo para poder entrar.
         </p>
       </Shell>
@@ -194,7 +194,7 @@ function Register() {
     return (
       <Shell>
         <Header subtitle="¡Listo!" />
-        <p className="px-1 text-center text-[15px] text-ink-soft">Entrando…</p>
+        <p className="px-1 text-center text-subhead text-ink-soft">Entrando…</p>
       </Shell>
     )
   }
@@ -211,7 +211,7 @@ function Register() {
             placeholder="Email"
             autoComplete="email"
             required
-            className="w-full bg-transparent px-4 py-3.5 text-[17px] outline-none placeholder:text-ink-faint"
+            className="w-full bg-transparent px-4 py-3.5 text-body outline-none"
           />
           <input
             type="password"
@@ -221,7 +221,7 @@ function Register() {
             autoComplete="new-password"
             minLength={MIN_LENGTH}
             required
-            className="w-full bg-transparent px-4 py-3.5 text-[17px] outline-none placeholder:text-ink-faint"
+            className="w-full bg-transparent px-4 py-3.5 text-body outline-none"
           />
           <input
             type="password"
@@ -231,7 +231,7 @@ function Register() {
             autoComplete="new-password"
             minLength={MIN_LENGTH}
             required
-            className="w-full bg-transparent px-4 py-3.5 text-[17px] outline-none placeholder:text-ink-faint"
+            className="w-full bg-transparent px-4 py-3.5 text-body outline-none"
           />
         </div>
 
@@ -240,7 +240,7 @@ function Register() {
         <button
           type="submit"
           disabled={submitting}
-          className="btn btn-primary h-13 w-full rounded-[16px] text-[17px]"
+          className="btn btn-lg btn-primary w-full"
         >
           {submitting ? 'Creando cuenta…' : 'Crear cuenta'}
         </button>

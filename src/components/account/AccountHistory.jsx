@@ -19,20 +19,20 @@ function TransactionRow({ tx, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left pressable"
     >
       <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-[17px]">
+        <p className="flex items-center gap-1.5 truncate text-body">
           <span className="truncate">
             {tx.category?.name ?? 'Sin categoría'}
             {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
           </span>
           <EditIcon />
         </p>
-        <p className="mt-0.5 text-[13px] text-ink-soft">{formatDay(tx.date)}</p>
+        <p className="mt-0.5 text-footnote text-ink-soft">{formatDay(tx.date)}</p>
       </div>
       <span
-        className={`font-money shrink-0 text-[17px] font-medium ${
+        className={`font-money shrink-0 text-body font-medium ${
           isMoved ? '' : tx.kind === 'expense' ? 'text-clay' : 'text-gain'
         }`}
       >
@@ -48,7 +48,7 @@ function TransactionRow({ tx, onClick }) {
 function AccountHistory({ transactions, hasMore, loadingMore, loadMoreError, onLoadMore, onEdit }) {
   if (transactions.length === 0) {
     return (
-      <p className="surface px-4 py-8 text-center text-[15px] text-ink-soft">
+      <p className="surface px-4 py-8 text-center text-subhead text-ink-soft">
         Todavía no hay movimientos.
       </p>
     )
@@ -72,7 +72,7 @@ function AccountHistory({ transactions, hasMore, loadingMore, loadMoreError, onL
             {loadingMore ? 'Cargando…' : 'Ver más'}
           </button>
           {loadMoreError && (
-            <p className="text-center text-[13px] text-clay">
+            <p className="text-center text-footnote text-clay">
               No se pudo cargar más. Reintentá.
             </p>
           )}

@@ -30,14 +30,14 @@ const SIZE = {
     mask: '••••',
     dots: 'text-[10px]',
     digits: 'text-[12px]',
-    name: 'text-[13px]',
+    name: 'text-footnote',
   },
   lg: {
     box: 'h-28 w-48 gap-1 rounded-2xl p-4',
     mask: '•••• •••• ••••',
     dots: 'text-[12px]',
-    digits: 'text-[15px]',
-    name: 'text-[17px]',
+    digits: 'text-subhead',
+    name: 'text-body',
   },
 }
 

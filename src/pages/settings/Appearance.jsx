@@ -65,7 +65,7 @@ function Appearance() {
                   {selected && <Check />}
                 </span>
                 <span
-                  className={`text-[13px] ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}
+                  className={`text-footnote ${selected ? 'font-semibold text-ink' : 'text-ink-soft'}`}
                 >
                   {option.name}
                 </span>

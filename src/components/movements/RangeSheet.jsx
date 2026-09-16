@@ -55,7 +55,7 @@ function Shortcut({ active, onClick, children }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full px-3.5 py-2 text-[15px] transition ${
+      className={`rounded-full px-3.5 py-2 text-subhead transition ${
         active ? 'bg-accent font-semibold text-white' : 'bg-mist text-ink-soft active:bg-line md:hover:bg-line'
       }`}
     >
@@ -115,16 +115,16 @@ function RangeSheet({ range, onChange, onClose }) {
               type="button"
               onClick={() => setGridYear(gridYear - 1)}
               aria-label="Año anterior"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft pressable"
             >
               <YearArrow direction="left" />
             </button>
-            <span className="font-money text-[17px] font-semibold">{gridYear}</span>
+            <span className="font-money text-body font-semibold">{gridYear}</span>
             <button
               type="button"
               onClick={() => setGridYear(gridYear + 1)}
               aria-label="Año siguiente"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft pressable"
             >
               <YearArrow direction="right" />
             </button>
@@ -140,7 +140,7 @@ function RangeSheet({ range, onChange, onClose }) {
                   type="button"
                   onClick={() => choose(monthRange(month, gridYear))}
                   aria-pressed={active}
-                  className={`rounded-[10px] py-2.5 text-[15px] transition ${
+                  className={`rounded-field py-2.5 text-subhead transition ${
                     active
                       ? 'bg-accent font-semibold text-white'
                       : 'text-ink-soft active:bg-mist md:hover:bg-mist'
@@ -165,7 +165,7 @@ function RangeSheet({ range, onChange, onClose }) {
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
-                className="w-full rounded-[12px] bg-mist px-3.5 py-2.5 text-[15px] outline-none"
+                className="field py-2.5 text-subhead"
               />
             </label>
             <label className="flex-1">
@@ -174,7 +174,7 @@ function RangeSheet({ range, onChange, onClose }) {
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                className="w-full rounded-[12px] bg-mist px-3.5 py-2.5 text-[15px] outline-none"
+                className="field py-2.5 text-subhead"
               />
             </label>
           </div>

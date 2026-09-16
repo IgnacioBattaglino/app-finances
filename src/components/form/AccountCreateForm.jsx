@@ -66,13 +66,13 @@ function AccountCreateForm({
         placeholder={placeholder}
         autoFocus
         disabled={busy}
-        className="w-full rounded-[10px] bg-mist px-3 py-2 text-[17px] outline-none placeholder:text-ink-faint"
+        className="field"
       />
 
       {extended && (
         <>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[15px] text-ink-soft">Moneda</span>
+            <span className="text-subhead text-ink-soft">Moneda</span>
             <div className="w-40">
               <BinaryChoice
                 options={[
@@ -85,14 +85,14 @@ function AccountCreateForm({
             </div>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[15px] text-ink-soft">Cuenta de ahorro</span>
+            <span className="text-subhead text-ink-soft">Cuenta de ahorro</span>
             <Switch checked={isSavings} onChange={setIsSavings} label="Cuenta de ahorro" disabled={busy} />
           </div>
         </>
       )}
 
       <FormError message={error?.message} detail={error?.detail} />
-      <div className="flex items-center justify-end gap-4 text-[15px]">
+      <div className="flex items-center justify-end gap-4 text-subhead">
         <button type="button" onClick={onCancel} disabled={busy} className="text-ink-soft">
           Cancelar
         </button>

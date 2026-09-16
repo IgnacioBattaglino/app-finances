@@ -30,12 +30,12 @@ function CollapsedDateField({ value, onChange, label = 'Fecha' }) {
     // elegirla, en vez de mostrar un "· cambiar" suelto.
     const chosen = value === todayISO() ? 'Hoy' : formatDayYear(value)
     return (
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <span className="text-[17px]">{label}</span>
+      <div className="row">
+        <span className="text-body">{label}</span>
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="text-[15px] text-ink-soft underline decoration-dotted underline-offset-4"
+          className="text-subhead text-ink-soft underline decoration-dotted underline-offset-4"
         >
           {chosen ? `${chosen} · cambiar` : 'Elegir fecha'}
         </button>
@@ -44,8 +44,8 @@ function CollapsedDateField({ value, onChange, label = 'Fecha' }) {
   }
 
   return (
-    <label className="flex items-center justify-between gap-3 px-4 py-3">
-      <span className="text-[17px]">{label}</span>
+    <label className="row">
+      <span className="text-body">{label}</span>
       <input
         type="date"
         value={value ?? ''}
@@ -53,7 +53,7 @@ function CollapsedDateField({ value, onChange, label = 'Fecha' }) {
         onBlur={handleBlur}
         required
         autoFocus
-        className="bg-transparent text-right text-[17px] outline-none"
+        className="input-inline"
       />
     </label>
   )

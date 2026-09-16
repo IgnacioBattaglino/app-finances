@@ -104,7 +104,7 @@ function AccountTransferModal({ open, accounts, onClose, onSaved }) {
           type="submit"
           form="account-transfer-form"
           disabled={!valid || busy}
-          className="text-[15px] font-semibold text-accent-ink disabled:opacity-40"
+          className="btn-text text-subhead text-accent-ink"
         >
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
@@ -112,13 +112,13 @@ function AccountTransferModal({ open, accounts, onClose, onSaved }) {
     >
       <form id="account-transfer-form" onSubmit={handleSubmit} className="space-y-3">
         <div className="list">
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">Desde</span>
+          <label className="row">
+            <span className="text-body">Desde</span>
             <select
               value={fromAccountId}
               onChange={(e) => setFromAccountId(e.target.value)}
               required
-              className="max-w-[60%] bg-transparent text-right text-[17px] outline-none"
+              className="max-w-[60%] input-inline"
             >
               <option value="">Elegir…</option>
               {accounts
@@ -131,13 +131,13 @@ function AccountTransferModal({ open, accounts, onClose, onSaved }) {
             </select>
           </label>
 
-          <label className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-[17px]">Hasta</span>
+          <label className="row">
+            <span className="text-body">Hasta</span>
             <select
               value={toAccountId}
               onChange={(e) => setToAccountId(e.target.value)}
               required
-              className="max-w-[60%] bg-transparent text-right text-[17px] outline-none"
+              className="max-w-[60%] input-inline"
             >
               <option value="">Elegir…</option>
               {accounts
@@ -151,17 +151,17 @@ function AccountTransferModal({ open, accounts, onClose, onSaved }) {
           </label>
 
           {sameCurrency && (
-            <label className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-[17px]">Monto</span>
+            <label className="row">
+              <span className="text-body">Monto</span>
               <div className="flex items-center gap-1">
-                <span className="text-[15px] text-ink-soft">{symbol}</span>
+                <span className="text-subhead text-ink-soft">{symbol}</span>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"
                   placeholder="0"
                   required
-                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                  className="font-money w-28 input-inline"
                 />
               </div>
             </label>
@@ -177,7 +177,7 @@ function AccountTransferModal({ open, accounts, onClose, onSaved }) {
           )}
 
           {unsupportedPair && (
-            <p className="px-4 py-3 text-[13px] text-ink-soft">
+            <p className="px-4 py-3 text-footnote text-ink-soft">
               Estas dos cuentas están en monedas que la app no sabe convertir automáticamente. Por
               ahora, transferí entre cuentas en pesos y dólares, o entre dos de la misma moneda.
             </p>

@@ -42,7 +42,7 @@ function CommittedCard({ lines }) {
       <p className="eyebrow mb-1.5">Comprometido este mes</p>
       <MoneyStack lines={lines.map((l) => ({ currency: l.currency, amount: l.total }))} />
 
-      <div className="mt-3 space-y-1 text-[13px] text-ink-soft">
+      <div className="mt-3 space-y-1 text-footnote text-ink-soft">
         {lines.map((line) => (
           <div key={line.currency} className="space-y-1">
             {lines.length > 1 && <p className="eyebrow">{line.currency}</p>}
@@ -81,13 +81,13 @@ function PlanRow({ plan, chargesByPlan, today }) {
   return (
     <Link
       to={`/compromisos/planes/${plan.id}`}
-      className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+      className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
     >
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[17px]">{plan.name}</span>
-        <span className="block truncate text-[13px] text-ink-soft">{detail}</span>
+        <span className="block truncate text-body">{plan.name}</span>
+        <span className="block truncate text-footnote text-ink-soft">{detail}</span>
       </span>
-      <span className="font-money shrink-0 text-[17px] text-ink-soft">
+      <span className="font-money shrink-0 text-body text-ink-soft">
         {formatByCurrency(plan.currency, plan.amount)}
       </span>
       <span aria-hidden="true" className="shrink-0 text-ink-faint">
@@ -102,7 +102,7 @@ function NewRow({ label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="w-full px-4 py-3 text-left text-[17px] font-medium text-accent-ink transition active:bg-mist md:hover:bg-mist"
+      className="w-full px-4 py-3 text-left text-body font-medium text-accent-ink pressable"
     >
       {label}
     </button>
@@ -174,7 +174,7 @@ function Commitments() {
               <Link
                 key={card.id}
                 to={`/compromisos/tarjetas/${card.id}`}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
               >
                 {/* El nombre y el número van EN la tarjeta, no al lado: la
                     fila los mostraría truncados y repetidos. Lo que queda al
@@ -186,19 +186,19 @@ function Commitments() {
                   size="md"
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[17px]">
+                  <span className="block truncate text-body">
                     {ofCard.length === 0
                       ? 'Sin compras'
                       : `${ofCard.length} ${ofCard.length === 1 ? 'compra' : 'compras'}`}
                   </span>
                   {card.due_day && (
-                    <span className="block truncate text-[13px] text-ink-soft">
+                    <span className="block truncate text-footnote text-ink-soft">
                       Vence el {card.due_day}
                     </span>
                   )}
                 </span>
                 {monthly > 0 && (
-                  <span className="font-money shrink-0 text-[17px] text-ink-soft">
+                  <span className="font-money shrink-0 text-body text-ink-soft">
                     {formatByCurrency(card.currency, monthly)}
                   </span>
                 )}

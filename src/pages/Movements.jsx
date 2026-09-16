@@ -6,7 +6,7 @@ import { useAccounts } from '../hooks/useAccounts.js'
 import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
 import FilterChips from '../components/form/FilterChips.jsx'
 import EditIcon from '../components/EditIcon.jsx'
-import FormError from '../components/form/FormError.jsx'
+import { ErrorNotice } from '../components/form/FormError.jsx'
 import { getTransactions, groupExpensesByCategory } from '../lib/transactions.js'
 import { getLiquidContributions } from '../lib/contributions.js'
 import {
@@ -85,7 +85,7 @@ function PlusIcon() {
 // Las dos filas de la lista comparten caja: son el mismo tipo de renglón, lo
 // que cambia es qué pasa al tocarlas.
 const ROW_CLASS =
-  'flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:bg-mist md:hover:bg-mist'
+  'flex w-full items-center justify-between gap-3 px-4 py-3 text-left pressable'
 
 // Gasto o ingreso: se toca para editarlo (de ahí el lápiz). El color es por
 // SIGNIFICADO, no por `kind`: un reparto de conteo o una pata de transferencia
@@ -98,20 +98,20 @@ function TransactionRow({ tx, onEdit }) {
   return (
     <button type="button" onClick={onEdit} className={ROW_CLASS}>
       <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-[17px]">
+        <p className="flex items-center gap-1.5 truncate text-body">
           <span className="truncate">
             {tx.category?.name ?? 'Sin categoría'}
             {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
           </span>
           <EditIcon />
         </p>
-        <p className="mt-0.5 truncate text-[13px] text-ink-soft">
+        <p className="mt-0.5 truncate text-footnote text-ink-soft">
           {formatDay(tx.date)}
           {tx.account?.name && ` · ${tx.account.name}`}
         </p>
       </div>
       <span
-        className={`font-money shrink-0 text-[17px] font-medium ${
+        className={`font-money shrink-0 text-body font-medium ${
           isMoved ? '' : tx.kind === 'expense' ? 'text-clay' : 'text-gain'
         }`}
       >
@@ -137,7 +137,7 @@ function TransactionRow({ tx, onEdit }) {
 export function InvestmentRow({ contribution: c }) {
   const isOut = c.direction === 'out'
   const amount = (
-    <span className="font-money shrink-0 text-[17px] font-medium">
+    <span className="font-money shrink-0 text-body font-medium">
       {isOut ? '+' : '−'}
       {formatByCurrency(contributionCurrency(c), contributionAmount(c))}
     </span>
@@ -147,10 +147,10 @@ export function InvestmentRow({ contribution: c }) {
     return (
       <div className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
         <div className="min-w-0">
-          <p className="truncate text-[17px] text-ink-soft">
+          <p className="truncate text-body text-ink-soft">
             {contributionLabel(c)} · {c.asset?.name ?? 'Activo'}
           </p>
-          <p className="mt-0.5 text-[13px] text-ink-faint">
+          <p className="mt-0.5 text-footnote text-ink-faint">
             {formatDay(c.date)} · Activo archivado
           </p>
         </div>
@@ -162,7 +162,7 @@ export function InvestmentRow({ contribution: c }) {
   return (
     <Link to={`/inversiones/${c.asset?.id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
       <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-[17px]">
+        <p className="flex items-center gap-1.5 truncate text-body">
           <span className="truncate">
             {contributionLabel(c)}
             <span className="text-ink-soft"> · {c.asset?.name ?? 'Activo'}</span>
@@ -171,7 +171,7 @@ export function InvestmentRow({ contribution: c }) {
             <Arrow direction="right" />
           </span>
         </p>
-        <p className="mt-0.5 text-[13px] text-ink-soft">{formatDay(c.date)}</p>
+        <p className="mt-0.5 text-footnote text-ink-soft">{formatDay(c.date)}</p>
       </div>
       {amount}
     </Link>
@@ -196,7 +196,7 @@ function SavingsRow({ tx }) {
   return (
     <Link to={`/plata/${tx.account_id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
       <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-[17px]">
+        <p className="flex items-center gap-1.5 truncate text-body">
           <span className="truncate">
             {tx.category?.name ?? 'Sin categoría'}
             {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
@@ -205,12 +205,12 @@ function SavingsRow({ tx }) {
             <Arrow direction="right" />
           </span>
         </p>
-        <p className="mt-0.5 truncate text-[13px] text-ink-soft">
+        <p className="mt-0.5 truncate text-footnote text-ink-soft">
           {formatDay(tx.date)}
           {tx.account?.name && ` · ${tx.account.name}`}
         </p>
       </div>
-      <span className="font-money shrink-0 text-[17px] font-medium">
+      <span className="font-money shrink-0 text-body font-medium">
         {tx.kind === 'expense' ? '−' : '+'}
         {formatByCurrency(transactionCurrencyOf(tx), tx.amount)}
       </span>
@@ -244,7 +244,7 @@ function TransferRow({ transfer, onOpen }) {
   return (
     <button type="button" onClick={onOpen} className={ROW_CLASS}>
       <div className="min-w-0">
-        <p className="truncate text-[17px]">
+        <p className="truncate text-body">
           <span>{from.name}</span>{' '}
           <span className="font-money font-medium">
             {formatByCurrency(from.currency, from.amount)}
@@ -259,7 +259,7 @@ function TransferRow({ transfer, onOpen }) {
           )}
           <span>{to.name}</span>
         </p>
-        <p className="mt-0.5 truncate text-[13px] text-ink-soft">
+        <p className="mt-0.5 truncate text-footnote text-ink-soft">
           {formatDay(transfer.date)}
           {transfer.origin === 'split' ? ' · Reparto de un conteo' : ' · Transferencia'}
         </p>
@@ -275,13 +275,13 @@ function TransferRow({ transfer, onOpen }) {
 //
 // Con gastos en una sola moneda —el caso normal— la columna tiene una línea
 // sola y la fila es idéntica a la de siempre.
-function TotalRow({ label, lines, labelClass = 'text-[15px] text-ink-soft', amountClass = '' }) {
+function TotalRow({ label, lines, labelClass = 'text-subhead text-ink-soft', amountClass = '' }) {
   return (
     <div className="flex items-baseline justify-between gap-3 px-4 py-3">
       <span className={labelClass}>{label}</span>
       <span className="shrink-0 text-right">
         {lines.map((line) => (
-          <span key={line.currency} className={`font-money block text-[17px] font-semibold ${amountClass}`}>
+          <span key={line.currency} className={`font-money block text-body font-semibold ${amountClass}`}>
             {formatByCurrency(line.currency, line.amount)}
           </span>
         ))}
@@ -497,7 +497,7 @@ function Movements() {
                 type="button"
                 onClick={() => moveRange(-1)}
                 aria-label="Período anterior"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft pressable"
               >
                 <Arrow direction="left" />
               </button>
@@ -507,7 +507,7 @@ function Movements() {
             <button
               type="button"
               onClick={() => setRangeOpen(true)}
-              className="min-w-0 truncate rounded-full bg-accent px-3.5 py-1.5 text-[17px] font-semibold text-white transition active:bg-accent-deep md:hover:bg-accent-deep"
+              className="min-w-0 truncate rounded-full bg-accent px-3.5 py-1.5 text-body font-semibold text-white transition active:bg-accent-deep md:hover:bg-accent-deep"
             >
               {rangeLabel(range)}
             </button>
@@ -516,7 +516,7 @@ function Movements() {
                 type="button"
                 onClick={() => moveRange(1)}
                 aria-label="Período siguiente"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition active:bg-mist md:hover:bg-mist"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-ink-soft pressable"
               >
                 <Arrow direction="right" />
               </button>
@@ -526,16 +526,7 @@ function Movements() {
           </div>
 
           {error && (
-            <div className="notice space-y-2">
-              <FormError message={error?.message} detail={error?.detail} />
-              <button
-                type="button"
-                onClick={load}
-                className="text-[15px] font-semibold text-clay underline"
-              >
-                Reintentar
-              </button>
-            </div>
+            <ErrorNotice error={error} onRetry={load} />
           )}
 
           {!error && !loading && (
@@ -551,7 +542,7 @@ function Movements() {
                 <TotalRow label="Ingresos" lines={incomes} amountClass="text-gain" />
                 <TotalRow label="Invertido" lines={invested} />
                 <TotalRow label="Ahorrado" lines={saved} />
-                <TotalRow label="Balance" lines={balance} labelClass="text-[15px] font-medium" />
+                <TotalRow label="Balance" lines={balance} labelClass="text-subhead font-medium" />
               </div>
 
               {/* Una lista por moneda (ver groupExpensesByCategory): con gastos
@@ -565,7 +556,7 @@ function Movements() {
                   {categoryBreakdown.map((group) => (
                     <div key={group.currency}>
                       {categoryBreakdown.length > 1 && (
-                        <p className="mb-1.5 px-1 text-[13px] text-ink-faint">
+                        <p className="mb-1.5 px-1 text-footnote text-ink-faint">
                           {group.currency === 'ARS' ? 'En pesos' : 'En dólares'}
                         </p>
                       )}
@@ -573,7 +564,7 @@ function Movements() {
                         {group.categories.map((cat) => (
                           <div
                             key={cat.name}
-                            className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-[15px]"
+                            className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-subhead"
                           >
                             <span className="truncate text-ink-soft">{cat.name}</span>
                             <span className="font-money shrink-0">
@@ -610,7 +601,7 @@ function Movements() {
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 aria-label="Filtrar por categoría"
-                className="w-full rounded-[12px] bg-mist px-3.5 py-2.5 text-[15px] outline-none sm:max-w-xs"
+                className="field py-2.5 text-subhead sm:max-w-xs"
               >
                 <option value="">Todas las categorías</option>
                 {categories
@@ -625,9 +616,9 @@ function Movements() {
           </div>
 
           {loading ? (
-            <p className="px-1 text-[15px] text-ink-soft">Cargando…</p>
+            <p className="px-1 text-subhead text-ink-soft">Cargando…</p>
           ) : items.length === 0 && !error ? (
-            <p className="surface px-4 py-10 text-center text-[15px] text-ink-soft">
+            <p className="surface px-4 py-10 text-center text-subhead text-ink-soft">
               {hasExtraFilters
                 ? 'Sin movimientos con estos filtros.'
                 : 'Sin movimientos en este período.'}

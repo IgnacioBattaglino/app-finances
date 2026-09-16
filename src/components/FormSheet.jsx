@@ -122,13 +122,13 @@ function FormSheet({ title, subtitle, action, onClose, children, startExpanded =
           <button
             type="button"
             onClick={onClose}
-            className="min-w-[68px] text-left text-[17px] text-ink-soft"
+            className="min-w-[68px] text-left text-body text-ink-soft"
           >
             Cancelar
           </button>
           <div className="min-w-0 text-center">
-            <h2 className="truncate text-[17px] font-semibold">{title}</h2>
-            {subtitle && <p className="truncate text-[13px] text-ink-soft">{subtitle}</p>}
+            <h2 className="truncate text-body font-semibold">{title}</h2>
+            {subtitle && <p className="truncate text-footnote text-ink-soft">{subtitle}</p>}
           </div>
           {action ? (
             <div className="flex min-w-[68px] justify-end">{action}</div>

@@ -44,13 +44,13 @@ function NewLinkNotice({ invite, onDismiss }) {
 
   return (
     <div className="notice space-y-3">
-      <p className="text-[15px]">Compartí este link — sirve una sola vez y vence en 7 días.</p>
-      <p className="font-money truncate rounded-lg bg-mist px-3 py-2 text-[13px]">{link}</p>
+      <p className="text-subhead">Compartí este link — sirve una sola vez y vence en 7 días.</p>
+      <p className="font-money truncate rounded-lg bg-mist px-3 py-2 text-footnote">{link}</p>
       <div className="flex gap-3">
-        <button type="button" onClick={copy} className="btn btn-primary h-10 flex-1 text-[15px]">
+        <button type="button" onClick={copy} className="btn btn-primary h-10 flex-1 text-subhead">
           {copied ? 'Copiado' : 'Copiar link'}
         </button>
-        <button type="button" onClick={onDismiss} className="btn btn-secondary h-10 flex-1 text-[15px]">
+        <button type="button" onClick={onDismiss} className="btn btn-secondary h-10 flex-1 text-subhead">
           Listo
         </button>
       </div>
@@ -70,16 +70,16 @@ function InviteRow({ invite, onRevoke }) {
           : `Vence el ${day(invite.expires_at)}`
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3">
+    <div className="row">
       <div className="min-w-0">
-        <p className="text-[17px]">{STATUS_LABEL[status]}</p>
-        <p className="truncate text-[13px] text-ink-soft">{detail}</p>
+        <p className="text-body">{STATUS_LABEL[status]}</p>
+        <p className="truncate text-footnote text-ink-soft">{detail}</p>
       </div>
       {status === 'valid' && (
         <button
           type="button"
           onClick={() => onRevoke(invite.id)}
-          className="shrink-0 text-[15px] font-medium text-clay"
+          className="shrink-0 text-subhead font-medium text-clay"
         >
           Anular
         </button>
@@ -164,9 +164,9 @@ function Invitations() {
         </SettingsGroup>
 
         {loading ? (
-          <p className="px-4 text-[15px] text-ink-soft">Cargando…</p>
+          <p className="px-4 text-subhead text-ink-soft">Cargando…</p>
         ) : invitations.length === 0 ? (
-          <p className="px-4 text-[15px] text-ink-soft">Todavía no generaste ninguna invitación.</p>
+          <p className="px-4 text-subhead text-ink-soft">Todavía no generaste ninguna invitación.</p>
         ) : (
           <SettingsGroup title="Generadas">
             {invitations.map((invite) => (
