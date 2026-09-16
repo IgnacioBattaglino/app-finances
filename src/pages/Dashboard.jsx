@@ -78,7 +78,7 @@ function SummaryCard({
     <span className="flex items-center gap-1.5">
       <span className="eyebrow">{label}</span>
       {lines?.length === 1 && (
-        <span className="rounded-full bg-mist px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">
+        <span className="badge font-semibold">
           {lines[0].currency}
         </span>
       )}

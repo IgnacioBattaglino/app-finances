@@ -121,7 +121,7 @@ export function InvestmentRow({ contribution: c }) {
           <p className="truncate text-body text-ink-soft">
             {contributionLabel(c)} · {c.asset?.name ?? 'Activo'}
           </p>
-          <p className="mt-0.5 text-footnote text-ink-faint">
+          <p className="mt-0.5 text-footnote text-ink-soft">
             {formatDay(c.date)} · Activo archivado
           </p>
         </div>
@@ -530,7 +530,7 @@ function Movements() {
                   {categoryBreakdown.map((group) => (
                     <div key={group.currency}>
                       {categoryBreakdown.length > 1 && (
-                        <p className="mb-1.5 px-1 text-footnote text-ink-faint">
+                        <p className="mb-1.5 px-1 text-footnote text-ink-soft">
                           {group.currency === 'ARS' ? 'En pesos' : 'En dólares'}
                         </p>
                       )}

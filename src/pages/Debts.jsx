@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
+import BackLink from '../components/BackLink.jsx'
 import Money from '../components/Money.jsx'
 import DebtFormModal from '../components/DebtFormModal.jsx'
 import DebtPaymentModal from '../components/DebtPaymentModal.jsx'
@@ -110,7 +111,7 @@ export function DebtCard({ debt, expanded, onToggle, onEdit, onPay, onEditPaymen
           type="button"
           onClick={() => onToggle(debt.id)}
           disabled={payments.length === 0}
-          className="flex-1 border-l border-line py-3.5 text-subhead font-medium text-ink-soft transition active:bg-mist disabled:opacity-40 md:hover:bg-mist"
+          className="flex-1 border-l border-line py-3.5 text-subhead font-medium text-ink-soft pressable disabled:opacity-40"
         >
           {payments.length === 0
             ? 'Sin pagos'
@@ -176,6 +177,9 @@ function Debts() {
 
   return (
     <div className="page">
+      {/* Deudas vive adentro de Compromisos: sin esto, en el celular la única
+          forma de volver era tocar la pestaña. */}
+      <BackLink to="/compromisos">Compromisos</BackLink>
       <PageHeader
         title="Deudas"
         action={
@@ -230,7 +234,7 @@ function Debts() {
             <button
               type="button"
               onClick={() => setDebtModal({ open: true, editing: null })}
-              className="w-full border-t border-line py-3.5 text-subhead font-semibold text-accent-ink transition active:bg-mist md:hidden"
+              className="w-full border-t border-line py-3.5 text-subhead font-semibold text-accent-ink pressable md:hidden"
             >
               Nueva deuda
             </button>

@@ -40,7 +40,7 @@ function Shortcut({ active, onClick, children }) {
       onClick={onClick}
       aria-pressed={active}
       className={`rounded-full px-3.5 py-2 text-subhead transition ${
-        active ? 'bg-accent font-semibold text-white' : 'bg-mist text-ink-soft active:bg-line md:hover:bg-line'
+        active ? 'bg-accent font-semibold text-white' : 'bg-mist text-ink-soft active:bg-line [@media(hover:hover)]:hover:bg-line'
       }`}
     >
       {children}
@@ -127,7 +127,7 @@ function RangeSheet({ range, onChange, onClose }) {
                   className={`rounded-field py-2.5 text-subhead transition ${
                     active
                       ? 'bg-accent font-semibold text-white'
-                      : 'text-ink-soft active:bg-mist md:hover:bg-mist'
+                      : 'text-ink-soft pressable'
                   }`}
                 >
                   {name}

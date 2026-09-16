@@ -19,7 +19,6 @@ import {
   SettingsGroup,
   SettingsValueRow,
   SettingsSwitchRow,
-  SettingsButtonRow,
 } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 import BinaryChoice from '../../components/form/BinaryChoice.jsx'
@@ -28,6 +27,7 @@ import AccountHistory from '../../components/account/AccountHistory.jsx'
 import TransactionFormModal from '../../components/TransactionFormModal.jsx'
 import ConfirmAction from '../../components/form/ConfirmAction.jsx'
 import ListSkeleton from '../../components/ListSkeleton.jsx'
+import Money from '../../components/Money.jsx'
 
 const PAGE_SIZE = 20
 
@@ -229,12 +229,30 @@ function AccountDetail() {
       {/* Primero la plata: quien entra acá viene de tocar un saldo, no a
           configurar la cuenta. La configuración (nombre, moneda, ahorro) va
           al final, como los ajustes de esa plata y no lo primero que se ve. */}
-      <SettingsGroup title="Saldo">
-        <SettingsValueRow
-          label="Actual"
-          value={formatByCurrency(account.currency, balance?.amount ?? 0)}
-        />
-      </SettingsGroup>
+      {/* El saldo es el dato de la pantalla: va grande, como el valor de un
+          activo, y no como una fila de ajustes. */}
+      <div className="surface px-5 py-5">
+        <p className="eyebrow">Saldo</p>
+        <p className="mt-2 text-[40px] leading-none font-semibold">
+          <Money value={balance?.amount ?? 0} currency={account.currency === 'USD' ? 'usd' : 'ars'} />
+        </p>
+      </div>
+
+      {/* Solo para cuentas de ahorro: el mismo par de acciones que un activo
+          de inversión, pero moviendo plata entre esta cuenta y una de uso
+          diario (o de/hacia afuera de la app). Pegadas al saldo que cambian, y
+          en el mismo orden que en un activo: Retirar a la izquierda, Aportar
+          del lado del pulgar. */}
+      {account.is_savings && (
+        <div className="grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setMovement('withdrawal')} className="btn btn-secondary">
+            Retirar
+          </button>
+          <button type="button" onClick={() => setMovement('contribution')} className="btn btn-primary">
+            Aportar
+          </button>
+        </div>
+      )}
 
       <div>
         <h2 className="eyebrow mb-2 px-1">Historial</h2>
@@ -247,18 +265,6 @@ function AccountDetail() {
           onEdit={(tx) => setTxModal({ open: true, editing: tx })}
         />
       </div>
-
-      {/* Solo para cuentas de ahorro: el mismo patrón de aportar/retirar que
-          ya tienen los activos de inversión, pero moviendo plata entre esta
-          cuenta y una de uso diario (o de/hacia afuera de la app). Una cuenta
-          de uso diario no lo necesita: para el día a día ya está la carga
-          rápida de gasto/ingreso. */}
-      {account.is_savings && (
-        <SettingsGroup footer="Aportar y retirar mueven la plata entre esta cuenta y una de tu disponible, o de/hacia afuera de la app.">
-          <SettingsButtonRow label="Aportar" onClick={() => setMovement('contribution')} />
-          <SettingsButtonRow label="Retirar" onClick={() => setMovement('withdrawal')} />
-        </SettingsGroup>
-      )}
 
       <form onSubmit={handleRename}>
         <SettingsGroup
@@ -277,7 +283,7 @@ function AccountDetail() {
             <button
               type="submit"
               disabled={busy || !name.trim()}
-              className="w-full px-4 py-3 text-left text-body font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
+              className="row w-full text-left text-body font-semibold text-accent-ink pressable disabled:opacity-40"
             >
               Guardar
             </button>

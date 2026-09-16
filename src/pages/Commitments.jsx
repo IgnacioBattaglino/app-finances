@@ -80,7 +80,8 @@ function PlanRow({ plan, chargesByPlan, today }) {
     : frequencyLabel(plan.frequency)
 
   return (
-    <Link viewTransition
+    <Link
+      viewTransition
       to={`/compromisos/planes/${plan.id}`}
       className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
     >
@@ -163,7 +164,8 @@ function Commitments() {
             const ofCard = active.filter((p) => p.card_id === card.id)
             const monthly = ofCard.reduce((sum, p) => sum + Number(p.amount), 0)
             return (
-              <Link viewTransition
+              <Link
+                viewTransition
                 key={card.id}
                 to={`/compromisos/tarjetas/${card.id}`}
                 className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"

@@ -55,7 +55,8 @@ function AccountRow({ account, dragHandlers }) {
       >
         <Grip />
       </button>
-      <Link viewTransition
+      <Link
+        viewTransition
         to={`/plata/${account.id}`}
         className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 py-3 pr-2 transition-opacity active:opacity-60"
       >

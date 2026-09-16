@@ -31,7 +31,7 @@ function InstrumentRow({ instrument, onPick }) {
     <button
       type="button"
       onClick={() => onPick(instrument)}
-      className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition active:bg-mist"
+      className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left pressable"
     >
       <span className="min-w-0">
         <span className="block truncate text-subhead">{instrument.name}</span>
@@ -121,7 +121,7 @@ function InstrumentPicker({ value, onChange }) {
             cambiar
           </button>
         </div>
-        <div className="mt-2 rounded-[12px] bg-mist px-3 py-2">
+        <div className="mt-2 rounded-field bg-mist px-3 py-2">
           <p className="text-subhead">{value.name}</p>
           <p className="text-footnote text-ink-soft">
             {value.symbol} · {instrumentKindLabel(value.kind)}

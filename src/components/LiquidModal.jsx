@@ -58,7 +58,7 @@ function AccountRow({ account, value, onChange }) {
         <p className="mt-1.5 text-footnote text-ink-soft">Coincide: no hay nada que corregir.</p>
       )}
       {!filled && account.last && (
-        <p className="mt-1.5 text-footnote text-ink-faint">
+        <p className="mt-1.5 text-footnote text-ink-soft">
           Reconciliada el {formatDayYear(account.last.date)}.
         </p>
       )}

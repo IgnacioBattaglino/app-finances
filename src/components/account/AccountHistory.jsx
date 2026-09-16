@@ -1,10 +1,10 @@
 import { formatByCurrency, formatDay } from '../../lib/format.js'
 import { movementType, isMovedMoneyType } from '../../lib/systemCategories.js'
-import { Pencil } from '../Icons.jsx'
 
 // Un movimiento (transactions) de esta cuenta: categoría + descripción a la
 // izquierda (mismo peso que en Movimientos), monto con signo y color en la
-// moneda de la cuenta a la derecha. Editable/borrable al tocarlo — el propio
+// moneda de la cuenta a la derecha. Editable/borrable al tocarlo (sin ícono:
+// tocar una fila para abrirla es lo que se espera de una lista, ver Movements) — el propio
 // TransactionFormModal decide si es una pata de transferencia y la muestra de
 // solo lectura con la opción de borrar la transferencia entera.
 //
@@ -27,7 +27,6 @@ function TransactionRow({ tx, onClick }) {
             {tx.category?.name ?? 'Sin categoría'}
             {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
           </span>
-          <Pencil />
         </p>
         <p className="mt-0.5 text-footnote text-ink-soft">{formatDay(tx.date)}</p>
       </div>

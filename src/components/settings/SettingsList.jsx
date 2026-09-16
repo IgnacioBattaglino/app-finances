@@ -30,14 +30,15 @@ export function SettingsGroup({ title, footer, children }) {
 // nombre (el "fuera del total" de un grupo de activos).
 export function SettingsLinkRow({ to, label, value, badge }) {
   return (
-    <Link viewTransition
+    <Link
+      viewTransition
       to={to}
       className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
     >
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
         <span className="truncate text-body">{label}</span>
         {badge && (
-          <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-caption tracking-wide text-ink-soft uppercase">
+          <span className="badge">
             {badge}
           </span>
         )}
@@ -74,7 +75,7 @@ export function SettingsButtonRow({ onClick, label, tone = 'accent', disabled = 
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`w-full px-4 py-3 text-left text-body font-medium transition active:bg-mist disabled:opacity-40 md:hover:bg-mist ${color}`}
+      className={`row w-full text-left text-body font-medium pressable disabled:opacity-40 ${color}`}
     >
       {label}
     </button>

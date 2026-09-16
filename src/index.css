@@ -299,6 +299,22 @@
     line-height: 1.5;
   }
 
+  /* Marca corta pegada a un nombre ("del sistema", "fuera del total", la
+     moneda de una tarjeta). En minúscula, como los encabezados: una etiqueta
+     en mayúscula espaciada grita más que el nombre al que acompaña. */
+  .badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    border-radius: 9999px;
+    background-color: var(--color-mist);
+    padding: 0.125rem 0.5rem;
+    font-size: var(--text-caption);
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--color-ink-soft);
+  }
+
   /* ---- CAMPOS ------------------------------------------------------------
      Dos formas de campo, nunca una tercera: `input-inline` vive adentro de
      una fila de lista (el valor alineado a la derecha, sin caja propia: la

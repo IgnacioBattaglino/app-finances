@@ -113,7 +113,8 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
           Y es un link al detalle del grupo, la MISMA pantalla que se abre
           desde la lista de grupos: ahí se le cambia el nombre, el color y el
           resto. Dos pantallas para lo mismo se desincronizan; una sola, no. */}
-      <Link viewTransition
+      <Link
+        viewTransition
         to={`/inversiones/grupos/${assetType.id}`}
         state={{ from: 'inversiones' }}
         className={`block px-4 py-3 transition active:opacity-90 ${color ? 'group-tint' : 'bg-mist'}`}
@@ -123,12 +124,12 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
             {assetType.name}
             <ChevronRight />
             {outOfTotal && (
-              <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-medium tracking-wide text-ink-soft uppercase">
+              <span className="badge bg-card">
                 fuera del total
               </span>
             )}
             {archivedGroup && (
-              <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-medium tracking-wide text-ink-soft uppercase">
+              <span className="badge bg-card">
                 grupo archivado
               </span>
             )}

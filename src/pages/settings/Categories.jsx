@@ -6,7 +6,7 @@ import { SettingsGroup, SettingsCreateRow } from '../../components/settings/Sett
 import { ErrorNotice } from '../../components/form/FormError.jsx'
 import InlineCreate from '../../components/form/InlineCreate.jsx'
 import { ReorderableRows } from '../../components/settings/ReorderableRows.jsx'
-import { Grip } from '../../components/Icons.jsx'
+import { ChevronRight, Grip } from '../../components/Icons.jsx'
 import ListSkeleton from '../../components/ListSkeleton.jsx'
 
 // Alta al pie del grupo al que va a pertenecer: antes el form de alta vivía
@@ -51,7 +51,7 @@ function CategoryRow({ category, dragHandlers }) {
       <div className="flex w-full items-center gap-3 px-4 py-3">
         <span className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="truncate text-body">{category.name}</span>
-          <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-caption tracking-wide text-ink-soft uppercase">
+          <span className="shrink-0 badge">
             del sistema
           </span>
         </span>
@@ -69,11 +69,13 @@ function CategoryRow({ category, dragHandlers }) {
       >
         <Grip />
       </button>
-      <Link viewTransition
+      <Link
+        viewTransition
         to={`/ajustes/categorias/${category.id}`}
-        className="min-w-0 flex-1 truncate py-3 text-body transition active:opacity-60"
+        className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 py-3 pr-2 text-body transition-opacity active:opacity-60"
       >
-        {category.name}
+        <span className="truncate">{category.name}</span>
+        <ChevronRight />
       </Link>
     </div>
   )

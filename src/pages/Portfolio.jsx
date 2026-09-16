@@ -238,7 +238,7 @@ function Portfolio() {
               <button
                 type="button"
                 onClick={() => setAssetModal({ open: true, editing: null })}
-                className="flex-1 py-3.5 text-subhead font-semibold text-accent-ink transition active:bg-mist"
+                className="flex-1 py-3.5 text-subhead font-semibold text-accent-ink pressable"
               >
                 Nuevo activo
               </button>
@@ -246,7 +246,7 @@ function Portfolio() {
                 <button
                   type="button"
                   onClick={() => setValuationModal({ open: true, assets: manualAssets })}
-                  className="flex-1 border-l border-line py-3.5 text-subhead font-semibold text-accent-ink transition active:bg-mist"
+                  className="flex-1 border-l border-line py-3.5 text-subhead font-semibold text-accent-ink pressable"
                 >
                   Actualizar valuaciones
                 </button>
@@ -328,7 +328,7 @@ function Portfolio() {
                   <span className="text-subhead text-ink-soft">
                     {asset.name}
                     {asset.asset_type?.name && (
-                      <span className="ml-2 text-caption text-ink-faint uppercase">
+                      <span className="badge ml-2">
                         {asset.asset_type.name}
                       </span>
                     )}

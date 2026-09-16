@@ -261,7 +261,7 @@ function AssetTypeDetail() {
             <button
               type="submit"
               disabled={busy || !name.trim()}
-              className="w-full px-4 py-3 text-left text-body font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
+              className="row w-full text-left text-body font-semibold text-accent-ink pressable disabled:opacity-40"
             >
               Guardar
             </button>
@@ -311,7 +311,7 @@ function AssetTypeDetail() {
                 onClick={() => handleMove('up')}
                 disabled={busy || position === 0}
                 aria-label="Subir un lugar"
-                className="rounded-lg p-1.5 text-accent-ink transition active:bg-mist disabled:opacity-25"
+                className="rounded-lg p-1.5 text-accent-ink pressable disabled:opacity-25"
               >
                 <ArrowUp />
               </button>
@@ -320,7 +320,7 @@ function AssetTypeDetail() {
                 onClick={() => handleMove('down')}
                 disabled={busy || position === siblings.length - 1}
                 aria-label="Bajar un lugar"
-                className="rounded-lg p-1.5 text-accent-ink transition active:bg-mist disabled:opacity-25"
+                className="rounded-lg p-1.5 text-accent-ink pressable disabled:opacity-25"
               >
                 <ArrowDown />
               </button>

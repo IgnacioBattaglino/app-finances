@@ -117,7 +117,7 @@ function CategoryDetail() {
                 <button
                   type="submit"
                   disabled={busy || !name.trim()}
-                  className="w-full px-4 py-3 text-left text-body font-semibold text-accent-ink transition active:bg-mist disabled:opacity-40"
+                  className="row w-full text-left text-body font-semibold text-accent-ink pressable disabled:opacity-40"
                 >
                   Guardar
                 </button>

@@ -11,8 +11,9 @@ import {
 import { formatDayShortYear } from '../../lib/format.js'
 import PageHeader from '../../components/PageHeader.jsx'
 import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
-import FormError from '../../components/form/FormError.jsx'
+import { ErrorNotice } from '../../components/form/FormError.jsx'
 import ListSkeleton from '../../components/ListSkeleton.jsx'
+import BackLink from '../../components/BackLink.jsx'
 
 const STATUS_LABEL = {
   valid: 'Vigente',
@@ -144,17 +145,14 @@ function Invitations() {
 
   return (
     <div className="page-narrow">
+      <BackLink to="/ajustes">Ajustes</BackLink>
       <PageHeader
         title="Invitaciones"
         description="Generá un link para que alguien se registre. Sirve una sola vez y vence a los 7 días."
       />
 
       <div className="space-y-7">
-        {error && (
-          <div className="notice">
-            <FormError message={error.message} detail={error.detail} />
-          </div>
-        )}
+        <ErrorNotice error={error} />
 
         {justCreated && (
           <NewLinkNotice invite={justCreated} onDismiss={() => setJustCreated(null)} />

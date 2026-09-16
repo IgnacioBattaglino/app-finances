@@ -38,7 +38,7 @@ function FilterChips({ options, value, onChange, label }) {
           className={`shrink-0 rounded-full px-3.5 py-2 text-subhead transition ${
             value === option.value
               ? 'bg-accent font-semibold text-white'
-              : 'bg-mist text-ink-soft active:bg-line md:hover:bg-line'
+              : 'bg-mist text-ink-soft active:bg-line [@media(hover:hover)]:hover:bg-line'
           }`}
         >
           {option.label}

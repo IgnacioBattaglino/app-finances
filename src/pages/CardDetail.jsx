@@ -135,7 +135,8 @@ function CardDetail() {
             today,
           })
           return (
-            <Link viewTransition
+            <Link
+              viewTransition
               key={plan.id}
               to={`/compromisos/planes/${plan.id}`}
               className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
@@ -161,7 +162,8 @@ function CardDetail() {
       {done.length > 0 && (
         <SettingsGroup title={`Terminadas (${done.length})`}>
           {done.map((plan) => (
-            <Link viewTransition
+            <Link
+              viewTransition
               key={plan.id}
               to={`/compromisos/planes/${plan.id}`}
               className="flex w-full items-center gap-3 px-4 py-3 text-left pressable"
