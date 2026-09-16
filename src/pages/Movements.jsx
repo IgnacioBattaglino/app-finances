@@ -50,54 +50,97 @@ const now = new Date()
 // dibuja, nunca lo que se cuenta.
 const PAGE = 100
 
-// Las filas de la lista comparten caja: son el mismo tipo de renglón, lo que
-// cambia es qué pasa al tocarlas. La señal va siempre en el mismo lugar, al
-// final de la fila: un chevron si lleva a otra pantalla (una inversión, una
-// cuenta de ahorro); nada si abre el movimiento acá mismo, que es lo que
-// espera cualquier lista de iOS. Antes el lápiz y el chevron iban pegados al
-// título, en un lugar distinto según el largo del texto.
-const ROW_CLASS =
-  'flex w-full items-center justify-between gap-3 px-4 py-3 text-left pressable'
+// La caja común de las filas de la lista: título y subtítulo a la izquierda,
+// monto a la derecha. Lo que cambia es qué pasa al tocarla, y la señal va
+// siempre en el mismo lugar, al final: un chevron si lleva a otra pantalla
+// (`to`: una inversión, una cuenta de ahorro); nada si abre el movimiento acá
+// mismo (`onClick`), que es lo que espera cualquier lista de iOS; y sin resalte
+// al tacto si no se toca (ni `to` ni `onClick`).
+function MovementRow({ title, subtitle, amount, to, onClick, muted = false }) {
+  const body = (
+    <>
+      <div className="min-w-0">
+        <p className={`truncate text-body ${muted ? 'text-ink-soft' : ''}`}>{title}</p>
+        <p className="mt-0.5 truncate text-footnote text-ink-soft">{subtitle}</p>
+      </div>
+      {(amount || to) && (
+        <span className="flex shrink-0 items-center gap-1.5">
+          {amount}
+          {to && <ChevronRight />}
+        </span>
+      )}
+    </>
+  )
+  const className = 'row w-full text-left'
+  if (to) {
+    return (
+      <Link viewTransition to={to} state={{ from: 'movements' }} className={`${className} pressable`}>
+        {body}
+      </Link>
+    )
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`${className} pressable`}>
+        {body}
+      </button>
+    )
+  }
+  return <div className={className}>{body}</div>
+}
 
-// Gasto o ingreso: se toca para editarlo (de ahí el lápiz). El color es por
-// SIGNIFICADO, no por `kind`: un reparto de conteo o una pata de transferencia
-// que caen en esta fila (porque su cuenta no es de ahorro) no son ni una
-// pérdida ni una ganancia, son plata que cambió de lugar — van sin color,
-// igual que ya hacen InvestmentRow y SavingsRow. Un gasto, un ingreso o un
-// ajuste de saldo (que sí son reales) se quedan con el color de siempre.
+// Un monto con signo, en la moneda de la cuenta por la que pasó la plata.
+// `tone` es el color del significado; sin tono, plata que cambió de lugar.
+function SignedAmount({ negative, currency, value, tone = '' }) {
+  return (
+    <span className={`font-money text-body font-medium ${tone}`}>
+      {negative ? '−' : '+'}
+      {formatByCurrency(currency, value)}
+    </span>
+  )
+}
+
+function describe(tx) {
+  return (
+    <>
+      {tx.category?.name ?? 'Sin categoría'}
+      {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
+    </>
+  )
+}
+
+function dayAndAccount(tx) {
+  return `${formatDay(tx.date)}${tx.account?.name ? ` · ${tx.account.name}` : ''}`
+}
+
+// Gasto o ingreso: se toca para editarlo acá. El color es por SIGNIFICADO, no
+// por `kind`: un reparto de conteo o una pata de transferencia que caen en
+// esta fila (porque su cuenta no es de ahorro) no son ni una pérdida ni una
+// ganancia, son plata que cambió de lugar — van sin color, igual que
+// InvestmentRow y SavingsRow. Un gasto, un ingreso o un ajuste de saldo (que
+// sí son reales) se quedan con el color de siempre.
 function TransactionRow({ tx, onEdit }) {
   const isMoved = isMovedMoneyType(movementType(tx))
   return (
-    <button type="button" onClick={onEdit} className={ROW_CLASS}>
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-body">
-          <span className="truncate">
-            {tx.category?.name ?? 'Sin categoría'}
-            {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
-          </span>
-        </p>
-        <p className="mt-0.5 truncate text-footnote text-ink-soft">
-          {formatDay(tx.date)}
-          {tx.account?.name && ` · ${tx.account.name}`}
-        </p>
-      </div>
-      <span
-        className={`font-money shrink-0 text-body font-medium ${
-          isMoved ? '' : tx.kind === 'expense' ? 'text-clay' : 'text-gain'
-        }`}
-      >
-        {tx.kind === 'expense' ? '−' : '+'}
-        {formatByCurrency(transactionCurrencyOf(tx), tx.amount)}
-      </span>
-    </button>
+    <MovementRow
+      title={describe(tx)}
+      subtitle={dayAndAccount(tx)}
+      onClick={onEdit}
+      amount={
+        <SignedAmount
+          negative={tx.kind === 'expense'}
+          currency={transactionCurrencyOf(tx)}
+          value={tx.amount}
+          tone={isMoved ? '' : tx.kind === 'expense' ? 'text-clay' : 'text-gain'}
+        />
+      }
+    />
   )
 }
 
 // Inversión o retiro: acá es de solo lectura y lleva al detalle del activo,
-// que es donde se edita (de ahí el chevron en vez del lápiz). El monto va en
-// la moneda de la cuenta por la que pasó la plata —igual que el resto de la
-// lista— y sin color: no es una pérdida ni una ganancia, es plata que cambió
-// de lugar. El signo dice para qué lado.
+// que es donde se edita (de ahí el chevron). Sin color: no es una pérdida ni
+// una ganancia, es plata que cambió de lugar. El signo dice para qué lado.
 //
 // Un activo ARCHIVADO no tiene a dónde ir: getAssets() lo filtra, así que
 // AssetDetail no lo encuentra y redirige a Inversiones sin explicación (era
@@ -106,54 +149,33 @@ function TransactionRow({ tx, onEdit }) {
 // resalte al tacto de una fila interactiva, y con una segunda línea que dice
 // por qué.
 export function InvestmentRow({ contribution: c }) {
-  const isOut = c.direction === 'out'
-  const amount = (
-    <span className="font-money shrink-0 text-body font-medium">
-      {isOut ? '+' : '−'}
-      {formatByCurrency(contributionCurrency(c), contributionAmount(c))}
-    </span>
-  )
-
-  if (c.asset?.is_archived) {
-    return (
-      <div className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
-        <div className="min-w-0">
-          <p className="truncate text-body text-ink-soft">
-            {contributionLabel(c)} · {c.asset?.name ?? 'Activo'}
-          </p>
-          <p className="mt-0.5 text-footnote text-ink-soft">
-            {formatDay(c.date)} · Activo archivado
-          </p>
-        </div>
-        {amount}
-      </div>
-    )
-  }
-
+  const archived = c.asset?.is_archived
   return (
-    <Link viewTransition to={`/inversiones/${c.asset?.id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-body">
-          <span className="truncate">
-            {contributionLabel(c)}
-            <span className="text-ink-soft"> · {c.asset?.name ?? 'Activo'}</span>
-          </span>
-        </p>
-        <p className="mt-0.5 text-footnote text-ink-soft">{formatDay(c.date)}</p>
-      </div>
-      <span className="flex shrink-0 items-center gap-1.5">
-        {amount}
-        <ChevronRight />
-      </span>
-    </Link>
+    <MovementRow
+      muted={archived}
+      title={
+        <>
+          {contributionLabel(c)}
+          <span className="text-ink-soft"> · {c.asset?.name ?? 'Activo'}</span>
+        </>
+      }
+      subtitle={archived ? `${formatDay(c.date)} · Activo archivado` : formatDay(c.date)}
+      to={archived ? undefined : `/inversiones/${c.asset?.id}`}
+      amount={
+        <SignedAmount
+          negative={c.direction !== 'out'}
+          currency={contributionCurrency(c)}
+          value={contributionAmount(c)}
+        />
+      }
+    />
   )
 }
 
 // Movimiento de una cuenta de AHORRO: un aporte, un retiro, la pata de una
 // transferencia o el ajuste de un conteo que cayó ahí. Mismo patrón que
 // InvestmentRow y por el mismo motivo: acá es de solo lectura y lleva al lugar
-// donde sí se edita —el detalle de la cuenta—, de ahí el chevron en vez del
-// lápiz.
+// donde sí se edita —el detalle de la cuenta—.
 //
 // No es sólo una decisión de lectura: el formulario de esta pantalla ofrece
 // las cuentas del día a día (useAccounts no lista las de ahorro), así que
@@ -161,31 +183,17 @@ export function InvestmentRow({ contribution: c }) {
 // el detalle de la cuenta el modal sí recibe la suya.
 //
 // Sin color, igual que una inversión: lo que domina acá es plata que cambió de
-// lugar, no una pérdida ni una ganancia. El signo dice para qué lado, y el
-// nombre de la cuenta —debajo, como en cualquier fila— dice dónde.
+// lugar. El signo dice para qué lado, y el nombre de la cuenta dice dónde.
 function SavingsRow({ tx }) {
   return (
-    <Link viewTransition to={`/plata/${tx.account_id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-body">
-          <span className="truncate">
-            {tx.category?.name ?? 'Sin categoría'}
-            {tx.description && <span className="text-ink-soft"> · {tx.description}</span>}
-          </span>
-        </p>
-        <p className="mt-0.5 truncate text-footnote text-ink-soft">
-          {formatDay(tx.date)}
-          {tx.account?.name && ` · ${tx.account.name}`}
-        </p>
-      </div>
-      <span className="flex shrink-0 items-center gap-1.5">
-        <span className="font-money text-body font-medium">
-          {tx.kind === 'expense' ? '−' : '+'}
-          {formatByCurrency(transactionCurrencyOf(tx), tx.amount)}
-        </span>
-        <ChevronRight />
-      </span>
-    </Link>
+    <MovementRow
+      title={describe(tx)}
+      subtitle={dayAndAccount(tx)}
+      to={`/plata/${tx.account_id}`}
+      amount={
+        <SignedAmount negative={tx.kind === 'expense'} currency={transactionCurrencyOf(tx)} value={tx.amount} />
+      }
+    />
   )
 }
 
@@ -213,29 +221,23 @@ function TransferRow({ transfer, onOpen }) {
   const { from, to } = transfer
   const twoAmounts = from.currency !== to.currency
   return (
-    <button type="button" onClick={onOpen} className={ROW_CLASS}>
-      <div className="min-w-0">
-        <p className="truncate text-body">
-          <span>{from.name}</span>{' '}
-          <span className="font-money font-medium">
-            {formatByCurrency(from.currency, from.amount)}
-          </span>
+    <MovementRow
+      onClick={onOpen}
+      title={
+        <>
+          {from.name}{' '}
+          <span className="font-money font-medium">{formatByCurrency(from.currency, from.amount)}</span>
           <span className="px-1.5 text-ink-faint">→</span>
           {twoAmounts && (
             <>
-              <span className="font-money font-medium">
-                {formatByCurrency(to.currency, to.amount)}
-              </span>{' '}
+              <span className="font-money font-medium">{formatByCurrency(to.currency, to.amount)}</span>{' '}
             </>
           )}
-          <span>{to.name}</span>
-        </p>
-        <p className="mt-0.5 truncate text-footnote text-ink-soft">
-          {formatDay(transfer.date)}
-          {transfer.origin === 'split' ? ' · Reparto de un conteo' : ' · Transferencia'}
-        </p>
-      </div>
-    </button>
+          {to.name}
+        </>
+      }
+      subtitle={`${formatDay(transfer.date)} · ${transfer.origin === 'split' ? 'Reparto de un conteo' : 'Transferencia'}`}
+    />
   )
 }
 
@@ -442,7 +444,7 @@ function Movements() {
           esta grilla no declara ninguna columna y cae en una columna IMPLÍCITA
           de `auto`, cuyo ancho mínimo es el min-content de su contenido. El
           min-content de una fila de la lista es su etiqueta ENTERA (el
-          `truncate` de ROW_CLASS es white-space: nowrap, así que el texto no
+          `truncate` de MovementRow es white-space: nowrap, así que el texto no
           corta) más el monto, que es shrink-0: con un nombre largo eso da más
           que el ancho del teléfono, la columna crece, y la pantalla entera
           —navegador de mes, totales y desglose incluidos— queda más ancha que

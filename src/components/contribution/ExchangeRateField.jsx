@@ -197,6 +197,24 @@ function RateChoice({ pesos, dolares, value, onChange }) {
   )
 }
 
+// El MEP de hoy para las dos variantes que lo usan como tasa por defecto.
+// `mepStatus`: 'loading' | 'ok' | 'failed'. Si falla, el campo sigue usable a
+// mano.
+function useMepRate() {
+  const [mep, setMep] = useState({ mepRate: null, mepStatus: 'loading' })
+  useEffect(() => {
+    let cancelled = false
+    getMepRate().then((result) => {
+      if (cancelled) return
+      setMep(result ? { mepRate: round(result.rate), mepStatus: 'ok' } : { mepRate: null, mepStatus: 'failed' })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  return mep
+}
+
 // ---------------------------------------------------------------------------
 // Variante A — editando un registro que ya existe
 // ---------------------------------------------------------------------------
@@ -274,28 +292,12 @@ function FrozenRateField({ initialRate, fixedAmountUsd, onChange }) {
 // ningún movimiento en pesos que contar. La tasa sigue disponible con el
 // botón, como dato de registro.
 function CompactRateField({ fixedAmountUsd, pesosQuestion, askPesos, required, onChange }) {
-  const [mepRate, setMepRate] = useState(null)
-  const [mepStatus, setMepStatus] = useState('loading') // 'loading' | 'ok' | 'failed'
+  const { mepRate, mepStatus } = useMepRate()
   const [manualRate, setManualRate] = useState(null)
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState('')
   const [pesos, setPesos] = useState('') // '' = derivado de la tasa vigente
 
-  useEffect(() => {
-    let cancelled = false
-    getMepRate().then((result) => {
-      if (cancelled) return
-      if (result) {
-        setMepStatus('ok')
-        setMepRate(round(result.rate))
-      } else {
-        setMepStatus('failed')
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   // Con pesos escritos a mano la tasa sale de ellos; si no, es la que está
   // vigente (la cargada a mano, o el MEP de hoy).
@@ -387,8 +389,7 @@ function CompactRateField({ fixedAmountUsd, pesosQuestion, askPesos, required, o
 // y pasar a un modo distinto. Ahora los dos montos están siempre a la vista y
 // se derivan entre sí: se carga el que se sepa.
 function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onChange }) {
-  const [mepRate, setMepRate] = useState(null)
-  const [mepStatus, setMepStatus] = useState('loading')
+  const { mepRate, mepStatus } = useMepRate()
   const [manualRate, setManualRate] = useState(null)
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState('')
@@ -404,21 +405,6 @@ function FullAmountRail({ amountLabel, pesosLabel, dolaresLabel, required, onCha
 
   const rate = manualRate ?? mepRate
 
-  useEffect(() => {
-    let cancelled = false
-    getMepRate().then((result) => {
-      if (cancelled) return
-      if (result) {
-        setMepStatus('ok')
-        setMepRate(round(result.rate))
-      } else {
-        setMepStatus('failed')
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   // El MEP puede llegar con el formulario ya abierto y un monto ya escrito:
   // ahí se completa el otro lado solo, sin que el usuario vuelva a tocar nada.
