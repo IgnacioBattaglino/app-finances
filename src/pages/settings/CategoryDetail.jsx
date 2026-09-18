@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useGoBack } from '../../hooks/useGoBack.js'
 import { getCategory, renameCategory, deleteCategory } from '../../lib/categories.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
@@ -12,7 +13,7 @@ import ListSkeleton from '../../components/ListSkeleton.jsx'
 
 function CategoryDetail() {
   const { categoryId } = useParams()
-  const navigate = useNavigate()
+  const { goBack } = useGoBack('/ajustes/categorias', 'Categorías')
   const [category, setCategory] = useState(null)
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
@@ -59,7 +60,7 @@ function CategoryDetail() {
     setError(null)
     try {
       await deleteCategory(category.id)
-      navigate('/ajustes/categorias', { viewTransition: true })
+      goBack()
     } catch (e) {
       setError({ message: 'No se pudo eliminar la categoría.', detail: e })
       setBusy(false)

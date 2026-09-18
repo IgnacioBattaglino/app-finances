@@ -2,7 +2,6 @@ import { useAuth } from '../../hooks/useAuth.jsx'
 import { useTheme } from '../../hooks/useTheme.jsx'
 import { useIsAdmin } from '../../hooks/useIsAdmin.js'
 import PageHeader from '../../components/PageHeader.jsx'
-import BackLink from '../../components/BackLink.jsx'
 import {
   SettingsGroup,
   SettingsLinkRow,
@@ -23,10 +22,7 @@ function SettingsHome() {
     <div className="page-narrow">
       {/* En el celular Ajustes no es una pestaña: se entra desde el engranaje
           de Inicio y se vuelve ahí. En desktop sigue en la columna lateral. */}
-      <div className="md:hidden">
-        <BackLink to="/">Inicio</BackLink>
-      </div>
-      <PageHeader title="Ajustes" />
+      <PageHeader title="Ajustes" backTo="/" backLabel="Inicio" />
 
       <div className="space-y-7">
         <SettingsGroup title="La app">

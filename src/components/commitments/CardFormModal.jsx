@@ -15,7 +15,7 @@ import { round } from '../../lib/money.js'
 // puede dejarlo vacío y cada compra usa su propia fecha, igual que hasta ahora.
 //
 // Las etiquetas son sustantivos ("Nombre", "Límite"), no preguntas: ver la
-// nota de CommitmentFormModal sobre la excepción de Compromisos.
+// nota de CommitmentFormModal sobre la excepción de A pagar.
 //
 // COLOR: puramente de presentación (payment_cards.color, migración 0046), sin
 // paleta compartida con los grupos de activos ni con el acento de la app —

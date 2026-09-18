@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
+import { useGoBack } from '../hooks/useGoBack.js'
 import SettingsPage from '../components/settings/SettingsPage.jsx'
 import { SettingsGroup, SettingsButtonRow, SettingsCreateRow } from '../components/settings/SettingsList.jsx'
 import MoneyStack from '../components/MoneyStack.jsx'
@@ -25,7 +26,7 @@ import ListSkeleton from '../components/ListSkeleton.jsx'
 // resumen, no una fecha por compra.
 function CardDetail() {
   const { cardId } = useParams()
-  const navigate = useNavigate()
+  const { goBack } = useGoBack('/compromisos', 'A pagar')
   const today = todayISO()
   const { accounts, addAccount } = useAccounts()
   const { categories } = useCategories()
@@ -63,7 +64,7 @@ function CardDetail() {
 
   if (loading) {
     return (
-      <SettingsPage title="Tarjeta" backTo="/compromisos" backLabel="Compromisos">
+      <SettingsPage title="Tarjeta" backTo="/compromisos" backLabel="A pagar">
         <ListSkeleton />
       </SettingsPage>
     )
@@ -71,7 +72,7 @@ function CardDetail() {
 
   if (!card) {
     return (
-      <SettingsPage title="Tarjeta" backTo="/compromisos" backLabel="Compromisos">
+      <SettingsPage title="Tarjeta" backTo="/compromisos" backLabel="A pagar">
         <FormError {...(error ?? { message: 'No se encontró esta tarjeta.' })} />
       </SettingsPage>
     )
@@ -94,7 +95,7 @@ function CardDetail() {
   const limit = card.credit_limit == null ? null : Number(card.credit_limit)
 
   return (
-    <SettingsPage title={card.name} backTo="/compromisos" backLabel="Compromisos">
+    <SettingsPage title={card.name} backTo="/compromisos" backLabel="A pagar">
       {error && <FormError {...error} />}
 
       <div className="flex justify-center">
@@ -194,7 +195,7 @@ function CardDetail() {
             setError(null)
             try {
               await deleteCard(card.id)
-              navigate('/compromisos', { viewTransition: true })
+              goBack()
             } catch (e) {
               setError({ message: 'No se pudo eliminar la tarjeta.', detail: e })
               setBusy(false)

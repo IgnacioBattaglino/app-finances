@@ -25,7 +25,7 @@ import { round } from '../../lib/money.js'
 // exactamente lo que cambia entre las dos mitades del form.
 //
 // EXCEPCIÓN deliberada a la convención general de CLAUDE.md ("cada campo se
-// nombra con la pregunta que responde"): en Compromisos las etiquetas son
+// nombra con la pregunta que responde"): en A pagar las etiquetas son
 // sustantivos ("Nombre", "Cantidad de cuotas"), no preguntas. Es un cambio
 // acotado a esta sección; el resto de la app sigue con preguntas hasta que se
 // unifique el criterio.

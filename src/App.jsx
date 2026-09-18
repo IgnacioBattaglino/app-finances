@@ -9,9 +9,11 @@ import {
   useLocation,
   useParams,
 } from 'react-router-dom'
+import { useEffect } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { useAuth } from './hooks/useAuth.jsx'
 import { queryClient, persistOptions, cacheBuster } from './lib/queryClient.js'
+import { recordPathname } from './lib/navHistory.js'
 import AppLoading from './components/AppLoading.jsx'
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
@@ -56,6 +58,14 @@ function Root() {
   const { pathname } = useLocation()
   const onRecoveryScreen = pathname === '/nueva-contrasena'
 
+  // La excepción de useGoBack ("si la entrada anterior es /login, no hay
+  // anterior") necesita saber qué pathname fue el de antes, y eso no está en
+  // window.history.state — solo lo sabe quien vio pasar cada navegación. Acá
+  // arriba de TODAS las rutas (incluidas /login y /registro).
+  useEffect(() => {
+    recordPathname(pathname)
+  }, [pathname])
+
   if (passwordRecovery && !onRecoveryScreen) return <Navigate to="/nueva-contrasena" replace />
   if (!passwordRecovery && onRecoveryScreen) return <Navigate to="/" replace />
 
@@ -94,8 +104,7 @@ const router = createBrowserRouter(
             path="/inversiones/grupos/:assetTypeId"
             lazy={page(() => import('./pages/settings/AssetTypeDetail.jsx'))}
           />
-          <Route path="/objetivo" lazy={page(() => import('./pages/Goal.jsx'))} />
-          {/* Compromisos: lo que ya está comprometido y todavía no se pagó. */}
+          {/* A pagar: lo que ya está comprometido y todavía no se pagó. */}
           <Route path="/compromisos" lazy={page(() => import('./pages/Commitments.jsx'))} />
           <Route path="/compromisos/deudas" lazy={page(() => import('./pages/Debts.jsx'))} />
           <Route path="/compromisos/tarjetas/:cardId" lazy={page(() => import('./pages/CardDetail.jsx'))} />

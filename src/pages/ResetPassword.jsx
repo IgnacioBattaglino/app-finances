@@ -49,7 +49,7 @@ function ResetPassword() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col justify-center bg-paper px-6 py-10">
+    <div className="flex min-h-dvh flex-col justify-center bg-paper px-6 pt-[max(2.5rem,env(safe-area-inset-top))] pb-10">
       <div className="animate-rise mx-auto w-full max-w-[22rem]">
         <div className="mb-9 flex flex-col items-center text-center">
           <RingsMark className="mb-5 h-14 w-14 text-accent-ink" />

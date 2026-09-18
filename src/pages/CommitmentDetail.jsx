@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useGoBack } from '../hooks/useGoBack.js'
 import SettingsPage from '../components/settings/SettingsPage.jsx'
 import { SettingsGroup, SettingsButtonRow } from '../components/settings/SettingsList.jsx'
 import MoneyStack from '../components/MoneyStack.jsx'
@@ -124,7 +125,7 @@ function OccurrenceRow({ occurrence, onConfirm, onAdjust, onUndo, onDismiss, bus
 
 function CommitmentDetail() {
   const { commitmentId } = useParams()
-  const navigate = useNavigate()
+  const { goBack } = useGoBack('/compromisos', 'A pagar')
   const today = todayISO()
   const { accounts, addAccount } = useAccounts()
   const { categories } = useCategories()
@@ -174,7 +175,7 @@ function CommitmentDetail() {
 
   if (loading) {
     return (
-      <SettingsPage title="Plan" backTo="/compromisos" backLabel="Compromisos">
+      <SettingsPage title="Plan" backTo="/compromisos" backLabel="A pagar">
         <ListSkeleton />
       </SettingsPage>
     )
@@ -182,7 +183,7 @@ function CommitmentDetail() {
 
   if (!plan) {
     return (
-      <SettingsPage title="Plan" backTo="/compromisos" backLabel="Compromisos">
+      <SettingsPage title="Plan" backTo="/compromisos" backLabel="A pagar">
         <FormError {...(error ?? { message: 'No se encontró este plan.' })} />
       </SettingsPage>
     )
@@ -200,7 +201,7 @@ function CommitmentDetail() {
     : [{ currency: plan.currency, amount: Number(plan.amount) }]
 
   return (
-    <SettingsPage title={plan.name} backTo="/compromisos" backLabel="Compromisos">
+    <SettingsPage title={plan.name} backTo="/compromisos" backLabel="A pagar">
       {error && <FormError {...error} />}
 
       <section className="surface p-4 md:p-5">
@@ -349,7 +350,7 @@ function CommitmentDetail() {
               setError(null)
               try {
                 await deleteCommitment(plan.id)
-                navigate('/compromisos', { viewTransition: true })
+                goBack()
               } catch (e) {
                 setError({ message: 'No se pudo eliminar el plan.', detail: e })
                 setBusy(false)

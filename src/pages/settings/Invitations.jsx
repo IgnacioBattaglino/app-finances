@@ -13,7 +13,6 @@ import PageHeader from '../../components/PageHeader.jsx'
 import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
 import { ErrorNotice } from '../../components/form/FormError.jsx'
 import ListSkeleton from '../../components/ListSkeleton.jsx'
-import BackLink from '../../components/BackLink.jsx'
 
 const STATUS_LABEL = {
   valid: 'Vigente',
@@ -145,10 +144,11 @@ function Invitations() {
 
   return (
     <div className="page-narrow">
-      <BackLink to="/ajustes">Ajustes</BackLink>
       <PageHeader
         title="Invitaciones"
         description="Generá un link para que alguien se registre. Sirve una sola vez y vence a los 7 días."
+        backTo="/ajustes"
+        backLabel="Ajustes"
       />
 
       <div className="space-y-7">

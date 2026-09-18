@@ -212,7 +212,11 @@ function FormSheet({
               <span className="h-1 w-9 rounded-full bg-ink/15" />
             </div>
           )}
-          <header className="grid grid-cols-[minmax(4.5rem,1fr)_auto_minmax(4.5rem,1fr)] items-center gap-2 px-4 py-2.5">
+          <header
+            className={`grid grid-cols-[minmax(4.5rem,1fr)_auto_minmax(4.5rem,1fr)] items-center gap-2 px-4 py-2.5 ${
+              expanded ? 'pt-[calc(env(safe-area-inset-top)+0.625rem)]' : ''
+            }`}
+          >
             <button
               type="button"
               onClick={onClose}

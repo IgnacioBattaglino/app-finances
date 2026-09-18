@@ -41,7 +41,7 @@ const tabs = [
   },
   {
     to: '/compromisos',
-    label: 'Compromisos',
+    label: 'A pagar',
     // Un almanaque con un tilde: lo que hay que pagar en una fecha, y el
     // gesto de darlo por hecho.
     icon: <path d="M3.8 6.8h16.4v13.4H3.8zM3.8 10.8h16.4M8 4.2v3m8-3v3m-6.6 9.4 1.9 1.9 3.5-3.7" />,
@@ -73,11 +73,14 @@ function TabIcon({ children, className, active }) {
   )
 }
 
-function SidebarLink({ to, label, icon }) {
+// Sin `viewTransition`: cambiar de pestaña es instantáneo, como en iOS y
+// Android (ver "MOVIMIENTO" en index.css) — no participa de la animación de
+// entrar/volver de un detalle.
+function SidebarLink({ to, label, icon, replace }) {
   return (
     <NavLink
-      viewTransition
       to={to}
+      replace={replace}
       end={to === '/'}
       className={({ isActive }) =>
         `flex items-center gap-3 rounded-field px-3 py-2 text-subhead transition-colors ${
@@ -111,6 +114,11 @@ function Layout() {
   // activo: Aportar/Retirar) la declara en su ruta (`handle`, ver App.jsx).
   const ownBottomBar = useMatches().some((match) => match.handle?.ownBottomBar)
   const active = activeTabIndex(pathname)
+  // Cambiar de pestaña reemplaza la entrada actual — así el atrás del sistema,
+  // desde la raíz de cualquier pestaña, va directo a Inicio en vez de pasear
+  // por las pestañas visitadas. La única que agrega historia es salir DE
+  // Inicio: ahí sí hace falta una entrada propia para poder volver a Inicio.
+  const replaceTab = active !== 0
 
   // Categorías y cuentas las pide todo formulario: adelantarlas al entrar a
   // la app (una sola vez, Layout envuelve todas las rutas protegidas) evita
@@ -134,11 +142,11 @@ function Layout() {
           </div>
           <div className="flex flex-col gap-0.5">
             {tabs.map((tab) => (
-              <SidebarLink key={tab.to} {...tab} />
+              <SidebarLink key={tab.to} {...tab} replace={replaceTab} />
             ))}
           </div>
           <div className="mt-auto flex flex-col">
-            <SidebarLink {...settingsTab} />
+            <SidebarLink {...settingsTab} replace={replaceTab} />
           </div>
         </nav>
       </aside>
@@ -146,8 +154,12 @@ function Layout() {
       <Toaster />
 
       <main className="w-full min-w-0 flex-1">
-        {/* El padding inferior del celular deja pasar la barra flotante. */}
-        <div className="px-4 pt-7 pb-32 md:px-10 md:pt-10 md:pb-16">
+        {/* El padding inferior del celular deja pasar la barra flotante. El de
+            arriba lo da la barra fija de PageHeader (44px + su zona segura),
+            no un valor fijo: la propia barra reserva su lugar. Los laterales
+            son el mayor entre 16px y la zona segura, para el empaquetado a
+            pantalla completa (ver "Sistema visual" en CLAUDE.md). */}
+        <div className="pt-[calc(2.75rem+env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-32 pl-[max(1rem,env(safe-area-inset-left))] md:px-10 md:pt-10 md:pb-16">
           <Outlet />
         </div>
       </main>
@@ -172,9 +184,9 @@ function Layout() {
             </span>
             {tabs.map(({ to, label, icon }, index) => (
               <NavLink
-                viewTransition
                 key={to}
                 to={to}
+                replace={replaceTab}
                 end={to === '/'}
                 // `whitespace-nowrap`: una etiqueta que se parte en dos
                 // líneas levanta su pestaña sola y desalinea la barra.

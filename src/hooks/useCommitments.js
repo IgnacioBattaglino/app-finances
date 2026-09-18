@@ -6,7 +6,7 @@ import { duePayments } from '../lib/commitmentSchedule.js'
 // calcular cualquier cosa de esta sección: los vencimientos pendientes no se
 // consultan porque no existen como filas (ver lib/commitmentSchedule.js).
 //
-// Lo usan dos pantallas —Inicio, para el recordatorio, y Compromisos— así que
+// Lo usan dos pantallas —Inicio, para el recordatorio, y A pagar— así que
 // la consulta vive acá en vez de repetirse, igual que useAccounts.
 export function useCommitments() {
   const [plans, setPlans] = useState([])

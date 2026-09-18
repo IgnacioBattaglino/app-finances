@@ -19,7 +19,7 @@ import { getCardColor } from '../../lib/paymentCards.js'
 // como "· · · ·  4 4 1 7" —una grilla de caracteres sueltos— en vez de como el
 // número de una tarjeta.
 //
-// `size='md'` es la tarjeta de una fila de lista (Compromisos) y `size='lg'` la
+// `size='md'` es la tarjeta de una fila de lista (A pagar) y `size='lg'` la
 // entera (detalle de tarjeta, previsualización del formulario). Cambia la
 // escala y cuántos grupos de puntos entran: los tres del número completo miden
 // ~120px y en la fila hay 96px útiles, así que ahí va uno solo. Se recorta la

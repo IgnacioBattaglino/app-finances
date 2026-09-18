@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useGoBack } from '../../hooks/useGoBack.js'
 import {
   getAccount,
   renameAccount,
@@ -52,7 +53,7 @@ const CURRENCY_OPTIONS = [
 // movimiento", con saldo en 0 o no.
 function AccountDetail() {
   const { accountId } = useParams()
-  const navigate = useNavigate()
+  const { goBack } = useGoBack('/plata', 'Mi plata')
   const [account, setAccount] = useState(null)
   const [balance, setBalance] = useState(null) // { amount, hasMovements } | null mientras carga
   const [name, setName] = useState('')
@@ -187,7 +188,7 @@ function AccountDetail() {
         })
       }
       await deleteAccount(account.id)
-      navigate('/plata', { viewTransition: true })
+      goBack()
     } catch (e) {
       setError({ message: 'No se pudo eliminar la cuenta.', detail: e })
       setBusy(false)

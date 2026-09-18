@@ -132,7 +132,7 @@ function Commitments() {
   return (
     <div className="page-narrow">
       <PageHeader
-        title="Compromisos"
+        title="A pagar"
         description="Lo que ya está comprometido y todavía no salió de tu plata."
       />
 

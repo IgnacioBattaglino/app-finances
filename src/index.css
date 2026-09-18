@@ -664,18 +664,64 @@
   }
 }
 
-/* CAMBIO DE PANTALLA (View Transitions, ver `viewTransition` en los links).
-   La pantalla que se va se apaga rápido y la que llega sube apenas: se lee
-   como "entraste a otro lugar" sin que el contenido viaje por la pantalla.
-   La barra de pestañas y la columna lateral tienen nombre propio
-   (`view-transition-name`), así que no participan: la navegación se queda
-   quieta mientras cambia lo de adentro. */
-::view-transition-old(root) {
-  animation: fade-out var(--duration-fast) ease-out both;
+/* CAMBIO DE PANTALLA (View Transitions, ver `viewTransition` en los links y
+   useGoBack.js). Entrar a un detalle y volver son caminos simétricos: la
+   nueva pantalla entra desde la derecha empujando a la vieja hacia la
+   izquierda (con un oscurecido apenas, como si quedara debajo), y volver es
+   el camino inverso — la actual sale por la derecha y la anterior vuelve
+   desde la izquierda, aclarándose. `useGoBack` marca la dirección con
+   `data-nav="back"` en el documento ANTES de navegar (y la limpia siempre
+   después, ver ese archivo); sin la marca, la ida es el default.
+   Cambiar de pestaña no pasa por acá (sin `viewTransition` en esos NavLink,
+   ver Layout.jsx): es instantáneo. La barra de pestañas, la columna lateral,
+   el FAB y la barra de acciones del detalle de un activo tienen nombre propio
+   (`view-transition-name`), así que no participan: se quedan quietos
+   mientras cambia lo de adentro. `mix-blend-mode: normal` evita el
+   entrecruzado por default del navegador, que con dos pantallas opacas
+   deslizándose se ve como un flash. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--duration-slow);
+  animation-timing-function: var(--ease-ios);
+  animation-fill-mode: both;
+  mix-blend-mode: normal;
 }
 
+::view-transition-old(root) {
+  animation-name: screen-out-forward;
+}
 ::view-transition-new(root) {
-  animation: rise var(--duration-base) var(--ease-ios) both;
+  animation-name: screen-in-forward;
+}
+
+:root[data-nav='back']::view-transition-old(root) {
+  animation-name: screen-out-back;
+}
+:root[data-nav='back']::view-transition-new(root) {
+  animation-name: screen-in-back;
+}
+
+@keyframes screen-in-forward {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes screen-out-forward {
+  to {
+    transform: translateX(-25%);
+    filter: brightness(0.85);
+  }
+}
+@keyframes screen-out-back {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes screen-in-back {
+  from {
+    transform: translateX(-25%);
+    filter: brightness(0.85);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

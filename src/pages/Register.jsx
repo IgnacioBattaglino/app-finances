@@ -33,7 +33,7 @@ function Header({ subtitle }) {
 
 function Shell({ children }) {
   return (
-    <div className="flex min-h-dvh flex-col justify-center bg-paper px-6 py-10">
+    <div className="flex min-h-dvh flex-col justify-center bg-paper px-6 pt-[max(2.5rem,env(safe-area-inset-top))] pb-10">
       <div className="animate-rise mx-auto w-full max-w-[22rem]">{children}</div>
     </div>
   )

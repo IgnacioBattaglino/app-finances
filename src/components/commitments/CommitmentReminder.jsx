@@ -6,7 +6,7 @@ import { occurrenceTitle } from '../../lib/commitmentSchedule.js'
 import FormError from '../form/FormError.jsx'
 
 // El recordatorio con sus dos acciones, entero. Lo montan Inicio y
-// Compromisos: la fila se ve igual en los dos y confirma igual en los dos, así
+// A pagar: la fila se ve igual en los dos y confirma igual en los dos, así
 // que el comportamiento vive en un solo lado en vez de duplicarse (que es lo
 // que el informe de arquitectura marca como el problema que se agranda, H12).
 //

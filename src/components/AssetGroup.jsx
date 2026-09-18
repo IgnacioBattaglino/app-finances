@@ -116,7 +116,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
       <Link
         viewTransition
         to={`/inversiones/grupos/${assetType.id}`}
-        state={{ from: 'inversiones' }}
+        state={{ from: { label: 'Inversiones' } }}
         className={`block px-4 py-3 transition active:opacity-90 ${color ? 'group-tint' : 'bg-mist'}`}
       >
         <div className="flex items-baseline justify-between gap-3">

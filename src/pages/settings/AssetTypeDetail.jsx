@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useGoBack } from '../../hooks/useGoBack.js'
 import {
   getAssetType,
   getAssetTypes,
@@ -88,8 +89,7 @@ function assetsLabel({ active, archived }) {
 
 function AssetTypeDetail() {
   const { assetTypeId } = useParams()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const { goBack } = useGoBack('/inversiones/grupos', 'Grupos de activos')
   const [assetType, setAssetType] = useState(null)
   const [counts, setCounts] = useState(null)
   // La lista activa completa: hace falta para saber en qué posición está este
@@ -99,17 +99,6 @@ function AssetTypeDetail() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-
-  // Esta pantalla se entra desde dos lugares: la lista de Inversiones →
-  // Grupos, y tocando el encabezado de un grupo en Inversiones (ver
-  // AssetGroup.jsx, que linkea con este state). El botón de atrás tiene que
-  // volver a donde el usuario estaba, no a un destino fijo — así Inversiones
-  // recupera su scroll y su orden (useScrollRestoration solo restaura en un
-  // volver atrás de verdad, no en un push a una ruta fija).
-  const fromPortfolio = location.state?.from === 'inversiones'
-  const backProps = fromPortfolio
-    ? { onBack: () => navigate(-1), backLabel: 'Inversiones' }
-    : { backTo: '/inversiones/grupos', backLabel: 'Grupos de activos' }
 
   // Los activos del grupo con su valor salen del MISMO lugar que Inversiones
   // (usePortfolio), no de una consulta propia: el valor de un activo depende
@@ -207,10 +196,7 @@ function AssetTypeDetail() {
     setError(null)
     try {
       await action()
-      // El grupo ya no existe: no hay a dónde "volver" en el historial, así
-      // que se navega al lugar que corresponde según el origen (mismo
-      // criterio que el botón de atrás de arriba).
-      navigate(fromPortfolio ? '/inversiones' : '/inversiones/grupos', { viewTransition: true })
+      goBack()
     } catch (e) {
       setError({ message, detail: e })
       setBusy(false)
@@ -219,7 +205,7 @@ function AssetTypeDetail() {
 
   if (loading) {
     return (
-      <SettingsPage title="Grupo" {...backProps}>
+      <SettingsPage title="Grupo" backTo="/inversiones/grupos" backLabel="Grupos de activos">
         <ListSkeleton />
       </SettingsPage>
     )
@@ -227,7 +213,7 @@ function AssetTypeDetail() {
 
   if (!assetType) {
     return (
-      <SettingsPage title="Grupo" {...backProps}>
+      <SettingsPage title="Grupo" backTo="/inversiones/grupos" backLabel="Grupos de activos">
         <FormError message={error?.message} detail={error?.detail} />
       </SettingsPage>
     )
@@ -243,7 +229,7 @@ function AssetTypeDetail() {
   const canMove = !assetType.is_archived && position !== -1 && siblings.length > 1
 
   return (
-    <SettingsPage title={assetType.name} {...backProps}>
+    <SettingsPage title={assetType.name} backTo="/inversiones/grupos" backLabel="Grupos de activos">
       <FormError message={error?.message} detail={error?.detail} />
 
       <form onSubmit={handleRename}>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { useParams, Navigate } from 'react-router-dom'
+import { useGoBack } from '../hooks/useGoBack.js'
 import { getAssets } from '../lib/assets.js'
 import { getAssetTypes } from '../lib/assetTypes.js'
 import { getContributions, splitPage } from '../lib/contributions.js'
@@ -28,7 +29,7 @@ import TransferFormModal from '../components/contribution/TransferFormModal.jsx'
 import LiquidatePositionModal from '../components/contribution/LiquidatePositionModal.jsx'
 import ValuationModal from '../components/ValuationModal.jsx'
 import { Pencil } from '../components/Icons.jsx'
-import BackLink from '../components/BackLink.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 import ListSkeleton from '../components/ListSkeleton.jsx'
 
 const PAGE_SIZE = 20
@@ -46,17 +47,7 @@ const METRIC_EXPLANATIONS = {
 
 function AssetDetail() {
   const { assetId } = useParams()
-  const navigate = useNavigate()
-  const location = useLocation()
-
-  // Esta pantalla se entra desde dos lugares: el encabezado de un grupo en
-  // Inversiones (default, sin state) y una fila de inversión en Movimientos
-  // (que linkea con state.from, ver Movements.jsx). El botón de atrás tiene
-  // que volver a donde el usuario estaba, no a un destino fijo -- mismo
-  // mecanismo que AssetTypeDetail con Inversiones.
-  const fromMovements = location.state?.from === 'movements'
-  const backLabel = fromMovements ? 'Movimientos' : 'Inversiones'
-  const goBack = () => (fromMovements ? navigate(-1) : navigate('/inversiones', { viewTransition: true }))
+  const { goBack } = useGoBack('/inversiones', 'Inversiones')
 
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
@@ -224,15 +215,11 @@ function AssetDetail() {
 
   return (
     <div className="page pb-8">
-      {/* Volver es su propia fila, arriba de todo: el mismo lugar donde iOS
-          pone la pantalla anterior, y así el nombre del activo arranca
-          alineado con el resto del contenido en vez de correrse por una
-          flecha. */}
-      <BackLink onClick={goBack}>{backLabel}</BackLink>
-
-      <div className="mb-5 flex items-start justify-between gap-4 md:mb-7">
-        <p className="flex min-w-0 items-center gap-2">
-          <span className="title-page truncate">{asset?.name}</span>
+      <PageHeader
+        title={asset?.name}
+        backTo="/inversiones"
+        backLabel="Inversiones"
+        beside={
           <button
             type="button"
             onClick={() => setAssetFormModal(true)}
@@ -241,30 +228,35 @@ function AssetDetail() {
           >
             <Pencil className="h-[18px] w-[18px] text-ink-soft" />
           </button>
-        </p>
-        <div className="hidden shrink-0 gap-2 pt-1 md:flex">
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() =>
-              setContributionModal({ open: true, operation: 'withdrawal', editing: null })
-            }
-            className="btn btn-secondary"
-          >
-            Retirar
-          </button>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() =>
-              setContributionModal({ open: true, operation: 'contribution', editing: null })
-            }
-            className="btn btn-primary"
-          >
-            Aportar
-          </button>
-        </div>
-      </div>
+        }
+        action={
+          // Solo desktop: en el celular Aportar/Retirar ya viven en la barra
+          // fija de abajo (más abajo en este archivo), y la barra de arriba
+          // no puede repetirlos.
+          <div className="hidden shrink-0 gap-2 md:flex">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() =>
+                setContributionModal({ open: true, operation: 'withdrawal', editing: null })
+              }
+              className="btn btn-secondary"
+            >
+              Retirar
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() =>
+                setContributionModal({ open: true, operation: 'contribution', editing: null })
+              }
+              className="btn btn-primary"
+            >
+              Aportar
+            </button>
+          </div>
+        }
+      />
 
       {loading ? (
         <ListSkeleton />
@@ -423,8 +415,10 @@ function AssetDetail() {
         </div>
       )}
 
-      {/* Barra de acciones mobile — reemplaza a la tab bar en esta ruta (Layout) */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex gap-2.5 border-t border-line bg-card/85 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-xl md:hidden">
+      {/* Barra de acciones mobile — reemplaza a la tab bar en esta ruta (Layout).
+          Nombre propio de View Transition: sin él, viaja de costado con el
+          resto de la pantalla al entrar/volver, en vez de quedarse fija. */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex gap-2.5 border-t border-line bg-card/85 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-xl [view-transition-name:asset-actions] md:hidden">
         {/* Retirar a la izquierda y Aportar a la derecha, igual que en
             desktop: la acción que confirma va siempre del lado del pulgar. */}
         <button

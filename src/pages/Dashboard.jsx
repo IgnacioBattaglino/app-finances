@@ -410,12 +410,13 @@ function Dashboard() {
             >
               Nuevo gasto
             </button>
-            {/* Ajustes en el celular: no es una pestaña (ver Layout). */}
+            {/* Ajustes en el celular: no es una pestaña (ver Layout). Vive en
+                la barra fija de PageHeader, arriba a la derecha. */}
             <Link
               viewTransition
               to="/ajustes"
               aria-label="Ajustes"
-              className="-mt-1 -mr-2 flex h-11 w-11 items-center justify-center rounded-full text-ink-soft transition-colors active:bg-mist md:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-ink-soft transition-colors active:bg-mist md:hidden"
             >
               <Settings />
             </Link>
@@ -488,7 +489,7 @@ function Dashboard() {
 
         {/* Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0"
             permanente es ruido. Ya no tiene pestaña propia: se entra desde
-            Compromisos, que siempre muestra la fila aunque el saldo sea 0. */}
+            A pagar, que siempre muestra la fila aunque el saldo sea 0. */}
         {hasDebts && (
           <SummaryCard
             label="Deudas"

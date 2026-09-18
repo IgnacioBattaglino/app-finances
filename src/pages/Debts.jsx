@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
-import BackLink from '../components/BackLink.jsx'
 import Money from '../components/Money.jsx'
 import DebtFormModal from '../components/DebtFormModal.jsx'
 import DebtPaymentModal from '../components/DebtPaymentModal.jsx'
@@ -177,11 +176,10 @@ function Debts() {
 
   return (
     <div className="page">
-      {/* Deudas vive adentro de Compromisos: sin esto, en el celular la única
-          forma de volver era tocar la pestaña. */}
-      <BackLink to="/compromisos">Compromisos</BackLink>
       <PageHeader
         title="Deudas"
+        backTo="/compromisos"
+        backLabel="A pagar"
         action={
           debts.length > 0 && (
             <button

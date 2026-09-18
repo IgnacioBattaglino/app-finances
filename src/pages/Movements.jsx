@@ -74,7 +74,12 @@ function MovementRow({ title, subtitle, amount, to, onClick, muted = false }) {
   const className = 'row w-full text-left'
   if (to) {
     return (
-      <Link viewTransition to={to} state={{ from: 'movements' }} className={`${className} pressable`}>
+      <Link
+        viewTransition
+        to={to}
+        state={{ from: { label: 'Movimientos' } }}
+        className={`${className} pressable`}
+      >
         {body}
       </Link>
     )
