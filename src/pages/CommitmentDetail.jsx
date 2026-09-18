@@ -7,8 +7,8 @@ import FormError from '../components/form/FormError.jsx'
 import CommitmentFormModal from '../components/commitments/CommitmentFormModal.jsx'
 import ConfirmChargeModal from '../components/commitments/ConfirmChargeModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
+import { useCategories } from '../hooks/useCategories.js'
 import { getCards } from '../lib/paymentCards.js'
-import { getCategories } from '../lib/categories.js'
 import {
   confirmCharge,
   deleteCommitment,
@@ -127,11 +127,11 @@ function CommitmentDetail() {
   const navigate = useNavigate()
   const today = todayISO()
   const { accounts, addAccount } = useAccounts()
+  const { categories } = useCategories()
 
   const [plan, setPlan] = useState(null)
   const [charges, setCharges] = useState([])
   const [cards, setCards] = useState([])
-  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -156,9 +156,6 @@ function CommitmentDetail() {
     load()
     getCards()
       .then(setCards)
-      .catch(() => {})
-    getCategories()
-      .then(setCategories)
       .catch(() => {})
   }, [load])
 

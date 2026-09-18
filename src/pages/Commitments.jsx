@@ -10,8 +10,8 @@ import CardFormModal from '../components/commitments/CardFormModal.jsx'
 import PaymentCardVisual from '../components/commitments/PaymentCardVisual.jsx'
 import { useCommitments } from '../hooks/useCommitments.js'
 import { useAccounts } from '../hooks/useAccounts.js'
+import { useCategories } from '../hooks/useCategories.js'
 import { getCards } from '../lib/paymentCards.js'
-import { getCategories } from '../lib/categories.js'
 import { getDebts, summarizeDebts } from '../lib/debts.js'
 import {
   committedInMonth,
@@ -101,8 +101,8 @@ function Commitments() {
   const today = todayISO()
   const { plans, chargesByPlan, loading, error, reload } = useCommitments()
   const { accounts, addAccount } = useAccounts()
+  const { categories } = useCategories()
   const [cards, setCards] = useState([])
-  const [categories, setCategories] = useState([])
   const [debts, setDebts] = useState([])
   const [debtsError, setDebtsError] = useState(null)
   const [planModal, setPlanModal] = useState(null) // { kind, cardId } | null
@@ -114,9 +114,6 @@ function Commitments() {
 
   useEffect(() => {
     loadCards().catch(() => {})
-    getCategories()
-      .then(setCategories)
-      .catch(() => {})
     getDebts()
       .then(setDebts)
       .catch((e) => setDebtsError({ message: 'No se pudieron cargar las deudas.', detail: e }))

@@ -9,7 +9,9 @@ import {
   useLocation,
   useParams,
 } from 'react-router-dom'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { useAuth } from './hooks/useAuth.jsx'
+import { queryClient, persistOptions, cacheBuster } from './lib/queryClient.js'
 import AppLoading from './components/AppLoading.jsx'
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
@@ -129,8 +131,22 @@ const router = createBrowserRouter(
   ),
 )
 
+// El provider persistido espera a que la sesión esté leída para montarse: el
+// buster (versión + id de usuario, ver queryClient.js) tiene que conocer al
+// usuario ANTES de hidratar, así una caché guardada por otra cuenta se
+// descarta en vez de mostrarse un instante.
 function App() {
-  return <RouterProvider router={router} />
+  const { user, loading } = useAuth()
+  if (loading) return <AppLoading />
+
+  return (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ ...persistOptions, buster: cacheBuster(user?.id) }}
+    >
+      <RouterProvider router={router} />
+    </PersistQueryClientProvider>
+  )
 }
 
 export default App

@@ -8,9 +8,9 @@ import CardFormModal from '../components/commitments/CardFormModal.jsx'
 import CommitmentFormModal from '../components/commitments/CommitmentFormModal.jsx'
 import PaymentCardVisual from '../components/commitments/PaymentCardVisual.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
+import { useCategories } from '../hooks/useCategories.js'
 import { getCard, deleteCard } from '../lib/paymentCards.js'
 import { getCommitmentsWithCharges } from '../lib/commitments.js'
-import { getCategories } from '../lib/categories.js'
 import { isFinished, planRemaining } from '../lib/commitmentSchedule.js'
 import { formatByCurrency, formatPercent, todayISO } from '../lib/format.js'
 import { ChevronRight } from '../components/Icons.jsx'
@@ -28,11 +28,11 @@ function CardDetail() {
   const navigate = useNavigate()
   const today = todayISO()
   const { accounts, addAccount } = useAccounts()
+  const { categories } = useCategories()
 
   const [card, setCard] = useState(null)
   const [plans, setPlans] = useState([])
   const [chargesByPlan, setCharges] = useState(new Map())
-  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -59,9 +59,6 @@ function CardDetail() {
 
   useEffect(() => {
     load()
-    getCategories()
-      .then(setCategories)
-      .catch(() => {})
   }, [load])
 
   if (loading) {

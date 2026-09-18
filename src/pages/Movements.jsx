@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
+import { useCategories } from '../hooks/useCategories.js'
 import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
 import FilterChips from '../components/form/FilterChips.jsx'
 import { ErrorNotice } from '../components/form/FormError.jsx'
@@ -16,7 +17,6 @@ import {
   mergeMovements,
   monthTotals,
 } from '../lib/movements.js'
-import { getCategories } from '../lib/categories.js'
 import {
   collapseTransfers,
   movementBucket,
@@ -297,7 +297,7 @@ function Movements() {
   // exactamente lo que suma el renglón homónimo de los totales.
   const [bucket, setBucket] = useState(ALL)
   const [categoryId, setCategoryId] = useState('')
-  const [categories, setCategories] = useState([])
+  const { categories, addCategory } = useCategories()
   const [visible, setVisible] = useState(PAGE)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -330,10 +330,6 @@ function Movements() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range])
-
-  useEffect(() => {
-    getCategories().then(setCategories).catch(() => {})
-  }, [])
 
   // Cambiar de período o de filtro es empezar a leer otra lista: vuelve a las
   // primeras PAGE filas en vez de arrastrar el "ver más" de la anterior.
@@ -666,7 +662,7 @@ function Movements() {
         accounts={accounts}
         defaultAccountId={defaultAccountId}
         lastReconciliations={lastReconciliations}
-        onCategoryCreated={(created) => setCategories((prev) => [...prev, created])}
+        onCategoryCreated={addCategory}
         onAccountCreated={addAccount}
         onClose={closeModal}
         onSaved={refreshAfterSave}

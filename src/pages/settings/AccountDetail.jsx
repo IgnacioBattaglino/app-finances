@@ -10,9 +10,9 @@ import {
 import { getAccountBalances, reconcile } from '../../lib/liquid.js'
 import { getAccountTransactions } from '../../lib/transactions.js'
 import { splitPage } from '../../lib/contributions.js'
-import { getCategories } from '../../lib/categories.js'
 import { formatByCurrency, todayISO } from '../../lib/format.js'
 import { useAccounts } from '../../hooks/useAccounts.js'
+import { useCategories } from '../../hooks/useCategories.js'
 import { useLastReconciliations } from '../../hooks/useLastReconciliations.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
@@ -65,7 +65,7 @@ function AccountDetail() {
   const [hasMoreHistory, setHasMoreHistory] = useState(false)
   const [loadingMoreHistory, setLoadingMoreHistory] = useState(false)
   const [loadMoreHistoryError, setLoadMoreHistoryError] = useState(false)
-  const [categories, setCategories] = useState([])
+  const { categories, addCategory } = useCategories()
   const [txModal, setTxModal] = useState({ open: false, editing: null })
   const { accounts: dailyAccounts, defaultAccountId, addAccount } = useAccounts()
   const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
@@ -121,10 +121,6 @@ function AccountDetail() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId])
-
-  useEffect(() => {
-    getCategories().then(setCategories).catch(() => {})
-  }, [])
 
   function afterMovement() {
     setMovement(null)
@@ -359,7 +355,7 @@ function AccountDetail() {
         accounts={[account, ...dailyAccounts]}
         defaultAccountId={account.id}
         lastReconciliations={lastReconciliations}
-        onCategoryCreated={(created) => setCategories((prev) => [...prev, created])}
+        onCategoryCreated={addCategory}
         onAccountCreated={addAccount}
         onClose={() => setTxModal({ open: false, editing: null })}
         onSaved={afterTxSaved}

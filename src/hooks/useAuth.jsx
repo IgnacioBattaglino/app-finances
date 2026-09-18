@@ -1,9 +1,19 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import {
   supabase,
   passwordRecoveryRedirect,
   recoveryLinkError,
 } from '../lib/supabase.js'
+import { queryClient, persister } from '../lib/queryClient.js'
+
+// El caché de un usuario nunca puede mostrarse a otro, ni un instante: se
+// borra (memoria + localStorage) al cerrar sesión y también acá, si el id de
+// la sesión cambia sin pasar por signOut. El buster de queryClient.js (versión
+// + id de usuario) es la segunda red, para la caché ya persistida.
+function clearUserCache() {
+  queryClient.clear()
+  persister.removeClient()
+}
 
 const AuthContext = createContext(null)
 
@@ -19,10 +29,15 @@ export function AuthProvider({ children }) {
     passwordRecoveryRedirect || Boolean(recoveryLinkError),
   )
 
+  // El id de la última sesión vista, para notar un cambio de usuario que no
+  // pasó por signOut (ej. dos pestañas con cuentas distintas).
+  const lastUserId = useRef(null)
+
   useEffect(() => {
     if (!supabase) return
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      lastUserId.current = session?.user?.id ?? null
       setUser(session?.user ?? null)
       setLoading(false)
     })
@@ -30,6 +45,11 @@ export function AuthProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user?.id ?? null
+      if (lastUserId.current && nextUserId && nextUserId !== lastUserId.current) {
+        clearUserCache()
+      }
+      lastUserId.current = nextUserId
       setUser(session?.user ?? null)
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
     })
@@ -48,6 +68,7 @@ export function AuthProvider({ children }) {
   async function signOut() {
     if (!supabase) return
     await supabase.auth.signOut()
+    clearUserCache()
   }
 
   // La sesión de recuperación es una sesión común: updateUser la usa para

@@ -18,10 +18,10 @@ import {
   sumToUsd,
 } from '../lib/liquid.js'
 import { toUsd } from '../lib/localCurrency.js'
-import { getCategories } from '../lib/categories.js'
 import { getDebts, summarizeDebts } from '../lib/debts.js'
 import { formatARS, formatUSD, todayISO } from '../lib/format.js'
 import { useAccounts } from '../hooks/useAccounts.js'
+import { useCategories } from '../hooks/useCategories.js'
 import { useDuePayments } from '../hooks/useCommitments.js'
 import { ChevronRight, ChevronDown, Plus, Settings } from '../components/Icons.jsx'
 
@@ -244,8 +244,16 @@ function Dashboard() {
   const [debtsError, setDebtsError] = useState(null)
 
   const [expenseModalOpen, setExpenseModalOpen] = useState(false)
-  const [categories, setCategories] = useState(null) // null = todavía no se pidieron
-  const [categoriesError, setCategoriesError] = useState(null)
+  const {
+    categories,
+    loading: categoriesLoading,
+    error: categoriesQueryError,
+    reload: reloadCategories,
+    addCategory,
+  } = useCategories()
+  const categoriesError = categoriesQueryError
+    ? { message: 'No se pudieron cargar las categorías.', detail: categoriesQueryError }
+    : null
   // Se incrementa al guardar un movimiento, para que el bloque de gastos se
   // entere. Antes solo se recargaba el disponible y el bloque de abajo —en la
   // misma pantalla— seguía mostrando los números viejos.
@@ -337,17 +345,7 @@ function Dashboard() {
     }
   }, [liquid, liquidError, totalValue, portfolioLoading, portfolioError])
 
-  function loadCategories() {
-    setCategoriesError(null)
-    getCategories()
-      .then(setCategories)
-      .catch((e) =>
-        setCategoriesError({ message: 'No se pudieron cargar las categorías.', detail: e }),
-      )
-  }
-
   function openExpenseModal() {
-    if (categories === null && !categoriesError) loadCategories()
     setExpenseModalOpen(true)
   }
 
@@ -579,11 +577,11 @@ function Dashboard() {
       {/* Sin categorías todavía (cargando o falló) no se abre el formulario
           con la lista vacía: se muestra el error con Reintentar, o "Cargando…"
           mientras se resuelve — el mismo modal se convierte en el real en
-          cuanto categories deja de ser null. */}
-      {expenseModalOpen && categories === null ? (
+          cuanto las categorías están. */}
+      {expenseModalOpen && (categoriesLoading || categoriesError) ? (
         <FormSheet title="Nuevo gasto" onClose={() => setExpenseModalOpen(false)}>
           {categoriesError ? (
-            <ErrorNotice error={categoriesError} onRetry={loadCategories} />
+            <ErrorNotice error={categoriesError} onRetry={reloadCategories} />
           ) : (
             <ListSkeleton rows={4} />
           )}
@@ -592,10 +590,10 @@ function Dashboard() {
         <TransactionFormModal
           open={expenseModalOpen}
           defaultKind="expense"
-          categories={categories ?? []}
+          categories={categories}
           accounts={accounts}
           defaultAccountId={defaultAccountId}
-          onCategoryCreated={(created) => setCategories((prev) => [...(prev ?? []), created])}
+          onCategoryCreated={addCategory}
           onAccountCreated={addAccount}
           onClose={() => setExpenseModalOpen(false)}
           onSaved={afterLiquidChanged}

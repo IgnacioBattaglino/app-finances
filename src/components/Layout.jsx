@@ -1,7 +1,13 @@
+import { useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useMatches } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import RingsMark from './RingsMark.jsx'
 import { Toaster } from './Toast.jsx'
 import { SETTINGS_PATH } from './Icons.jsx'
+import { categoriesQueryKey } from '../hooks/useCategories.js'
+import { accountsQueryKey } from '../hooks/useAccounts.js'
+import { getCategories } from '../lib/categories.js'
+import { getAccounts } from '../lib/liquidAccounts.js'
 
 // Las dos navegaciones de la app son la misma lista con dos formas:
 //
@@ -100,10 +106,20 @@ function activeTabIndex(pathname) {
 
 function Layout() {
   const { pathname } = useLocation()
+  const queryClient = useQueryClient()
   // Una pantalla con su propia barra de acciones abajo (el detalle de un
   // activo: Aportar/Retirar) la declara en su ruta (`handle`, ver App.jsx).
   const ownBottomBar = useMatches().some((match) => match.handle?.ownBottomBar)
   const active = activeTabIndex(pathname)
+
+  // Categorías y cuentas las pide todo formulario: adelantarlas al entrar a
+  // la app (una sola vez, Layout envuelve todas las rutas protegidas) evita
+  // que el primer formulario que se abre tenga que esperarlas.
+  useEffect(() => {
+    queryClient.prefetchQuery({ queryKey: categoriesQueryKey, queryFn: getCategories })
+    queryClient.prefetchQuery({ queryKey: accountsQueryKey, queryFn: getAccounts })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="min-h-dvh bg-paper text-ink md:flex">

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { isWriteRequest, invalidateUserData } from './queryClient.js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -35,7 +36,20 @@ if (recoveryLinkError) {
   window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
 }
 
+// El fetch propio es el único lugar que engancha la invalidación del caché:
+// así es imposible olvidarse una escritura, incluidas las que se agreguen a
+// futuro, sin tocar ninguna de las ~50 funciones de lib/. Si un día se agrega
+// una RPC de lectura y nadie la suma a isWriteRequest, lo peor que pasa es un
+// refresco de más -- nunca un dato viejo en pantalla.
+async function fetchAndInvalidate(url, options = {}) {
+  const response = await fetch(url, options)
+  if (response.ok && isWriteRequest(options.method, url)) invalidateUserData()
+  return response
+}
+
 export const supabase =
   supabaseUrl && supabasePublishableKey
-    ? createClient(supabaseUrl, supabasePublishableKey)
+    ? createClient(supabaseUrl, supabasePublishableKey, {
+        global: { fetch: fetchAndInvalidate },
+      })
     : null
