@@ -6,14 +6,16 @@ import {
   transactionCurrency,
 } from '../lib/transactions.js'
 import { getAccountTransferPair, deleteAccountTransfer } from '../lib/accountTransfers.js'
-import { createCategory } from '../lib/categories.js'
+import { createCategory, topCategories } from '../lib/categories.js'
 import { retroactiveReconciliation, getReconciliationOf, deleteReconciliation } from '../lib/liquid.js'
 import { todayISO, toDecimalInput, formatByCurrency, formatDayYear } from '../lib/format.js'
 import { isMovedMoney, isBalanceAdjustment } from '../lib/systemCategories.js'
 import { useCategories } from '../hooks/useCategories.js'
+import { useCategoryUsage } from '../hooks/useCategoryUsage.js'
 import FormSheet from './FormSheet.jsx'
 import LiquidModal from './LiquidModal.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
+import CategoryGrid from './form/CategoryGrid.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
 import FormError, { ErrorNotice } from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
@@ -21,6 +23,7 @@ import AccountField from './form/AccountField.jsx'
 import ConfirmAction from './form/ConfirmAction.jsx'
 import { showToast } from './Toast.jsx'
 import InlineCreate from './form/InlineCreate.jsx'
+import { ChevronRight } from './Icons.jsx'
 
 function TransactionFormModal({
   open,
@@ -49,6 +52,7 @@ function TransactionFormModal({
   const categoriesError = categoriesQueryError
     ? { message: 'No se pudieron cargar las categorías.', detail: categoriesQueryError }
     : null
+  const { usage } = useCategoryUsage()
 
   const [date, setDate] = useState(todayISO())
   const [kind, setKind] = useState(defaultKind)
@@ -81,6 +85,9 @@ function TransactionFormModal({
   // mismo z-50 de FormSheet, apilado por orden en el DOM) deja este formulario
   // intacto atrás y a la vista apenas se cierra el de contar.
   const [reconcileOpen, setReconcileOpen] = useState(false)
+  // Las seis pastillas de cada tipo (Gasto/Ingreso), calculadas UNA VEZ por
+  // apertura del formulario y nunca más -- ver topCategories, más abajo.
+  const [topSixByKind, setTopSixByKind] = useState({})
 
   const editing = Boolean(initial?.id)
   const isTransferPart = Boolean(initial?.transfer_id)
@@ -109,7 +116,27 @@ function TransactionFormModal({
     setTransferSibling(null)
     setReconciliation(undefined)
     setReconcileOpen(false)
+    setTopSixByKind({})
   }, [open, initial, defaultKind, defaultAccountId])
+
+  // Se cachea por `kind` (y no un solo array) porque el segmentado cambia de
+  // tipo sin cerrar el formulario, y cada tipo se congela la primera vez que
+  // se lo mira, con el uso y las categorías que hubiera en ese momento. Si el
+  // uso todavía no llegó, esa primera foto ya cae sola al orden por position
+  // (topCategories lee un uso vacío como "sin uso"); si llega después,
+  // mientras el formulario sigue abierto, no se vuelve a tomar la foto -- una
+  // categoría creada al vuelo tampoco se cuela en una foto ya tomada.
+  //
+  // Declarado DESPUÉS del efecto de arriba (que resetea topSixByKind a {} en
+  // cada apertura): los efectos de un mismo render corren en el orden en que
+  // se llaman, así que si este fuera primero, el reseteo de abajo pisaría en
+  // el mismo tick lo que acaba de calcular -- la grilla quedaría vacía para
+  // siempre en esa apertura.
+  useEffect(() => {
+    if (!open || categoriesLoading) return
+    setTopSixByKind((prev) => (prev[kind] ? prev : { ...prev, [kind]: topCategories(categories, usage, kind) }))
+  }, [open, categoriesLoading, kind, categories, usage])
+  const topSix = topSixByKind[kind] ?? []
 
   // Mientras esto no resuelve, la fila se muestra de solo lectura si
   // `couldBeReconciliation` sospecha que hace falta (ver el render) — así que
@@ -335,6 +362,13 @@ function TransactionFormModal({
   }
 
   const kindCategories = categories.filter((cat) => cat.kind === kind && !cat.is_system)
+  // La fila "Otra categoría" repite el nombre de la elegida SOLO cuando esa
+  // elección no está entre las seis pastillas -- si está, ya se ve marcada
+  // arriba y repetirla acá sería la misma información dos veces.
+  const chosenOutsideGrid =
+    !categoriesLoading && categoryId && !topSix.some((cat) => cat.id === categoryId)
+      ? categories.find((cat) => cat.id === categoryId)
+      : null
   const amountValue = Number(amount.replace(',', '.'))
   // La moneda sale de la cuenta elegida y se guarda en la fila (ver
   // transactionCurrency). Acá además se muestra: el símbolo del campo de monto
@@ -469,6 +503,18 @@ function TransactionFormModal({
             </span>
           </label>
 
+          {!categoriesError && (
+            <CategoryGrid
+              categories={topSix}
+              value={categoryId}
+              loading={categoriesLoading}
+              onChange={(id) => {
+                setCreatingCategory(false)
+                setCategoryId(id)
+              }}
+            />
+          )}
+
           <div className="list">
             <div className="px-4 py-3">
               {categoriesError ? (
@@ -477,16 +523,32 @@ function TransactionFormModal({
                 </ErrorNotice>
               ) : (
                 <>
-                  <label className="flex items-center justify-between gap-3">
-                    <span className="text-body">Categoría</span>
+                  {/* La puerta al resto de las categorías: el <select> nativo
+                      de siempre, transparente y estirado sobre la fila entera
+                      -- así cualquier toque en la fila abre la rueda de iOS
+                      directo, no solo el texto del valor. `-mx-4 -my-3`
+                      cancela el padding del contenedor para que este relativo
+                      mida EXACTAMENTE lo que mide la fila visible: si midiera
+                      más, taparía el "+ Crear" del alta en el lugar de abajo. */}
+                  <div className="relative -mx-4 -my-3 pressable">
+                    <div className="row">
+                      <span className="text-body">Otra categoría</span>
+                      <span className="flex min-w-0 items-center gap-1">
+                        <span
+                          className={`truncate text-body ${chosenOutsideGrid ? 'text-ink' : 'text-ink-soft'}`}
+                        >
+                          {categoriesLoading ? 'Cargando…' : (chosenOutsideGrid?.name ?? 'Elegir…')}
+                        </span>
+                        <ChevronRight />
+                      </span>
+                    </div>
                     {/* El orden de las opciones es el que el usuario arrastró
                         en Ajustes (categories viene ordenado por position),
-                        no el alfabético: acá es donde se elige una decenas de
-                        veces. Sin categorías todavía (arranque en frío) el
-                        selector se deshabilita con una sola opción, en vez de
-                        bloquear el resto del formulario -- el monto no las
-                        necesita. */}
+                        no el alfabético. Sin categorías todavía (arranque en
+                        frío) el selector se deshabilita, en vez de bloquear
+                        el resto del formulario -- el monto no las necesita. */}
                     <select
+                      aria-label="Otra categoría"
                       value={categoriesLoading ? '' : creatingCategory ? '__new__' : categoryId}
                       onChange={(e) => {
                         const value = e.target.value
@@ -499,7 +561,7 @@ function TransactionFormModal({
                       }}
                       disabled={categoriesLoading}
                       required={!creatingCategory}
-                      className="max-w-[55%] input-inline"
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                     >
                       {categoriesLoading ? (
                         <option value="" disabled>
@@ -519,7 +581,7 @@ function TransactionFormModal({
                         </>
                       )}
                     </select>
-                  </label>
+                  </div>
 
                   {creatingCategory && (
                     <div className="mt-2.5">

@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { UserError } from './errors.js'
+import { fetchAllPages } from './pagination.js'
 
 // Las categorías se ordenan por `position`, que el usuario arrastra en
 // Ajustes: antes salían alfabéticas y no había forma de poner adelante las
@@ -159,6 +160,63 @@ export async function reorderCategories(ordered) {
   }
 
   return ordered.map((cat, i) => ({ ...cat, position: i }))
+}
+
+// Cuántas veces se usó cada categoría en los últimos 90 días -- el insumo de
+// topCategories (la grilla de "las seis más usadas" del formulario de gasto/
+// ingreso). Cuenta MOVIMIENTOS, no plata: importa cuántas veces se toca cada
+// una, no cuánto mueve. Paginada como getTransactions: 90 días de una cuenta
+// activa puede pasar de sobra las 1000 filas de PostgREST.
+//
+// Por qué 90 días y no 30 ni todo el historial: ver el plan del bloque, en
+// docs/ux/plan -- treinta es poco (un mes atípico da vuelta la grilla) y todo
+// el historial arrastra hábitos que ya no existen.
+export async function getCategoryUsage() {
+  const since = new Date()
+  since.setDate(since.getDate() - 90)
+  const sinceISO = since.toISOString().slice(0, 10)
+
+  const rows = await fetchAllPages((from, to) =>
+    supabase
+      .from('transactions')
+      .select('category_id, kind')
+      .gte('date', sinceISO)
+      .order('id')
+      .range(from, to),
+  )
+
+  const counts = new Map()
+  for (const { category_id, kind } of rows) {
+    const key = `${category_id}:${kind}`
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts].map(([key, count]) => {
+    const [category_id, kind] = key.split(':')
+    return { category_id, kind, count }
+  })
+}
+
+// Las seis categorías que más se usaron, para la grilla del formulario de
+// gasto/ingreso. Cuáles ENTRAN lo decide el uso (ver getCategoryUsage); en
+// qué ORDEN se muestran es siempre `position` -- así la pastilla de una
+// categoría está siempre en el mismo lugar, aunque esta semana se haya usado
+// más otra. Los empates de uso (incluido el 0-0 de las que no se usaron) los
+// desempata `position` también, que es lo que hace que "completar hasta seis
+// con las primeras por position" salga solo, sin un paso aparte.
+export function topCategories(categories, usage, kind, n = 6) {
+  const pool = categories.filter((cat) => cat.kind === kind && !cat.is_system && !cat.is_archived)
+
+  const countOf = new Map(
+    usage.filter((row) => row.kind === kind).map((row) => [row.category_id, row.count]),
+  )
+
+  const ranked = [...pool].sort((a, b) => {
+    const byUsage = (countOf.get(b.id) ?? 0) - (countOf.get(a.id) ?? 0)
+    return byUsage !== 0 ? byUsage : a.position - b.position
+  })
+
+  const chosen = new Set(ranked.slice(0, n).map((cat) => cat.id))
+  return pool.filter((cat) => chosen.has(cat.id)).sort((a, b) => a.position - b.position)
 }
 
 export async function renameCategory(id, name) {
