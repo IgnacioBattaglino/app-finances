@@ -297,7 +297,7 @@ function Movements() {
   // exactamente lo que suma el renglón homónimo de los totales.
   const [bucket, setBucket] = useState(ALL)
   const [categoryId, setCategoryId] = useState('')
-  const { categories, addCategory } = useCategories()
+  const { categories } = useCategories()
   const [visible, setVisible] = useState(PAGE)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -658,11 +658,9 @@ function Movements() {
       <TransactionFormModal
         open={modalOpen}
         initial={editing}
-        categories={categories}
         accounts={accounts}
         defaultAccountId={defaultAccountId}
         lastReconciliations={lastReconciliations}
-        onCategoryCreated={addCategory}
         onAccountCreated={addAccount}
         onClose={closeModal}
         onSaved={refreshAfterSave}

@@ -12,7 +12,6 @@ import { getAccountTransactions } from '../../lib/transactions.js'
 import { splitPage } from '../../lib/contributions.js'
 import { formatByCurrency, todayISO } from '../../lib/format.js'
 import { useAccounts } from '../../hooks/useAccounts.js'
-import { useCategories } from '../../hooks/useCategories.js'
 import { useLastReconciliations } from '../../hooks/useLastReconciliations.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
@@ -65,7 +64,6 @@ function AccountDetail() {
   const [hasMoreHistory, setHasMoreHistory] = useState(false)
   const [loadingMoreHistory, setLoadingMoreHistory] = useState(false)
   const [loadMoreHistoryError, setLoadMoreHistoryError] = useState(false)
-  const { categories, addCategory } = useCategories()
   const [txModal, setTxModal] = useState({ open: false, editing: null })
   const { accounts: dailyAccounts, defaultAccountId, addAccount } = useAccounts()
   const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
@@ -351,11 +349,9 @@ function AccountDetail() {
       <TransactionFormModal
         open={txModal.open}
         initial={txModal.editing}
-        categories={categories}
         accounts={[account, ...dailyAccounts]}
         defaultAccountId={account.id}
         lastReconciliations={lastReconciliations}
-        onCategoryCreated={addCategory}
         onAccountCreated={addAccount}
         onClose={() => setTxModal({ open: false, editing: null })}
         onSaved={afterTxSaved}

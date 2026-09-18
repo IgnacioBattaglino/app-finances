@@ -10,11 +10,12 @@ import { createCategory } from '../lib/categories.js'
 import { retroactiveReconciliation, getReconciliationOf, deleteReconciliation } from '../lib/liquid.js'
 import { todayISO, toDecimalInput, formatByCurrency, formatDayYear } from '../lib/format.js'
 import { isMovedMoney, isBalanceAdjustment } from '../lib/systemCategories.js'
+import { useCategories } from '../hooks/useCategories.js'
 import FormSheet from './FormSheet.jsx'
 import LiquidModal from './LiquidModal.jsx'
 import BinaryChoice from './form/BinaryChoice.jsx'
 import CollapsedDateField from './form/CollapsedDateField.jsx'
-import FormError from './form/FormError.jsx'
+import FormError, { ErrorNotice } from './form/FormError.jsx'
 import MissingHint from './form/MissingHint.jsx'
 import AccountField from './form/AccountField.jsx'
 import ConfirmAction from './form/ConfirmAction.jsx'
@@ -25,17 +26,30 @@ function TransactionFormModal({
   open,
   initial,
   defaultKind = 'expense',
-  categories = [],
   accounts = [],
   defaultAccountId = null,
   lastReconciliations = new Map(),
   onClose,
   onSaved,
   onDeleted,
-  onCategoryCreated,
   onAccountCreated,
   onReconciled,
 }) {
+  // Las categorías se piden ACÁ, no por prop: el monto (lo primero que se
+  // escribe) no las necesita para nada, así que abrir el formulario no puede
+  // esperarlas. Mientras no llegan, el selector de más abajo se deshabilita
+  // en vez de bloquear el resto.
+  const {
+    categories,
+    loading: categoriesLoading,
+    error: categoriesQueryError,
+    reload: reloadCategories,
+    addCategory,
+  } = useCategories()
+  const categoriesError = categoriesQueryError
+    ? { message: 'No se pudieron cargar las categorías.', detail: categoriesQueryError }
+    : null
+
   const [date, setDate] = useState(todayISO())
   const [kind, setKind] = useState(defaultKind)
   const [categoryId, setCategoryId] = useState('')
@@ -350,7 +364,7 @@ function TransactionFormModal({
   // que buscarla en el selector después de crearla.
   async function handleCreateCategory(name) {
     const created = await createCategory(name, kind)
-    onCategoryCreated?.(created)
+    addCategory(created)
     setCategoryId(created.id)
     setCreatingCategory(false)
   }
@@ -399,7 +413,15 @@ function TransactionFormModal({
   return (
     <>
     <FormSheet
-      title={editing ? 'Editar movimiento' : 'Nuevo movimiento'}
+      title={
+        kind === 'expense'
+          ? editing
+            ? 'Editar gasto'
+            : 'Nuevo gasto'
+          : editing
+            ? 'Editar ingreso'
+            : 'Nuevo ingreso'
+      }
       onClose={onClose}
       startExpanded
       onSubmit={handleSubmit}
@@ -449,46 +471,67 @@ function TransactionFormModal({
 
           <div className="list">
             <div className="px-4 py-3">
-              <label className="flex items-center justify-between gap-3">
-                <span className="text-body">Categoría</span>
-                {/* El orden de las opciones es el que el usuario arrastró en
-                    Ajustes (categories viene ordenado por position), no el
-                    alfabético: acá es donde se elige una decenas de veces. */}
-                <select
-                  value={creatingCategory ? '__new__' : categoryId}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    if (value === '__new__') {
-                      setCreatingCategory(true)
-                      return
-                    }
-                    setCreatingCategory(false)
-                    setCategoryId(value)
-                  }}
-                  required={!creatingCategory}
-                  className="max-w-[55%] input-inline"
-                >
-                  <option value="" disabled>
-                    Elegir…
-                  </option>
-                  {kindCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                  <option value="__new__">+ Nueva categoría</option>
-                </select>
-              </label>
+              {categoriesError ? (
+                <ErrorNotice error={categoriesError} onRetry={reloadCategories}>
+                  <span className="text-body">Categoría</span>
+                </ErrorNotice>
+              ) : (
+                <>
+                  <label className="flex items-center justify-between gap-3">
+                    <span className="text-body">Categoría</span>
+                    {/* El orden de las opciones es el que el usuario arrastró
+                        en Ajustes (categories viene ordenado por position),
+                        no el alfabético: acá es donde se elige una decenas de
+                        veces. Sin categorías todavía (arranque en frío) el
+                        selector se deshabilita con una sola opción, en vez de
+                        bloquear el resto del formulario -- el monto no las
+                        necesita. */}
+                    <select
+                      value={categoriesLoading ? '' : creatingCategory ? '__new__' : categoryId}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value === '__new__') {
+                          setCreatingCategory(true)
+                          return
+                        }
+                        setCreatingCategory(false)
+                        setCategoryId(value)
+                      }}
+                      disabled={categoriesLoading}
+                      required={!creatingCategory}
+                      className="max-w-[55%] input-inline"
+                    >
+                      {categoriesLoading ? (
+                        <option value="" disabled>
+                          Cargando…
+                        </option>
+                      ) : (
+                        <>
+                          <option value="" disabled>
+                            Elegir…
+                          </option>
+                          {kindCategories.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                          <option value="__new__">+ Nueva categoría</option>
+                        </>
+                      )}
+                    </select>
+                  </label>
 
-              {creatingCategory && (
-                <div className="mt-2.5">
-                  <InlineCreate
-                    placeholder={kind === 'expense' ? 'Nombre, ej: Comida, Transporte' : 'Nombre, ej: Sueldo, Freelance'}
-                    errorMessage="No se pudo crear la categoría."
-                    onCreate={handleCreateCategory}
-                    onCancel={() => setCreatingCategory(false)}
-                  />
-                </div>
+                  {creatingCategory && (
+                    <div className="mt-2.5">
+                      <InlineCreate
+                        placeholder={kind === 'expense' ? 'Nombre, ej: Comida, Transporte' : 'Nombre, ej: Sueldo, Freelance'}
+                        errorMessage="No se pudo crear la categoría."
+                        onCreate={handleCreateCategory}
+                        onCancel={() => setCreatingCategory(false)}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
             {/* Todo gasto o ingreso mueve el disponible, así que la cuenta se

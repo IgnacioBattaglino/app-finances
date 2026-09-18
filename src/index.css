@@ -489,7 +489,11 @@
   }
 
   /* El botón flotante del celular. En desktop no existe: la acción vive en el
-     encabezado. */
+     encabezado. `view-transition-name` propio (mismo criterio que la barra de
+     pestañas y la columna lateral, ver Layout.jsx): entre Inicio y Movimientos
+     el "+" está en el mismo lugar, y sin esto la View Transition lo trataba
+     como dos elementos distintos -- se apagaba y volvía a subir en vez de
+     quedarse quieto. */
   .fab {
     position: fixed;
     right: 1rem;
@@ -505,6 +509,7 @@
     color: #fff;
     box-shadow: var(--shadow-fab);
     transition: transform var(--duration-base) var(--ease-ios);
+    view-transition-name: fab;
   }
 
   .fab:active {

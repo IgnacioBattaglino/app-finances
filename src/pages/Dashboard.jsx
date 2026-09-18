@@ -5,9 +5,7 @@ import CommitmentReminder from '../components/commitments/CommitmentReminder.jsx
 import Money from '../components/Money.jsx'
 import MoneyStack from '../components/MoneyStack.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
-import FormSheet from '../components/FormSheet.jsx'
 import { ErrorNotice } from '../components/form/FormError.jsx'
-import ListSkeleton from '../components/ListSkeleton.jsx'
 import InfoButton from '../components/InfoButton.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
 import {
@@ -21,7 +19,6 @@ import { toUsd } from '../lib/localCurrency.js'
 import { getDebts, summarizeDebts } from '../lib/debts.js'
 import { formatARS, formatUSD, todayISO } from '../lib/format.js'
 import { useAccounts } from '../hooks/useAccounts.js'
-import { useCategories } from '../hooks/useCategories.js'
 import { useDuePayments } from '../hooks/useCommitments.js'
 import { ChevronRight, ChevronDown, Plus, Settings } from '../components/Icons.jsx'
 
@@ -244,16 +241,6 @@ function Dashboard() {
   const [debtsError, setDebtsError] = useState(null)
 
   const [expenseModalOpen, setExpenseModalOpen] = useState(false)
-  const {
-    categories,
-    loading: categoriesLoading,
-    error: categoriesQueryError,
-    reload: reloadCategories,
-    addCategory,
-  } = useCategories()
-  const categoriesError = categoriesQueryError
-    ? { message: 'No se pudieron cargar las categorías.', detail: categoriesQueryError }
-    : null
   // Se incrementa al guardar un movimiento, para que el bloque de gastos se
   // entere. Antes solo se recargaba el disponible y el bloque de abajo —en la
   // misma pantalla— seguía mostrando los números viejos.
@@ -345,10 +332,6 @@ function Dashboard() {
     }
   }, [liquid, liquidError, totalValue, portfolioLoading, portfolioError])
 
-  function openExpenseModal() {
-    setExpenseModalOpen(true)
-  }
-
   // Un gasto nuevo mueve el disponible; una reconciliación, también. Y las dos
   // cosas son movimientos, así que el bloque de gastos también se recalcula:
   // una reconciliación inserta una transaction de ajuste, que cuenta como
@@ -420,7 +403,11 @@ function Dashboard() {
         title="Inicio"
         action={
           <>
-            <button type="button" onClick={openExpenseModal} className="btn btn-primary hidden md:inline-flex">
+            <button
+              type="button"
+              onClick={() => setExpenseModalOpen(true)}
+              className="btn btn-primary hidden md:inline-flex"
+            >
               Nuevo gasto
             </button>
             {/* Ajustes en el celular: no es una pestaña (ver Layout). */}
@@ -567,38 +554,22 @@ function Dashboard() {
           desktop no hay FAB: la acción está en el encabezado. */}
       <button
         type="button"
-        onClick={openExpenseModal}
+        onClick={() => setExpenseModalOpen(true)}
         aria-label="Nuevo gasto"
         className="fab"
       >
         <Plus />
       </button>
 
-      {/* Sin categorías todavía (cargando o falló) no se abre el formulario
-          con la lista vacía: se muestra el error con Reintentar, o "Cargando…"
-          mientras se resuelve — el mismo modal se convierte en el real en
-          cuanto las categorías están. */}
-      {expenseModalOpen && (categoriesLoading || categoriesError) ? (
-        <FormSheet title="Nuevo gasto" onClose={() => setExpenseModalOpen(false)}>
-          {categoriesError ? (
-            <ErrorNotice error={categoriesError} onRetry={reloadCategories} />
-          ) : (
-            <ListSkeleton rows={4} />
-          )}
-        </FormSheet>
-      ) : (
-        <TransactionFormModal
-          open={expenseModalOpen}
-          defaultKind="expense"
-          categories={categories}
-          accounts={accounts}
-          defaultAccountId={defaultAccountId}
-          onCategoryCreated={addCategory}
-          onAccountCreated={addAccount}
-          onClose={() => setExpenseModalOpen(false)}
-          onSaved={afterLiquidChanged}
-        />
-      )}
+      <TransactionFormModal
+        open={expenseModalOpen}
+        defaultKind="expense"
+        accounts={accounts}
+        defaultAccountId={defaultAccountId}
+        onAccountCreated={addAccount}
+        onClose={() => setExpenseModalOpen(false)}
+        onSaved={afterLiquidChanged}
+      />
     </div>
   )
 }
