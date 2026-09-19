@@ -18,12 +18,15 @@ import { OVERDUE, occurrenceTitle } from '../../lib/commitmentSchedule.js'
 // que era ayer.
 //
 // El bloque no se mueve de lugar nunca —Inicio no puede cambiar de forma
-// según el estado— y lo que cambia es el teñido, el texto y el peso:
+// según el estado— y lo que cambia es el punto, el texto y el peso (bloque
+// 10: el rojo/`.notice` queda para pérdidas, gastos, borrar y errores, así
+// que un vencimiento no es una alarma roja):
 //
-//   · vencido    → teñido en clay (.notice), y el texto lo dice
-//   · por vencer → tarjeta normal, sin teñir
+//   · vencido    → tarjeta normal + punto de atención + "venció hace N días"
+//                  en ink semibold (el número que sube solo es lo que insiste)
+//   · por vencer → tarjeta normal, sin punto, texto en ink-soft
 //
-// "Vence hoy" NO va teñido: todavía no se te pasó nada. El teñido está
+// "Vence hoy" NO lleva el punto: todavía no se te pasó nada. El punto está
 // reservado para lo que ya venció (ver planOccurrences).
 //
 // Cuando no hay nada que confirmar no está, que es el mismo criterio que ya
@@ -53,22 +56,22 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
   const busy = confirming === `${next.planId}|${next.dueDate}`
 
   return (
-    <section
-      className={`${overdue ? 'notice' : 'surface p-4'} ${className}`}
-      aria-label="Vencimientos para confirmar"
-    >
+    <section className={`surface p-4 ${className}`} aria-label="Vencimientos para confirmar">
       {/* El monto arriba a la derecha, a la misma altura que el nombre: son
           las dos cosas que se leen de un vistazo. */}
       <div className="flex items-baseline justify-between gap-3">
-        <p className={`min-w-0 truncate text-subhead font-semibold ${overdue ? '' : 'text-ink'}`}>
-          {occurrenceTitle(next)}
+        <p className="flex min-w-0 items-center gap-1.5 truncate text-subhead font-semibold text-ink">
+          {overdue && (
+            <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full bg-attention" />
+          )}
+          <span className="min-w-0 truncate">{occurrenceTitle(next)}</span>
         </p>
         <p className="font-money shrink-0 text-subhead font-semibold">
           {formatByCurrency(next.currency, next.amount)}
         </p>
       </div>
 
-      <p className={`mt-0.5 text-footnote ${overdue ? '' : 'text-ink-soft'}`}>
+      <p className={`mt-0.5 text-footnote ${overdue ? 'font-semibold text-ink' : 'text-ink-soft'}`}>
         {lateLabel(next)}
         {next.plan.account?.name ? ` · ${next.plan.account.name}` : ''}
       </p>
@@ -91,8 +94,8 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
           type="button"
           onClick={() => onAdjust(next)}
           disabled={busy}
-          className={`text-footnote underline decoration-dotted underline-offset-4 disabled:opacity-40 ${
-            overdue ? '' : 'text-ink-soft'
+          className={`btn-text text-footnote underline decoration-dotted underline-offset-4 disabled:opacity-40 ${
+            overdue ? 'text-ink' : 'text-ink-soft'
           }`}
         >
           Cambió el monto
@@ -100,16 +103,18 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
       </div>
 
       {rest.length > 0 && (
-        <Link
-          viewTransition
-          to="/compromisos"
-          className={`mt-3 flex items-center justify-between gap-2 text-footnote ${
-            overdue ? '' : 'text-ink-soft'
-          }`}
-        >
-          <span>y {rest.length} más para confirmar</span>
-          <span aria-hidden="true">→</span>
-        </Link>
+        <div className="mt-3">
+          <Link
+            viewTransition
+            to="/compromisos"
+            className={`btn-text flex items-center justify-between gap-2 text-footnote ${
+              overdue ? 'text-ink' : 'text-ink-soft'
+            }`}
+          >
+            <span>y {rest.length} más para confirmar</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
       )}
     </section>
   )

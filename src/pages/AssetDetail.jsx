@@ -307,9 +307,12 @@ function AssetDetail() {
               (el botón "Actualizar valuación" al lado). */}
           {valuation?.outdated ? (
             <div className="mt-2.5 space-y-1.5">
-              <p className="text-subhead text-clay">
-                Rendimiento no disponible: cargaste operaciones después de la última valuación
-                {valuation.date ? ` (${formatDayYear(valuation.date)})` : ''}.
+              <p className="flex items-baseline gap-1.5 text-subhead text-ink-soft">
+                <span aria-hidden="true" className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-attention" />
+                <span>
+                  Rendimiento no disponible: cargaste operaciones después de la última valuación
+                  {valuation.date ? ` (${formatDayYear(valuation.date)})` : ''}.
+                </span>
               </p>
               {/* D4: el aviso lleva a la salida en vez de mandar a buscarla
                   más abajo en la pantalla. */}

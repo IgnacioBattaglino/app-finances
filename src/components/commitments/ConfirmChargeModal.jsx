@@ -128,7 +128,7 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
         </div>
 
         {currencyChanged && (
-          <div className="notice text-footnote">
+          <div className="callout">
             Esta cuenta está en {currency} y el plan quedó cargado en {planCurrency}. Escribí de nuevo
             cuánto te debitaron, en {currency}: la app no convierte monedas por su cuenta.
           </div>

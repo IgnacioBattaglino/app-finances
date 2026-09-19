@@ -63,7 +63,10 @@ function PaymentRow({ payment, onEdit }) {
           // congelado queda fuera de ese cálculo: se avisa acá, donde se puede
           // tocar para completarlo, en vez de dejar el líquido corto en silencio.
           !payment.mep_rate && (
-            <span className="ml-2 text-footnote text-clay">sin tipo de cambio</span>
+            <span className="ml-2 inline-flex items-center gap-1.5 text-footnote text-ink-soft">
+              <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full bg-attention" />
+              sin tipo de cambio
+            </span>
           )
         )}
       </span>

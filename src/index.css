@@ -49,9 +49,14 @@
   --color-accent-ink: #0a7a55;
 
   /* SIGNIFICADO FINANCIERO — fijo, nunca sigue al acento: verde = ganancia e
-     ingreso, clay = pérdida, gasto y lo destructivo. */
+     ingreso, clay = pérdida, gasto, una acción destructiva (Eliminar) o un
+     error que impidió guardar/cargar. Nada más es clay (bloque 10): lo que
+     "necesita tu atención" sin ser una de esas cuatro cosas usa `attention`,
+     un ocre apagado que SOLO aparece como un punto de ~8px al lado de un
+     nombre -- nunca rellena un bloque ni pinta texto largo. */
   --color-gain: #0e7a4e;
   --color-clay: #c3372b;
+  --color-attention: #96690f;
 
   /* TIPOGRAFÍA — la del sistema, sin webfonts. */
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
@@ -114,6 +119,7 @@
   --color-scrim: rgb(0 0 0 / 0.6);
   --color-gain: #35c783;
   --color-clay: #ff6b5e;
+  --color-attention: #d9a441;
   --shadow-surface: 0 0 0 1px #23262f;
   --shadow-raised: 0 0 0 1px #2c303a, 0 12px 32px rgb(0 0 0 / 0.5);
   --shadow-fab: 0 0 0 1px rgb(255 255 255 / 0.08), 0 8px 24px rgb(0 0 0 / 0.5);
@@ -133,6 +139,7 @@
     --color-scrim: rgb(0 0 0 / 0.6);
     --color-gain: #35c783;
     --color-clay: #ff6b5e;
+    --color-attention: #d9a441;
     --shadow-surface: 0 0 0 1px #23262f;
     --shadow-raised: 0 0 0 1px #2c303a, 0 12px 32px rgb(0 0 0 / 0.5);
     --shadow-fab: 0 0 0 1px rgb(255 255 255 / 0.08), 0 8px 24px rgb(0 0 0 / 0.5);
@@ -573,16 +580,13 @@
 
   /* ---- COLOR DE UN GRUPO DE ACTIVOS -------------------------------------
      El color es un dato por fila: llega por `--group-color` y
-     `--group-color-dark` inline (ver lib/theme.js). El encabezado del grupo
-     lleva el tinte fuerte (20%) y sus filas el suave (13%); más tinte le
-     come contraste al rojo de pérdida y al texto secundario. En oscuro se
-     tiñe con el tono claro del color y un punto más. */
-  .group-tint {
-    background-color: color-mix(in oklab, var(--group-color) 20%, transparent);
-  }
-
-  .group-tint-soft {
-    background-color: color-mix(in oklab, var(--group-color) 13%, transparent);
+     `--group-color-dark` inline (ver lib/theme.js). Bloque 10: el color dejó
+     de teñir el encabezado y las filas (un grupo "Vino" al lado de una
+     pérdida en rojo se leía como pérdida); ahora es solo `.group-mark`, la
+     marca redonda de ~10px al lado del nombre. En oscuro usa el tono claro
+     del color, igual que antes. */
+  .group-mark {
+    background-color: var(--group-color);
   }
 
   .group-swatch {
@@ -593,12 +597,8 @@
 
 /* Fuera de @layer a propósito: una regla dentro de la capa no le gana a otra
    de la misma capa por especificidad de :root. */
-:root[data-theme='dark'] .group-tint {
-  background-color: color-mix(in oklab, var(--group-color-dark) 22%, transparent);
-}
-
-:root[data-theme='dark'] .group-tint-soft {
-  background-color: color-mix(in oklab, var(--group-color-dark) 14%, transparent);
+:root[data-theme='dark'] .group-mark {
+  background-color: var(--group-color-dark);
 }
 
 :root[data-theme='dark'] .group-swatch {
@@ -607,12 +607,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .group-tint {
-    background-color: color-mix(in oklab, var(--group-color-dark) 22%, transparent);
-  }
-
-  :root:not([data-theme='light']) .group-tint-soft {
-    background-color: color-mix(in oklab, var(--group-color-dark) 14%, transparent);
+  :root:not([data-theme='light']) .group-mark {
+    background-color: var(--group-color-dark);
   }
 
   :root:not([data-theme='light']) .group-swatch {

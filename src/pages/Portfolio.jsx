@@ -331,13 +331,13 @@ function Portfolio() {
 
           {/* Avisos */}
           {pricesFailed && (
-            <p className="notice text-footnote">
+            <p className="callout">
               No se pudieron traer los precios del momento. Se muestra el último valor disponible de
               cada activo.
             </p>
           )}
           {unvalued.length > 0 && (
-            <p className="notice text-footnote">
+            <p className="callout">
               {unvalued.length === 1
                 ? `«${unvalued[0].name}» todavía no tiene valuación, así que no suma al total.`
                 : `${unvalued.length} activos todavía no tienen valuación, así que no suman al total.`}{' '}

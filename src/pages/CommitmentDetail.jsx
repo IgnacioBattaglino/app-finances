@@ -85,11 +85,14 @@ function OccurrenceRow({ occurrence, onConfirm, onAdjust, onUndo, onDismiss, bus
           <span className="block truncate text-body">
             {number && of ? `Cuota ${number} de ${of}` : formatDayYear(dueDate)}
           </span>
-          <span
-            className={`block truncate text-footnote ${status === OVERDUE ? 'text-clay' : 'text-ink-soft'}`}
-          >
-            {number && of ? `${formatDayYear(dueDate)} · ` : ''}
-            {STATUS_LABEL[status]}
+          <span className="flex min-w-0 items-center gap-1.5 truncate text-footnote text-ink-soft">
+            {status === OVERDUE && (
+              <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full bg-attention" />
+            )}
+            <span className="min-w-0 truncate">
+              {number && of ? `${formatDayYear(dueDate)} · ` : ''}
+              {STATUS_LABEL[status]}
+            </span>
           </span>
         </span>
         <span className="font-money shrink-0 text-body">
@@ -230,7 +233,7 @@ function CommitmentDetail() {
             {plan.card?.name ? ` · ${plan.card.name}` : ''}
           </p>
           {finished && plan.ends_on && (
-            <p className="text-clay">Terminado el {formatDayYear(plan.ends_on)}.</p>
+            <p className="text-ink-soft">Terminado el {formatDayYear(plan.ends_on)}.</p>
           )}
         </div>
       </section>

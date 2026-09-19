@@ -64,7 +64,8 @@ export function AssetRow({ asset, valuation, contributions }) {
             detalle, que es donde vive "Actualizar valuación" — por eso acá va
             solo el aviso y no un botón (sería un botón adentro de un link). */}
         {valuation.outdated ? (
-          <span className="text-footnote text-clay">
+          <span className="flex items-center gap-1.5 text-footnote text-ink-soft">
+            <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full bg-attention" />
             Valuación desactualizada — hay operaciones posteriores
           </span>
         ) : (
@@ -92,23 +93,22 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
   const archivedGroup = assetType.is_archived === true
 
   // Color del grupo (migración 0031). Null = sin color: el grupo se ve
-  // exactamente como se veía antes de que esto existiera, con el relleno gris
-  // neutro. No hay un color por default — un color que el usuario no eligió
-  // diría algo que él no dijo.
+  // exactamente como se veía antes de que esto existiera. No hay un color por
+  // default — un color que el usuario no eligió diría algo que él no dijo.
   //
-  // Los dos tonos van como variables inline y las clases del CSS deciden cuál
-  // usar según el modo y con qué intensidad (ver .group-tint en index.css).
-  // Acá no se calcula ningún color: este componente solo pasa la paleta.
+  // Bloque 10: el color dejó de teñir el encabezado y las filas (un grupo
+  // "Vino" al lado de una pérdida en rojo se leía como pérdida). Ahora es
+  // solo una marca chica al lado del nombre; los dos tonos siguen yendo como
+  // variables inline y `.group-mark` decide cuál usar según el modo.
   const color = getGroupColor(assetType.color)
   const tintVars = color ? { '--group-color': color.fill, '--group-color-dark': color.inkDark } : undefined
 
   return (
     <div className="list" style={tintVars}>
-      {/* Encabezado del grupo. Lleva `mist` entero y no un 45% de `mist`: la
+      {/* Encabezado del grupo. Lleva `mist` entero, tenga o no color: la
           diferencia contra la tarjeta blanca de las filas tiene que verse
-          sola, sin depender de que el grupo tenga color. Esa es la
-          distinción base; el color, cuando está, se suma encima con su
-          tinte (que está calibrado para no quedar más flojo que este gris).
+          sola. El color, cuando está, es solo la marca redonda al lado del
+          nombre (bloque 10) -- ya no tiñe el fondo.
 
           Y es un link al detalle del grupo, la MISMA pantalla que se abre
           desde la lista de grupos: ahí se le cambia el nombre, el color y el
@@ -117,10 +117,13 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
         viewTransition
         to={`/inversiones/grupos/${assetType.id}`}
         state={{ from: { label: 'Inversiones' } }}
-        className={`block px-4 py-3 transition active:opacity-90 ${color ? 'group-tint' : 'bg-mist'}`}
+        className="block bg-mist px-4 py-3 transition active:opacity-90"
       >
         <div className="flex items-baseline justify-between gap-3">
           <span className="flex items-center gap-1.5 text-subhead font-semibold">
+            {color && (
+              <span aria-hidden="true" className="group-mark inline-block h-2.5 w-2.5 shrink-0 rounded-full" />
+            )}
             {assetType.name}
             <ChevronRight />
             {outOfTotal && (
@@ -135,7 +138,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
             )}
           </span>
           <span className="font-money text-subhead font-semibold">
-            {allUnvalued ? <span className="text-clay">sin valuación</span> : formatUSD(value)}
+            {allUnvalued ? <span className="text-ink-soft">sin valuación</span> : formatUSD(value)}
           </span>
         </div>
         <div className="mt-1 flex items-center justify-between gap-3 text-footnote">
@@ -164,10 +167,9 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
         )}
       </Link>
 
-      {/* Las filas llevan el tinte SUAVE del mismo color: leídas juntas dicen
-          "estas son las de ese encabezado" sin repetir su nombre ni sumar un
-          borde. Sin color, el bloque es la tarjeta blanca de siempre. */}
-      <div className={`rows ${color ? 'group-tint-soft' : ''}`}>
+      {/* Las filas ya no llevan tinte de color (bloque 10): la marca del
+          encabezado alcanza para leer "estas son las de ese grupo". */}
+      <div className="rows">
         {assets.map((asset) => (
           <AssetRow
             key={asset.id}

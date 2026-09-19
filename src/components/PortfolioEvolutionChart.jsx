@@ -182,11 +182,14 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
             seriesLabel="Dinero invertido"
             footer={
               hasOutdated ? (
-                <div className="notice mt-4 space-y-2 text-footnote">
-                  <p>
-                    {outdatedAssetNames.length === 1
-                      ? `«${outdatedAssetNames[0]}» tiene una valuación vieja, así que no podemos calcular cuánto ganaste.`
-                      : `${outdatedAssetNames.length} activos tienen una valuación vieja, así que no podemos calcular cuánto ganaste.`}
+                <div className="callout mt-4 space-y-2">
+                  <p className="flex items-baseline gap-1.5">
+                    <span aria-hidden="true" className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-attention" />
+                    <span>
+                      {outdatedAssetNames.length === 1
+                        ? `«${outdatedAssetNames[0]}» tiene una valuación vieja, así que no podemos calcular cuánto ganaste.`
+                        : `${outdatedAssetNames.length} activos tienen una valuación vieja, así que no podemos calcular cuánto ganaste.`}
+                    </span>
                   </p>
                   <button
                     type="button"

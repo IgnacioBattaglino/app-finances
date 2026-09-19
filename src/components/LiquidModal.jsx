@@ -84,14 +84,14 @@ function Summary({ plan }) {
   const nothing = plan.currencies.every((c) => Math.abs(c.net) < 0.01) && !moved
   if (nothing) {
     return (
-      <p className="notice px-4 py-3 text-subhead">
+      <p className="callout px-4 py-3 text-subhead">
         Todo coincide con lo que calculó la app: no se registra ningún movimiento.
       </p>
     )
   }
 
   return (
-    <div className="notice space-y-1.5 px-4 py-3 text-subhead">
+    <div className="callout space-y-1.5 px-4 py-3 text-subhead">
       {plan.currencies.map(({ currency, net }) =>
         Math.abs(net) < 0.01 ? (
           <p key={currency}>

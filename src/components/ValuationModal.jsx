@@ -108,7 +108,8 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
                         : 'Nunca lo valuaste'}
                     </span>
                     {willReplace && (
-                      <span className="block text-footnote text-clay">
+                      <span className="flex items-center gap-1.5 text-footnote text-ink-soft">
+                        <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full bg-attention" />
                         Ya tenés una valuación en esta fecha — la vas a reemplazar.
                       </span>
                     )}

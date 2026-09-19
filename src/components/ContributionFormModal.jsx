@@ -144,7 +144,7 @@ function ContributionFormModal({
       : null
   const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
   const retroNotice = retro && (
-    <div className="notice space-y-1.5 text-footnote">
+    <div className="callout space-y-1.5">
       <p>
         Esta operación es anterior a la última vez que contaste {retroAccountName} (el{' '}
         {formatDayYear(retro.date)}). Modificarla puede correr el saldo actual de esa cuenta.

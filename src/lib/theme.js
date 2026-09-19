@@ -46,7 +46,7 @@ export const DEFAULT_ACCENT_ID = 'pino'
 // Se devuelven los dos tonos, no uno: `fill` es el que tiñe en modo claro y
 // `inkDark` el que tiñe en oscuro, por la misma razón por la que existe
 // `--color-accent-ink` (un verde oscuro sobre un fondo casi negro no se ve).
-// Quién elige entre los dos es el CSS, no este módulo: ver .group-tint en
+// Quién elige entre los dos es el CSS, no este módulo: ver .group-mark en
 // index.css.
 export function getGroupColor(id) {
   if (!id) return null

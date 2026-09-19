@@ -44,31 +44,34 @@ describe('DueReminder', () => {
     expect(render([])).toBe('')
   })
 
-  it('lo que vence HOY no va teñido: todavía no se te pasó nada', () => {
+  it('lo que vence HOY no lleva el punto de atención: todavía no se te pasó nada', () => {
     // Regresión encontrada en la pasada visual: con `dueDate <= today` el
-    // bloque de Inicio se teñía en clay el mismo día del vencimiento, que es
-    // lo contrario de lo que tiene que comunicar.
+    // bloque de Inicio se teñía el mismo día del vencimiento, que es lo
+    // contrario de lo que tiene que comunicar.
     const due = duePayments({ plans: [plan({ start_date: '2026-09-13' })], today: '2026-09-13' })
     const html = render(due)
     expect(html).toContain('vence hoy')
     expect(html).not.toContain('notice')
+    expect(html).not.toContain('bg-attention')
   })
 
-  it('un vencido cuenta los días y va teñido', () => {
+  it('un vencido cuenta los días y lleva el punto de atención', () => {
     const due = duePayments({ plans: [plan({ start_date: '2026-09-01' })], today: '2026-09-13' })
     const html = render(due)
     expect(html).toContain('venció hace 12 días')
-    // `notice` es el teñido en clay de la app; un vencido lo lleva y uno por
-    // vencer no.
-    expect(html).toContain('notice')
+    // El bloque 10 saca el teñido rojo (`.notice`): un vencido escala con un
+    // punto de atención (`bg-attention`) y el texto en negrita, no con color.
+    expect(html).not.toContain('notice')
+    expect(html).toContain('bg-attention')
     expect(html).toContain('Confirmar')
   })
 
-  it('uno que todavía no venció no va teñido y dice cuándo', () => {
+  it('uno que todavía no venció no lleva el punto y dice cuándo', () => {
     const due = duePayments({ plans: [plan({ start_date: '2026-09-16' })], today: '2026-09-13' })
     const html = render(due)
     expect(html).toContain('vence en 3 días')
     expect(html).not.toContain('notice')
+    expect(html).not.toContain('bg-attention')
   })
 
   it('con muchos pendientes sigue siendo UNA fila y cuenta el resto', () => {

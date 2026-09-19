@@ -29,7 +29,8 @@ function SourceTag({ valuation }) {
   }
   if (valuation.source === 'stale') {
     return (
-      <span className="shrink-0 text-footnote text-clay">
+      <span className="flex shrink-0 items-center gap-1.5 text-footnote text-ink-soft">
+        <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full bg-attention" />
         Precio caído · último valor {formatDay(valuation.date)}
       </span>
     )
@@ -42,7 +43,12 @@ function SourceTag({ valuation }) {
   if (valuation.source === 'contributed') {
     return <span className="shrink-0 text-footnote text-ink-soft">Vale lo que pusiste</span>
   }
-  return <span className="shrink-0 text-footnote text-clay">Sin valuar — no suma al total</span>
+  return (
+    <span className="flex shrink-0 items-center gap-1.5 text-footnote text-ink-soft">
+      <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full bg-attention" />
+      Sin valuar — no suma al total
+    </span>
+  )
 }
 
 export default SourceTag

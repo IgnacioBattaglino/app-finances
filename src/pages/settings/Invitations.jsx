@@ -59,7 +59,7 @@ function NewLinkNotice({ invite, onDismiss }) {
   }
 
   return (
-    <div className="notice space-y-3">
+    <div className="callout space-y-3">
       <p className="text-subhead">Compartí este link — sirve una sola vez y vence en 7 días.</p>
       <p className="font-money truncate rounded-lg bg-mist px-3 py-2 text-footnote">{link}</p>
       <div className="flex gap-3">
