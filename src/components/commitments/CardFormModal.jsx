@@ -89,8 +89,6 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
     setBusy(false)
   }, [open, initial])
 
-  if (!open) return null
-
   const day = dueDay === '' ? null : Number(dueDay)
   const parsedLimit = limit === '' ? null : Number(String(limit).replace(',', '.'))
 
@@ -127,6 +125,7 @@ function CardFormModal({ open, initial = null, onClose, onSaved }) {
 
   return (
     <FormSheet
+      open={open}
       title={editing ? 'Editar la tarjeta' : 'Nueva tarjeta'}
       onClose={onClose}
       onSubmit={handleSubmit}

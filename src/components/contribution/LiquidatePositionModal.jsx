@@ -70,7 +70,7 @@ function LiquidatePositionModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, asset])
 
-  if (!open || !asset) return null
+  if (!asset) return null
 
   const amountValue = Number(amount.replace(',', '.'))
   const quantityValue = Number(quantity.replace(',', '.'))
@@ -131,6 +131,7 @@ function LiquidatePositionModal({
 
   return (
     <FormSheet
+      open={open}
       title={`Liquidar ${asset.name}`}
       onClose={onClose}
       onSubmit={handleSubmit}

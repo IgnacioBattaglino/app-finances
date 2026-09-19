@@ -79,8 +79,6 @@ function DebtPaymentModal({
     setReconcileOpen(false)
   }, [open, initial, defaultAccountId])
 
-  if (!open) return null
-
   const amount = editing ? Number(amountUsd.replace(',', '.')) : railAmountUsd
   const affectsLiquid = origin === 'liquid'
 
@@ -118,7 +116,7 @@ function DebtPaymentModal({
 
   // Pagar más de lo que resta no se bloquea (el saldo real lo sabe el usuario,
   // no la app), pero se avisa: el saldo se queda en 0, no pasa a negativo.
-  const balanceBefore = debtBalance(debt) + (editing ? Number(initial.amount_usd) : 0)
+  const balanceBefore = debt ? debtBalance(debt) + (editing ? Number(initial.amount_usd) : 0) : 0
   const excess = amount > 0 && amount > balanceBefore
 
   async function handleSubmit(event) {
@@ -158,7 +156,8 @@ function DebtPaymentModal({
   return (
     <>
     <FormSheet
-      title={editing ? 'Editar pago' : `Pagar a ${debt.creditor}`}
+      open={open}
+      title={editing ? 'Editar pago' : debt ? `Pagar a ${debt.creditor}` : ''}
       onClose={onClose}
       onSubmit={handleSubmit}
       canSubmit={valid}

@@ -627,19 +627,6 @@
   }
 }
 
-@keyframes sheet-up {
-  from {
-    transform: translateY(100%);
-  }
-}
-
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-}
-
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -654,6 +641,12 @@
   animation: fade-in var(--duration-base) ease-out both;
 }
 
+/* Salida con movimiento reducido (ver FormSheet, bloque 11): sin resorte,
+   un fundido corto en vez del arrastre/escala normal. */
+.animate-fade-out {
+  animation: fade-out var(--duration-fast) ease-in both;
+}
+
 /* LA FILA RECIÉN GUARDADA (bloque 05): un fondo `accent` al ~10% que se apaga
    solo, en vez de saltar o recargar la lista entera. Es el único movimiento
    de "guardar no vacía nada" -- ver Movements.jsx. */
@@ -665,16 +658,6 @@
 
 .animate-highlight {
   animation: row-highlight 1200ms ease-out both;
-}
-
-.animate-sheet {
-  animation: sheet-up var(--duration-slow) var(--ease-ios) both;
-}
-
-@media (min-width: 48rem) {
-  .animate-sheet {
-    animation: pop-in var(--duration-base) ease-out both;
-  }
 }
 
 @keyframes fade-out {
@@ -775,33 +758,3 @@
     fade-out var(--duration-base) ease-in 2980ms forwards;
 }
 
-/* SALIDA DE UN SHEET (ver FormSheet): la copia inerte que queda al cerrarlo
-   baja —o se achica, en desktop— mientras el velo se apaga. Acelera al irse,
-   al revés que la entrada: lo que se va no necesita frenar. */
-@keyframes sheet-down {
-  to {
-    transform: translateY(100%);
-  }
-}
-
-@keyframes pop-out {
-  to {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-}
-
-.sheet-leaving {
-  pointer-events: none;
-  animation: fade-out var(--duration-base) ease-in both;
-}
-
-.sheet-leaving > [role='dialog'] {
-  animation: sheet-down var(--duration-base) cubic-bezier(0.4, 0, 1, 1) both;
-}
-
-@media (min-width: 48rem) {
-  .sheet-leaving > [role='dialog'] {
-    animation: pop-out 160ms ease-in both;
-  }
-}

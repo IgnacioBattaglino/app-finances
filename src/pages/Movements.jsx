@@ -833,9 +833,7 @@ function Movements() {
         <Plus />
       </button>
 
-      {rangeOpen && (
-        <RangeSheet range={range} onChange={setRange} onClose={() => setRangeOpen(false)} />
-      )}
+      <RangeSheet open={rangeOpen} range={range} onChange={setRange} onClose={() => setRangeOpen(false)} />
 
       <TransactionFormModal
         open={modalOpen}

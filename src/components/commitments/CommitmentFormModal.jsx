@@ -147,8 +147,6 @@ function CommitmentFormModal({
     if (next?.due_day) setStartDate(nextDayOfMonth(next.due_day))
   }
 
-  if (!open) return null
-
   const account = accounts.find((a) => a.id === accountId) ?? null
   const currency = account?.currency ?? 'ARS'
   const symbol = currency === 'USD' ? 'US$' : '$'
@@ -226,6 +224,7 @@ function CommitmentFormModal({
 
   return (
     <FormSheet
+      open={open}
       title={editing ? 'Editar' : isInstallments ? 'Nueva compra en cuotas' : 'Nueva suscripción'}
       subtitle={editing ? initial.name : card ? card.name : undefined}
       onClose={onClose}

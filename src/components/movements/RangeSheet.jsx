@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import FormSheet from '../FormSheet.jsx'
 import {
   bounds,
@@ -53,7 +53,7 @@ const THIS_MONTH = () => {
   return monthRange(now.getMonth() + 1, now.getFullYear())
 }
 
-function RangeSheet({ range, onChange, onClose }) {
+function RangeSheet({ open, range, onChange, onClose }) {
   const thisMonth = THIS_MONTH()
   // El año de la GRILLA, que no es el del rango: se navega para buscar un mes
   // sin que la pantalla de atrás cambie hasta que se elige uno. Arranca en el
@@ -63,6 +63,18 @@ function RangeSheet({ range, onChange, onClose }) {
   const [from, setFrom] = useState(() => bounds(range).from ?? '')
   const [to, setTo] = useState(() => bounds(range).to ?? '')
 
+  // Antes esta hoja se montaba de cero cada vez que se abría, así que estos
+  // `useState` alcanzaban. Ahora FormSheet la mantiene montada entre
+  // aperturas (bloque 11), así que hace falta este reseteo explícito — mismo
+  // patrón que el resto de los formularios.
+  useEffect(() => {
+    if (!open) return
+    setGridYear(range.year ?? new Date().getFullYear())
+    setFrom(bounds(range).from ?? '')
+    setTo(bounds(range).to ?? '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   function choose(next) {
     onChange(next)
     onClose()
@@ -71,7 +83,7 @@ function RangeSheet({ range, onChange, onClose }) {
   const customReady = from && to && from <= to
 
   return (
-    <FormSheet title="Qué período mirar" onClose={onClose}>
+    <FormSheet open={open} title="Qué período mirar" onClose={onClose}>
       <div className="space-y-5 pt-1">
         <div className="flex flex-wrap gap-2">
           <Shortcut

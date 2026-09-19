@@ -63,7 +63,11 @@ function SavingsMovementModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
-  const copy = COPY[operation]
+  // `operation` puede llegar en null durante la animación de salida (el
+  // padre limpia su estado al cerrar, ver FormSheet): FormSheet ya muestra el
+  // último contenido congelado, así que este relleno solo evita que ESTE
+  // render (descartado) reviente antes de llegar ahí.
+  const copy = COPY[operation] ?? { title: () => '', entity: '', originLabel: '', originOptions: [], accountLabel: '' }
 
   useEffect(() => {
     if (!open) return
@@ -77,7 +81,7 @@ function SavingsMovementModal({
     setBusy(false)
   }, [open, account, defaultAccountId])
 
-  if (!open || !account) return null
+  if (!account) return null
 
   const dailyAccount = dailyAccounts.find((a) => a.id === dailyAccountId) ?? null
   const sameCurrency = dailyAccount && dailyAccount.currency === account.currency
@@ -163,6 +167,7 @@ function SavingsMovementModal({
 
   return (
     <FormSheet
+      open={open}
       title={copy.title(account.name)}
       onClose={onClose}
       onSubmit={handleSubmit}

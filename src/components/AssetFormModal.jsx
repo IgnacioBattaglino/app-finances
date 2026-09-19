@@ -95,8 +95,6 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
     }
   }
 
-  if (!open) return null
-
   const missing = []
   if (!name.trim()) missing.push('nombre')
   // El grupo NO está acá: es opcional (migración 0029). Un activo sin grupo se
@@ -154,6 +152,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
 
   return (
     <FormSheet
+      open={open}
       title={editing ? 'Editar activo' : 'Nuevo activo'}
       onClose={onClose}
       onSubmit={handleSubmit}

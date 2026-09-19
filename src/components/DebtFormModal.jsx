@@ -28,8 +28,6 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
     setBusy(false)
   }, [open, initial])
 
-  if (!open) return null
-
   const amountValue = Number(amount.replace(',', '.'))
   const missing = []
   if (!creditor.trim()) missing.push('a quién le debés')
@@ -68,6 +66,7 @@ function DebtFormModal({ open, initial, onClose, onSaved, onDeleted }) {
 
   return (
     <FormSheet
+      open={open}
       title={editing ? 'Editar deuda' : 'Nueva deuda'}
       onClose={onClose}
       onSubmit={handleSubmit}

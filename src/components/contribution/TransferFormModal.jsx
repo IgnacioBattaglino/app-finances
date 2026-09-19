@@ -129,7 +129,7 @@ function TransferFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toUnitPrice, toLinkBroken])
 
-  if (!open || !fromAsset) return null
+  if (!fromAsset) return null
 
   function handleAmount(raw) {
     if (driver !== null && driver !== 'amount') {
@@ -226,6 +226,7 @@ function TransferFormModal({
 
   return (
     <FormSheet
+      open={open}
       title={`Transferir desde ${fromAsset.name}`}
       onClose={onClose}
       onSubmit={handleSubmit}

@@ -301,21 +301,19 @@ function Debts() {
         onSaved={refresh}
         onDeleted={refresh}
       />
-      {paymentModal.debt && (
-        <DebtPaymentModal
-          open={paymentModal.open}
-          debt={paymentModal.debt}
-          initial={paymentModal.editing}
-          accounts={accounts}
-          defaultAccountId={defaultAccountId}
-          lastReconciliations={lastReconciliations}
-          onAccountCreated={addAccount}
-          onClose={closeModals}
-          onSaved={refresh}
-          onDeleted={refresh}
-          onReconciled={reloadLastReconciliations}
-        />
-      )}
+      <DebtPaymentModal
+        open={paymentModal.open}
+        debt={paymentModal.debt}
+        initial={paymentModal.editing}
+        accounts={accounts}
+        defaultAccountId={defaultAccountId}
+        lastReconciliations={lastReconciliations}
+        onAccountCreated={addAccount}
+        onClose={closeModals}
+        onSaved={refresh}
+        onDeleted={refresh}
+        onReconciled={reloadLastReconciliations}
+      />
     </div>
   )
 }

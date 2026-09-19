@@ -57,8 +57,6 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
     if (currencyChanged) setAmount('')
   }, [currencyChanged])
 
-  if (!open || !occurrence) return null
-
   const symbol = currency === 'USD' ? 'US$' : '$'
 
   const parsed = Number(String(amount).replace(',', '.'))
@@ -92,8 +90,9 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
 
   return (
     <FormSheet
+      open={open}
       title="Confirmar el pago"
-      subtitle={occurrenceTitle(occurrence)}
+      subtitle={occurrence ? occurrenceTitle(occurrence) : undefined}
       onClose={onClose}
       onSubmit={handleSubmit}
       canSubmit={valid}
@@ -134,7 +133,7 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
           </div>
         )}
 
-        {!currencyChanged && value != null && value !== occurrence.amount && (
+        {!currencyChanged && occurrence && value != null && value !== occurrence.amount && (
           <p className="px-1 text-footnote text-ink-soft">
             El plan decía {formatByCurrency(planCurrency, occurrence.amount)}. Se guarda lo que
             escribiste acá; el plan queda como está.

@@ -144,8 +144,6 @@ function LiquidModal({ open, onClose, onSaved, focusAccountId }) {
     focusedRowRef.current?.scrollIntoView({ block: 'center' })
   }, [open, focusAccountId, state])
 
-  if (!open) return null
-
   const accounts = state?.accounts ?? []
   // Cuánto calculó la app, moneda por moneda. Con una sola —el caso normal—
   // es una frase igual a la de antes; con dos, las dos, unidas por "y".
@@ -230,6 +228,7 @@ function LiquidModal({ open, onClose, onSaved, focusAccountId }) {
 
   return (
     <FormSheet
+      open={open}
       title="Contar mi plata"
       subtitle={focusedAccountName ?? undefined}
       onClose={onClose}

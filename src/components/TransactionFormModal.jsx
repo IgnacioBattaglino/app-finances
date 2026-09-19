@@ -174,8 +174,6 @@ function TransactionFormModal({
     }
   }, [open, initial])
 
-  if (!open) return null
-
   // Aviso no bloqueante: esta fila cae en o antes de la última vez que se
   // contó SU cuenta. Se calcula acá (antes del branch de transferencia) para
   // que valga en los dos renders — editar o borrar un movimiento corre el
@@ -252,6 +250,7 @@ function TransactionFormModal({
     return (
       <>
       <FormSheet
+        open={open}
         title={initial.kind === 'expense' ? 'Transferencia enviada' : 'Transferencia recibida'}
         onClose={onClose}
       >
@@ -311,6 +310,7 @@ function TransactionFormModal({
     return (
       <>
       <FormSheet
+        open={open}
         title={initial.category?.name ?? (initial.kind === 'expense' ? 'Gasto' : 'Ingreso')}
         onClose={onClose}
       >
@@ -447,6 +447,7 @@ function TransactionFormModal({
   return (
     <>
     <FormSheet
+      open={open}
       title={
         kind === 'expense'
           ? editing

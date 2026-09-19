@@ -41,8 +41,6 @@ function AccountTransferModal({ open, accounts, onClose, onSaved, defaultFromAcc
     setBusy(false)
   }, [open, defaultFromAccountId])
 
-  if (!open) return null
-
   const fromAccount = accounts.find((a) => a.id === fromAccountId) ?? null
   const toAccount = accounts.find((a) => a.id === toAccountId) ?? null
   const sameCurrency = fromAccount && toAccount && fromAccount.currency === toAccount.currency
@@ -97,6 +95,7 @@ function AccountTransferModal({ open, accounts, onClose, onSaved, defaultFromAcc
 
   return (
     <FormSheet
+      open={open}
       title="Transferir entre cuentas"
       onClose={onClose}
       onSubmit={handleSubmit}

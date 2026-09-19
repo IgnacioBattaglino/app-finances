@@ -132,7 +132,7 @@ function ContributionFormModal({
     }
   }, [open, initial, asset])
 
-  if (!open || !asset) return null
+  if (!asset) return null
 
   // Aviso no bloqueante: esta fila cae en o antes de la última vez que se
   // contó SU cuenta. Solo aplica si la operación toca el disponible — "de
@@ -192,6 +192,7 @@ function ContributionFormModal({
     return (
       <>
       <FormSheet
+        open={open}
         title={operation === 'withdrawal' ? 'Transferencia enviada' : 'Transferencia recibida'}
         onClose={onClose}
       >
@@ -382,6 +383,7 @@ function ContributionFormModal({
       // Editando, "Aportar a X" describe mal lo que se está haciendo (no se
       // está aportando de nuevo) y además contradice al botón "Eliminar
       // aporte" de abajo. Mismo patrón que el resto de la app: "Nuevo/Editar".
+      open={open}
       title={editing ? `Editar ${copy.entity}` : copy.title(asset.name)}
       onClose={onClose}
       onSubmit={handleSubmit}

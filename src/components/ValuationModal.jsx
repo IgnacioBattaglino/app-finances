@@ -42,8 +42,6 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  if (!open) return null
-
   const filled = assets.filter((a) => {
     const v = Number(String(values[a.id] ?? '').replace(',', '.'))
     return v > 0
@@ -74,6 +72,7 @@ function ValuationModal({ open, assets, latestValuations, onClose, onSaved }) {
 
   return (
     <FormSheet
+      open={open}
       title="Actualizar valuación"
       subtitle={subtitle}
       onClose={onClose}
