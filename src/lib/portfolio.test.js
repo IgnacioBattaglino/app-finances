@@ -17,6 +17,8 @@ import {
   groupAssetsByType,
   portfolioEntries,
   sortPortfolioEntries,
+  stableOrder,
+  entryKey,
 } from './portfolio.js'
 
 describe('decomposeWithdrawal', () => {
@@ -856,5 +858,43 @@ describe('sortPortfolioEntries — grupos y sueltos ordenados JUNTOS', () => {
     const original = [...entries]
     sortPortfolioEntries(entries, 'value-desc', valuations)
     expect(entries).toEqual(original)
+  })
+})
+
+describe('stableOrder — el orden congelado del bloque 09 (Inversiones no salta)', () => {
+  const cripto = { id: 'g1', name: 'Cripto' }
+  const cedears = { id: 'g2', name: 'CEDEARs' }
+  const assets = [
+    { id: 'btc', name: 'Bitcoin', asset_type_id: 'g1', asset_type: cripto },
+    { id: 'aapl', name: 'AAPL', asset_type_id: 'g2', asset_type: cedears },
+    { id: 'oro', name: 'Oro', asset_type_id: null, asset_type: null },
+  ]
+  const entries = portfolioEntries(assets, [cripto, cedears])
+  const names = (list) => list.map((e) => (e.kind === 'group' ? e.assetType.name : e.asset.name))
+
+  it('conserva el orden anterior aunque el orden "vivo" de las entradas haya cambiado', () => {
+    const prevKeys = [entryKey(entries[2]), entryKey(entries[0]), entryKey(entries[1])] // Oro, Cripto, CEDEARs
+    // Las entradas llegan en otro orden (ej: nuevos precios cambiaron
+    // sortPortfolioEntries), pero el congelado manda.
+    expect(names(stableOrder(prevKeys, entries))).toEqual(['Oro', 'Cripto', 'CEDEARs'])
+  })
+
+  it('un id nuevo que no estaba en el orden anterior va al final', () => {
+    const prevKeys = [entryKey(entries[1]), entryKey(entries[0])] // CEDEARs, Cripto (sin Oro)
+    expect(names(stableOrder(prevKeys, entries))).toEqual(['CEDEARs', 'Cripto', 'Oro'])
+  })
+
+  it('un id que ya no está entre las entradas se descarta, sin dejar un hueco', () => {
+    const prevKeys = [entryKey(entries[2]), 'group:fantasma', entryKey(entries[0]), entryKey(entries[1])]
+    expect(names(stableOrder(prevKeys, entries))).toEqual(['Oro', 'Cripto', 'CEDEARs'])
+  })
+
+  it('no muta ni `prevKeys` ni `entries`', () => {
+    const prevKeys = entries.map(entryKey)
+    const prevKeysCopy = [...prevKeys]
+    const entriesCopy = [...entries]
+    stableOrder(prevKeys, entries)
+    expect(prevKeys).toEqual(prevKeysCopy)
+    expect(entries).toEqual(entriesCopy)
   })
 })

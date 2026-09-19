@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react'
+import { useState, useRef, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import AssetGroup, { AssetRow } from '../components/AssetGroup.jsx'
@@ -12,6 +12,9 @@ import {
   needsManualValuation,
   portfolioEntries,
   sortPortfolioEntries,
+  stableOrder,
+  entryKey,
+  PRICE_DEPENDENT_SORTS,
   PORTFOLIO_SORTS,
 } from '../lib/portfolio.js'
 import { readStoredPortfolioSortId, storePortfolioSortId } from '../lib/portfolioSort.js'
@@ -130,6 +133,10 @@ function Portfolio() {
   // El orden de la lista se recuerda por dispositivo, como el acento y el modo
   // claro/oscuro (ver lib/portfolioSort.js). Se lee una sola vez, al montar.
   const [sortId, setSortId] = useState(readStoredPortfolioSortId)
+  // El orden congelado de esta visita (ver más abajo): una ref y no un
+  // estado, porque congelar no tiene que disparar un render propio -- se lee
+  // y se escribe en el mismo render que ya calcula `entries`.
+  const frozenOrder = useRef({ sortId: null, keys: [] })
   const [showArchived, setShowArchived] = useState(false)
   const [restoreError, setRestoreError] = useState(null)
   const archivedError = loadArchivedError ?? restoreError
@@ -163,7 +170,25 @@ function Portfolio() {
   // quedar fuera de la lista mientras sigue sumando al total (ver
   // groupAssetsByType). Los activos sin grupo entran como piezas sueltas al
   // mismo nivel que los grupos, y el orden elegido los mezcla a todos juntos.
-  const entries = sortPortfolioEntries(portfolioEntries(assets, assetTypes), sortId, valuations)
+  let entries = sortPortfolioEntries(portfolioEntries(assets, assetTypes), sortId, valuations)
+
+  // El orden por monto o por rendimiento se congela la primera vez que hay
+  // datos en esta visita: los precios en vivo siguen llegando y actualizando
+  // cada monto en su lugar, pero ninguna tarjeta salta sola. Cambiar el modo
+  // a mano SÍ reordena, porque ahí es el usuario el que lo pidió. El orden
+  // manual y el alfabético no dependen de ningún precio, así que no hace
+  // falta congelarlos. `sortPortfolioEntries` no se toca: esto solo aplica su
+  // resultado en un orden distinto.
+  if (PRICE_DEPENDENT_SORTS.has(sortId) && entries.length > 0) {
+    if (frozenOrder.current.sortId !== sortId) {
+      frozenOrder.current = { sortId, keys: entries.map(entryKey) }
+    } else {
+      entries = stableOrder(frozenOrder.current.keys, entries)
+      frozenOrder.current = { sortId, keys: entries.map(entryKey) }
+    }
+  } else {
+    frozenOrder.current = { sortId, keys: [] }
+  }
 
   function closeModals() {
     setAssetModal({ open: false, editing: null })

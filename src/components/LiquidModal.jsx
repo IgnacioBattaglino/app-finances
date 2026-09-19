@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { computeCurrentLiquid, reconcile, rowMovement, planReconciliation } from '../lib/liquid.js'
 import { formatARS, formatByCurrency, todayISO, formatDayYear } from '../lib/format.js'
 import { LOCAL_CURRENCY } from '../lib/currencyTotals.js'
@@ -19,7 +19,7 @@ import FormError from './form/FormError.jsx'
 // planReconciliation y el resumen del pie). Antes esta línea prometía "se
 // registra un gasto de ajuste" por cuenta, que es exactamente lo que la app
 // hacía mal.
-function AccountRow({ account, value, onChange }) {
+function AccountRow({ account, value, onChange, rowRef, focused }) {
   const currency = account.currency ?? 'ARS'
   const declaredValue = Number(String(value).replace(',', '.'))
   const filled = value !== '' && Number.isFinite(declaredValue) && declaredValue >= 0
@@ -27,7 +27,10 @@ function AccountRow({ account, value, onChange }) {
   const difference = filled ? declaredValue - account.amount : 0
 
   return (
-    <div className="px-4 py-3">
+    <div
+      ref={rowRef}
+      className={`px-4 py-3 ${focused ? 'ring-2 ring-inset ring-accent' : ''}`}
+    >
       <label className="flex items-center justify-between gap-3">
         <span className="min-w-0 flex-1">
           <span className="block truncate text-body">{account.name}</span>
@@ -113,11 +116,12 @@ function Summary({ plan }) {
   )
 }
 
-function LiquidModal({ open, onClose, onSaved }) {
+function LiquidModal({ open, onClose, onSaved, focusAccountId }) {
   const [state, setState] = useState(null) // null = cargando
   const [declared, setDeclared] = useState({}) // accountId (o '__none__') → texto
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const focusedRowRef = useRef(null)
 
   useEffect(() => {
     if (!open) return
@@ -131,6 +135,14 @@ function LiquidModal({ open, onClose, onSaved }) {
         setError({ message: 'No se pudo calcular el disponible.', detail: e }),
       )
   }, [open])
+
+  // Entrar desde el detalle de una cuenta ("Contar esta cuenta") lleva la
+  // vista hasta su fila -- sin enfocar el INPUT, que abriría el teclado
+  // (CLAUDE.md prohíbe el autofocus acá). Es foco visual, no de formulario.
+  useEffect(() => {
+    if (!open || !focusAccountId || !state) return
+    focusedRowRef.current?.scrollIntoView({ block: 'center' })
+  }, [open, focusAccountId, state])
 
   if (!open) return null
 
@@ -197,6 +209,11 @@ function LiquidModal({ open, onClose, onSaved }) {
 
   const plan = planReconciliation(declarations)
   const valid = state !== null && declarations.length > 0
+  // Solo nombra de dónde vino: el formulario sigue declarando cuenta por
+  // cuenta como siempre, esto no acota qué se puede contar.
+  const focusedAccountName = focusAccountId
+    ? (rows.find((r) => r.accountId === focusAccountId)?.name ?? null)
+    : null
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -214,6 +231,7 @@ function LiquidModal({ open, onClose, onSaved }) {
   return (
     <FormSheet
       title="Contar mi plata"
+      subtitle={focusedAccountName ?? undefined}
       onClose={onClose}
       onSubmit={handleSubmit}
       canSubmit={valid}
@@ -242,6 +260,8 @@ function LiquidModal({ open, onClose, onSaved }) {
                   account={row}
                   value={declared[row.key] ?? ''}
                   onChange={(next) => setDeclared((prev) => ({ ...prev, [row.key]: next }))}
+                  rowRef={row.accountId === focusAccountId ? focusedRowRef : null}
+                  focused={row.accountId === focusAccountId}
                 />
               ))}
             </div>
@@ -273,6 +293,8 @@ function LiquidModal({ open, onClose, onSaved }) {
                       account={row}
                       value={declared[row.key] ?? ''}
                       onChange={(next) => setDeclared((prev) => ({ ...prev, [row.key]: next }))}
+                      rowRef={row.accountId === focusAccountId ? focusedRowRef : null}
+                      focused={row.accountId === focusAccountId}
                     />
                   ))}
                 </div>

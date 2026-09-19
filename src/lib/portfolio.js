@@ -281,6 +281,33 @@ export function sortPortfolioEntries(entries, sortId, valuations) {
   }
 }
 
+// Los modos de orden que dependen de un precio en vivo: con estos, el orden
+// se "congela" en pantalla (bloque 09) para que una tarjeta no se reacomode
+// sola cuando llega un precio nuevo. Manual y alfabético no dependen de
+// ningún precio, así que siguen ordenándose en cada render sin necesidad de
+// congelar nada.
+export const PRICE_DEPENDENT_SORTS = new Set(['value-asc', 'value-desc', 'gain-desc'])
+
+// La identidad de una entrada para congelar el orden: un grupo por su
+// asset_type.id, un suelto por su asset.id. Dos entradas de distinto tipo
+// nunca comparten clave porque cada una lleva su prefijo.
+export function entryKey(entry) {
+  return entry.kind === 'group' ? `group:${entry.assetType.id}` : `asset:${entry.asset.id}`
+}
+
+// Reordena `entries` según un orden anterior (`prevKeys`, en vez de
+// recalcularlo desde cero): lo que ya estaba mantiene su lugar, lo nuevo va
+// al final, y lo que ya no está se descarta solo. Función pura, no lee nada
+// del componente que la llama — la pantalla es la que decide CUÁNDO
+// congelar (ver Portfolio.jsx), esto solo aplica el congelamiento.
+export function stableOrder(prevKeys, entries) {
+  const byKey = new Map(entries.map((entry) => [entryKey(entry), entry]))
+  const kept = prevKeys.filter((key) => byKey.has(key))
+  const keptSet = new Set(kept)
+  const added = entries.map(entryKey).filter((key) => !keptSet.has(key))
+  return [...kept, ...added].map((key) => byKey.get(key))
+}
+
 // Activos que entran en los totales generales del portafolio: los de bolsas
 // con include_in_total distinto de false. Cada bolsa sigue mostrando su propio
 // valor y rendimiento igual (ver AssetGroup) — este filtro es solo del total.

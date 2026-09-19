@@ -23,6 +23,8 @@ import AccountHistory from '../../components/account/AccountHistory.jsx'
 import TransactionFormModal from '../../components/TransactionFormModal.jsx'
 import ConfirmAction from '../../components/form/ConfirmAction.jsx'
 import Money from '../../components/Money.jsx'
+import LiquidModal from '../../components/LiquidModal.jsx'
+import AccountTransferModal from '../../components/account/AccountTransferModal.jsx'
 
 const PAGE_SIZE = 20
 
@@ -76,6 +78,8 @@ function AccountDetail() {
   const [error, setError] = useState(null)
   const [movement, setMovement] = useState(null) // 'contribution' | 'withdrawal' | null
   const [txModal, setTxModal] = useState({ open: false, editing: null })
+  const [reconcileOpen, setReconcileOpen] = useState(false)
+  const [transferOpen, setTransferOpen] = useState(false)
   // La fila recién guardada, para iluminarla una vez (ver AccountHistory). Se
   // apaga sola.
   const [highlightId, setHighlightId] = useState(null)
@@ -253,18 +257,27 @@ function AccountDetail() {
         </p>
       </div>
 
-      {/* Solo para cuentas de ahorro: el mismo par de acciones que un activo
-          de inversión, pero moviendo plata entre esta cuenta y una de uso
-          diario (o de/hacia afuera de la app). Pegadas al saldo que cambian, y
-          en el mismo orden que en un activo: Retirar a la izquierda, Aportar
-          del lado del pulgar. */}
-      {account.is_savings && (
+      {/* Dos acciones pegadas al saldo, siempre en el mismo lugar y forma
+          (bloque 09): en una cuenta de ahorro, mover plata hacia/desde el día
+          a día (mismo par que un activo de inversión, Retirar a la izquierda
+          y Aportar del lado del pulgar); en una del día a día, contarla y
+          transferir desde ella -- lo que antes obligaba a volver a Mi plata. */}
+      {account.is_savings ? (
         <div className="grid grid-cols-2 gap-3">
           <button type="button" onClick={() => setMovement('withdrawal')} className="btn btn-secondary">
             Retirar
           </button>
           <button type="button" onClick={() => setMovement('contribution')} className="btn btn-primary">
             Aportar
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setReconcileOpen(true)} className="btn btn-secondary">
+            Contar esta cuenta
+          </button>
+          <button type="button" onClick={() => setTransferOpen(true)} className="btn btn-secondary">
+            Transferir desde acá
           </button>
         </div>
       )}
@@ -376,6 +389,20 @@ function AccountDetail() {
         onAccountCreated={addAccount}
         onClose={() => setMovement(null)}
         onSaved={afterMovement}
+      />
+
+      <LiquidModal
+        open={reconcileOpen}
+        focusAccountId={account.id}
+        onClose={() => setReconcileOpen(false)}
+        onSaved={() => setReconcileOpen(false)}
+      />
+      <AccountTransferModal
+        open={transferOpen}
+        accounts={accounts}
+        defaultFromAccountId={account.id}
+        onClose={() => setTransferOpen(false)}
+        onSaved={() => setTransferOpen(false)}
       />
 
       {/* Editar un movimiento de esta cuenta: useAccounts() no ofrece las
