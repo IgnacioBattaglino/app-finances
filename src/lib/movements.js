@@ -48,7 +48,14 @@ export function transactionCurrencyOf(t) {
 // misma cosa vistas desde acá (plata que vuelve al bolsillo), así que no se
 // distinguen: esa diferencia es del detalle del activo, que la infiere por
 // posición (classifyOperations).
+//
+// Un aporte a un activo que la migración 0038 convirtió en cuenta de ahorro
+// (savings_account_id) ya se cuenta como "Ahorrado" y no como "Invertido" en
+// monthTotals -- pero seguía rotulándose "Inversión" en la lista, aunque el
+// activo esté archivado y no haya a dónde ir a verlo (ver InvestmentRow en
+// Movements.jsx, que además lleva a la cuenta en vez de al activo).
 export function contributionLabel(c) {
+  if (c.asset?.savings_account_id) return c.direction === 'out' ? 'Retiro de ahorro' : 'Ahorro'
   return c.direction === 'out' ? 'Retiro' : 'Inversión'
 }
 

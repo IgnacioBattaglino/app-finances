@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, lazy, Suspense } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import CommitmentReminder from '../components/commitments/CommitmentReminder.jsx'
@@ -15,35 +15,20 @@ import { summarizeDebts } from '../lib/debts.js'
 import { formatARS, formatUSD, formatByCurrency, todayISO } from '../lib/format.js'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useDuePayments } from '../hooks/useCommitments.js'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { ChevronRight, ChevronDown, Plus, Settings } from '../components/Icons.jsx'
 
 // El gráfico de evolución del portafolio pesa bastante (Recharts): se carga
 // solo en desktop, donde vive al lado de la tarjeta de gastos -- en el
-// teléfono ni se monta (ver useIsDesktop más abajo), así que ni se descarga.
-// El mismo barrel lo usa Inversiones (Portfolio.jsx), que lo muestra siempre:
-// el specifier es el mismo, así que las dos pantallas comparten un único
-// chunk diferido en vez de bajarlo dos veces.
+// teléfono ni se monta (ver useIsDesktop), así que ni se descarga. El mismo
+// barrel lo usa Inversiones (Portfolio.jsx), que lo muestra siempre: el
+// specifier es el mismo, así que las dos pantallas comparten un único chunk
+// diferido en vez de bajarlo dos veces.
 const loadCharts = () => import('../components/dashboardCharts.js')
 const PortfolioEvolutionChart = lazy(() => loadCharts().then((m) => ({ default: m.PortfolioEvolutionChart })))
 
 function ChartPlaceholder({ className = 'h-[380px]' }) {
   return <div className={`surface ${className}`} aria-busy="true" aria-label="Calculando" />
-}
-
-// true recién con ancho de escritorio (el breakpoint `md` de Tailwind, 768px).
-// Es un matchMedia y no una clase `hidden`: con `hidden` el teléfono monta
-// igual el componente lazy y descarga Recharts para nada.
-function subscribeIsDesktop(callback) {
-  const mql = window.matchMedia('(min-width: 768px)')
-  mql.addEventListener('change', callback)
-  return () => mql.removeEventListener('change', callback)
-}
-function useIsDesktop() {
-  return useSyncExternalStore(
-    subscribeIsDesktop,
-    () => window.matchMedia('(min-width: 768px)').matches,
-    () => false,
-  )
 }
 
 // El esqueleto de la tarjeta de los tres mundos: la misma forma (`list` +

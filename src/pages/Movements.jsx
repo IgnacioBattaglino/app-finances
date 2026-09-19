@@ -6,6 +6,8 @@ import { useAccounts } from '../hooks/useAccounts.js'
 import { useCategories } from '../hooks/useCategories.js'
 import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
 import { useMovements } from '../hooks/useMovements.js'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
+import MoneyStack from '../components/MoneyStack.jsx'
 import FilterChips from '../components/form/FilterChips.jsx'
 import { ErrorNotice } from '../components/form/FormError.jsx'
 import { groupExpensesByCategory } from '../lib/transactions.js'
@@ -46,17 +48,25 @@ const ExpensesYearChart = lazy(() => loadCharts().then((m) => ({ default: m.Expe
 
 const now = new Date()
 
-// Esqueleto de los CINCO renglones de totales: misma `.list`/`.row` que
-// TotalRow, con un marcador en vez del monto.
-function TotalsSkeleton() {
+// Esqueleto del resumen del mes: la misma tarjeta de MonthSummary, con
+// marcadores en vez de los montos. No hace falta que sea plegable -- el
+// pliegue es una preferencia de lectura sobre datos que ya están, no algo que
+// tenga sentido mientras se calculan.
+function MonthSummarySkeleton() {
   return (
-    <div className="list" aria-busy="true" aria-label="Cargando">
-      {Array.from({ length: 5 }, (_, i) => (
-        <div key={i} className="flex items-baseline justify-between gap-3 px-4 py-3">
-          <span className="placeholder h-3.5 w-16" />
-          <span className="placeholder h-3.5 w-20" />
-        </div>
-      ))}
+    <div className="surface" aria-busy="true" aria-label="Calculando">
+      <div className="flex items-baseline gap-5 px-4 py-3">
+        <span className="placeholder h-[22px] w-20" />
+        <span className="placeholder h-[22px] w-20" />
+      </div>
+      <div className="rows border-t border-line">
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="flex items-baseline justify-between gap-3 px-4 py-3">
+            <span className="placeholder h-3.5 w-16" />
+            <span className="placeholder h-3.5 w-20" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -142,6 +152,23 @@ function SignedAmount({ negative, currency, value, tone = '' }) {
   )
 }
 
+// Un monto que cambió de lugar: sin signo y sin color, en valor absoluto —
+// mismo lenguaje que TransferRow. La flecha dice para qué lado (`towards`:
+// salió del disponible hacia el destino; si no, volvió), en `ink-soft` y no
+// en `ink-faint` porque informa (ver CLAUDE.md, regla de contraste). Un
+// lector de pantalla no lee una flecha: el texto va aparte, oculto.
+function ArrowAmount({ towards, currency, value, towardLabel, backLabel }) {
+  return (
+    <span className="font-money text-body font-medium">
+      <span className="sr-only">{towards ? towardLabel : backLabel} </span>
+      <span aria-hidden="true" className="text-ink-soft">
+        {towards ? '→' : '←'}{' '}
+      </span>
+      {formatByCurrency(currency, Math.abs(value))}
+    </span>
+  )
+}
+
 function describe(tx) {
   return (
     <>
@@ -183,16 +210,28 @@ function TransactionRow({ tx, onEdit, highlighted }) {
 
 // Inversión o retiro: acá es de solo lectura y lleva al detalle del activo,
 // que es donde se edita (de ahí el chevron). Sin color: no es una pérdida ni
-// una ganancia, es plata que cambió de lugar. El signo dice para qué lado.
+// una ganancia, es plata que cambió de lugar. La flecha dice para qué lado.
 //
-// Un activo ARCHIVADO no tiene a dónde ir: getAssets() lo filtra, así que
-// AssetDetail no lo encuentra y redirige a Inversiones sin explicación (era
-// el bug). Portafolio tampoco linkea sus filas archivadas -- acá se sigue el
-// mismo criterio: la fila se ve, pero no se toca, sin chevron y sin el
-// resalte al tacto de una fila interactiva, y con una segunda línea que dice
-// por qué.
+// Un aporte a un activo que la migración 0038 convirtió en cuenta de ahorro
+// (savings_account_id) no es una excepción de este criterio, es OTRO
+// destino: sigue siendo de solo lectura, pero lleva a la cuenta en la que se
+// convirtió en vez de al activo archivado -- que ya no tiene detalle al que
+// ir (ver contributionLabel en lib/movements.js).
+//
+// Un activo ARCHIVADO sin conversión no tiene a dónde ir: getAssets() lo
+// filtra, así que AssetDetail no lo encuentra y redirige a Inversiones sin
+// explicación (era el bug). Portafolio tampoco linkea sus filas archivadas --
+// acá se sigue el mismo criterio: la fila se ve, pero no se toca, sin chevron
+// y sin el resalte al tacto de una fila interactiva, y con una segunda línea
+// que dice por qué.
 export function InvestmentRow({ contribution: c }) {
-  const archived = c.asset?.is_archived
+  const savingsAccountId = c.asset?.savings_account_id
+  const archived = c.asset?.is_archived && !savingsAccountId
+  const to = savingsAccountId
+    ? `/plata/${savingsAccountId}`
+    : archived
+      ? undefined
+      : `/inversiones/${c.asset?.id}`
   return (
     <MovementRow
       muted={archived}
@@ -203,12 +242,14 @@ export function InvestmentRow({ contribution: c }) {
         </>
       }
       subtitle={archived ? `${formatDay(c.date)} · Activo archivado` : formatDay(c.date)}
-      to={archived ? undefined : `/inversiones/${c.asset?.id}`}
+      to={to}
       amount={
-        <SignedAmount
-          negative={c.direction !== 'out'}
+        <ArrowAmount
+          towards={c.direction !== 'out'}
           currency={contributionCurrency(c)}
           value={contributionAmount(c)}
+          towardLabel={`salió hacia ${savingsAccountId ? 'el ahorro' : 'la inversión'}`}
+          backLabel={`volvió ${savingsAccountId ? 'del ahorro' : 'de la inversión'}`}
         />
       }
     />
@@ -225,8 +266,15 @@ export function InvestmentRow({ contribution: c }) {
 // abrirlo acá con una fila de ahorro podría mudarla de cuenta al guardar. En
 // el detalle de la cuenta el modal sí recibe la suya.
 //
-// Sin color, igual que una inversión: lo que domina acá es plata que cambió de
-// lugar. El signo dice para qué lado, y el nombre de la cuenta dice dónde.
+// Sin color, igual que una inversión: lo que domina acá es plata que cambió
+// de lugar, y el nombre de la cuenta dice dónde. La flecha se lee DESDE LA
+// CUENTA DE AHORRO, no desde el disponible (a diferencia de InvestmentRow):
+// una fila de acá puede ser plata "de afuera" que nunca pasó por una cuenta
+// del día a día (ver SavingsMovementModal), y ahí "salió de tu disponible"
+// sería falso. `kind` ya es la de ESA cuenta (transactions.account_id es la
+// de ahorro): 'income' es que entró (aporte, →) y 'expense' que salió
+// (retiro, ←) -- confirmado con datos de prueba reales en una cuenta de
+// ahorro (aporte "de afuera" y retiro "de afuera").
 function SavingsRow({ tx, highlighted }) {
   return (
     <MovementRow
@@ -235,7 +283,13 @@ function SavingsRow({ tx, highlighted }) {
       to={`/plata/${tx.account_id}`}
       highlighted={highlighted}
       amount={
-        <SignedAmount negative={tx.kind === 'expense'} currency={transactionCurrencyOf(tx)} value={tx.amount} />
+        <ArrowAmount
+          towards={tx.kind === 'income'}
+          currency={transactionCurrencyOf(tx)}
+          value={tx.amount}
+          towardLabel="entró al ahorro"
+          backLabel="salió del ahorro"
+        />
       }
     />
   )
@@ -292,7 +346,7 @@ function TransferRow({ transfer, onOpen }) {
 //
 // Con gastos en una sola moneda —el caso normal— la columna tiene una línea
 // sola y la fila es idéntica a la de siempre.
-function TotalRow({ label, lines, labelClass = 'text-subhead text-ink-soft', amountClass = '' }) {
+export function TotalRow({ label, lines, labelClass = 'text-subhead text-ink-soft', amountClass = '' }) {
   // El color del significado solo con plata: un $ 0 en rojo se lee como alarma.
   const tone = lines.some((line) => line.amount !== 0) ? amountClass : ''
   return (
@@ -309,6 +363,142 @@ function TotalRow({ label, lines, labelClass = 'text-subhead text-ink-soft', amo
   )
 }
 
+// Invertido y Ahorrado: mismo renglón que TotalRow, pero sin rojo y sin
+// signo -- son plata que cambió de lugar, no una pérdida ni una ganancia. En
+// vez de tono, cada línea lleva su propia flecha (mismo lenguaje que
+// ArrowAmount): con dos monedas, cada una puede haber ido para un lado
+// distinto. En cero no hay lado que señalar, así que no hay flecha.
+export function MovedTotalRow({ label, lines, towardLabel, backLabel }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 px-4 py-3">
+      <span className="text-subhead text-ink-soft">{label}</span>
+      <span className="shrink-0 text-right">
+        {lines.map((line) => {
+          const towards = line.amount === 0 ? null : line.amount > 0
+          return (
+            <span key={line.currency} className="font-money block text-body font-semibold">
+              {towards !== null && (
+                <>
+                  <span className="sr-only">{towards ? towardLabel : backLabel} </span>
+                  <span aria-hidden="true" className="text-ink-soft">
+                    {towards ? '→' : '←'}{' '}
+                  </span>
+                </>
+              )}
+              {formatByCurrency(line.currency, Math.abs(line.amount))}
+            </span>
+          )
+        })}
+      </span>
+    </div>
+  )
+}
+
+// El resumen del mes: arriba, las dos cifras que se leen juntas (Gastos e
+// Ingresos); debajo, plegado, el resto -- los cinco renglones, el desglose
+// por categoría y la serie de 12 meses. Arranca SIEMPRE plegado (no se
+// recuerda entre visitas), para que la lista quede cerca del navegador de
+// período.
+//
+// En escritorio no hay pliegue: es el MISMO componente, abierto de por sí
+// desde `md:` -- la diferencia vive en la clase (`md:grid-rows-[1fr]`), no en
+// dos componentes. `inert` sigue el estado real (`expanded`, no `open`) para
+// que un lector de pantalla o el tab no encuentren el "Reintentar" del
+// gráfico escondido en el teléfono mientras está plegado.
+function MonthSummary({ expenses, incomes, invested, saved, balance, categoryBreakdown, open, onToggle, isDesktop }) {
+  const expanded = open || isDesktop
+  return (
+    <div className="surface">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex min-h-11 w-full items-center justify-between gap-4 px-4 py-3 md:pointer-events-none"
+      >
+        <span className="flex items-baseline gap-5">
+          <span>
+            <span className="block text-footnote text-ink-soft">Gastos</span>
+            <MoneyStack lines={expenses} size="title2" className="text-clay" />
+          </span>
+          <span>
+            <span className="block text-footnote text-ink-soft">Ingresos</span>
+            <MoneyStack lines={incomes} size="title2" className="text-gain" />
+          </span>
+        </span>
+        <ChevronDown open={open} className="h-4 w-4 shrink-0 text-ink-faint md:hidden" />
+      </button>
+      <div
+        className={`grid transition-[grid-template-rows] duration-[var(--duration-base)] ease-[var(--ease-ios)] md:grid-rows-[1fr] ${
+          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+        inert={!expanded}
+      >
+        <div className="overflow-hidden">
+          <div className="rows border-t border-line">
+            <TotalRow label="Gastos" lines={expenses} amountClass="text-clay" />
+            <TotalRow label="Ingresos" lines={incomes} amountClass="text-gain" />
+            <MovedTotalRow
+              label="Invertido"
+              lines={invested}
+              towardLabel="salió hacia inversiones"
+              backLabel="volvió de inversiones"
+            />
+            <MovedTotalRow
+              label="Ahorrado"
+              lines={saved}
+              towardLabel="salió hacia el ahorro"
+              backLabel="volvió del ahorro"
+            />
+            <TotalRow label="Te sobró" lines={balance} labelClass="text-subhead font-medium" />
+          </div>
+
+          {/* Una lista por moneda (ver groupExpensesByCategory): con gastos en
+              una sola --el caso normal-- es exactamente la lista de siempre,
+              sin nada que la anuncie. Recién cuando hay una segunda moneda
+              aparece el encabezado que dice cuál es cada una, porque ahí sí
+              hace falta. */}
+          {categoryBreakdown.length > 0 && (
+            <div className="space-y-3 px-4 pb-4 pt-3">
+              <h2 className="eyebrow">Gastos por categoría</h2>
+              {categoryBreakdown.map((group) => (
+                <div key={group.currency}>
+                  {categoryBreakdown.length > 1 && (
+                    <p className="mb-1.5 text-footnote text-ink-soft">
+                      {group.currency === 'ARS' ? 'En pesos' : 'En dólares'}
+                    </p>
+                  )}
+                  <div className="rows">
+                    {group.categories.map((cat) => (
+                      <div
+                        key={cat.name}
+                        className="flex items-baseline justify-between gap-3 py-2.5 text-subhead"
+                      >
+                        <span className="truncate text-ink-soft">{cat.name}</span>
+                        <span className="font-money shrink-0">
+                          {formatByCurrency(group.currency, cat.total)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Serie de 12 meses (se mudó de Inicio, bloque 07; el bloque 08 la
+              mete acá adentro, plegada como el resto): fija, no depende del
+              período navegado arriba. Falla sola. */}
+          <div className="px-4 pb-4 pt-1">
+            <Suspense fallback={null}>
+              <ExpensesYearChart />
+            </Suspense>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Movements() {
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
@@ -320,6 +510,10 @@ function Movements() {
   // (ver lib/dateRange.js).
   const [range, setRange] = useState(() => monthRange(now.getMonth() + 1, now.getFullYear()))
   const [rangeOpen, setRangeOpen] = useState(false)
+  // El resumen del mes (MonthSummary) arranca siempre plegado en el
+  // teléfono; en escritorio no hay pliegue (ver useIsDesktop).
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  const isDesktop = useIsDesktop()
   // Movimientos del período navegado, sin filtrar por tipo/categoría: de acá
   // salen tanto los totales y el desglose (que describen el período completo)
   // como la lista filtrada de abajo (filtrada en cliente). Sobre la caché
@@ -523,64 +717,21 @@ function Movements() {
             <ErrorNotice error={error} onRetry={load} />
           )}
 
-          {!error && loading && <TotalsSkeleton />}
+          {!error && loading && <MonthSummarySkeleton />}
 
           {!error && !loading && (
-            <>
-              {/* Los números del mes. Gastos e ingresos llevan su color; lo
-                  invertido y lo ahorrado no, porque no son ni una pérdida ni
-                  una ganancia —es plata que cambió de lugar—, y el balance
-                  tampoco, porque es una resta y su signo ya lo dice.
-                  "Ahorrado" va pegado a "Invertido" porque se miden igual:
-                  plata que salió del disponible y no se gastó. */}
-              <div className="list">
-                <TotalRow label="Gastos" lines={expenses} amountClass="text-clay" />
-                <TotalRow label="Ingresos" lines={incomes} amountClass="text-gain" />
-                <TotalRow label="Invertido" lines={invested} />
-                <TotalRow label="Ahorrado" lines={saved} />
-                <TotalRow label="Balance" lines={balance} labelClass="text-subhead font-medium" />
-              </div>
-
-              {/* Una lista por moneda (ver groupExpensesByCategory): con gastos
-                  en una sola —el caso normal— es exactamente la lista de
-                  siempre, sin nada que la anuncie. Recién cuando hay una
-                  segunda moneda aparece el encabezado que dice cuál es cada
-                  una, porque ahí sí hace falta. */}
-              {categoryBreakdown.length > 0 && (
-                <div className="space-y-3">
-                  <h2 className="eyebrow px-1">Gastos por categoría</h2>
-                  {categoryBreakdown.map((group) => (
-                    <div key={group.currency}>
-                      {categoryBreakdown.length > 1 && (
-                        <p className="mb-1.5 px-1 text-footnote text-ink-soft">
-                          {group.currency === 'ARS' ? 'En pesos' : 'En dólares'}
-                        </p>
-                      )}
-                      <div className="list">
-                        {group.categories.map((cat) => (
-                          <div
-                            key={cat.name}
-                            className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-subhead"
-                          >
-                            <span className="truncate text-ink-soft">{cat.name}</span>
-                            <span className="font-money shrink-0">
-                              {formatByCurrency(group.currency, cat.total)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
+            <MonthSummary
+              expenses={expenses}
+              incomes={incomes}
+              invested={invested}
+              saved={saved}
+              balance={balance}
+              categoryBreakdown={categoryBreakdown}
+              open={summaryOpen}
+              onToggle={() => setSummaryOpen((v) => !v)}
+              isDesktop={isDesktop}
+            />
           )}
-
-          {/* Serie de 12 meses (se mudó de Inicio, bloque 07): fija, no
-              depende del período navegado arriba. Falla sola. */}
-          <Suspense fallback={null}>
-            <ExpensesYearChart />
-          </Suspense>
         </section>
 
         {/* Historial, con sus filtros */}
