@@ -1,7 +1,7 @@
-// Barrel de los dos componentes que usan Recharts en Inicio. Dashboard.jsx
-// los carga los dos a través de ESTE único import() dinámico (dos llamadas a
-// lazy(), mismo specifier) para que terminen en un solo chunk diferido —
-// Recharts pesa demasiado para el bundle principal, y no tiene sentido
-// bajarlo dos veces si el usuario ya scrolleó hasta ver ambos gráficos.
+// Barrel de los componentes que usan Recharts. Cada pantalla que los usa los
+// carga a través de ESTE mismo import() dinámico (un lazy() propio por
+// pantalla, mismo specifier) para que terminen todos en un solo chunk
+// diferido -- Recharts pesa demasiado para el bundle principal, y no tiene
+// sentido bajarlo dos veces porque dos pantallas distintas lo pidan.
 export { default as PortfolioEvolutionChart } from './PortfolioEvolutionChart.jsx'
-export { default as ExpensesBlock } from './ExpensesBlock.jsx'
+export { default as ExpensesYearChart } from './ExpensesYearChart.jsx'

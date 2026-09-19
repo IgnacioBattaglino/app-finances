@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
@@ -37,6 +37,12 @@ import {
   shift,
 } from '../lib/dateRange.js'
 import { ChevronDown, ChevronLeft, ChevronRight, Plus } from '../components/Icons.jsx'
+
+// La serie de 12 meses pesa bastante (Recharts): se carga sola, no en el
+// bundle principal. Mismo specifier que usan Inicio e Inversiones -- las tres
+// pantallas comparten un único chunk diferido.
+const loadCharts = () => import('../components/dashboardCharts.js')
+const ExpensesYearChart = lazy(() => loadCharts().then((m) => ({ default: m.ExpensesYearChart })))
 
 const now = new Date()
 
@@ -569,6 +575,12 @@ function Movements() {
               )}
             </>
           )}
+
+          {/* Serie de 12 meses (se mudó de Inicio, bloque 07): fija, no
+              depende del período navegado arriba. Falla sola. */}
+          <Suspense fallback={null}>
+            <ExpensesYearChart />
+          </Suspense>
         </section>
 
         {/* Historial, con sus filtros */}

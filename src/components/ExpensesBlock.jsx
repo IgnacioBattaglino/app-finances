@@ -1,12 +1,8 @@
-import { useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { useTheme } from '../hooks/useTheme.jsx'
-import { readChartColors } from '../lib/chartColors.js'
+import { Link } from 'react-router-dom'
 import { ErrorNotice } from './form/FormError.jsx'
 import MoneyStack from './MoneyStack.jsx'
 import { useExpenses } from '../hooks/useExpenses.js'
 import {
-  monthLabel,
   fullMonthName,
   sumByCurrency,
   localAmount,
@@ -15,11 +11,9 @@ import {
   monthOverMonthPct,
   groupByCategory,
 } from '../lib/expensesSummary.js'
-import { formatByCurrency, formatUSD, formatPercent, formatCompactNumber, todayISO } from '../lib/format.js'
+import { formatByCurrency, formatPercent, todayISO } from '../lib/format.js'
 import { currencyLines } from '../lib/currencyTotals.js'
-
-// Los colores del gráfico salen de las variables CSS del tema, igual que en
-// la curva del portafolio (ver lib/chartColors.js).
+import { ChevronRight } from './Icons.jsx'
 
 // El encabezado va FUERA de la tarjeta y a la misma altura que el de la curva
 // del portafolio (`min-h-11`, el alto de su segmentado): en desktop los dos
@@ -33,41 +27,19 @@ function Section({ children }) {
   )
 }
 
-function BarTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
-  const point = payload[0].payload
-  return (
-    <div className="surface px-3 py-2.5 text-footnote shadow-[var(--shadow-raised)]">
-      <p className="mb-1 font-semibold">
-        {fullMonthName(point)[0].toUpperCase() + fullMonthName(point).slice(1)} {point.year}
-      </p>
-      <span className="font-money font-semibold text-clay">{formatUSD(point.total)}</span>
-    </div>
-  )
-}
-
-// Bloque de gastos de Inicio: total del mes + comparación, desglose por
-// categoría y serie de 12 meses en USD. Todo sale de transactions, kind
-// 'expense', sin categorías de sistema (getExpenses ya las excluye) — ninguna
-// operación del portafolio escribe ahí, así que no hace falta más filtro.
-// Sobre la caché compartida (bloque 05): ya no hace falta ningún token que
-// alguien suba al guardar -- toda escritura invalida esta consulta sola (ver
+// Bloque de gastos de Inicio: el total del mes, la comparación con el mes
+// anterior y las tres categorías más grandes -- toda la tarjeta es un link a
+// Movimientos, que es donde vive el detalle entero (el desglose completo por
+// categoría y la serie de 12 meses, ver bloque 07). Todo sale de
+// transactions, kind 'expense', sin categorías de sistema (getExpenses ya las
+// excluye).
+//
+// Sobre la caché compartida: ya no hace falta ningún token que alguien suba
+// al guardar -- toda escritura invalida esta consulta sola (ver
 // lib/queryClient.js), así que cargar un gasto con el "+" de Inicio actualiza
 // este bloque solo, sin que nadie se lo pida.
 function ExpensesBlock() {
-  const { accent, isDark } = useTheme()
-  // accent e isDark no se usan adentro a propósito: son la SEÑAL de que las
-  // variables CSS cambiaron, y readChartColors las lee del DOM. Sin ellas en
-  // las deps el gráfico se quedaría con los colores del tema anterior.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const colors = useMemo(() => readChartColors(), [accent, isDark])
-  // La serie en dólares llega aparte, con su propio error: si falla la
-  // conversión (que necesita la serie de cotizaciones) el bloque no se cae
-  // entero -- el total del mes y el desglose por categoría, que ya llegaron,
-  // siguen ahí. Un gráfico secundario no puede llevarse puesto el número
-  // principal.
-  const { expenses, months, loading, error, reload: load, usdSeries, usdError, reloadUsd: loadUsd } =
-    useExpenses()
+  const { expenses, months, loading, error, reload: load } = useExpenses()
   const today = todayISO()
 
   if (loading) {
@@ -99,6 +71,17 @@ function ExpensesBlock() {
     )
   }
 
+  return (
+    <Section>
+      <ExpensesCard expenses={expenses} months={months} today={today} />
+    </Section>
+  )
+}
+
+// El contenido de la tarjeta, presentacional (recibe los gastos ya cargados):
+// así se prueba solo, sin depender de useExpenses ni de Supabase (ver
+// ExpensesBlock.test.jsx).
+export function ExpensesCard({ expenses, months, today }) {
   const currentMonth = months.at(-1)
   const previousMonth = months.at(-2)
   const currentMonthExpenses = expensesInMonth(expenses, currentMonth)
@@ -111,13 +94,24 @@ function ExpensesBlock() {
   const previousTotals = sumByCurrency(previousMonthToDate(expenses, today))
   const pct = monthOverMonthPct(localAmount(currentTotals), localAmount(previousTotals))
   const mixed = totalLines.length > 1
-  const breakdown = groupByCategory(currentMonthExpenses)
+  // Las tres categorías más grandes del primer grupo de groupByCategory (ver
+  // expensesSummary.js), que ordena la moneda local primero -- así que en el
+  // caso normal (algún gasto en pesos) son las de esa moneda. El detalle
+  // completo, con las demás monedas, vive en Movimientos.
+  const topGroup = groupByCategory(currentMonthExpenses)[0] ?? null
+  const topCategories = topGroup?.categories.slice(0, 3) ?? []
 
   return (
-    <Section>
-    <div className="surface px-5 py-4">
-      {/* Rojo solo si hubo gastos: un $ 0 en rojo se lee como una alarma. */}
-      <MoneyStack lines={totalLines} className={currentMonthExpenses.length > 0 ? 'text-clay' : ''} />
+    <Link
+      viewTransition
+      to="/movimientos"
+      className="surface block px-5 py-4 transition active:opacity-60"
+    >
+      <span className="flex items-start justify-between gap-3">
+        {/* El total en tinta, nunca en rojo: acá es un dato, no una alarma. */}
+        <MoneyStack lines={totalLines} />
+        <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-ink-faint" />
+      </span>
       {pct !== null && (
         <p className="mt-2 text-footnote text-ink-soft">
           {formatPercent(Math.abs(pct), 0)} {pct >= 0 ? 'más' : 'menos'} que en{' '}
@@ -125,93 +119,19 @@ function ExpensesBlock() {
         </p>
       )}
 
-      {/* Desglose por categoría */}
-      {/* Una lista por moneda (ver groupByCategory). La barra de cada categoría
-          se mide contra la más grande DE SU MONEDA: una barra que compara pesos
-          con dólares no dice nada. Con gastos en una sola moneda es exactamente
-          el desglose de siempre, sin encabezado que lo anuncie. */}
-      {breakdown.length === 0 ? (
-        <p className="mt-4 border-t border-line pt-3.5 text-subhead text-ink-soft">
-          Sin gastos este mes.
-        </p>
-      ) : (
-        breakdown.map((group) => (
-          <div key={group.currency} className="mt-4 space-y-2.5 border-t border-line pt-3.5">
-            {breakdown.length > 1 && (
-              <p className="text-footnote text-ink-soft">
-                {group.currency === 'ARS' ? 'En pesos' : 'En dólares'}
-              </p>
-            )}
-            {group.categories.map((cat) => (
-              <div key={cat.name}>
-                <div className="flex items-baseline justify-between gap-2 text-footnote">
-                  <span className="truncate text-ink-soft">{cat.name}</span>
-                  <span className="font-money shrink-0 font-medium">
-                    {formatByCurrency(group.currency, cat.total)}
-                  </span>
-                </div>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-clay/15">
-                  <div
-                    className="animate-grow-x h-full origin-left rounded-full bg-clay"
-                    style={{ width: `${(cat.total / group.categories[0].total) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        ))
-      )}
-
-      {/* Serie de 12 meses en dólares. Falla sola: el total del mes y el
-          desglose de arriba ya se vieron y se quedan donde están. */}
-      {usdError && (
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5">
-          <span className="text-footnote text-ink-soft">
-            No se pudo convertir tus gastos a dólares.
-          </span>
-          <button
-            type="button"
-            onClick={loadUsd}
-            className="btn-text shrink-0 text-footnote text-accent-ink underline"
-          >
-            Reintentar
-          </button>
+      {topCategories.length > 0 && (
+        <div className="mt-4 space-y-2 border-t border-line pt-3.5">
+          {topCategories.map((cat) => (
+            <div key={cat.name} className="flex items-baseline justify-between gap-2 text-footnote">
+              <span className="truncate text-ink-soft">{cat.name}</span>
+              <span className="font-money shrink-0 font-medium">
+                {formatByCurrency(topGroup.currency, cat.total)}
+              </span>
+            </div>
+          ))}
         </div>
       )}
-      {usdSeries && (
-        <div className="mt-4 border-t border-line pt-3.5">
-          <span className="eyebrow">Últimos 12 meses (USD)</span>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={usdSeries} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke={colors.line} strokeWidth={1} />
-              <XAxis
-                dataKey={(m) => monthLabel(m)}
-                tick={{ fontSize: 10, fill: colors.inkFaint }}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tickFormatter={formatCompactNumber}
-                tick={{ fontSize: 11, fill: colors.inkFaint }}
-                axisLine={false}
-                tickLine={false}
-                width={36}
-              />
-              <Tooltip content={<BarTooltip />} cursor={{ fill: colors.clay, fillOpacity: 0.06 }} />
-              <Bar
-                dataKey="total"
-                fill={colors.clay}
-                radius={[4, 4, 0, 0]}
-                maxBarSize={22}
-                isAnimationActive={false}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-    </Section>
+    </Link>
   )
 }
 

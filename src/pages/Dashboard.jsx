@@ -1,158 +1,148 @@
-import { useEffect, useState, lazy, Suspense } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState, useSyncExternalStore, lazy, Suspense } from 'react'
+import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import CommitmentReminder from '../components/commitments/CommitmentReminder.jsx'
 import Money from '../components/Money.jsx'
 import MoneyStack from '../components/MoneyStack.jsx'
 import TransactionFormModal from '../components/TransactionFormModal.jsx'
-import { ErrorNotice } from '../components/form/FormError.jsx'
-import InfoButton from '../components/InfoButton.jsx'
+import ExpensesBlock from '../components/ExpensesBlock.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
 import { useLiquid } from '../hooks/useLiquid.js'
 import { useDebts } from '../hooks/useDebts.js'
-import { totalsByCurrency, visibleBreakdown, summarizeSavingsCard, sumToUsd } from '../lib/liquid.js'
+import { totalsByCurrency, summarizeSavingsCard, sumToUsd } from '../lib/liquid.js'
 import { toUsd } from '../lib/localCurrency.js'
 import { summarizeDebts } from '../lib/debts.js'
-import { formatARS, formatUSD, todayISO } from '../lib/format.js'
+import { formatARS, formatUSD, formatByCurrency, todayISO } from '../lib/format.js'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useDuePayments } from '../hooks/useCommitments.js'
 import { ChevronRight, ChevronDown, Plus, Settings } from '../components/Icons.jsx'
 
-// Recharts pesa bastante: se carga solo cuando hace falta (hay al menos un
-// aporte o un gasto para graficar), no en el bundle principal. Las dos
-// llamadas a lazy() apuntan al mismo barrel (dashboardCharts.js) para que
-// las dos terminen en un único chunk diferido, no uno cada una. Mientras
-// llega, el placeholder reserva la misma altura para que la pantalla no
-// salte.
+// El gráfico de evolución del portafolio pesa bastante (Recharts): se carga
+// solo en desktop, donde vive al lado de la tarjeta de gastos -- en el
+// teléfono ni se monta (ver useIsDesktop más abajo), así que ni se descarga.
+// El mismo barrel lo usa Inversiones (Portfolio.jsx), que lo muestra siempre:
+// el specifier es el mismo, así que las dos pantallas comparten un único
+// chunk diferido en vez de bajarlo dos veces.
 const loadCharts = () => import('../components/dashboardCharts.js')
 const PortfolioEvolutionChart = lazy(() => loadCharts().then((m) => ({ default: m.PortfolioEvolutionChart })))
-const ExpensesBlock = lazy(() => loadCharts().then((m) => ({ default: m.ExpensesBlock })))
 
 function ChartPlaceholder({ className = 'h-[380px]' }) {
   return <div className={`surface ${className}`} aria-busy="true" aria-label="Calculando" />
 }
 
-// Las tres tarjetas comparten componente a propósito: "Dinero disponible",
-// "Dinero invertido" y "Deudas" tienen que verse con exactamente el mismo
-// peso — son plata de naturaleza distinta y ninguna manda sobre las otras.
-// Por eso tampoco se suman en ningún lado: no existe un "patrimonio total"
-// (ver FUNCTIONAL.md). La marquita de moneda al lado del nombre dice de qué
-// unidad es cada una, que es la razón concreta por la que sumarlas no
-// significaría nada.
-//
-// LA MARQUITA SOLO APARECE CON UNA MONEDA. Cuando la tarjeta muestra dos
-// montos, cada uno ya trae su símbolo ($ y US$) y el chip pasaría a nombrar
-// una sola de las dos: sería la etiqueta equivocada, no una de más. Es el
-// accesorio que se saca al salir.
-//
-// En error la tarjeta deja de ser un botón y pasa a ser un div con su propio
-// "Reintentar": un botón adentro de otro botón no es HTML válido, y tocar la
-// tarjeta abriría algo que todavía no tiene datos.
-//
-// Con `info`, el nombre y el botón (i) viven en una fila propia, fuera del
-// botón que abre la tarjeta (el modal / la navegación): dos botones
-// anidados tampoco es HTML válido.
-function SummaryCard({
-  label,
-  lines,
-  hint,
-  note,
-  breakdown,
-  info,
-  loading,
-  error,
-  onRetry,
-  onClick,
-  className = '',
-}) {
-  const [infoOpen, setInfoOpen] = useState(false)
-
-  const heading = (
-    <span className="flex items-center gap-1.5">
-      <span className="eyebrow">{label}</span>
-      {lines?.length === 1 && (
-        <span className="badge font-semibold">
-          {lines[0].currency}
-        </span>
-      )}
-      {info && <InfoButton label={label} active={infoOpen} onToggle={() => setInfoOpen((v) => !v)} />}
-    </span>
+// true recién con ancho de escritorio (el breakpoint `md` de Tailwind, 768px).
+// Es un matchMedia y no una clase `hidden`: con `hidden` el teléfono monta
+// igual el componente lazy y descarga Recharts para nada.
+function subscribeIsDesktop(callback) {
+  const mql = window.matchMedia('(min-width: 768px)')
+  mql.addEventListener('change', callback)
+  return () => mql.removeEventListener('change', callback)
+}
+function useIsDesktop() {
+  return useSyncExternalStore(
+    subscribeIsDesktop,
+    () => window.matchMedia('(min-width: 768px)').matches,
+    () => false,
   )
+}
 
-  if (error) {
-    return (
-      <ErrorNotice error={error} onRetry={onRetry} className={className}>
-        {heading}
-      </ErrorNotice>
-    )
-  }
-
+// El esqueleto de la tarjeta de los tres mundos: la misma forma (`list` +
+// `row`) con un `.placeholder` en vez del nombre y el monto. Se muestra hasta
+// que las CUATRO consultas de las que depende este bloque (disponible,
+// invertido, deudas y compromisos por confirmar) tienen algo que mostrar --
+// el recordatorio y la tarjeta se revelan juntos, nunca uno después del otro.
+function WorldsSkeleton() {
   return (
-    <div className={`surface px-5 py-4 ${className}`}>
-      {heading}
-      <button
-        type="button"
-        onClick={onClick}
-        className="mt-2 flex w-full items-center justify-between gap-3 text-left transition active:opacity-60"
-      >
-        <span className="min-w-0">
-          {loading || !lines ? (
-            <span className="block text-body text-ink-soft">Calculando…</span>
-          ) : (
-            <MoneyStack lines={lines} />
-          )}
-          {note && <span className="mt-2 block text-footnote text-ink-soft">{note}</span>}
-          {hint && <span className="mt-2 block text-footnote font-medium text-accent-ink">{hint}</span>}
-        </span>
-        <ChevronRight />
-      </button>
-      {/* Desglose por cuenta: nombre y monto por línea, nada más. No compite
-          con el monto grande de arriba — lo explica. Cada fila en su propia
-          moneda, igual que los montos de arriba: acá no se convierte nada. La
-          suma de las filas de una moneda da exactamente la línea de esa moneda. */}
-      {breakdown && breakdown.length > 0 && (
-        <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
-          {breakdown.map((row) => (
-            <li key={row.key} className="flex items-baseline justify-between gap-3 text-footnote">
-              <span className="min-w-0 truncate text-ink-soft">{row.name}</span>
-              <span className="font-money shrink-0 text-ink">
-                {(row.currency ?? 'ARS') === 'ARS' ? formatARS(row.amount) : formatUSD(row.amount)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {infoOpen && info && (
-        <p className="callout mt-3 text-left">
-          {info}
-        </p>
-      )}
+    <div className="list" aria-busy="true" aria-label="Calculando">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="row">
+          <span className="placeholder h-4 w-28" />
+          <span className="placeholder h-5 w-20" />
+        </div>
+      ))}
+      <div className="row">
+        <span className="placeholder h-3 w-10" />
+        <span className="placeholder h-4 w-16" />
+      </div>
     </div>
   )
 }
 
-// Resumen de los tres mundos convertidos a una sola unidad — a propósito NO
-// es una cuarta tarjeta del mismo peso: es más chico y va debajo, como la
-// fila de un total al pie de una planilla. Disponible, ahorrado e invertido
-// nunca se suman en ningún otro lado de la app (son magnitudes de naturaleza
-// distinta, ver FUNCTIONAL.md); esto es la única excepción, y por eso se
-// distingue tanto — para que no se lea como que ahora sí existe un
-// "patrimonio total" que compite con los tres de arriba.
+// Una fila por mundo: el nombre a la izquierda, el monto a la derecha y un
+// chevron -- toca y entra a su pantalla. Los tres montos van del mismo
+// tamaño y peso (`--text-title2`, semibold): ninguno manda sobre el otro (ver
+// CLAUDE.md, "Contexto de negocio"). `note` es la línea chica de abajo (el
+// ahorro, dentro de la fila del disponible); `hint` es la misma línea pero en
+// acento, para "Configurar mis cuentas" la primera vez.
 //
-// El detalle por moneda queda oculto por default (el mismo criterio que
-// InfoButton): un número ya convertido sin decirlo de dónde sale es una caja
-// negra, pero mostrarlo siempre competiría con el monto grande.
-function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onToggle }) {
+// Con error, la fila deja de ser un link: un botón de Reintentar adentro de
+// un <a> no es HTML válido (mismo criterio que tenía SummaryCard).
+function WorldRow({ to, label, lines, note, hint, error, onRetry }) {
+  const amount = error ? (
+    <span className="flex items-center gap-2 text-footnote text-ink-soft">
+      No se pudo calcular
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault()
+          onRetry()
+        }}
+        className="btn-text text-accent-ink underline"
+      >
+        Reintentar
+      </button>
+    </span>
+  ) : (
+    <span className="text-right">
+      <MoneyStack lines={lines} size="title2" className="text-right" />
+      {hint && <span className="mt-1 block text-footnote font-medium text-accent-ink">{hint}</span>}
+      {!hint && note && <span className="mt-1 block text-footnote text-ink-soft">{note}</span>}
+    </span>
+  )
+
+  const content = (
+    <>
+      <span className="min-w-0 truncate text-body">{label}</span>
+      <span className="flex items-center gap-2">
+        {amount}
+        {!error && <ChevronRight />}
+      </span>
+    </>
+  )
+
+  if (error) {
+    return <div className="row">{content}</div>
+  }
+
+  return (
+    <Link viewTransition to={to} className="row pressable">
+      {content}
+    </Link>
+  )
+}
+
+// El Total (disponible + ahorrado + invertido, todo a dólares de hoy) es el
+// PIE de la tarjeta de los mundos -- la única cuenta de la pantalla que
+// mezcla monedas, y por eso va separado por la línea interna del `.list` y en
+// tamaño menor: nunca puede leerse como un cuarto mundo que compite con los
+// de arriba.
+function TotalFoot({ loading, error, onRetry, totalUsd, breakdown, open, onToggle }) {
   if (error) {
     return (
-      <ErrorNotice error={error} onRetry={onRetry} className="mt-3">
+      <div className="row">
         <span className="eyebrow">Total</span>
-      </ErrorNotice>
+        <span className="flex items-center gap-2 text-footnote text-ink-soft">
+          No se pudo calcular
+          <button type="button" onClick={onRetry} className="btn-text text-accent-ink underline">
+            Reintentar
+          </button>
+        </span>
+      </div>
     )
   }
 
   return (
-    <div className="surface mt-3 px-5 py-1">
+    <div className="px-4 py-1">
       <button
         type="button"
         onClick={onToggle}
@@ -165,7 +155,7 @@ function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onTo
           {loading ? (
             <span className="text-subhead text-ink-soft">Calculando…</span>
           ) : (
-            <Money value={totalUsd} className="text-title2 font-semibold" />
+            <Money value={totalUsd} className="text-body font-semibold" />
           )}
           {!loading && <ChevronDown open={open} />}
         </span>
@@ -197,17 +187,85 @@ function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onTo
   )
 }
 
+// La tarjeta entera de los tres mundos: una fila por mundo, del mismo peso
+// -- nunca se suman ni se apilan en jerarquía entre sí (ver CLAUDE.md). El
+// Total es el pie de esta misma tarjeta, más chico. Presentacional a
+// propósito (recibe todo ya calculado): así se prueba sola, sin depender de
+// los cuatro hooks de los que depende Inicio (ver Dashboard.test.jsx).
+export function WorldsCard({
+  liquidLines,
+  savingsNote,
+  hint,
+  liquidError,
+  onRetryLiquid,
+  totalValue,
+  portfolioError,
+  onRetryPortfolio,
+  hasDebts,
+  debtsTotal,
+  debtsError,
+  onRetryDebts,
+  totalFootLoading,
+  totalFootError,
+  onRetryTotal,
+  totalUsd,
+  totalBreakdown,
+  totalOpen,
+  onToggleTotal,
+}) {
+  return (
+    <div className="list">
+      <WorldRow
+        to="/plata"
+        label="Dinero disponible"
+        lines={liquidLines}
+        note={savingsNote}
+        hint={hint}
+        error={liquidError}
+        onRetry={onRetryLiquid}
+      />
+      <WorldRow
+        to="/inversiones"
+        label="Dinero invertido"
+        lines={[{ currency: 'USD', amount: totalValue }]}
+        error={portfolioError}
+        onRetry={onRetryPortfolio}
+      />
+      {/* Solo aparece si hay deudas cargadas -- sin ninguna, un "US$ 0"
+          permanente es ruido. Se entra desde A pagar, que siempre muestra
+          la fila aunque el saldo sea 0. */}
+      {hasDebts && (
+        <WorldRow
+          to="/compromisos/deudas"
+          label="Deudas"
+          lines={[{ currency: 'USD', amount: debtsTotal }]}
+          error={debtsError}
+          onRetry={onRetryDebts}
+        />
+      )}
+      <TotalFoot
+        loading={totalFootLoading}
+        error={totalFootError}
+        onRetry={onRetryTotal}
+        totalUsd={totalUsd}
+        breakdown={totalBreakdown}
+        open={totalOpen}
+        onToggle={onToggleTotal}
+      />
+    </div>
+  )
+}
+
 function Dashboard() {
-  const navigate = useNavigate()
+  const isDesktop = useIsDesktop()
 
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
   const { accounts, defaultAccountId, addAccount } = useAccounts()
-  // Lo que hay que confirmar. Un fallo cargándolo NO se propaga como error de
-  // la pantalla: el recordatorio es un agregado y quedarse sin ver el
-  // disponible porque no se pudieron leer los compromisos sería peor (mismo
-  // criterio que useAccounts).
-  const { due, reload: reloadCommitments } = useDuePayments()
+  // Lo que hay que confirmar. Mientras carga (o si falla) es un array vacío,
+  // así que el recordatorio no muestra nada hasta que la tarjeta de los
+  // mundos también está lista -- se revelan juntos.
+  const { due, loading: dueLoading, reload: reloadCommitments } = useDuePayments()
 
   // Mismo cálculo que usa Portafolio (precio en vivo + filtro
   // include_in_total): el número tiene que ser el mismo en las dos pantallas.
@@ -252,8 +310,8 @@ function Dashboard() {
     if (liquidError || portfolioError) {
       setUsdTotals(null)
       // No es un fallo propio: el Total no puede calcularse porque le falta
-      // uno de sus insumos, que ya tiene su propio "Reintentar" en su
-      // tarjeta. Reintentar acá reintenta los dos.
+      // uno de sus insumos, que ya tiene su propio "Reintentar" en su fila.
+      // Reintentar acá reintenta los dos.
       setUsdTotalsError({ message: 'Depende de un número que no se pudo calcular arriba.' })
       return
     }
@@ -298,60 +356,46 @@ function Dashboard() {
     setExpenseModalOpen(false)
   }
 
-  // Desglose del disponible por cuenta, para la tarjeta. El balde "sin
-  // cuenta" entra como una línea más solo si tiene algo — cuenta para el
-  // total, así que sin él la suma de las líneas no daría.
-  const liquidRows = liquid
-    ? [
-        ...liquid.accounts.map((a) => ({ key: a.id, name: a.name, amount: a.amount, currency: a.currency })),
-        ...(Math.abs(liquid.unassigned) >= 0.01
-          ? [{ key: '__none__', name: 'Sin cuenta', amount: liquid.unassigned, currency: 'ARS' }]
-          : []),
-      ]
-    : []
-  const liquidBreakdown = visibleBreakdown(liquidRows)
-
   // Ver summarizeSavingsCard (lib/liquid.js): una línea por moneda, sin
-  // convertir, y si la tarjeta se muestra. Ya no depende del Total convertido
-  // de abajo: mostrar el ahorro tal cual es no necesita ninguna cotización.
+  // convertir, y si hay algo que mostrar. El ahorro es parte del mundo de la
+  // plata (vive en Mi plata): por eso es una línea chica dentro de la fila
+  // "Dinero disponible", no una fila propia.
   const savingsRows = (liquid?.savings ?? []).map((a) => ({
     key: a.id,
     name: a.name,
     amount: a.amount,
     currency: a.currency,
   }))
-  const savingsBreakdown = visibleBreakdown(savingsRows)
   const { show: hasSavings, lines: savingsLines } = summarizeSavingsCard(savingsRows)
+  const savingsNote = hasSavings
+    ? `+ ${savingsLines.map((l) => formatByCurrency(l.currency, l.amount)).join(' + ')} ahorrados`
+    : null
 
   const hasDebts = debtsError || debts.length > 0
 
-  // Cuántas tarjetas principales entran esta vez decide cuántas columnas usa
-  // la grilla en desktop — mismo criterio que ya aplicaba con "Deudas": cada
-  // tarjeta ausente (sin ahorro, sin deudas) le devuelve su lugar a las que
-  // quedan en vez de dejar un hueco.
-  const cardCount = 2 + (hasSavings ? 1 : 0) + (hasDebts ? 1 : 0)
-  // Con cuatro tarjetas, "Dinero disponible" (la etiqueta más larga) no entra
-  // en una sola línea dentro de una columna de 1024–1536px — el ancho típico
-  // de una laptop. Por eso las cuatro se quedan de a dos filas hasta 2xl, en
-  // vez de forzar una sola fila de cuatro que se ve apretada.
-  const gridColsClass =
-    cardCount >= 4
-      ? 'sm:grid-cols-2 2xl:grid-cols-4'
-      : cardCount === 3
-        ? 'sm:grid-cols-2 lg:grid-cols-3'
-        : 'sm:grid-cols-2'
-
-  // El detalle del Total, agrupado por moneda NATIVA (no por tarjeta): a
-  // "Disponible" y "Ahorrado" les puede tocar la misma moneda que a
-  // "Invertido", y lo que responde el detalle es "cuánto tenés en pesos" y
-  // "cuánto en dólares", no "cuánto tiene cada tarjeta".
+  // El detalle del Total, agrupado por moneda NATIVA (no por fila): al
+  // disponible y al ahorrado les puede tocar la misma moneda que a lo
+  // invertido, y lo que responde el detalle es "cuánto tenés en pesos" y
+  // "cuánto en dólares", no "cuánto tiene cada fila".
   const totalBreakdown = usdTotals
     ? [...totalsByCurrency([
-        ...liquidRows.map((r) => ({ amount: r.amount, currency: r.currency })),
+        ...(liquid?.accounts ?? []).map((a) => ({ amount: a.amount, currency: a.currency })),
+        ...(Math.abs(liquid?.unassigned ?? 0) >= 0.01 ? [{ amount: liquid.unassigned, currency: 'ARS' }] : []),
         ...savingsRows.map((r) => ({ amount: r.amount, currency: r.currency })),
         { amount: totalValue, currency: 'USD' },
       ])].map(([currency, amount]) => ({ currency, amount }))
     : null
+
+  // El recordatorio y la tarjeta de los mundos se revelan juntos: hasta que
+  // las cuatro consultas de las que dependen tienen algo que mostrar, el
+  // esqueleto ocupa su lugar. La tarjeta de gastos, más abajo, se maneja
+  // sola y puede llegar después.
+  //
+  // `!liquid` además de `liquidLoading`: mientras la caché persistida está
+  // restaurando (bloque 01), `isLoading` puede dar `false` un instante antes
+  // de que `data` exista -- sin esta guarda, la fila del disponible se monta
+  // con `lines` undefined y MoneyStack revienta.
+  const worldsLoading = liquidLoading || !liquid || portfolioLoading || debtsLoading || dueLoading
 
   return (
     <div className="page">
@@ -380,129 +424,74 @@ function Dashboard() {
         }
       />
 
-      {/* EL RECORDATORIO DE COMPROMISOS. Va SIEMPRE en el mismo lugar —arriba
-          de las tarjetas— y nunca se mueve según el estado: Inicio es la
-          pantalla que se abre todos los días y no puede cambiar de forma sola.
-          Lo que escala es el teñido, el texto y el peso (ver DueReminder).
-          Es una sola fila pase lo que pase, y confirmar de a uno es un toque
-          sin salir de acá. Sin nada que confirmar no está, igual que la
-          tarjeta de Deudas. */}
-      <CommitmentReminder
-        due={due}
-        accounts={accounts}
-        onChanged={reloadCommitments}
-        onAccountCreated={addAccount}
-        className="mb-3"
-      />
-
-      {/* Los mundos, uno al lado del otro y del mismo tamaño. Nunca se suman
-          ni se apilan en jerarquía entre sí: son magnitudes separadas. El
-          Total de abajo es la única excepción, y por eso vive fuera de esta
-          grilla, más chico. */}
-      {/* `grid-cols-1` es la columna del celular y tiene que estar declarada:
-          sin ella la grilla cae en una columna implícita de `auto`, que no
-          puede achicarse por debajo de su min-content. Acá ese min-content es
-          el monto de la tarjeta, que en `Money` es un inline-flex y por lo
-          tanto no corta nunca — con un número grande la grilla se pasa del
-          ancho del teléfono. Mismo motivo que en Movimientos. */}
-      <div className={`grid grid-cols-1 gap-3 ${gridColsClass}`}>
-        <SummaryCard
-          label="Dinero disponible"
-          lines={liquid?.totals}
-          hint={liquid?.isFirst ? 'Configurar mis cuentas' : null}
-          breakdown={liquidBreakdown}
-          info="La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones."
-          loading={liquidLoading}
-          error={liquidError}
-          onRetry={loadLiquid}
-          onClick={() => navigate('/plata', { viewTransition: true })}
-        />
-
-        {/* Plata guardada aparte, fuera del día a día — ver ADR-014. Solo
-            aparece con saldo: sin cuentas de ahorro (o con saldo 0) no hay
-            nada que este número le sume a la pantalla. El chevron lleva al
-            mismo lugar que "Dinero disponible": Mi plata, donde viven las
-            dos y desde donde se reconcilia. */}
-        {hasSavings && (
-          <SummaryCard
-            label="Dinero ahorrado"
-            lines={savingsLines}
-            breakdown={savingsBreakdown}
-            info="Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento."
-            onClick={() => navigate('/plata', { viewTransition: true })}
+      {worldsLoading ? (
+        <WorldsSkeleton />
+      ) : (
+        <>
+          {/* EL RECORDATORIO DE COMPROMISOS. Va SIEMPRE arriba de la tarjeta y
+              nunca se mueve según el estado. Sin nada que confirmar no está. */}
+          <CommitmentReminder
+            due={due}
+            accounts={accounts}
+            onChanged={reloadCommitments}
+            onAccountCreated={addAccount}
+            className="mb-3"
           />
+
+          <WorldsCard
+            liquidLines={liquid?.totals}
+            savingsNote={savingsNote}
+            hint={liquid?.isFirst ? 'Configurar mis cuentas' : null}
+            liquidError={liquidError}
+            onRetryLiquid={loadLiquid}
+            totalValue={totalValue}
+            portfolioError={portfolioError}
+            onRetryPortfolio={reloadPortfolio}
+            hasDebts={hasDebts}
+            debtsTotal={hasDebts ? summarizeDebts(debts).totalBalance : 0}
+            debtsError={debtsError}
+            onRetryDebts={loadDebts}
+            totalFootLoading={usdTotals === null && !usdTotalsError}
+            totalFootError={usdTotalsError}
+            onRetryTotal={() => {
+              loadLiquid()
+              reloadPortfolio()
+            }}
+            totalUsd={usdTotals?.total}
+            totalBreakdown={totalBreakdown}
+            totalOpen={totalOpen}
+            onToggleTotal={() => setTotalOpen((v) => !v)}
+          />
+        </>
+      )}
+
+      {/* Gastos del mes: se maneja solo, con su propio esqueleto -- puede
+          llegar después de que la tarjeta de los mundos ya se ve. En
+          desktop, con ancho de sobra, la evolución del portafolio se ve al
+          lado; en el teléfono el gráfico ni se monta (así que ni se
+          descarga Recharts). */}
+      <div className={`mt-3 grid grid-cols-1 gap-3 ${isDesktop ? 'xl:grid-cols-3 xl:items-start' : ''}`}>
+        {isDesktop && (
+          <div className="xl:col-span-2">
+            {!portfolioError &&
+              (portfolioLoading ? (
+                <ChartPlaceholder />
+              ) : contributions.length === 0 ? (
+                <div className="surface px-5 py-8 text-center">
+                  <p className="text-subhead text-ink-soft">
+                    Todavía no cargaste ningún aporte. Cuando registres el primero, acá vas a ver cómo
+                    evoluciona tu portafolio.
+                  </p>
+                </div>
+              ) : (
+                <Suspense fallback={<ChartPlaceholder />}>
+                  <PortfolioEvolutionChart contributions={contributions} outdatedAssetNames={outdatedAssetNames} />
+                </Suspense>
+              ))}
+          </div>
         )}
 
-        <SummaryCard
-          label="Dinero invertido"
-          lines={[{ currency: 'USD', amount: totalValue }]}
-          info="Lo que valen hoy tus inversiones, según el último precio o la última valuación que cargaste."
-          loading={portfolioLoading}
-          error={portfolioError}
-          onRetry={reloadPortfolio}
-          onClick={() => navigate('/inversiones', { viewTransition: true })}
-        />
-
-        {/* Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0"
-            permanente es ruido. Ya no tiene pestaña propia: se entra desde
-            A pagar, que siempre muestra la fila aunque el saldo sea 0. */}
-        {hasDebts && (
-          <SummaryCard
-            label="Deudas"
-            lines={[{ currency: 'USD', amount: summarizeDebts(debts).totalBalance }]}
-            note="Te queda por pagar"
-            loading={debtsLoading}
-            error={debtsError}
-            onRetry={loadDebts}
-            onClick={() => navigate('/compromisos/deudas', { viewTransition: true })}
-          />
-        )}
-      </div>
-
-      <TotalSummary
-        loading={usdTotals === null && !usdTotalsError}
-        error={usdTotalsError}
-        onRetry={() => {
-          loadLiquid()
-          reloadPortfolio()
-        }}
-        totalUsd={usdTotals?.total}
-        breakdown={totalBreakdown}
-        open={totalOpen}
-        onToggle={() => setTotalOpen((v) => !v)}
-      />
-
-      {/* En desktop la curva y los gastos conviven a lo ancho; en el celular
-          van uno abajo del otro, que es el único orden posible. */}
-      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-3 xl:items-start">
-        {/* Curva de evolución del portafolio. Sin ninguna operación todavía no
-            hay nada que graficar — ni carga el chunk de recharts, ni muestra
-            el %. El error de usePortfolio ya se ve arriba en "Dinero
-            invertido" con su propio Reintentar; reintentar ahí también
-            arregla esto, así que acá no se repite. */}
-        <div className="xl:col-span-2">
-          {!portfolioError &&
-            (portfolioLoading ? (
-              <ChartPlaceholder />
-            ) : contributions.length === 0 ? (
-              <div className="surface px-5 py-8 text-center">
-                <p className="text-subhead text-ink-soft">
-                  Todavía no cargaste ningún aporte. Cuando registres el primero, acá vas a ver cómo
-                  evoluciona tu portafolio.
-                </p>
-              </div>
-            ) : (
-              <Suspense fallback={<ChartPlaceholder />}>
-                <PortfolioEvolutionChart contributions={contributions} outdatedAssetNames={outdatedAssetNames} />
-              </Suspense>
-            ))}
-        </div>
-
-        {/* Gastos: se maneja solo (transactions no depende de usePortfolio),
-            con su propio loading/error/Reintentar. */}
-        <Suspense fallback={<ChartPlaceholder className="h-[140px]" />}>
-          <ExpensesBlock />
-        </Suspense>
+        <ExpensesBlock />
       </div>
 
       {/* La acción más frecuente: cargar un gasto en segundos. Vive solo acá,

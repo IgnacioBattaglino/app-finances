@@ -20,8 +20,22 @@ import Money from './Money.jsx'
 // Con dos, los dos montos bajan a 28px: es el piso del ritmo tipográfico de
 // `Money` (por debajo, el símbolo queda ilegible) y evita que la tarjeta crezca
 // más de lo que crece la información.
-function MoneyStack({ lines, className = '' }) {
-  const size = lines.length > 1 ? 'text-[28px]' : 'text-[32px]'
+//
+// `size="title2"` es la variante chica (22px, `--text-title2`): la usan las
+// filas de Inicio, donde los tres mundos tienen que verse del mismo tamaño
+// sin importar cuántas monedas tenga cada uno -- acá NO baja con dos líneas,
+// porque ya arranca en el piso que en el otro tamaño solo se toca con dos.
+// `size="display"` (40px, `--text-display`) es la variante grande: el total
+// del disponible en Mi plata, arriba de todo.
+function MoneyStack({ lines = [], className = '', size = 'lg' }) {
+  const sizeClass =
+    size === 'title2'
+      ? 'text-title2'
+      : size === 'display'
+        ? 'text-display'
+        : lines.length > 1
+          ? 'text-[28px]'
+          : 'text-[32px]'
 
   // Cada monto va en su propio bloque en vez de pasarle `block` a `Money`:
   // `Money` es un inline-flex y las dos clases se pelean por el mismo
@@ -34,7 +48,7 @@ function MoneyStack({ lines, className = '' }) {
           <Money
             value={line.amount}
             currency={line.currency === 'ARS' ? 'ars' : 'usd'}
-            className={`${size} leading-[1.15] font-semibold`}
+            className={`${sizeClass} leading-[1.15] font-semibold`}
           />
         </span>
       ))}

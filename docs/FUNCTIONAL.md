@@ -42,28 +42,26 @@ Los aportes marcados "de afuera" (inversiones anteriores a la app, efectivo que 
 
 Si el total no cambió y solo se movió plata entre cuentas, no se registra ningún gasto. Cada cuenta queda exacta en lo declarado, sin resto. Las cuentas que se dejan en blanco no se tocan: para vaciar una hay que declarar 0.
 
-El cálculo y la reconciliación viven en `lib/liquid.js`. Se muestran en Inicio, en la tarjeta "Dinero disponible": tocarla abre la reconciliación (ver sección 1). Salieron de Movimientos, donde ya no aparecen.
+El cálculo y la reconciliación viven en `lib/liquid.js`. El total se muestra en Inicio, en la fila "Dinero disponible" (ver sección 1) y arriba de todo en Mi plata; tocar cualquiera de los dos lleva a Mi plata, donde vive "Contar mi plata" (la reconciliación). Salieron de Movimientos, donde ya no aparecen.
 
 ## Secciones
 
 ### 1. Inicio / Dashboard 🟡
 
-La home. Muestra los tres mundos, separados y en este orden:
+La home. En el celular entra entera en una pantalla, sin scrollear (con recordatorio y deudas incluidos): el detalle que antes vivía acá se mudó a la pantalla de cada mundo (bloque 07 de `feat/ui-polish`). De arriba abajo:
 
-- ✅ Dinero disponible (en ARS). Tocarlo lleva a Mi plata, donde está "Contar mi plata" (reconciliación); si nunca se declaró un saldo, la tarjeta invita a hacerlo ("declarar mi saldo").
-- ✅ Dinero invertido (en USD). Tocarlo lleva a Inversiones. Sale del mismo `usePortfolio` que esa pantalla, así que el número es idéntico en las dos.
-- ✅ Deudas (saldo restante en USD): tarjeta a ancho completo debajo de las otras dos, para que se lea como una magnitud aparte y no como el tercio de un total que no existe. Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0" fijo es ruido. Se entra desde A pagar, que siempre muestra la fila de Deudas aunque el saldo sea 0 — ya no cuelga de Mi plata, que responde "cuánto tengo" y no "cuánto debo".
-- ✅ Bloque de gastos: total del mes con la comparación contra el mes anterior a esta altura, desglose por categoría, y una serie de los últimos 12 meses en dólares. Las dos partes cargan por separado: si falla la conversión a dólares (que necesita la serie de cotizaciones), el total del mes y el desglose SIGUEN viéndose y solo el gráfico muestra su propio «Reintentar». Un gráfico de apoyo no puede llevarse puesto el número que se mira todos los días.
-- NO muestra un patrimonio total (ver Principios): las tres tarjetas nunca se suman.
-- 🔜 Rendimiento del invertido en la propia tarjeta (hoy solo el valor).
+- ✅ El recordatorio de compromisos por confirmar (si hay).
+- ✅ Una sola tarjeta con los tres mundos como filas, del mismo tamaño y peso — nombre a la izquierda, monto a la derecha, chevron, cada una lleva a su pantalla:
+  - **Dinero disponible** (en ARS) → Mi plata. Si hay ahorro, una línea chica debajo dice cuánto ("+ US$ 787,19 ahorrados") — el ahorro es parte del mundo de la plata, no una fila propia.
+  - **Dinero invertido** (en USD) → Inversiones. Sale del mismo `usePortfolio` que esa pantalla, así que el número es idéntico en las dos.
+  - **Deudas** (saldo restante en USD) → A pagar. Solo aparece si hay deudas cargadas — sin ninguna, un "US$ 0" fijo es ruido.
+  - Como pie de esta misma tarjeta, separado por una línea interna y en tamaño menor: el **Total** en dólares (disponible + ahorrado + invertido), la única cuenta de la pantalla que mezcla monedas — se abre al tocarlo y muestra el desglose por moneda. NO es un cuarto mundo ni compite con los de arriba (ver Principios: nunca se suman en ningún otro lado).
+- ✅ Una segunda tarjeta, "Gastos del mes": el total (en tinta, nunca en rojo — no es una pérdida, es un dato), la comparación contra el mes anterior a esta altura, y las tres categorías más grandes, sin barras. Toda la tarjeta es un link a Movimientos, que es donde vive el desglose completo por categoría y la serie de 12 meses.
+- 🔜 Rendimiento del invertido en su propia fila (hoy solo el valor).
 
-- ✅ Dos gráficos mensuales de evolución del portafolio, uno al lado del otro: "Aportado acumulado" y "Valor del portafolio", con un selector de rango compartido (3 meses / 1 año / Todo). Antes era una sola curva combinada; se partió en dos series independientes.
+En desktop, con ancho de sobra, la evolución del portafolio (el mismo gráfico que Inversiones, ver sección 3) se ve al lado de la tarjeta de gastos — en el celular no se monta, así que tampoco se descarga.
 
-Más adelante, además: gráficos de evolución del líquido y de distribución por tipo de activo, y avance hacia el objetivo FIRE.
-
-✅ Ya existe el botón flotante "+ Gasto" siempre visible (la acción más frecuente, carga en segundos).
-
-Las dos curvas salen de `get_portfolio_series` (función de base, con cascada por modo de valuación de cada activo) resampleada a un punto por mes en el cliente. No se guarda ninguna foto precalculada del portafolio (ADR-002).
+✅ Botón flotante "+ Gasto" siempre visible (la acción más frecuente, carga en segundos).
 
 ### 2. Movimientos 🟡
 
@@ -76,6 +74,7 @@ Su función principal es CAPTURAR gastos e ingresos rápido y mostrar en qué se
 - ✅ Debajo del monto, una grilla con las seis categorías (del tipo que se está cargando) con más movimientos en los últimos 90 días: cuenta cuántas veces se usó cada una, no cuánta plata movió, así que un gasto grande pero mensual no le gana el lugar a uno chico y diario. Los empates y el relleno cuando hay menos de seis usadas los decide el orden de Ajustes (`position`), que es también el orden en que se muestran — la frecuencia decide QUÉ seis están, `position` decide DÓNDE está cada una, así una categoría siempre aparece en el mismo lugar de la grilla. Se calcula una sola vez al abrir el formulario y no se reacomoda mientras sigue abierto (crear una categoría al vuelo o cambiar de elegida no la mueve); si el uso todavía no cargó, arranca con las seis primeras por `position` y se queda así hasta la próxima apertura. Debajo, la fila «Otra categoría» abre el selector con el resto y «+ Nueva categoría» — pide el nombre, la crea con el tipo del movimiento que se está cargando y la deja elegida sin salir del formulario. Si la elegida no está entre las seis, esa fila muestra su nombre; si está, la fila queda en blanco porque ya se ve marcada en la grilla. Antes había que abandonar el movimiento a medio cargar, ir a Ajustes y volver a empezar para dar de alta una categoría nueva.
 - ✅ Gestión de categorías de gasto y de ingreso (crear, renombrar, eliminar, reordenar) — la pantalla vive en Ajustes.
 - ✅ El balance líquido y su reconciliación se movieron de acá a Inicio (ver sección 1).
+- ✅ Debajo de "Gastos por categoría", una serie de los últimos 12 meses en dólares (se mudó de Inicio, bloque 07): fija, no depende del período navegado arriba. Falla sola con su propio «Reintentar» — un gráfico de apoyo no puede llevarse puesto el resto de la pantalla.
 - 🔜 Vistas históricas: por año, desde el inicio.
 
 ### 3. Inversiones 🟡 (antes "Portafolio")
@@ -103,6 +102,7 @@ El RENDIMIENTO es lo protagonista: ganancia/pérdida por activo y total, en USD 
 - 🔜 Transferencia total con declaración de vaciado: hoy Transferir siempre deja el activo origen abierto (no hay control para vaciarlo en la misma operación, a diferencia de Retirar); una transferencia que además liquida el origen es un caso borde pendiente.
 - 🔜 Editar, desde el form de Retirar, un retiro que originalmente liquidó una posición (creado desde "Liquidar"): si el monto editado queda por debajo del aportado, la ganancia realizada se recalcula como un retiro parcial común, no como la liquidación que fue — falta decidir cómo señalizar o preservar esa intención.
 - ✅ Rendimiento selectivo: cada activo tiene una marca de si "busca rendimiento" (yields) o no, independiente de su grupo (el grupo solo sugiere el default al crear el activo). Los que no rinden (ej: efectivo USD / colchón) se excluyen del cálculo de rendimiento del portafolio, para que el % de ganancia no quede aguado por dinero que por naturaleza no genera retorno. Siguen sumando al valor total mostrado (salvo que su grupo esté fuera del total).
+- ✅ Debajo de la tarjeta del total, dos gráficos mensuales de evolución, uno al lado del otro: "Aportado acumulado" y "Valor del portafolio", con un selector de rango compartido (3 meses / 1 año / Todo) — se mudó de Inicio (bloque 07), tal cual: sus números y su "Rendimiento acumulado" no cambiaron en la mudanza. En Inicio se ve el mismo gráfico, pero solo en desktop (ver sección 1). Las curvas salen de `get_portfolio_series` (función de base, con cascada por modo de valuación de cada activo) resampleada a un punto por mes en el cliente. No se guarda ninguna foto precalculada del portafolio (ADR-002).
 
 ### 4. Objetivo (FIRE) 🔜 — baja prioridad
 

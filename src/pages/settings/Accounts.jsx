@@ -9,8 +9,42 @@ import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
 import { ReorderableRows } from '../../components/settings/ReorderableRows.jsx'
 import LiquidModal from '../../components/LiquidModal.jsx'
 import AccountTransferModal from '../../components/account/AccountTransferModal.jsx'
+import MoneyStack from '../../components/MoneyStack.jsx'
 import { useAccountBalances } from '../../hooks/useAccountBalances.js'
+import { useLiquid } from '../../hooks/useLiquid.js'
+import { summarizeSavingsCard } from '../../lib/liquid.js'
 import { ChevronRight, Grip } from '../../components/Icons.jsx'
+
+// El total del disponible, arriba de todo: mismo número que "Dinero
+// disponible" en Inicio (usa el mismo useLiquid). Debajo, en chico, el total
+// ahorrado si hay -- misma línea que la fila del disponible de Inicio, ver
+// summarizeSavingsCard (lib/liquid.js).
+function TotalHeader({ liquid, loading }) {
+  const { show: hasSavings, lines: savingsLines } = summarizeSavingsCard(liquid?.savings ?? [])
+
+  if (loading || !liquid) {
+    return (
+      <div aria-busy="true" aria-label="Calculando">
+        <span className="placeholder block h-10 w-40" />
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <MoneyStack lines={liquid.totals} size="display" />
+      <p className="mt-1.5 text-footnote text-ink-soft">
+        La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que
+        ponés en inversiones.
+      </p>
+      {hasSavings && (
+        <p className="mt-3 text-footnote text-ink-soft">
+          + {savingsLines.map((l) => formatByCurrency(l.currency, l.amount)).join(' + ')} ahorrados
+        </p>
+      )}
+    </div>
+  )
+}
 
 // El grupo "Disponible" con dos filas, con la MISMA forma que el contenido
 // (`list`/`row`) y un `.placeholder` en vez del nombre y el saldo. Los dos
@@ -91,6 +125,7 @@ function AccountRow({ account, dragHandlers }) {
 
 function Accounts() {
   const { accounts, loading, error: loadError, reload: load, setAccountsOptimistic } = useAccountBalances()
+  const { liquid, loading: liquidLoading } = useLiquid()
   const [reorderError, setReorderError] = useState(null)
   const error = loadError ?? reorderError
   const [reconcileOpen, setReconcileOpen] = useState(false)
@@ -135,6 +170,8 @@ function Accounts() {
       />
 
       <div className="space-y-7">
+        <TotalHeader liquid={liquid} loading={liquidLoading} />
+
         <ErrorNotice
           error={error}
           onRetry={() => {
@@ -173,7 +210,10 @@ function Accounts() {
             </SettingsGroup>
 
             {savingsAccounts.length > 0 && (
-              <SettingsGroup title="Ahorro">
+              <SettingsGroup
+                title="Ahorro"
+                footer="Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento."
+              >
                 <ReorderableRows items={savingsAccounts} onCommit={commitOrder}>
                   {(account, dragHandlers) => (
                     <AccountRow account={account} dragHandlers={dragHandlers} />

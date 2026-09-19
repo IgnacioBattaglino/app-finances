@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import AssetGroup, { AssetRow } from '../components/AssetGroup.jsx'
@@ -18,6 +18,16 @@ import { readStoredPortfolioSortId, storePortfolioSortId } from '../lib/portfoli
 import { restoreAsset } from '../lib/assets.js'
 import { formatUSD } from '../lib/format.js'
 import { ChevronDown, ChevronRight } from '../components/Icons.jsx'
+
+// La curva de evolución pesa bastante (Recharts): se carga sola, no en el
+// bundle principal. El mismo specifier que usa Inicio (Dashboard.jsx) en
+// desktop -- comparten un único chunk diferido, no uno cada uno.
+const loadCharts = () => import('../components/dashboardCharts.js')
+const PortfolioEvolutionChart = lazy(() => loadCharts().then((m) => ({ default: m.PortfolioEvolutionChart })))
+
+function ChartPlaceholder() {
+  return <div className="surface h-[380px]" aria-busy="true" aria-label="Calculando" />
+}
 
 // El esqueleto tiene la FORMA del contenido: la tarjeta del total con un
 // marcador en el monto grande, la fila de herramientas y dos grupos de dos
@@ -107,6 +117,13 @@ function Portfolio() {
 
   const { archivedAssets, error: loadArchivedError, reload: loadArchived } = useArchivedAssets()
 
+  // Misma regla que Dashboard.jsx (valuation.outdated, ver hasOperationsAfter
+  // en portfolio.js): con al menos una valuación vieja dando vueltas, el %
+  // del gráfico no es confiable.
+  const outdatedAssetNames = assets
+    .filter((a) => valuations[a.id]?.outdated)
+    .map((a) => a.name)
+
   const [assetModal, setAssetModal] = useState({ open: false, editing: null })
   const [valuationModal, setValuationModal] = useState({ open: false, assets: [] })
 
@@ -186,6 +203,7 @@ function Portfolio() {
     <div className="page">
       <PageHeader
         title="Inversiones"
+        description="Lo que valen hoy tus inversiones, según el último precio o la última valuación que cargaste."
         action={
           assets.length > 0 && (
             <div className="hidden gap-2 md:flex">
@@ -268,6 +286,23 @@ function Portfolio() {
               )}
             </div>
           </div>
+
+          {/* Evolución del portafolio (se mudó de Inicio, bloque 07): mismo
+              componente, tal cual -- sus números y su "Rendimiento acumulado"
+              no cambian. Sin ningún aporte no hay nada que graficar, y no se
+              descarga Recharts para mostrar eso. */}
+          {contributions.length === 0 ? (
+            <div className="surface px-5 py-8 text-center">
+              <p className="text-subhead text-ink-soft">
+                Todavía no cargaste ningún aporte. Cuando registres el primero, acá vas a ver cómo
+                evoluciona tu portafolio.
+              </p>
+            </div>
+          ) : (
+            <Suspense fallback={<ChartPlaceholder />}>
+              <PortfolioEvolutionChart contributions={contributions} outdatedAssetNames={outdatedAssetNames} />
+            </Suspense>
+          )}
 
           {/* Avisos */}
           {pricesFailed && (
