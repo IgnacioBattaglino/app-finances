@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { useTheme } from '../hooks/useTheme.jsx'
@@ -7,14 +7,9 @@ import BinaryChoice from './form/BinaryChoice.jsx'
 import { ErrorNotice } from './form/FormError.jsx'
 import InfoButton from './InfoButton.jsx'
 import Money from './Money.jsx'
-import {
-  getPortfolioSeries,
-  earliestOperationDate,
-  rangeFrom,
-  trimLeadingZeros,
-  resampleMonthly,
-} from '../lib/portfolioSeries.js'
-import { formatUSD, formatPercent, formatCompactNumber, formatMonthShortYear, formatDayYear, todayISO } from '../lib/format.js'
+import { usePortfolioSeries } from '../hooks/usePortfolioSeries.js'
+import { resampleMonthly } from '../lib/portfolioSeries.js'
+import { formatUSD, formatPercent, formatCompactNumber, formatMonthShortYear, formatDayYear } from '../lib/format.js'
 
 // Recharts pinta en SVG, así que necesita valores y no clases de Tailwind.
 // Los colores se leen de las mismas variables CSS que usa el resto de la app
@@ -114,31 +109,9 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const colors = useMemo(() => readChartColors(), [accent, isDark])
   const [range, setRange] = useState('todo')
-  const [series, setSeries] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [infoOpen, setInfoOpen] = useState(false)
 
-  const earliest = useMemo(() => earliestOperationDate(contributions), [contributions])
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const today = todayISO()
-      const from = rangeFrom(range, today, earliest)
-      const data = await getPortfolioSeries(from, today)
-      setSeries(trimLeadingZeros(data))
-    } catch (e) {
-      setError({ message: 'No se pudo cargar la evolución del portafolio.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }, [range, earliest])
-
-  useEffect(() => {
-    load()
-  }, [load])
+  const { series, loading, error, reload: load } = usePortfolioSeries(range, contributions)
 
   const monthly = useMemo(() => (series ? resampleMonthly(series) : []), [series])
 
@@ -172,8 +145,8 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
 
       {loading ? (
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" aria-busy="true" aria-label="Calculando">
-          <div className="surface h-[300px] animate-pulse" />
-          <div className="surface h-[300px] animate-pulse" />
+          <div className="surface h-[300px]" />
+          <div className="surface h-[300px]" />
         </div>
       ) : (
         // grid-cols-1 en la base es obligatorio, no decorativo: sin ella esta
@@ -192,7 +165,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
               last && (
                 <div className="mt-4 border-t border-line pt-3.5">
                   <span className="eyebrow">Aportado a hoy</span>
-                  <p className="mt-1.5 text-[28px] leading-none font-semibold">
+                  <p className="mt-1.5 text-title1 leading-none font-semibold">
                     <Money value={last.contributed} />
                   </p>
                 </div>
@@ -236,7 +209,7 @@ function PortfolioEvolutionChart({ contributions, outdatedAssetNames = [] }) {
                     </div>
                     <p className="font-money mt-1.5 flex flex-wrap items-baseline gap-x-2.5">
                       {pct !== null && (
-                        <span className={`text-[28px] leading-none font-semibold ${gainColor}`}>
+                        <span className={`text-title1 leading-none font-semibold ${gainColor}`}>
                           {gainPositive ? '+' : '−'}
                           {formatPercent(Math.abs(pct))}
                         </span>

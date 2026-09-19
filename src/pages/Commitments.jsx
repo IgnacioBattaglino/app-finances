@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import MoneyStack from '../components/MoneyStack.jsx'
-import FormError from '../components/form/FormError.jsx'
+import { ErrorNotice } from '../components/form/FormError.jsx'
 import { SettingsGroup, SettingsLinkRow, SettingsCreateRow } from '../components/settings/SettingsList.jsx'
 import CommitmentReminder from '../components/commitments/CommitmentReminder.jsx'
 import CommitmentFormModal from '../components/commitments/CommitmentFormModal.jsx'
@@ -11,8 +11,9 @@ import PaymentCardVisual from '../components/commitments/PaymentCardVisual.jsx'
 import { useCommitments } from '../hooks/useCommitments.js'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useCategories } from '../hooks/useCategories.js'
-import { getCards } from '../lib/paymentCards.js'
-import { getDebts, summarizeDebts } from '../lib/debts.js'
+import { useCards } from '../hooks/useCards.js'
+import { useDebts } from '../hooks/useDebts.js'
+import { summarizeDebts } from '../lib/debts.js'
 import {
   committedInMonth,
   duePayments,
@@ -97,27 +98,62 @@ function PlanRow({ plan, chargesByPlan, today }) {
   )
 }
 
+// Nunca "Sin tarjetas" ni "Deudas US$ 0,00" mientras se está cargando: los
+// cinco bloques de la pantalla (recordatorio, Comprometido este mes,
+// tarjetas, suscripciones, Deudas) esperan a las CUATRO fuentes juntas -- un
+// vacío o un cero que todavía no se sabe si es cierto es peor que un
+// esqueleto (ver plan de bloque 05). Los grupos llevan su título real:
+// solo las filas de adentro son marcadores.
+function CommitmentsSkeleton() {
+  return (
+    <div className="space-y-7" aria-busy="true" aria-label="Cargando">
+      {['Tarjetas', 'Suscripciones'].map((title) => (
+        <section key={title}>
+          <h2 className="eyebrow px-1 pb-2">{title}</h2>
+          <div className="list">
+            {[0, 1].map((r) => (
+              <div key={r} className="row">
+                <span className="placeholder h-3.5 w-2/5" />
+                <span className="placeholder h-3.5 w-1/5" />
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+      <div className="list">
+        <div className="row">
+          <span className="placeholder h-3.5 w-16" />
+          <span className="placeholder h-3.5 w-16" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Commitments() {
   const today = todayISO()
-  const { plans, chargesByPlan, loading, error, reload } = useCommitments()
+  const {
+    plans,
+    chargesByPlan,
+    loading: commitmentsLoading,
+    error: commitmentsError,
+    reload: reloadCommitments,
+  } = useCommitments()
   const { accounts, addAccount } = useAccounts()
   const { categories } = useCategories()
-  const [cards, setCards] = useState([])
-  const [debts, setDebts] = useState([])
-  const [debtsError, setDebtsError] = useState(null)
+  const { cards, loading: cardsLoading, error: cardsError, reload: reloadCards } = useCards()
+  const { debts, loading: debtsLoading, error: debtsError, reload: reloadDebts } = useDebts()
   const [planModal, setPlanModal] = useState(null) // { kind, cardId } | null
   const [cardModal, setCardModal] = useState(false)
 
-  async function loadCards() {
-    setCards(await getCards())
-  }
+  const loading = commitmentsLoading || cardsLoading || debtsLoading
+  const error = commitmentsError ?? cardsError ?? debtsError
 
-  useEffect(() => {
-    loadCards().catch(() => {})
-    getDebts()
-      .then(setDebts)
-      .catch((e) => setDebtsError({ message: 'No se pudieron cargar las deudas.', detail: e }))
-  }, [])
+  function reload() {
+    reloadCommitments()
+    reloadCards()
+    reloadDebts()
+  }
 
   const finishedFlag = (plan) =>
     isFinished({ plan, charges: chargesByPlan.get(plan.id) ?? [], today })
@@ -136,13 +172,16 @@ function Commitments() {
         description="Lo que ya está comprometido y todavía no salió de tu plata."
       />
 
-      <div className="space-y-7">
-        {error && <FormError {...error} />}
+      {error && <ErrorNotice error={error} onRetry={reload} className="mb-4" />}
 
+      {!error && loading && <CommitmentsSkeleton />}
+
+      {!error && !loading && (
+      <div className="space-y-7">
         <CommitmentReminder
           due={due}
           accounts={accounts}
-          onChanged={reload}
+          onChanged={reloadCommitments}
           onAccountCreated={addAccount}
         />
 
@@ -227,7 +266,6 @@ function Commitments() {
           />
         </SettingsGroup>
 
-        {debtsError && <FormError {...debtsError} />}
         {/* Deudas se mudó acá desde Mi plata: "lo que tengo" y "lo que debo"
             son dos preguntas distintas, y esta pestaña es la de la segunda.
             Siempre visible, aunque el saldo sea 0 — es el único punto de
@@ -251,6 +289,7 @@ function Commitments() {
           </SettingsGroup>
         )}
       </div>
+      )}
 
       <CommitmentFormModal
         open={Boolean(planModal)}
@@ -261,20 +300,10 @@ function Commitments() {
         accounts={accounts}
         onClose={() => setPlanModal(null)}
         onAccountCreated={addAccount}
-        onSaved={async () => {
-          setPlanModal(null)
-          await reload()
-        }}
+        onSaved={() => setPlanModal(null)}
       />
 
-      <CardFormModal
-        open={cardModal}
-        onClose={() => setCardModal(false)}
-        onSaved={async () => {
-          setCardModal(false)
-          await loadCards()
-        }}
-      />
+      <CardFormModal open={cardModal} onClose={() => setCardModal(false)} onSaved={() => setCardModal(false)} />
     </div>
   )
 }

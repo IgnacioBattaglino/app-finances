@@ -25,17 +25,6 @@ export async function getAccounts() {
   return data
 }
 
-// Una sola cuenta, para su pantalla de detalle.
-export async function getAccount(id) {
-  const { data, error } = await supabase
-    .from('liquid_accounts')
-    .select('*')
-    .eq('id', id)
-    .single()
-  if (error) throw error
-  return data
-}
-
 // Al final de la lista: una cuenta nueva no se mete entre las que el usuario
 // ya ordenó, y sobre todo no le roba el primer lugar a la que los formularios
 // vienen preseleccionando.

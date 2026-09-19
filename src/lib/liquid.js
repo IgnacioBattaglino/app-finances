@@ -74,14 +74,20 @@ export async function getLastReconciliationByAccount() {
 // Una fila sin batch_id (un conteo anterior a la migración 0042 que quedó sin
 // agrupar) se saltea: sin llave de conteo no hay con quién aparearla, y el
 // movimiento queda suelto en la lista, que es exactamente lo que es.
-export async function getReconciliationBatches() {
+export async function getReconciliationBatchesRaw() {
   const { data, error } = await supabase
     .from('liquid_reconciliations')
     .select('batch_id, adjustment_transaction_id, redistribution_transaction_id')
   if (error) throw error
+  return data
+}
 
+// Pura y testeable: separada de getReconciliationBatchesRaw para que
+// useMovements (bloque 05) arme el Map en su `select` en vez de cachear uno
+// directamente -- no sobrevive el paso por localStorage (ver queryClient.js).
+export function batchesByTransaction(rows) {
   const byTransaction = new Map()
-  for (const row of data) {
+  for (const row of rows) {
     if (!row.batch_id) continue
     if (row.adjustment_transaction_id) byTransaction.set(row.adjustment_transaction_id, row.batch_id)
     if (row.redistribution_transaction_id) {
@@ -89,6 +95,10 @@ export async function getReconciliationBatches() {
     }
   }
   return byTransaction
+}
+
+export async function getReconciliationBatches() {
+  return batchesByTransaction(await getReconciliationBatchesRaw())
 }
 
 // El conteo que escribió este movimiento, o null si el movimiento no es parte

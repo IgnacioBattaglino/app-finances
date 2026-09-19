@@ -67,6 +67,15 @@
   --text-footnote: 13px;
   --text-caption: 11px;
 
+  /* Montos protagonistas y la etiqueta de la barra de pestañas (bloque 05):
+     antes tamaños sueltos (text-[22px], text-[28px], text-[40px], text-[10px])
+     repetidos en cada pantalla. `--text-display` sube a 44 en desktop donde
+     hace falta (ver esa regla más abajo, junto a title-page). */
+  --text-title2: 22px;
+  --text-title1: 28px;
+  --text-display: 40px;
+  --text-tabbar: 10px;
+
   /* Radios: superficies, controles (botones, avisos) y campos rellenos. */
   --radius-surface: 18px;
   --radius-control: 14px;
@@ -549,6 +558,19 @@
     color: var(--color-ink-soft);
   }
 
+  /* ---- ESQUELETOS (bloque 05) --------------------------------------------
+     Un marcador es un bloque QUIETO en `mist`, del alto de la línea de texto
+     que reemplaza -- nunca `animate-pulse` (nada late). Aparece recién a los
+     ~150ms con un fundido (reusa @keyframes fade-in, ver MOVIMIENTO más
+     abajo): en una red buena no llega a verse. El ancho lo da quien lo usa
+     (w-*), el alto la clase de texto que ya estaba ahí (leading-none, etc). */
+  .placeholder {
+    display: inline-block;
+    border-radius: 9999px;
+    background-color: var(--color-mist);
+    animation: fade-in var(--duration-base) ease-out 150ms both;
+  }
+
   /* ---- COLOR DE UN GRUPO DE ACTIVOS -------------------------------------
      El color es un dato por fila: llega por `--group-color` y
      `--group-color-dark` inline (ver lib/theme.js). El encabezado del grupo
@@ -646,6 +668,19 @@
 
 .animate-fade {
   animation: fade-in var(--duration-base) ease-out both;
+}
+
+/* LA FILA RECIÉN GUARDADA (bloque 05): un fondo `accent` al ~10% que se apaga
+   solo, en vez de saltar o recargar la lista entera. Es el único movimiento
+   de "guardar no vacía nada" -- ver Movements.jsx. */
+@keyframes row-highlight {
+  from {
+    background-color: color-mix(in oklab, var(--color-accent) 10%, transparent);
+  }
+}
+
+.animate-highlight {
+  animation: row-highlight 1200ms ease-out both;
 }
 
 .animate-sheet {

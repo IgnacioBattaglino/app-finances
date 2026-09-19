@@ -1,10 +1,23 @@
-import { useEffect, useState } from 'react'
-import { getAssetTypes, getArchivedAssetTypes } from '../../lib/assetTypes.js'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { getAssetTypes } from '../../lib/assetTypes.js'
+import { assetTypesKey, useArchivedAssetTypes } from '../../hooks/usePortfolio.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup, SettingsLinkRow, SettingsCreateRow } from '../../components/settings/SettingsList.jsx'
 import CreateAssetTypeForm from '../../components/CreateAssetTypeForm.jsx'
 import { ErrorNotice } from '../../components/form/FormError.jsx'
-import ListSkeleton from '../../components/ListSkeleton.jsx'
+
+function AssetTypesSkeleton() {
+  return (
+    <SettingsGroup>
+      {[0, 1, 2].map((r) => (
+        <div key={r} className="row">
+          <span className="placeholder h-3.5 w-2/5" />
+        </div>
+      ))}
+    </SettingsGroup>
+  )
+}
 
 // El alta arranca colapsada en una fila: con el form siempre desplegado (como
 // estaba), la lista de grupos terminaba en un bloque de campos que competía
@@ -32,33 +45,33 @@ function NewAssetTypeRow({ onCreated }) {
 }
 
 function AssetTypes() {
-  const [assetTypes, setAssetTypes] = useState([])
-  const [archived, setArchived] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  // Misma llave que usePortfolio (hooks/usePortfolio.js): comparte su caché
+  // sin arrastrar assets, contribuciones ni valuaciones, que esta pantalla no
+  // necesita.
+  const {
+    data: assetTypesData,
+    isLoading: assetTypesLoading,
+    error: assetTypesError,
+    refetch: reloadAssetTypes,
+  } = useQuery({ queryKey: assetTypesKey, queryFn: getAssetTypes })
+  const {
+    archivedAssetTypes: archived,
+    loading: archivedLoading,
+    error: archivedError,
+    reload: reloadArchived,
+  } = useArchivedAssetTypes()
 
-  async function load() {
-    setLoading(true)
-    setError(null)
-    try {
-      const [active, inactive] = await Promise.all([getAssetTypes(), getArchivedAssetTypes()])
-      setAssetTypes(active)
-      setArchived(inactive)
-    } catch (e) {
-      setError({ message: 'No se pudieron cargar los grupos.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }
+  const assetTypes = assetTypesData ?? []
+  const loading = assetTypesLoading || archivedLoading
+  const firstError = assetTypesError
+    ? { message: 'No se pudieron cargar los grupos.', detail: assetTypesError }
+    : archivedError
 
-  useEffect(() => {
-    load()
-  }, [])
-
-  function handleCreated(created) {
-    setAssetTypes((prev) =>
-      [...prev, created].sort((a, b) => a.display_order - b.display_order),
-    )
+  // El grupo nuevo se pide de nuevo en vez de escribirse optimista: mantener
+  // sincronizado un `setQueryData` acá y en usePortfolio (que también expone
+  // assetTypesKey) sería el mapa fino que el bloque 01 evita a propósito.
+  function handleCreated() {
+    reloadAssetTypes()
   }
 
   return (
@@ -68,12 +81,16 @@ function AssetTypes() {
       backTo="/inversiones"
       backLabel="Inversiones"
     >
-      {error && (
-        <ErrorNotice error={error} onRetry={load} />
-      )}
+      <ErrorNotice
+        error={firstError}
+        onRetry={() => {
+          reloadAssetTypes()
+          reloadArchived()
+        }}
+      />
 
       {loading ? (
-        <ListSkeleton />
+        <AssetTypesSkeleton />
       ) : (
         <>
           <SettingsGroup footer="El orden es el mismo que ves en Inversiones.">

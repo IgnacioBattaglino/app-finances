@@ -27,19 +27,18 @@ export async function getCommitments() {
   return data
 }
 
-export async function getCommitment(id) {
-  const { data, error } = await supabase.from('commitments').select(SELECT).eq('id', id).single()
-  if (error) throw error
-  return data
-}
-
-// Todos los cargos del usuario, agrupados por plan. Paginado por el corte
-// silencioso de PostgREST en 1000 filas (lib/pagination.js): una suscripción
-// confirmada todos los meses durante años, más las cuotas, pasa esa marca sin
-// que nada lo indique — y acá una fila que falta se lee como un vencimiento
-// pendiente, o sea que la app pediría de nuevo algo ya pagado.
-export async function getCommitmentCharges() {
-  const rows = await fetchAllPages((from, to) =>
+// Las filas crudas, paginadas por el corte silencioso de PostgREST en 1000
+// filas (lib/pagination.js): una suscripción confirmada todos los meses
+// durante años, más las cuotas, pasa esa marca sin que nada lo indique — y
+// acá una fila que falta se lee como un vencimiento pendiente, o sea que la
+// app pediría de nuevo algo ya pagado.
+//
+// Devuelve el array plano (no agrupado) para que useCommitments (capa de
+// datos, bloque 05) pueda cachearlo y armar el Map con groupChargesByPlan en
+// su `select`: un Map no sobrevive el paso por localStorage (ver
+// queryClient.js).
+export async function getCommitmentChargesRaw() {
+  return fetchAllPages((from, to) =>
     supabase
       .from('commitment_charges')
       .select('*')
@@ -47,18 +46,16 @@ export async function getCommitmentCharges() {
       .order('id', { ascending: true })
       .range(from, to),
   )
+}
 
+// Todos los cargos del usuario, agrupados por plan. Pura y testeable.
+export function groupChargesByPlan(rows) {
   const byPlan = new Map()
   for (const row of rows) {
     if (!byPlan.has(row.commitment_id)) byPlan.set(row.commitment_id, [])
     byPlan.get(row.commitment_id).push(row)
   }
   return byPlan
-}
-
-export async function getCommitmentsWithCharges() {
-  const [plans, chargesByPlan] = await Promise.all([getCommitments(), getCommitmentCharges()])
-  return { plans, chargesByPlan }
 }
 
 function toRow({

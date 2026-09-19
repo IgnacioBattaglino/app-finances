@@ -74,7 +74,7 @@ Convenciones:
 | Pantalla Inicio, botón (desktop) / FAB (celular, sin texto) | Nuevo gasto | Abre el alta rápida de gasto | | `src/pages/Dashboard.jsx:470,591` |
 | Tarjeta resumen, etiqueta | Dinero disponible | Nombre de la tarjeta de líquido | | `src/pages/Dashboard.jsx:486` |
 | Tarjeta resumen, hint | Configurar mis cuentas | Aparece solo la primera vez, antes de la primera reconciliación | | `src/pages/Dashboard.jsx:488` |
-| Tarjeta resumen, explicación (botón "i") | La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones. | Explica "Dinero disponible" | Tu dinero liquido. Sube con tus ingeresos y baja con tus gastos.| `src/pages/Dashboard.jsx:490` |
+| Tarjeta resumen, explicación (botón "i") | La plata que tenés a mano para usar hoy. Sube con tus ingresos y baja con tus gastos y con lo que ponés en inversiones. | Explica "Dinero disponible" | Tu dinero liquido. Sube con tus ingresos y baja con tus gastos.| `src/pages/Dashboard.jsx:490` |
 | Tarjeta resumen, etiqueta | Dinero ahorrado | Nombre de la tarjeta de cuentas de ahorro (solo si hay saldo) | | `src/pages/Dashboard.jsx:504` |
 | Tarjeta resumen, explicación (botón "i") | Lo que guardaste aparte del día a día: no es plata disponible para gastar ni una inversión que busca rendimiento. | Explica "Dinero ahorrado" |Eliminar | `src/pages/Dashboard.jsx:507` |
 | Tarjeta resumen, etiqueta | Dinero invertido | Nombre de la tarjeta de portafolio | | `src/pages/Dashboard.jsx:513` (también encabezado de Inversiones, ver más abajo) |
@@ -131,7 +131,7 @@ Convenciones:
 | Fila de activo (`SourceTag`) | Precio actualizado {fecha} | Precio de cierre del día (mercados que no cotizan en vivo desde el navegador) | | `src/components/SourceTag.jsx:26` |
 | Fila de activo (`SourceTag`) | Precio caído · último valor {fecha} | La cotización de hoy falló, se muestra la última conocida | | `src/components/SourceTag.jsx:33` |
 | Fila de activo (`SourceTag`) | Valuado {fecha} | Activo de valuación manual | | `src/components/SourceTag.jsx:39` |
-| Fila de activo (`SourceTag`) | Vale lo que pusiste | Activo "vale lo aportado" (en retirada, ver ADR) | | `src/components/SourceTag.jsx:43` |
+| Fila de activo (`SourceTag`) | Vale lo que pusiste | Activo "vale lo aportado" (en retirada, ver ADR) | Vale lo aportado| `src/components/SourceTag.jsx:43` |
 | Fila de activo (`SourceTag`) | Sin valuar — no suma al total | Ningún valor disponible todavía | | `src/components/SourceTag.jsx:45` |
 
 ## Detalle de activo
@@ -148,8 +148,8 @@ Convenciones:
 | Tarjeta de métrica, etiqueta | Precio actual / Valuación · {fecha} / Valuación actual | Valor de hoy del activo, según el modo | | `src/pages/AssetDetail.jsx:346` |
 | Tarjeta de métrica, etiqueta | Aportado | Capital propio puesto en el activo | | `src/pages/AssetDetail.jsx:357` |
 | Explicación de métrica (botón "i") | Promedio ponderado de tus compras: total invertido ÷ cantidad comprada. Compararlo con el precio actual te muestra cuánto rindió tu inversión. | Explica "Precio prom. de compra" | | `src/pages/AssetDetail.jsx:35` |
-| Explicación de métrica (botón "i") | Última cotización disponible, o tu última valuación manual si no hay precio en vivo. | Explica "Precio actual" (activos manuales) | | `src/pages/AssetDetail.jsx:36` |
-| Explicación de métrica (botón "i") | Lo que vale UNA unidad hoy, comparable con tu precio promedio de compra. Sale de la última cotización disponible; si no hay precio en vivo, del precio implícito de tu última valuación manual. | Explica "Precio actual" (activos de precio en vivo) | | `src/pages/AssetDetail.jsx:39` |
+| Explicación de métrica (botón "i") | Última cotización disponible, o tu última valuación manual si no hay precio en vivo. | Explica "Precio actual" (activos manuales) |Ultima valuación dispoinibl| `src/pages/AssetDetail.jsx:36` |
+| Explicación de métrica (botón "i") | Lo que vale UNA unidad hoy, comparable con tu precio promedio de compra. Sale de la última cotización disponible; si no hay precio en vivo, del precio implícito de tu última valuación manual. | Explica "Precio actual" (activos de precio en vivo) | Lo que vale UNA unidad hoy, comparable con tu precio promedio de compra. Sale de la última cotización disponible| `src/pages/AssetDetail.jsx:39` |
 | Explicación de métrica (botón "i") | Capital propio en este activo: tus aportes menos la parte de capital de tus retiros. La diferencia con el valor actual es tu ganancia. | Explica "Aportado" | | `src/pages/AssetDetail.jsx:42` |
 | Detalle de activo, acción | Transferir | Abre la transferencia a otro activo | | `src/pages/AssetDetail.jsx:377` |
 | Detalle de activo, ayuda de acción | Mover valor de este activo a otro tuyo. | Explica "Transferir" | | `src/pages/AssetDetail.jsx:379` |
@@ -169,12 +169,12 @@ Convenciones:
 | Dónde se ve | Texto actual | Para qué está | Texto nuevo | Referencia |
 |---|---|---|---|---|
 | Modal de activo, título | Nuevo activo / Editar activo | Título del formulario | | `src/components/AssetFormModal.jsx:158` |
-| Modal de activo, campo | Nombre / ¿Qué activo es? ej: Bitcoin, Colchón USD (placeholder) | Nombre del activo | | `src/components/AssetFormModal.jsx:174,178` |
+| Modal de activo, campo | Nombre / ¿Qué activo es? ej: Bitcoin, Colchón USD (placeholder) | Nombre del activo | Nombre / ¿Qué activo es? ej: Bitcoin, S&P500| `src/components/AssetFormModal.jsx:174,178` |
 | Modal de activo, campo | Grupo de activos / Sin grupo / + Nuevo grupo | Selector de grupo (asset_type) | | `src/components/AssetFormModal.jsx:186,193,199` |
-| Modal de activo, ayuda | Agrupá tus activos por categoría (cripto, efectivo, acciones) para ver cómo rinde cada grupo. Sin grupo el activo aparece solo, con su propio valor. Renombrar y archivar grupos: en Inversiones. | Explica el campo Grupo | | `src/components/AssetFormModal.jsx:205` |
-| Modal de activo, pregunta | ¿De dónde sale el valor de este activo? | Encabezado del selector de modo de valuación | | `src/components/AssetFormModal.jsx:224` |
+| Modal de activo, ayuda | Agrupá tus activos por categoría (cripto, efectivo, acciones) para ver cómo rinde cada grupo. Sin grupo el activo aparece solo, con su propio valor. Renombrar y archivar grupos: en Inversiones. | Explica el campo Grupo | Agrupá tus activos por categoría (cripto, efectivo, acciones) para ver cómo rinde cada grupo.| `src/components/AssetFormModal.jsx:205` |
+| Modal de activo, pregunta | Tipo de valuación:| Encabezado del selector de modo de valuación | | `src/components/AssetFormModal.jsx:224` |
 | Modal de activo, opción | Valuación manual | Modo de valuación manual | | `src/components/AssetFormModal.jsx:11` |
-| Modal de activo, ayuda de opción | Vos cargás cada tanto cuánto vale en total. | Explica "Valuación manual" | | `src/components/AssetFormModal.jsx:11` |
+| Modal de activo, ayuda de opción | Vos cargas el valor periodicamente. | Explica "Valuación manual" | | `src/components/AssetFormModal.jsx:11` |
 | Modal de activo, opción | Valuación automática | Modo de valuación con precio en vivo | | `src/components/AssetFormModal.jsx:12` |
 | Modal de activo, ayuda de opción | Elegís el activo de mercado y su precio se actualiza solo. | Explica "Valuación automática" | | `src/components/AssetFormModal.jsx:12` |
 | Modal de activo, campo | Cuenta en el rendimiento | Switch `yields` | | `src/components/AssetFormModal.jsx:250,254` |
@@ -185,7 +185,7 @@ Convenciones:
 | Modal de activo, confirmación | No / Sí, archivar | Botones de la confirmación (patrón compartido de "archivar", ver Patrones compartidos) | | `src/components/AssetFormModal.jsx:279,285` |
 | Modal de activo, ayuda | Podés restaurarlo después desde «Archivados», al final de Inversiones. | Aclara que archivar es reversible | | `src/components/AssetFormModal.jsx:291` |
 | Modal de activo, botón | Archivar activo | Abre la confirmación de archivado | | `src/components/AssetFormModal.jsx:302` |
-| Alta de grupo (embebida y en Ajustes), campo | ¿Cómo se llama? ej: Cripto, Efectivo (placeholder) | Nombre del nuevo grupo | | `src/components/CreateAssetTypeForm.jsx:39` |
+| Alta de grupo (embebida y en Ajustes), campo | Nombre ej: Cripto, Efectivo (placeholder) | Nombre del nuevo grupo | | `src/components/CreateAssetTypeForm.jsx:39` |
 | Alta de grupo, campo | Los activos nuevos buscan rendimiento | Switch `earns_yield` default del grupo | | `src/components/CreateAssetTypeForm.jsx:44,49` |
 | Alta de grupo, botones | Cancelar / Crear grupo / Creando… | Acciones del alta de grupo | | `src/components/CreateAssetTypeForm.jsx:55,64` |
 | Alta de grupo, error | No se pudo crear el grupo. | Falló crear el grupo | | `src/components/CreateAssetTypeForm.jsx:28` |
@@ -196,8 +196,8 @@ Convenciones:
 | Buscador de instrumento, placeholder | Buscá por nombre o símbolo / Cargando… | Campo de búsqueda | | `src/components/asset/InstrumentPicker.jsx:153` |
 | Buscador de instrumento, link | volver a «{nombre}» | Cancela la búsqueda y vuelve al instrumento ya elegido | | `src/components/asset/InstrumentPicker.jsx:165` |
 | Buscador de instrumento, fila de resultado | Elegir | Botón implícito de cada resultado | | `src/components/asset/InstrumentPicker.jsx:42` |
-| Buscador de instrumento, sin resultados | No encontramos «{búsqueda}» entre los activos con precio automático. Elegí «Valuación manual» arriba y cargale vos el valor cada tanto: funciona igual, solo que el número lo ponés vos. | Sin coincidencias en el catálogo | | `src/components/asset/InstrumentPicker.jsx:179` |
-| Buscador de instrumento, ayuda | Buscá la cripto, el CEDEAR, la acción o el bono. Con eso su precio se actualiza solo y el historial queda bien calculado. Si no está en la lista, usá «Valuación manual». | Ayuda general del buscador | | `src/components/asset/InstrumentPicker.jsx:185` |
+| Buscador de instrumento, sin resultados | No encontramos «{búsqueda}» entre los activos con precio automático. Elegí «Valuación manual» arriba y cargale vos el valor cada tanto | Sin coincidencias en el catálogo | | `src/components/asset/InstrumentPicker.jsx:179` |
+| Buscador de instrumento, ayuda | Buscá la cripto, el CEDEAR, la acción o el bono. Con eso su precio se actualiza solo. Si no está en la lista, usá «Valuación manual». | Ayuda general del buscador | | `src/components/asset/InstrumentPicker.jsx:185` |
 | Buscador de instrumento, error | No se pudo cargar la lista de activos de mercado. | Falló cargar el catálogo | | `src/components/asset/InstrumentPicker.jsx:60` |
 | Tipo de instrumento (etiqueta corta) | Cripto / Acción / ETF / Bono / CEDEAR / Obligación negociable / Moneda | `kind` del instrumento, se muestra junto al símbolo | | `src/lib/instruments.js:18-25` |
 

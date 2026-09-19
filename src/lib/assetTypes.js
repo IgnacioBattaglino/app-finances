@@ -11,14 +11,6 @@ export async function getAssetTypes() {
   return data
 }
 
-// Un solo grupo, para su pantalla de detalle (archivado o no: el detalle es
-// el mismo, cambia la acción que ofrece).
-export async function getAssetType(id) {
-  const { data, error } = await supabase.from('asset_types').select('*').eq('id', id).single()
-  if (error) throw error
-  return data
-}
-
 export async function getArchivedAssetTypes() {
   const { data, error } = await supabase
     .from('asset_types')

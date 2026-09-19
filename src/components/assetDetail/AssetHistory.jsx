@@ -9,7 +9,7 @@ import { formatUSD, formatARS, formatDay, formatQuantity } from '../../lib/forma
 // del MEP del día es normal, y antes la única forma de saber a cuánto había
 // quedado registrada una operación era abrirla una por una. Se omite en las
 // que no la tienen (una transferencia entre activos nunca toca pesos).
-function ContributionRow({ contribution: c, label, onClick }) {
+function ContributionRow({ contribution: c, label, onClick, highlighted = false }) {
   const isOut = c.direction === 'out'
   const quantity = Number(c.quantity ?? 0)
   const unitPrice = quantity > 0 ? Number(c.amount_usd) / quantity : null
@@ -19,7 +19,7 @@ function ContributionRow({ contribution: c, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left pressable"
+      className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left pressable ${highlighted ? 'animate-highlight' : ''}`}
     >
       <span className="min-w-0">
         <span className="block text-body">{label}</span>
@@ -64,6 +64,7 @@ function AssetHistory({
   loadMoreError,
   onLoadMore,
   onEditContribution,
+  highlightId,
 }) {
   if (events.length === 0) {
     return (
@@ -83,6 +84,7 @@ function AssetHistory({
               contribution={event.data}
               label={labels[event.data.id]}
               onClick={() => onEditContribution(event.data)}
+              highlighted={event.data.id === highlightId}
             />
           ) : (
             <ValuationRow key={`valuation-${event.data.id}`} valuation={event.data} />

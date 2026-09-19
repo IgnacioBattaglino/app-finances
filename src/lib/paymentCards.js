@@ -47,12 +47,6 @@ export async function getCards() {
   return data
 }
 
-export async function getCard(id) {
-  const { data, error } = await supabase.from('payment_cards').select('*').eq('id', id).single()
-  if (error) throw error
-  return data
-}
-
 async function nextPosition() {
   const { data, error } = await supabase
     .from('payment_cards')

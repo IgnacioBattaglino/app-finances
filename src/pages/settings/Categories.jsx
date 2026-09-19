@@ -1,13 +1,36 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getCategories, createCategory, reorderCategories } from '../../lib/categories.js'
+import { createCategory, reorderCategories } from '../../lib/categories.js'
+import { useCategories } from '../../hooks/useCategories.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import { SettingsGroup, SettingsCreateRow } from '../../components/settings/SettingsList.jsx'
 import { ErrorNotice } from '../../components/form/FormError.jsx'
 import InlineCreate from '../../components/form/InlineCreate.jsx'
 import { ReorderableRows } from '../../components/settings/ReorderableRows.jsx'
 import { ChevronRight, Grip } from '../../components/Icons.jsx'
-import ListSkeleton from '../../components/ListSkeleton.jsx'
+
+// Esqueleto con la forma de los dos grupos (Gastos/Ingresos son texto fijo,
+// no dato): tres filas y dos, nada más -- ver bloque 05.
+function CategoriesSkeleton() {
+  return (
+    <>
+      <SettingsGroup title="Gastos">
+        {[0, 1, 2].map((r) => (
+          <div key={r} className="row">
+            <span className="placeholder h-3.5 w-2/5" />
+          </div>
+        ))}
+      </SettingsGroup>
+      <SettingsGroup title="Ingresos">
+        {[0, 1].map((r) => (
+          <div key={r} className="row">
+            <span className="placeholder h-3.5 w-2/5" />
+          </div>
+        ))}
+      </SettingsGroup>
+    </>
+  )
+}
 
 // Alta al pie del grupo al que va a pertenecer: antes el form de alta vivía
 // suelto entre las dos listas con un segmentado Gasto/Ingreso adentro, y no
@@ -82,38 +105,26 @@ function CategoryRow({ category, dragHandlers }) {
 }
 
 function Categories() {
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  async function load() {
-    setLoading(true)
-    setError(null)
-    try {
-      setCategories(await getCategories())
-    } catch (e) {
-      setError({ message: 'No se pudieron cargar las categorías.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
-
-  function handleCreated(created) {
-    // Al final de su grupo, que es la position que le dio el alta.
-    setCategories((prev) => [...prev, created])
-  }
+  const {
+    categories,
+    loading,
+    error: loadError,
+    reload: load,
+    addCategory,
+    setCategoriesOptimistic,
+  } = useCategories()
+  const [reorderError, setReorderError] = useState(null)
+  const error = loadError
+    ? { message: 'No se pudieron cargar las categorías.', detail: loadError }
+    : reorderError
 
   async function commitOrder(ordered) {
     const others = categories.filter((cat) => !ordered.some((o) => o.id === cat.id))
-    setCategories([...others, ...ordered.map((cat, i) => ({ ...cat, position: i }))])
+    setCategoriesOptimistic(() => [...others, ...ordered.map((cat, i) => ({ ...cat, position: i }))])
     try {
       await reorderCategories(ordered)
     } catch (e) {
-      setError({ message: 'No se pudo guardar el orden.', detail: e })
+      setReorderError({ message: 'No se pudo guardar el orden.', detail: e })
       load()
     }
   }
@@ -145,7 +156,7 @@ function Categories() {
         {system.map((category) => (
           <CategoryRow key={category.id} category={category} />
         ))}
-        <NewCategoryRow kind={kind} onCreated={handleCreated} />
+        <NewCategoryRow kind={kind} onCreated={addCategory} />
       </SettingsGroup>
     )
   }
@@ -155,12 +166,16 @@ function Categories() {
       title="Categorías"
       description="Con qué etiquetás tus gastos e ingresos al cargarlos."
     >
-      {error && (
-        <ErrorNotice error={error} onRetry={load} />
-      )}
+      <ErrorNotice
+        error={error}
+        onRetry={() => {
+          setReorderError(null)
+          load()
+        }}
+      />
 
       {loading ? (
-        <ListSkeleton />
+        <CategoriesSkeleton />
       ) : (
         <>
           {renderGroup('Gastos', expenses, 'expense')}

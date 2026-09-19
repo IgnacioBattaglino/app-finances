@@ -51,8 +51,11 @@ function RedirectAssetTypeDetail() {
 // esa pantalla no existe fuera del flujo.
 //
 // ScrollRestoration: entrar a una pantalla empieza arriba y volver atrás
-// devuelve el scroll de donde se estaba. Las listas que cargan después del
-// primer render (Inversiones) completan la vuelta con useScrollRestoration.
+// devuelve el scroll de donde se estaba. Con los datos en la caché compartida
+// (queryClient.js) la pantalla se dibuja entera en el primer cuadro al
+// volver, así que esto alcanza para todas las pantallas (bloque 05: antes
+// Inversiones necesitaba un hook propio, useScrollRestoration, para completar
+// la vuelta -- ya no).
 function Root() {
   const { passwordRecovery } = useAuth()
   const { pathname } = useLocation()

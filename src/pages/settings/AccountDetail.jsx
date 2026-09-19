@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useGoBack } from '../../hooks/useGoBack.js'
-import {
-  getAccount,
-  renameAccount,
-  setAccountCurrency,
-  setAccountSavings,
-  deleteAccount,
-} from '../../lib/liquidAccounts.js'
-import { getAccountBalances, reconcile } from '../../lib/liquid.js'
+import { renameAccount, setAccountCurrency, setAccountSavings, deleteAccount } from '../../lib/liquidAccounts.js'
+import { reconcile } from '../../lib/liquid.js'
 import { getAccountTransactions } from '../../lib/transactions.js'
 import { splitPage } from '../../lib/contributions.js'
 import { formatByCurrency, todayISO } from '../../lib/format.js'
 import { useAccounts } from '../../hooks/useAccounts.js'
+import { useAccountBalances } from '../../hooks/useAccountBalances.js'
 import { useLastReconciliations } from '../../hooks/useLastReconciliations.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
@@ -26,7 +22,6 @@ import SavingsMovementModal from '../../components/account/SavingsMovementModal.
 import AccountHistory from '../../components/account/AccountHistory.jsx'
 import TransactionFormModal from '../../components/TransactionFormModal.jsx'
 import ConfirmAction from '../../components/form/ConfirmAction.jsx'
-import ListSkeleton from '../../components/ListSkeleton.jsx'
 import Money from '../../components/Money.jsx'
 
 const PAGE_SIZE = 20
@@ -36,6 +31,25 @@ const CURRENCY_OPTIONS = [
   { value: 'ARS', label: 'Pesos' },
   { value: 'USD', label: 'Dólares' },
 ]
+
+function AccountDetailSkeleton() {
+  return (
+    <>
+      <div className="surface px-5 py-5">
+        <p className="eyebrow">Saldo</p>
+        <span className="placeholder mt-2 inline-block h-10 w-36" />
+      </div>
+      <div className="list" aria-busy="true" aria-label="Cargando">
+        {[0, 1, 2].map((r) => (
+          <div key={r} className="row">
+            <span className="placeholder h-3.5 w-2/5" />
+            <span className="placeholder h-3.5 w-1/5" />
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
 
 // Detalle de una cuenta: primero la plata (saldo, extracto, aportar/retirar
 // si es de ahorro), después su configuración (nombre, moneda, tipo) y
@@ -47,42 +61,57 @@ const CURRENCY_OPTIONS = [
 // La moneda solo se puede tocar mientras la cuenta no tiene ningún movimiento
 // (ver ARCHITECTURE.md, migración 0036): una vez que algo la referencia,
 // cambiarla mezclaría dos monedas bajo el mismo saldo. `hasMovements` sale de
-// si la cuenta aparece en get_liquid_by_account — esa función agrupa por
-// cuenta las tres tablas que pueden llevar account_id (transactions,
-// contributions, debt_payments), así que su ausencia es "nunca tuvo un
-// movimiento", con saldo en 0 o no.
+// useAccountBalances (si la cuenta aparece en get_liquid_by_account).
 function AccountDetail() {
   const { accountId } = useParams()
   const { goBack } = useGoBack('/plata', 'Mi plata')
-  const [account, setAccount] = useState(null)
-  const [balance, setBalance] = useState(null) // { amount, hasMovements } | null mientras carga
+  // El nombre y el saldo salen de la MISMA caché que Mi plata: entrar acá
+  // desde ahí ya los tiene (bloque 06).
+  const { accounts, loading: accountsLoading } = useAccountBalances()
+  const account = accounts.find((a) => a.id === accountId) ?? null
+
   const [name, setName] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [seededFor, setSeededFor] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [movement, setMovement] = useState(null) // 'contribution' | 'withdrawal' | null
-  const [history, setHistory] = useState([]) // página visible del historial
-  const [hasMoreHistory, setHasMoreHistory] = useState(false)
-  const [loadingMoreHistory, setLoadingMoreHistory] = useState(false)
-  const [loadMoreHistoryError, setLoadMoreHistoryError] = useState(false)
   const [txModal, setTxModal] = useState({ open: false, editing: null })
+  // La fila recién guardada, para iluminarla una vez (ver AccountHistory). Se
+  // apaga sola.
+  const [highlightId, setHighlightId] = useState(null)
+  useEffect(() => {
+    if (!highlightId) return
+    const timer = setTimeout(() => setHighlightId(null), 1300)
+    return () => clearTimeout(timer)
+  }, [highlightId])
   const { accounts: dailyAccounts, defaultAccountId, addAccount } = useAccounts()
   const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
 
-  async function reload() {
-    const [accountData, balances, firstPage] = await Promise.all([
-      getAccount(accountId),
-      getAccountBalances(),
-      getAccountTransactions({ accountId, limit: PAGE_SIZE + 1 }),
-    ])
-    const bucket = balances.find((b) => b.account_id === accountId)
-    setAccount(accountData)
-    setName(accountData.name)
-    setBalance({ amount: Number(bucket?.amount ?? 0), hasMovements: Boolean(bucket) })
-    const { items, hasMore } = splitPage(firstPage, PAGE_SIZE)
-    setHistory(items)
-    setHasMoreHistory(hasMore)
-  }
+  // El historial, en su propia consulta: no bloquea el saldo (que ya se sabe
+  // por la caché de Mi plata). Solo la PRIMERA página está cacheada; "Ver
+  // más" pagina en el cliente, igual que antes -- al invalidar, vuelve a la
+  // primera página (aceptable, ver el bloque 06).
+  const firstPageQuery = useQuery({
+    queryKey: ['account', accountId, 'history'],
+    queryFn: () => getAccountTransactions({ accountId, limit: PAGE_SIZE + 1 }),
+    enabled: Boolean(accountId),
+  })
+  const [extraHistory, setExtraHistory] = useState([])
+  const [extraHasMore, setExtraHasMore] = useState(null)
+  const [loadingMoreHistory, setLoadingMoreHistory] = useState(false)
+  const [loadMoreHistoryError, setLoadMoreHistoryError] = useState(false)
+
+  useEffect(() => {
+    setExtraHistory([])
+    setExtraHasMore(null)
+  }, [accountId, firstPageQuery.dataUpdatedAt])
+
+  const { items: firstPageItems, hasMore: firstPageHasMore } = splitPage(
+    firstPageQuery.data ?? [],
+    PAGE_SIZE,
+  )
+  const history = [...firstPageItems, ...extraHistory]
+  const hasMoreHistory = extraHasMore ?? firstPageHasMore
 
   async function loadMoreHistory() {
     setLoadingMoreHistory(true)
@@ -94,41 +123,32 @@ function AccountDetail() {
         offset: history.length,
       })
       const { items, hasMore } = splitPage(page, PAGE_SIZE)
-      setHistory((prev) => [...prev, ...items])
-      setHasMoreHistory(hasMore)
+      setExtraHistory((prev) => [...prev, ...items])
+      setExtraHasMore(hasMore)
     } catch {
       // hasMoreHistory no cambia, así que "Ver más" sigue disponible para
-      // reintentar — mismo criterio que AssetDetail.
+      // reintentar.
       setLoadMoreHistoryError(true)
     } finally {
       setLoadingMoreHistory(false)
     }
   }
 
-  useEffect(() => {
-    let active = true
-    setLoading(true)
-    reload()
-      .catch((e) => {
-        if (active) setError({ message: 'No se pudo cargar la cuenta.', detail: e })
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId])
+  if (account && seededFor !== accountId) {
+    setName(account.name)
+    setSeededFor(accountId)
+  }
 
   function afterMovement() {
     setMovement(null)
-    reload()
   }
 
-  function afterTxSaved() {
+  // La fila recién guardada se ilumina una vez (mismo patrón que Movements):
+  // cerrar el modal alcanza, la invalidación global y la caché compartida
+  // refrescan el historial por detrás.
+  function afterTxSaved(saved) {
     setTxModal({ open: false, editing: null })
-    reload()
+    setHighlightId(saved?.id ?? null)
   }
 
   async function handleRename(event) {
@@ -138,7 +158,7 @@ function AccountDetail() {
     setBusy(true)
     setError(null)
     try {
-      setAccount(await renameAccount(account.id, trimmed))
+      await renameAccount(account.id, trimmed)
     } catch (e) {
       setError({ message: 'No se pudo renombrar la cuenta.', detail: e })
     } finally {
@@ -151,7 +171,7 @@ function AccountDetail() {
     setBusy(true)
     setError(null)
     try {
-      setAccount(await setAccountCurrency(account.id, next))
+      await setAccountCurrency(account.id, next)
     } catch (e) {
       setError({ message: 'No se pudo cambiar la moneda.', detail: e })
     } finally {
@@ -163,7 +183,7 @@ function AccountDetail() {
     setBusy(true)
     setError(null)
     try {
-      setAccount(await setAccountSavings(account.id, next))
+      await setAccountSavings(account.id, next)
     } catch (e) {
       setError({ message: 'No se pudo cambiar el tipo de cuenta.', detail: e })
     } finally {
@@ -195,10 +215,10 @@ function AccountDetail() {
     }
   }
 
-  if (loading) {
+  if (!account && accountsLoading) {
     return (
       <SettingsPage title="Cuenta" backTo="/plata" backLabel="Mi plata">
-        <ListSkeleton />
+        <AccountDetailSkeleton />
       </SettingsPage>
     )
   }
@@ -206,7 +226,7 @@ function AccountDetail() {
   if (!account) {
     return (
       <SettingsPage title="Cuenta" backTo="/plata" backLabel="Mi plata">
-        <FormError message={error?.message} detail={error?.detail} />
+        <FormError message={error?.message ?? 'No se encontró esta cuenta.'} detail={error?.detail} />
       </SettingsPage>
     )
   }
@@ -215,7 +235,7 @@ function AccountDetail() {
   // Menos de un centavo no es un saldo — mismo umbral que rowMovement
   // (lib/liquid.js): por debajo de eso reconcile_liquid no generaría ningún
   // ajuste, así que pedirle uno sería un viaje al servidor sin ningún efecto.
-  const hasBalance = Math.abs(balance?.amount ?? 0) >= 0.01
+  const hasBalance = Math.abs(account.amount ?? 0) >= 0.01
 
   return (
     <SettingsPage title={account.name} backTo="/plata" backLabel="Mi plata">
@@ -228,8 +248,8 @@ function AccountDetail() {
           activo, y no como una fila de ajustes. */}
       <div className="surface px-5 py-5">
         <p className="eyebrow">Saldo</p>
-        <p className="mt-2 text-[40px] leading-none font-semibold">
-          <Money value={balance?.amount ?? 0} currency={account.currency === 'USD' ? 'usd' : 'ars'} />
+        <p className="mt-2 text-display leading-none font-semibold">
+          <Money value={account.amount ?? 0} currency={account.currency === 'USD' ? 'usd' : 'ars'} />
         </p>
       </div>
 
@@ -251,14 +271,29 @@ function AccountDetail() {
 
       <div>
         <h2 className="eyebrow mb-2 px-1">Historial</h2>
-        <AccountHistory
-          transactions={history}
-          hasMore={hasMoreHistory}
-          loadingMore={loadingMoreHistory}
-          loadMoreError={loadMoreHistoryError}
-          onLoadMore={loadMoreHistory}
-          onEdit={(tx) => setTxModal({ open: true, editing: tx })}
-        />
+        {/* Consulta propia (arriba, firstPageQuery): mientras está en vuelo
+            necesita su propio esqueleto, si no "Todavía no hay movimientos"
+            aparece un instante y desaparece. */}
+        {firstPageQuery.isLoading ? (
+          <div className="list" aria-busy="true" aria-label="Cargando">
+            {[0, 1, 2].map((r) => (
+              <div key={r} className="row">
+                <span className="placeholder h-3.5 w-2/5" />
+                <span className="placeholder h-3.5 w-1/5" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <AccountHistory
+            transactions={history}
+            hasMore={hasMoreHistory}
+            loadingMore={loadingMoreHistory}
+            loadMoreError={loadMoreHistoryError}
+            onLoadMore={loadMoreHistory}
+            onEdit={(tx) => setTxModal({ open: true, editing: tx })}
+            highlightId={highlightId}
+          />
+        )}
       </div>
 
       <form onSubmit={handleRename}>
@@ -286,7 +321,7 @@ function AccountDetail() {
         </SettingsGroup>
       </form>
 
-      {balance?.hasMovements ? (
+      {account.hasMovements ? (
         <SettingsGroup
           title="Moneda"
           footer="Ya tiene movimientos, así que la moneda queda fija: cambiarla dejaría la cuenta con dos monedas mezcladas y un saldo sin significado."
@@ -323,7 +358,7 @@ function AccountDetail() {
           question={`¿Eliminar «${account.name}»?`}
           detail={
             hasBalance
-              ? `Tiene ${formatByCurrency(account.currency, balance.amount)}. Antes de eliminarla, ese saldo se registra como un ajuste de saldo (no como un gasto) para dejarla en cero, y recién ahí se elimina.`
+              ? `Tiene ${formatByCurrency(account.currency, account.amount)}. Antes de eliminarla, ese saldo se registra como un ajuste de saldo (no como un gasto) para dejarla en cero, y recién ahí se elimina.`
               : 'Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.'
           }
           confirmLabel={hasBalance ? 'Sí, vaciar y eliminar' : 'Sí, eliminar'}

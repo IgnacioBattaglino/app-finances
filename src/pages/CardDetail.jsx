@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useGoBack } from '../hooks/useGoBack.js'
 import SettingsPage from '../components/settings/SettingsPage.jsx'
@@ -10,13 +10,35 @@ import CommitmentFormModal from '../components/commitments/CommitmentFormModal.j
 import PaymentCardVisual from '../components/commitments/PaymentCardVisual.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useCategories } from '../hooks/useCategories.js'
-import { getCard, deleteCard } from '../lib/paymentCards.js'
-import { getCommitmentsWithCharges } from '../lib/commitments.js'
+import { useCards } from '../hooks/useCards.js'
+import { useCommitments } from '../hooks/useCommitments.js'
+import { deleteCard } from '../lib/paymentCards.js'
 import { isFinished, planRemaining } from '../lib/commitmentSchedule.js'
 import { formatByCurrency, formatPercent, todayISO } from '../lib/format.js'
 import { ChevronRight } from '../components/Icons.jsx'
 import ConfirmAction from '../components/form/ConfirmAction.jsx'
-import ListSkeleton from '../components/ListSkeleton.jsx'
+
+function CardDetailSkeleton() {
+  return (
+    <>
+      <div className="flex justify-center">
+        <span className="placeholder h-[180px] w-[280px] rounded-2xl" />
+      </div>
+      <div className="surface p-4 md:p-5">
+        <p className="eyebrow mb-1.5">Por resumen</p>
+        <span className="placeholder inline-block h-8 w-32" />
+      </div>
+      <div className="list" aria-busy="true" aria-label="Cargando">
+        {[0, 1].map((r) => (
+          <div key={r} className="row">
+            <span className="placeholder h-3.5 w-2/5" />
+            <span className="placeholder h-3.5 w-1/5" />
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
 
 // Detalle de una tarjeta: lo que te va a llegar en el próximo resumen, las
 // compras que lo componen, y al pie sus datos.
@@ -31,41 +53,21 @@ function CardDetail() {
   const { accounts, addAccount } = useAccounts()
   const { categories } = useCategories()
 
-  const [card, setCard] = useState(null)
-  const [plans, setPlans] = useState([])
-  const [chargesByPlan, setCharges] = useState(new Map())
-  const [loading, setLoading] = useState(true)
+  const { cards, loading: cardsLoading } = useCards()
+  const { plans: allPlans, chargesByPlan, loading: commitmentsLoading } = useCommitments()
+  const card = cards.find((c) => c.id === cardId) ?? null
+  const plans = allPlans.filter((p) => p.card_id === cardId)
+  const loading = cardsLoading || commitmentsLoading
+
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
   const [newPurchase, setNewPurchase] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [row, { plans: allPlans, chargesByPlan: charges }] = await Promise.all([
-        getCard(cardId),
-        getCommitmentsWithCharges(),
-      ])
-      setCard(row)
-      setPlans(allPlans.filter((p) => p.card_id === cardId))
-      setCharges(charges)
-    } catch (e) {
-      setError({ message: 'No se pudo cargar la tarjeta.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }, [cardId])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  if (loading) {
+  if (!card && loading) {
     return (
       <SettingsPage title="Tarjeta" backTo="/compromisos" backLabel="A pagar">
-        <ListSkeleton />
+        <CardDetailSkeleton />
       </SettingsPage>
     )
   }
@@ -204,15 +206,7 @@ function CardDetail() {
         />
       </SettingsGroup>
 
-      <CardFormModal
-        open={editing}
-        initial={card}
-        onClose={() => setEditing(false)}
-        onSaved={async () => {
-          setEditing(false)
-          await load()
-        }}
-      />
+      <CardFormModal open={editing} initial={card} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />
 
       <CommitmentFormModal
         open={newPurchase}
@@ -223,10 +217,7 @@ function CardDetail() {
         accounts={accounts}
         onClose={() => setNewPurchase(false)}
         onAccountCreated={addAccount}
-        onSaved={async () => {
-          setNewPurchase(false)
-          await load()
-        }}
+        onSaved={() => setNewPurchase(false)}
       />
     </SettingsPage>
   )

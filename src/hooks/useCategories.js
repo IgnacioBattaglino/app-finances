@@ -21,5 +21,19 @@ export function useCategories() {
     queryClient.setQueryData(categoriesQueryKey, (prev) => [...(prev ?? []), created])
   }
 
-  return { categories: data ?? [], loading: isLoading, error, reload: refetch, addCategory }
+  // El reordenar (Ajustes › Categorías) escribe optimista sobre la lista,
+  // igual que setAccountsOptimistic (useAccountBalances.js): no hace falta
+  // esperar la invalidación para ver el nuevo orden.
+  function setCategoriesOptimistic(updater) {
+    queryClient.setQueryData(categoriesQueryKey, (prev) => updater(prev ?? []))
+  }
+
+  return {
+    categories: data ?? [],
+    loading: isLoading,
+    error,
+    reload: refetch,
+    addCategory,
+    setCategoriesOptimistic,
+  }
 }

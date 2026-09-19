@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useGoBack } from '../../hooks/useGoBack.js'
 import {
-  getAssetType,
-  getAssetTypes,
   renameAssetType,
   setIncludeInTotal,
   setEarnsYield,
@@ -16,7 +15,7 @@ import {
 } from '../../lib/assetTypes.js'
 import { ACCENTS } from '../../lib/theme.js'
 import { formatUSD } from '../../lib/format.js'
-import { usePortfolio } from '../../hooks/usePortfolio.js'
+import { usePortfolio, useArchivedAssetTypes } from '../../hooks/usePortfolio.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
   SettingsGroup,
@@ -28,7 +27,6 @@ import {
 import FormError from '../../components/form/FormError.jsx'
 import { ArrowDown, ArrowUp, Check } from '../../components/Icons.jsx'
 import ConfirmAction from '../../components/form/ConfirmAction.jsx'
-import ListSkeleton from '../../components/ListSkeleton.jsx'
 
 // El color del grupo, con la misma forma que el selector de color de la app
 // (Ajustes › Apariencia): círculos grandes, el elegido con un aro y un tilde.
@@ -87,61 +85,65 @@ function assetsLabel({ active, archived }) {
   return parts.join(' · ')
 }
 
+function AssetTypeDetailSkeleton() {
+  return (
+    <SettingsGroup title="Nombre">
+      <div className="px-4 py-3">
+        <span className="placeholder inline-block h-5 w-2/3" />
+      </div>
+      <div className="row">
+        <span className="placeholder h-3.5 w-16" />
+        <span className="placeholder h-3.5 w-20" />
+      </div>
+    </SettingsGroup>
+  )
+}
+
 function AssetTypeDetail() {
   const { assetTypeId } = useParams()
   const { goBack } = useGoBack('/inversiones/grupos', 'Grupos de activos')
-  const [assetType, setAssetType] = useState(null)
-  const [counts, setCounts] = useState(null)
-  // La lista activa completa: hace falta para saber en qué posición está este
-  // grupo y si se puede subir o bajar.
-  const [siblings, setSiblings] = useState([])
+
+  // El grupo y sus hermanos salen de la MISMA caché que Inversiones y la
+  // lista de grupos (hooks/usePortfolio.js): entrar acá desde cualquiera de
+  // las dos ya lo tiene. Los activos del grupo con su valor son el mismo
+  // criterio -- recalcularlos acá sería la forma más segura de que las dos
+  // pantallas terminen mostrando números distintos para lo mismo.
+  const { assets, assetTypes, valuations, loading: portfolioLoading } = usePortfolio()
+  const {
+    archivedAssetTypes,
+    loading: archivedTypesLoading,
+  } = useArchivedAssetTypes()
+
+  const assetType = [...assetTypes, ...archivedAssetTypes].find((at) => at.id === assetTypeId) ?? null
+  const siblings = assetTypes
+  const groupAssets = assets.filter((a) => a.asset_type_id === assetTypeId)
+
+  const countsQuery = useQuery({
+    queryKey: ['assetTypes', assetTypeId, 'counts'],
+    queryFn: () => countAssetsForType(assetTypeId),
+    enabled: Boolean(assetTypeId),
+  })
+  const counts = countsQuery.data ?? null
+
   const [name, setName] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [seededFor, setSeededFor] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
-  // Los activos del grupo con su valor salen del MISMO lugar que Inversiones
-  // (usePortfolio), no de una consulta propia: el valor de un activo depende
-  // de su modo de valuación, del precio en vivo y de la última valuación
-  // manual, y recalcularlo acá por separado es la forma más segura de que las
-  // dos pantallas terminen mostrando números distintos para lo mismo.
-  const { assets, valuations, loading: portfolioLoading } = usePortfolio()
-  const groupAssets = assets.filter((a) => a.asset_type_id === assetTypeId)
-
-  useEffect(() => {
-    let active = true
-    setLoading(true)
-    Promise.all([
-      getAssetType(assetTypeId),
-      countAssetsForType(assetTypeId),
-      getAssetTypes(),
-    ])
-      .then(([data, assetCounts, all]) => {
-        if (!active) return
-        setAssetType(data)
-        setCounts(assetCounts)
-        setSiblings(all)
-        setName(data.name)
-      })
-      .catch((e) => {
-        if (active) setError({ message: 'No se pudo cargar el grupo.', detail: e })
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [assetTypeId])
+  if (assetType && seededFor !== assetTypeId) {
+    // Sembrado síncrono (sin useEffect): evita un primer render con el
+    // nombre vacío cuando assetType ya está disponible desde el montaje.
+    setName(assetType.name)
+    setSeededFor(assetTypeId)
+  }
 
   async function run(action, message) {
     setBusy(true)
     setError(null)
     try {
-      return await action()
+      await action()
     } catch (e) {
       setError({ message, detail: e })
-      return null
     } finally {
       setBusy(false)
     }
@@ -151,44 +153,24 @@ function AssetTypeDetail() {
     event.preventDefault()
     const trimmed = name.trim()
     if (!trimmed || trimmed === assetType.name || busy) return
-    const updated = await run(
-      () => renameAssetType(assetType.id, trimmed),
-      'No se pudo renombrar el grupo.',
-    )
-    if (updated) setAssetType(updated)
+    await run(() => renameAssetType(assetType.id, trimmed), 'No se pudo renombrar el grupo.')
   }
 
-  async function handleToggleTotal(next) {
-    const updated = await run(
-      () => setIncludeInTotal(assetType.id, next),
-      'No se pudo actualizar el grupo.',
-    )
-    if (updated) setAssetType(updated)
+  function handleToggleTotal(next) {
+    run(() => setIncludeInTotal(assetType.id, next), 'No se pudo actualizar el grupo.')
   }
 
-  async function handleMove(direction) {
-    const reordered = await run(
-      () => moveAssetType(assetType.id, direction),
-      'No se pudo cambiar el orden.',
-    )
-    if (reordered) setSiblings(reordered)
+  function handleMove(direction) {
+    run(() => moveAssetType(assetType.id, direction), 'No se pudo cambiar el orden.')
   }
 
-  async function handleColor(colorId) {
+  function handleColor(colorId) {
     if (colorId === (assetType.color ?? null)) return
-    const updated = await run(
-      () => setAssetTypeColor(assetType.id, colorId),
-      'No se pudo cambiar el color del grupo.',
-    )
-    if (updated) setAssetType(updated)
+    run(() => setAssetTypeColor(assetType.id, colorId), 'No se pudo cambiar el color del grupo.')
   }
 
-  async function handleToggleYield(next) {
-    const updated = await run(
-      () => setEarnsYield(assetType.id, next),
-      'No se pudo actualizar el grupo.',
-    )
-    if (updated) setAssetType(updated)
+  function handleToggleYield(next) {
+    run(() => setEarnsYield(assetType.id, next), 'No se pudo actualizar el grupo.')
   }
 
   async function leaveAfter(action, message) {
@@ -203,10 +185,10 @@ function AssetTypeDetail() {
     }
   }
 
-  if (loading) {
+  if (!assetType && (portfolioLoading || archivedTypesLoading)) {
     return (
       <SettingsPage title="Grupo" backTo="/inversiones/grupos" backLabel="Grupos de activos">
-        <ListSkeleton />
+        <AssetTypeDetailSkeleton />
       </SettingsPage>
     )
   }
@@ -214,19 +196,19 @@ function AssetTypeDetail() {
   if (!assetType) {
     return (
       <SettingsPage title="Grupo" backTo="/inversiones/grupos" backLabel="Grupos de activos">
-        <FormError message={error?.message} detail={error?.detail} />
+        <FormError message={error?.message ?? 'No se encontró este grupo.'} detail={error?.detail} />
       </SettingsPage>
     )
   }
 
-  // Regla de tres niveles (la misma de siempre): con activos sin archivar, no
-  // se puede ni archivar ni eliminar; solo con archivados, se puede archivar;
-  // sin ninguno, se puede eliminar.
-  const action = counts.active > 0 ? 'blocked' : counts.archived > 0 ? 'archive' : 'delete'
   const dirty = name.trim() !== assetType.name
-
   const position = siblings.findIndex((at) => at.id === assetType.id)
   const canMove = !assetType.is_archived && position !== -1 && siblings.length > 1
+  // Regla de tres niveles (la misma de siempre): con activos sin archivar, no
+  // se puede ni archivar ni eliminar; solo con archivados, se puede archivar;
+  // sin ninguno, se puede eliminar. Mientras el conteo no llegó, se bloquea
+  // (nunca se ofrece eliminar sin saber si es seguro).
+  const action = !counts ? 'blocked' : counts.active > 0 ? 'blocked' : counts.archived > 0 ? 'archive' : 'delete'
 
   return (
     <SettingsPage title={assetType.name} backTo="/inversiones/grupos" backLabel="Grupos de activos">
@@ -242,7 +224,10 @@ function AssetTypeDetail() {
               className="field"
             />
           </div>
-          <SettingsValueRow label="Activos" value={assetsLabel(counts)} />
+          <SettingsValueRow
+            label="Activos"
+            value={counts ? assetsLabel(counts) : <span className="placeholder h-3.5 w-20" />}
+          />
           {dirty && (
             <button
               type="submit"
@@ -256,13 +241,17 @@ function AssetTypeDetail() {
       </form>
 
       {/* Qué hay adentro del grupo. Es lo primero que se quiere ver al llegar
-          acá desde Inversiones (tocando el encabezado), y hasta ahora esta
-          pantalla no lo mostraba: decía cuántos activos había, no cuáles.
-          Cada fila entra al detalle del activo, que es donde se opera. */}
+          acá desde Inversiones (tocando el encabezado). Cada fila entra al
+          detalle del activo, que es donde se opera. Mientras el portafolio
+          no terminó de cargar (assets + valuaciones), muestra su propio
+          esqueleto -- nunca un "Cargando…" suelto. */}
       {(portfolioLoading || groupAssets.length > 0) && (
         <SettingsGroup title="Activos" footer="Tocá uno para ver su detalle y operar.">
           {portfolioLoading ? (
-            <p className="px-4 py-3 text-subhead text-ink-soft">Cargando…</p>
+            <div className="row" aria-busy="true" aria-label="Cargando">
+              <span className="placeholder h-3.5 w-2/5" />
+              <span className="placeholder h-3.5 w-1/5" />
+            </div>
           ) : (
             groupAssets.map((asset) => (
               <SettingsLinkRow
@@ -352,7 +341,11 @@ function AssetTypeDetail() {
         </SettingsGroup>
       ) : action === 'blocked' ? (
         <SettingsGroup
-          footer={`Para archivar o eliminar este grupo, primero mové sus ${counts.active} activo${counts.active === 1 ? '' : 's'} a otro grupo o archivalo${counts.active === 1 ? '' : 's'}.`}
+          footer={
+            counts
+              ? `Para archivar o eliminar este grupo, primero mové sus ${counts.active} activo${counts.active === 1 ? '' : 's'} a otro grupo o archivalo${counts.active === 1 ? '' : 's'}.`
+              : undefined
+          }
         >
           <SettingsButtonRow label="Archivar grupo" tone="neutral" disabled onClick={() => {}} />
         </SettingsGroup>

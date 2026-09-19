@@ -22,13 +22,6 @@ export async function getCategories() {
   return data
 }
 
-// Una sola categoría, para su pantalla de detalle.
-export async function getCategory(id) {
-  const { data, error } = await supabase.from('categories').select('*').eq('id', id).single()
-  if (error) throw error
-  return data
-}
-
 // La categoría del sistema por su llave (migración 0037), nunca por nombre ni
 // por is_system a secas — mismo criterio que reconcile_liquid y
 // create_account_transfer. La usa el aporte/retiro "de afuera" de una cuenta

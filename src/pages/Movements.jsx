@@ -5,10 +5,10 @@ import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useCategories } from '../hooks/useCategories.js'
 import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
+import { useMovements } from '../hooks/useMovements.js'
 import FilterChips from '../components/form/FilterChips.jsx'
 import { ErrorNotice } from '../components/form/FormError.jsx'
-import { getTransactions, groupExpensesByCategory } from '../lib/transactions.js'
-import { getLiquidContributions } from '../lib/contributions.js'
+import { groupExpensesByCategory } from '../lib/transactions.js'
 import {
   contributionAmount,
   contributionCurrency,
@@ -25,12 +25,10 @@ import {
   ALL,
   EXPENSES,
 } from '../lib/movementList.js'
-import { getReconciliationBatches } from '../lib/liquid.js'
 import { movementType, isMovedMoneyType } from '../lib/systemCategories.js'
 import { formatByCurrency, formatDay } from '../lib/format.js'
 import RangeSheet from '../components/movements/RangeSheet.jsx'
 import {
-  bounds,
   canShift,
   contains,
   label as rangeLabel,
@@ -39,9 +37,39 @@ import {
   shift,
 } from '../lib/dateRange.js'
 import { ChevronDown, ChevronLeft, ChevronRight, Plus } from '../components/Icons.jsx'
-import ListSkeleton from '../components/ListSkeleton.jsx'
 
 const now = new Date()
+
+// Esqueleto de los CINCO renglones de totales: misma `.list`/`.row` que
+// TotalRow, con un marcador en vez del monto.
+function TotalsSkeleton() {
+  return (
+    <div className="list" aria-busy="true" aria-label="Cargando">
+      {Array.from({ length: 5 }, (_, i) => (
+        <div key={i} className="flex items-baseline justify-between gap-3 px-4 py-3">
+          <span className="placeholder h-3.5 w-16" />
+          <span className="placeholder h-3.5 w-20" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Esqueleto de la lista: seis filas con la forma de MovementRow. Los totales
+// y la lista se revelan juntos (los dos dependen de la misma consulta), así
+// que comparten el mismo `loading`.
+function MovementsListSkeleton() {
+  return (
+    <div className="list" aria-busy="true" aria-label="Cargando">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="row">
+          <span className="placeholder h-3.5 w-2/5" />
+          <span className="placeholder h-3.5 w-1/5" />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 // Cuántas filas se pintan de una. Con un mes no cambia nada (un mes cargado
 // tiene decenas de movimientos, no cientos), pero "Todo" puede ser el
@@ -56,7 +84,7 @@ const PAGE = 100
 // (`to`: una inversión, una cuenta de ahorro); nada si abre el movimiento acá
 // mismo (`onClick`), que es lo que espera cualquier lista de iOS; y sin resalte
 // al tacto si no se toca (ni `to` ni `onClick`).
-function MovementRow({ title, subtitle, amount, to, onClick, muted = false }) {
+function MovementRow({ title, subtitle, amount, to, onClick, muted = false, highlighted = false }) {
   const body = (
     <>
       <div className="min-w-0">
@@ -71,7 +99,10 @@ function MovementRow({ title, subtitle, amount, to, onClick, muted = false }) {
       )}
     </>
   )
-  const className = 'row w-full text-left'
+  // La fila recién guardada se ilumina una vez (ver Movements y
+  // @keyframes row-highlight en index.css): el único movimiento de "guardar
+  // no vacía nada".
+  const className = `row w-full text-left ${highlighted ? 'animate-highlight' : ''}`
   if (to) {
     return (
       <Link
@@ -124,13 +155,14 @@ function dayAndAccount(tx) {
 // ganancia, son plata que cambió de lugar — van sin color, igual que
 // InvestmentRow y SavingsRow. Un gasto, un ingreso o un ajuste de saldo (que
 // sí son reales) se quedan con el color de siempre.
-function TransactionRow({ tx, onEdit }) {
+function TransactionRow({ tx, onEdit, highlighted }) {
   const isMoved = isMovedMoneyType(movementType(tx))
   return (
     <MovementRow
       title={describe(tx)}
       subtitle={dayAndAccount(tx)}
       onClick={onEdit}
+      highlighted={highlighted}
       amount={
         <SignedAmount
           negative={tx.kind === 'expense'}
@@ -189,12 +221,13 @@ export function InvestmentRow({ contribution: c }) {
 //
 // Sin color, igual que una inversión: lo que domina acá es plata que cambió de
 // lugar. El signo dice para qué lado, y el nombre de la cuenta dice dónde.
-function SavingsRow({ tx }) {
+function SavingsRow({ tx, highlighted }) {
   return (
     <MovementRow
       title={describe(tx)}
       subtitle={dayAndAccount(tx)}
       to={`/plata/${tx.account_id}`}
+      highlighted={highlighted}
       amount={
         <SignedAmount negative={tx.kind === 'expense'} currency={transactionCurrencyOf(tx)} value={tx.amount} />
       }
@@ -275,28 +308,25 @@ function Movements() {
   // carga, con la primera preseleccionada.
   const { accounts, defaultAccountId, addAccount } = useAccounts()
   const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
-  // Movimientos del mes navegado, sin filtrar por tipo/categoría: de acá
-  // salen tanto los totales y el desglose (que describen el mes completo)
-  // como la lista filtrada de abajo (filtrada en cliente).
-  const [monthItems, setMonthItems] = useState([])
-  // Las inversiones del mismo período (contributions que mueven el
-  // disponible). Van en su propio estado y no mezcladas en monthItems: el
-  // desglose "Gastos por categoría" recorre monthItems buscando gastos, y una
-  // inversión no es un gasto — meterlas ahí las metería en el desglose.
-  const [monthInvestments, setMonthInvestments] = useState([])
-  // Qué conteo escribió cada movimiento (id → batch_id). Es lo que permite
-  // aparear los repartos de un mismo conteo entre sí sin mezclar dos conteos
-  // del mismo día; `transactions` no lleva esa columna (ver
-  // getReconciliationBatches).
-  const [batches, setBatches] = useState(new Map())
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   // El período que se está mirando. Arranca en el mes en curso, que es la
   // lectura más frecuente y la que la pantalla tenía siempre; desde acá se
   // puede pasar a un año, al historial completo o a dos fechas cualesquiera
   // (ver lib/dateRange.js).
   const [range, setRange] = useState(() => monthRange(now.getMonth() + 1, now.getFullYear()))
   const [rangeOpen, setRangeOpen] = useState(false)
+  // Movimientos del período navegado, sin filtrar por tipo/categoría: de acá
+  // salen tanto los totales y el desglose (que describen el período completo)
+  // como la lista filtrada de abajo (filtrada en cliente). Sobre la caché
+  // compartida (bloque 05): la llave lleva el período, así que un mes ya
+  // visitado se ve al instante y no vuelve a mostrar el esqueleto.
+  const {
+    transactions: monthItems,
+    investments: monthInvestments,
+    batches,
+    loading,
+    error,
+    reload: load,
+  } = useMovements(range)
   // Qué cajón de movimientos se está mirando (ver movementBucket): el filtro
   // es por SIGNIFICADO, no por `transactions.kind`, así que lo que se ve es
   // exactamente lo que suma el renglón homónimo de los totales.
@@ -306,35 +336,15 @@ function Movements() {
   const [visible, setVisible] = useState(PAGE)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-
-  async function load() {
-    setLoading(true)
-    setError(null)
-    try {
-      // Las dos fuentes en paralelo. Van en el mismo try a propósito: acá no
-      // hay un número principal que valga la pena salvar si la otra mitad
-      // falla — un mes al que le faltan las inversiones muestra un balance
-      // equivocado, y es peor que decir que no se pudo cargar.
-      const { from, to } = bounds(range)
-      const [transactions, investments, reconciliationBatches] = await Promise.all([
-        getTransactions({ from, to }),
-        getLiquidContributions({ from, to }),
-        getReconciliationBatches(),
-      ])
-      setMonthItems(transactions)
-      setMonthInvestments(investments)
-      setBatches(reconciliationBatches)
-    } catch (e) {
-      setError({ message: 'No se pudieron cargar los movimientos.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }
+  // La fila recién guardada, para iluminarla una vez (ver MovementRow). Se
+  // apaga sola: no hace falta que la fila avise cuándo termina su animación.
+  const [highlightId, setHighlightId] = useState(null)
 
   useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range])
+    if (!highlightId) return
+    const timer = setTimeout(() => setHighlightId(null), 1300)
+    return () => clearTimeout(timer)
+  }, [highlightId])
 
   // Cambiar de período o de filtro es empezar a leer otra lista: vuelve a las
   // primeras PAGE filas en vez de arrastrar el "ver más" de la anterior.
@@ -370,10 +380,13 @@ function Movements() {
   }
 
   // `saved` es la fila guardada; en un borrado llega el id, que no tiene fecha
-  // y por lo tanto cae al refresco normal, que es lo correcto: borrar no debe
-  // mover al usuario de mes.
+  // y por lo tanto no ilumina nada, que es lo correcto. La escritura ya
+  // invalidó la caché compartida (ver lib/queryClient.js): no hace falta
+  // pedir de nuevo acá, la lista se actualiza sola sin pasar por el
+  // esqueleto ni perder el scroll.
   function refreshAfterSave(saved) {
     closeModal()
+    setHighlightId(saved?.id ?? null)
 
     // Si el movimiento quedó fuera del período navegado (típico: cargarlo con
     // fecha de hoy mientras mirás un mes pasado), saltamos a SU mes. La fila en
@@ -382,10 +395,8 @@ function Movements() {
     // período equivalente porque un movimiento es de un día: el mes es el
     // recorte más chico que lo contiene y lo deja a la vista.
     if (saved?.date && !contains(range, saved.date)) {
-      setRange(monthOf(saved.date)) // el efecto de [range] dispara load()
-      return
+      setRange(monthOf(saved.date))
     }
-    load()
   }
 
   // La lista se arma en tres pasos, y el orden importa: primero se COLAPSA
@@ -506,6 +517,8 @@ function Movements() {
             <ErrorNotice error={error} onRetry={load} />
           )}
 
+          {!error && loading && <TotalsSkeleton />}
+
           {!error && !loading && (
             <>
               {/* Los números del mes. Gastos e ingresos llevan su color; lo
@@ -593,7 +606,7 @@ function Movements() {
           </div>
 
           {loading ? (
-            <ListSkeleton />
+            <MovementsListSkeleton />
           ) : items.length === 0 && !error ? (
             <p className="surface px-4 py-10 text-center text-subhead text-ink-soft">
               {hasExtraFilters
@@ -618,11 +631,12 @@ function Movements() {
                       }}
                     />
                   ) : row.account?.is_savings ? (
-                    <SavingsRow key={`t-${row.id}`} tx={row} />
+                    <SavingsRow key={`t-${row.id}`} tx={row} highlighted={row.id === highlightId} />
                   ) : (
                     <TransactionRow
                       key={`t-${row.id}`}
                       tx={row}
+                      highlighted={row.id === highlightId}
                       onEdit={() => {
                         setEditing(row)
                         setModalOpen(true)

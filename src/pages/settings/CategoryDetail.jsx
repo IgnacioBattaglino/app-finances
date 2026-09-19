@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useGoBack } from '../../hooks/useGoBack.js'
-import { getCategory, renameCategory, deleteCategory } from '../../lib/categories.js'
+import { useCategories } from '../../hooks/useCategories.js'
+import { renameCategory, deleteCategory } from '../../lib/categories.js'
 import SettingsPage from '../../components/settings/SettingsPage.jsx'
 import {
   SettingsGroup,
@@ -9,36 +10,41 @@ import {
 } from '../../components/settings/SettingsList.jsx'
 import FormError from '../../components/form/FormError.jsx'
 import ConfirmAction from '../../components/form/ConfirmAction.jsx'
-import ListSkeleton from '../../components/ListSkeleton.jsx'
+
+function CategoryDetailSkeleton() {
+  return (
+    <SettingsGroup title="Nombre">
+      <div className="px-4 py-3">
+        <span className="placeholder inline-block h-5 w-2/3" />
+      </div>
+      <div className="row">
+        <span className="placeholder h-3.5 w-16" />
+        <span className="placeholder h-3.5 w-12" />
+      </div>
+    </SettingsGroup>
+  )
+}
 
 function CategoryDetail() {
   const { categoryId } = useParams()
   const { goBack } = useGoBack('/ajustes/categorias', 'Categorías')
-  const [category, setCategory] = useState(null)
+  const { categories, loading, setCategoriesOptimistic } = useCategories()
+  const category = categories.find((c) => c.id === categoryId) ?? null
+
   const [name, setName] = useState('')
-  const [loading, setLoading] = useState(true)
+  // A qué categoría corresponde el `name` sembrado: evita que una categoría
+  // que todavía no llegó de la caché pise lo que el usuario está escribiendo
+  // (mismo criterio que "guardar sin tocar nada deja la fila idéntica").
+  const [seededFor, setSeededFor] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    let active = true
-    setLoading(true)
-    getCategory(categoryId)
-      .then((data) => {
-        if (!active) return
-        setCategory(data)
-        setName(data.name)
-      })
-      .catch((e) => {
-        if (active) setError({ message: 'No se pudo cargar la categoría.', detail: e })
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
+    if (category && seededFor !== categoryId) {
+      setName(category.name)
+      setSeededFor(categoryId)
     }
-  }, [categoryId])
+  }, [category, categoryId, seededFor])
 
   async function handleRename(event) {
     event.preventDefault()
@@ -47,7 +53,8 @@ function CategoryDetail() {
     setBusy(true)
     setError(null)
     try {
-      setCategory(await renameCategory(category.id, trimmed))
+      const updated = await renameCategory(category.id, trimmed)
+      setCategoriesOptimistic((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
     } catch (e) {
       setError({ message: 'No se pudo renombrar la categoría.', detail: e })
     } finally {
@@ -67,10 +74,10 @@ function CategoryDetail() {
     }
   }
 
-  if (loading) {
+  if (loading && !category) {
     return (
       <SettingsPage title="Categoría" backTo="/ajustes/categorias" backLabel="Categorías">
-        <ListSkeleton />
+        <CategoryDetailSkeleton />
       </SettingsPage>
     )
   }
@@ -78,7 +85,7 @@ function CategoryDetail() {
   if (!category) {
     return (
       <SettingsPage title="Categoría" backTo="/ajustes/categorias" backLabel="Categorías">
-        <FormError message={error?.message} detail={error?.detail} />
+        <FormError message={error?.message ?? 'No se encontró esta categoría.'} detail={error?.detail} />
       </SettingsPage>
     )
   }

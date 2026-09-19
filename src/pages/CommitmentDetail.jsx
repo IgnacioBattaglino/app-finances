@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useGoBack } from '../hooks/useGoBack.js'
 import SettingsPage from '../components/settings/SettingsPage.jsx'
@@ -9,14 +9,13 @@ import CommitmentFormModal from '../components/commitments/CommitmentFormModal.j
 import ConfirmChargeModal from '../components/commitments/ConfirmChargeModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useCategories } from '../hooks/useCategories.js'
-import { getCards } from '../lib/paymentCards.js'
+import { useCards } from '../hooks/useCards.js'
+import { useCommitments } from '../hooks/useCommitments.js'
 import {
   confirmCharge,
   deleteCommitment,
   dismissCharge,
   finishCommitment,
-  getCommitment,
-  getCommitmentCharges,
   reopenCommitment,
   unconfirmCharge,
   undismissCharge,
@@ -35,7 +34,6 @@ import {
 } from '../lib/commitmentSchedule.js'
 import { formatByCurrency, formatDayYear, todayISO } from '../lib/format.js'
 import ConfirmAction from '../components/form/ConfirmAction.jsx'
-import ListSkeleton from '../components/ListSkeleton.jsx'
 
 // Detalle de un plan: primero cuánto falta, después la lista de vencimientos
 // uno por uno, y al pie las dos acciones que lo apagan.
@@ -55,6 +53,25 @@ const STATUS_LABEL = {
   [DISMISSED]: 'No lo pagué',
   [OVERDUE]: 'Vencido',
   [PENDING]: 'Pendiente',
+}
+
+function CommitmentDetailSkeleton() {
+  return (
+    <>
+      <div className="surface p-4 md:p-5">
+        <p className="eyebrow mb-1.5">Te falta pagar</p>
+        <span className="placeholder inline-block h-8 w-32" />
+      </div>
+      <div className="list" aria-busy="true" aria-label="Cargando">
+        {[0, 1, 2].map((r) => (
+          <div key={r} className="row">
+            <span className="placeholder h-3.5 w-2/5" />
+            <span className="placeholder h-3.5 w-1/5" />
+          </div>
+        ))}
+      </div>
+    </>
+  )
 }
 
 function OccurrenceRow({ occurrence, onConfirm, onAdjust, onUndo, onDismiss, busy }) {
@@ -129,43 +146,22 @@ function CommitmentDetail() {
   const today = todayISO()
   const { accounts, addAccount } = useAccounts()
   const { categories } = useCategories()
+  const { cards } = useCards()
 
-  const [plan, setPlan] = useState(null)
-  const [charges, setCharges] = useState([])
-  const [cards, setCards] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { plans, chargesByPlan, loading } = useCommitments()
+  const plan = plans.find((p) => p.id === commitmentId) ?? null
+  const charges = chargesByPlan.get(commitmentId) ?? []
+
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
   const [adjusting, setAdjusting] = useState(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [row, byPlan] = await Promise.all([getCommitment(commitmentId), getCommitmentCharges()])
-      setPlan(row)
-      setCharges(byPlan.get(commitmentId) ?? [])
-    } catch (e) {
-      setError({ message: 'No se pudo cargar este plan.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }, [commitmentId])
-
-  useEffect(() => {
-    load()
-    getCards()
-      .then(setCards)
-      .catch(() => {})
-  }, [load])
 
   async function run(action, message) {
     setBusy(true)
     setError(null)
     try {
       await action()
-      await load()
     } catch (e) {
       setError({ message, detail: e })
     } finally {
@@ -173,10 +169,10 @@ function CommitmentDetail() {
     }
   }
 
-  if (loading) {
+  if (!plan && loading) {
     return (
       <SettingsPage title="Plan" backTo="/compromisos" backLabel="A pagar">
-        <ListSkeleton />
+        <CommitmentDetailSkeleton />
       </SettingsPage>
     )
   }
@@ -368,10 +364,7 @@ function CommitmentDetail() {
         accounts={accounts}
         onClose={() => setEditing(false)}
         onAccountCreated={addAccount}
-        onSaved={async () => {
-          setEditing(false)
-          await load()
-        }}
+        onSaved={() => setEditing(false)}
       />
 
       <ConfirmChargeModal
@@ -380,10 +373,7 @@ function CommitmentDetail() {
         accounts={accounts}
         onClose={() => setAdjusting(null)}
         onAccountCreated={addAccount}
-        onSaved={async () => {
-          setAdjusting(null)
-          await load()
-        }}
+        onSaved={() => setAdjusting(null)}
       />
     </SettingsPage>
   )

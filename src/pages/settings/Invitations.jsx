@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useIsAdmin } from '../../hooks/useIsAdmin.js'
 import {
   getInvitations,
@@ -12,7 +13,8 @@ import { formatDayShortYear } from '../../lib/format.js'
 import PageHeader from '../../components/PageHeader.jsx'
 import { SettingsGroup, SettingsButtonRow } from '../../components/settings/SettingsList.jsx'
 import { ErrorNotice } from '../../components/form/FormError.jsx'
-import ListSkeleton from '../../components/ListSkeleton.jsx'
+
+const invitationsQueryKey = ['invitations']
 
 const STATUS_LABEL = {
   valid: 'Vigente',
@@ -23,6 +25,19 @@ const STATUS_LABEL = {
 
 function day(timestamp) {
   return formatDayShortYear(timestamp?.slice(0, 10))
+}
+
+function InvitationsSkeleton() {
+  return (
+    <div className="list" aria-busy="true" aria-label="Cargando">
+      {[0, 1].map((r) => (
+        <div key={r} className="row">
+          <span className="placeholder h-3.5 w-2/5" />
+          <span className="placeholder h-3.5 w-1/5" />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // El link recién generado se muestra expandido, con el botón de copiar a
@@ -91,27 +106,22 @@ function InviteRow({ invite, onRevoke }) {
 
 function Invitations() {
   const isAdmin = useIsAdmin()
-  const [invitations, setInvitations] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  // Habilitada solo con isAdmin === true: comodidad, no protección -- la RLS
+  // de `invitations` ya le negaría los datos a un no-admin.
+  const {
+    data,
+    isLoading,
+    error: loadError,
+  } = useQuery({
+    queryKey: invitationsQueryKey,
+    queryFn: getInvitations,
+    enabled: isAdmin === true,
+  })
+  const invitations = data ?? []
   const [error, setError] = useState(null)
   const [creating, setCreating] = useState(false)
   const [justCreated, setJustCreated] = useState(null)
-
-  async function load() {
-    setLoading(true)
-    setError(null)
-    try {
-      setInvitations(await getInvitations())
-    } catch (e) {
-      setError({ message: 'No se pudieron cargar las invitaciones.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (isAdmin) load()
-  }, [isAdmin])
 
   // Comodidad, no protección: mientras se resuelve queda en blanco un
   // instante, y si no es admin lo mandamos de vuelta — la RLS de la base ya
@@ -119,13 +129,16 @@ function Invitations() {
   if (isAdmin === false) return <Navigate to="/ajustes" replace />
   if (isAdmin === null) return null
 
+  const displayError =
+    error ?? (loadError ? { message: 'No se pudieron cargar las invitaciones.', detail: loadError } : null)
+
   async function handleCreate() {
     setCreating(true)
     setError(null)
     try {
       const invite = await createInvite()
       setJustCreated(invite)
-      setInvitations((prev) => [invite, ...prev])
+      queryClient.setQueryData(invitationsQueryKey, (prev) => [invite, ...(prev ?? [])])
     } catch (e) {
       setError({ message: 'No se pudo generar la invitación.', detail: e })
     } finally {
@@ -136,7 +149,9 @@ function Invitations() {
   async function handleRevoke(id) {
     try {
       const updated = await revokeInvite(id)
-      setInvitations((prev) => prev.map((inv) => (inv.id === id ? updated : inv)))
+      queryClient.setQueryData(invitationsQueryKey, (prev) =>
+        (prev ?? []).map((inv) => (inv.id === id ? updated : inv)),
+      )
     } catch (e) {
       setError({ message: 'No se pudo anular la invitación.', detail: e })
     }
@@ -152,7 +167,7 @@ function Invitations() {
       />
 
       <div className="space-y-7">
-        <ErrorNotice error={error} />
+        <ErrorNotice error={displayError} />
 
         {justCreated && (
           <NewLinkNotice invite={justCreated} onDismiss={() => setJustCreated(null)} />
@@ -162,8 +177,8 @@ function Invitations() {
           <SettingsButtonRow label="Generar link" onClick={handleCreate} disabled={creating} />
         </SettingsGroup>
 
-        {loading ? (
-          <ListSkeleton />
+        {isLoading ? (
+          <InvitationsSkeleton />
         ) : invitations.length === 0 ? (
           <p className="px-4 text-subhead text-ink-soft">Todavía no generaste ninguna invitación.</p>
         ) : (

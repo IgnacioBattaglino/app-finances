@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
-import { getAssets } from '../lib/assets.js'
-import { getAssetTypes } from '../lib/assetTypes.js'
-import { getContributions } from '../lib/contributions.js'
+import { useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getAssets, getArchivedAssets } from '../lib/assets.js'
+import { getAssetTypes, getArchivedAssetTypes } from '../lib/assetTypes.js'
+import { getAllContributions } from '../lib/contributions.js'
 import { getLatestValuations } from '../lib/valuations.js'
-import { resolveAssetPrices } from '../lib/portfolioPrices.js'
+import { resolveAssetPrices, instrumentsToPrice } from '../lib/portfolioPrices.js'
 import {
   valueAsset,
   computePortfolioValue,
@@ -12,74 +13,56 @@ import {
   totalableAssets,
 } from '../lib/portfolio.js'
 
-// Carga del portafolio + valuación de cada activo, en un solo lugar. Nació de
-// Portafolio, que era el único que lo hacía; Inicio necesita exactamente el
-// mismo total invertido (mismo precio en vivo, mismo filtro include_in_total),
-// así que en vez de duplicar las cuatro consultas y el cálculo, las dos
-// pantallas consumen esto. Portafolio usa todo lo que devuelve; Inicio, solo
-// totalValue.
+const assetsKey = ['portfolio', 'assets']
+// Exportada: AssetTypes.jsx (lista de grupos, bloque 06) la reusa en su
+// propia useQuery para compartir esta misma caché sin arrastrar assets,
+// contribuciones y valuaciones -- lo único que esa pantalla necesita.
+export const assetTypesKey = ['portfolio', 'assetTypes']
+const contributionsKey = ['portfolio', 'contributions']
+const valuationsKey = ['portfolio', 'valuations']
+
+// Carga del portafolio + valuación de cada activo, en un solo lugar (bloque
+// 01/05). Nació de Portafolio, que era el único que lo hacía; Inicio necesita
+// exactamente el mismo total invertido (mismo precio en vivo, mismo filtro
+// include_in_total), así que en vez de duplicar las cuatro consultas y el
+// cálculo, las dos pantallas consumen esto -- ahora sobre la caché
+// compartida (queryClient.js): volver a Inversiones desde Inicio, o al
+// revés, no vuelve a mostrar un esqueleto.
+//
+// `loading` es "no hay nada que mostrar todavía" (ninguna de las cuatro trajo
+// datos aún), no "está refrescando".
 export function usePortfolio() {
-  const [assets, setAssets] = useState([])
-  const [assetTypes, setAssetTypes] = useState([])
-  const [contributions, setContributions] = useState([])
-  const [latestValuations, setLatestValuations] = useState({})
-  const [prices, setPrices] = useState({})
-  const [pricesAt, setPricesAt] = useState(null)
-  const [pricesFailed, setPricesFailed] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const queryClient = useQueryClient()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [assetsData, assetTypesData, contributionsData, valuationsData] = await Promise.all([
-        getAssets(),
-        getAssetTypes(),
-        getContributions(),
-        getLatestValuations(),
-      ])
-      setAssets(assetsData)
-      setAssetTypes(assetTypesData)
-      setContributions(contributionsData)
-      setLatestValuations(valuationsData)
-    } catch (e) {
-      setError({ message: 'No se pudo cargar el portafolio.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const assetsQuery = useQuery({ queryKey: assetsKey, queryFn: getAssets })
+  const assetTypesQuery = useQuery({ queryKey: assetTypesKey, queryFn: getAssetTypes })
+  const contributionsQuery = useQuery({ queryKey: contributionsKey, queryFn: getAllContributions })
+  const valuationsQuery = useQuery({ queryKey: valuationsKey, queryFn: getLatestValuations })
 
-  const reloadAssetTypes = useCallback(async () => {
-    setAssetTypes(await getAssetTypes())
-  }, [])
+  const assets = assetsQuery.data ?? []
+  const assetTypes = assetTypesQuery.data ?? []
+  const contributions = contributionsQuery.data ?? []
+  const latestValuations = valuationsQuery.data ?? {}
 
-  useEffect(() => {
-    load()
-  }, [load])
-
-  // El precio no bloquea el primer render (las APIs externas son la parte más
-  // lenta de la carga): se pide aparte una vez que sabemos qué activos están
-  // enganchados a un instrumento, y actualiza prices/pricesAt cuando llega.
-  useEffect(() => {
-    let cancelled = false
-    resolveAssetPrices(assets)
-      .then(({ prices: resolved, failed, at }) => {
-        if (cancelled) return
-        setPricesFailed(failed)
-        setPrices(resolved)
-        setPricesAt(at)
-      })
-      .catch(() => {
-        // Traer cierres pega contra la base y puede fallar como cualquier
-        // consulta. No es motivo para romper la pantalla: los activos caen a
-        // su valuación manual y el aviso de precios lo dice.
-        if (!cancelled) setPricesFailed(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [assets])
+  // Los precios en vivo son la parte más lenta (APIs externas) y cambian todo
+  // el tiempo: consulta aparte, sin persistir (meta.persist false), con la
+  // llave armada a partir de los instrumentos enganchados -- así cambia sola
+  // cuando cambia el set de activos de valuación automática.
+  const instrumentIds = useMemo(
+    () =>
+      instrumentsToPrice(assets)
+        .map((i) => i.id)
+        .sort(),
+    [assets],
+  )
+  const pricesQuery = useQuery({
+    queryKey: ['portfolio', 'prices', instrumentIds.join(',')],
+    queryFn: () => resolveAssetPrices(assets),
+    meta: { persist: false },
+  })
+  const prices = pricesQuery.data?.prices ?? {}
+  const pricesAt = pricesQuery.data?.at ?? null
+  const pricesFailed = pricesQuery.data?.failed ?? false
 
   // Valuación calculada por activo. El `at` de los precios en vivo es para
   // mostrar "cotizado hace un rato" (ver SourceTag), no entra en el cálculo.
@@ -98,12 +81,44 @@ export function usePortfolio() {
     valuations,
   )
 
+  const loading =
+    assetsQuery.isLoading ||
+    assetTypesQuery.isLoading ||
+    contributionsQuery.isLoading ||
+    valuationsQuery.isLoading
+
+  const firstError = [assetsQuery, assetTypesQuery, contributionsQuery, valuationsQuery].find(
+    (q) => q.error,
+  )?.error
+  const error = firstError ? { message: 'No se pudo cargar el portafolio.', detail: firstError } : null
+
+  function reload() {
+    assetsQuery.refetch()
+    assetTypesQuery.refetch()
+    contributionsQuery.refetch()
+    valuationsQuery.refetch()
+  }
+
+  // Un grupo creado al vuelo desde AssetFormModal entra a la lista sin
+  // recargarla, mismo patrón que addAccount/addCategory -- ese formulario ya
+  // lo necesita para poblar su propio <select> antes de que exista una
+  // escritura que invalide la caché.
+  function addAssetType(created) {
+    queryClient.setQueryData(assetTypesKey, (prev) =>
+      (prev ?? []).some((at) => at.id === created.id) ? (prev ?? []) : [...(prev ?? []), created],
+    )
+  }
+
   return {
     assets,
     assetTypes,
     contributions,
     latestValuations,
     valuations,
+    // Los precios en vivo crudos (por instrument_id): AssetDetail los
+    // reusa para los formularios de aporte/transferencia en vez de
+    // resolverlos de nuevo para un solo activo.
+    prices,
     totalValue: computePortfolioValue(assets, valuations),
     totalContributed: computePortfolioContributed(assets, valuations),
     valuedContributed,
@@ -111,7 +126,38 @@ export function usePortfolio() {
     pricesFailed,
     loading,
     error,
-    reload: load,
-    reloadAssetTypes,
+    reload,
+    addAssetType,
+  }
+}
+
+// Los activos archivados, que Portafolio muestra aparte y ofrece restaurar.
+// Aparte de usePortfolio (y no dentro) porque Inicio no los necesita: pedirlos
+// ahí sería una consulta de más que nadie mira.
+export function useArchivedAssets() {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['portfolio', 'archivedAssets'],
+    queryFn: getArchivedAssets,
+  })
+  return {
+    archivedAssets: data ?? [],
+    loading: isLoading,
+    error: error ? { message: 'No se pudieron cargar los activos archivados.', detail: error } : null,
+    reload: refetch,
+  }
+}
+
+// Los grupos archivados, que AssetTypes/AssetTypeDetail ofrecen restaurar --
+// mismo criterio que useArchivedAssets.
+export function useArchivedAssetTypes() {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['portfolio', 'archivedAssetTypes'],
+    queryFn: getArchivedAssetTypes,
+  })
+  return {
+    archivedAssetTypes: data ?? [],
+    loading: isLoading,
+    error: error ? { message: 'No se pudieron cargar los grupos archivados.', detail: error } : null,
+    reload: refetch,
   }
 }

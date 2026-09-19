@@ -13,13 +13,13 @@ import { movementType, isMovedMoneyType } from '../../lib/systemCategories.js'
 // lista no tiene un branch aparte para una cuenta de ahorro (es siempre la
 // misma cuenta) — sin esto, CUALQUIER reparto o transferencia que cae en el
 // historial de una cuenta se ve como un gasto o un ingreso real.
-function TransactionRow({ tx, onClick }) {
+function TransactionRow({ tx, onClick, highlighted = false }) {
   const isMoved = isMovedMoneyType(movementType(tx))
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left pressable"
+      className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left pressable ${highlighted ? 'animate-highlight' : ''}`}
     >
       <div className="min-w-0">
         <p className="flex items-center gap-1.5 truncate text-body">
@@ -44,7 +44,15 @@ function TransactionRow({ tx, onClick }) {
 
 // Historial completo de la cuenta, paginado con "Ver más" — mismo patrón que
 // AssetHistory en el detalle de un activo.
-function AccountHistory({ transactions, hasMore, loadingMore, loadMoreError, onLoadMore, onEdit }) {
+function AccountHistory({
+  transactions,
+  hasMore,
+  loadingMore,
+  loadMoreError,
+  onLoadMore,
+  onEdit,
+  highlightId,
+}) {
   if (transactions.length === 0) {
     return (
       <p className="surface px-4 py-8 text-center text-subhead text-ink-soft">
@@ -57,7 +65,12 @@ function AccountHistory({ transactions, hasMore, loadingMore, loadMoreError, onL
     <div className="space-y-3">
       <div className="list">
         {transactions.map((tx) => (
-          <TransactionRow key={tx.id} tx={tx} onClick={() => onEdit(tx)} />
+          <TransactionRow
+            key={tx.id}
+            tx={tx}
+            onClick={() => onEdit(tx)}
+            highlighted={tx.id === highlightId}
+          />
         ))}
       </div>
       {hasMore && (

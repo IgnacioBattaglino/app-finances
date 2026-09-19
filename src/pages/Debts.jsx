@@ -1,21 +1,33 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import PageHeader from '../components/PageHeader.jsx'
 import Money from '../components/Money.jsx'
 import DebtFormModal from '../components/DebtFormModal.jsx'
 import DebtPaymentModal from '../components/DebtPaymentModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
+import { useDebts } from '../hooks/useDebts.js'
 import { ErrorNotice } from '../components/form/FormError.jsx'
-import {
-  getDebts,
-  debtBalance,
-  totalPaid,
-  payoffProgress,
-  summarizeDebts,
-} from '../lib/debts.js'
+import { debtBalance, totalPaid, payoffProgress, summarizeDebts } from '../lib/debts.js'
 import { formatUSD, formatDayYear, formatPercent } from '../lib/format.js'
 import { Pencil } from '../components/Icons.jsx'
-import ListSkeleton from '../components/ListSkeleton.jsx'
+
+// La tarjeta del resumen (con un marcador en el monto grande) más una
+// tarjeta de deuda genérica: la misma forma, sea cual sea el número real de
+// deudas que traiga la consulta.
+function DebtsSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Cargando">
+      <div className="surface px-5 pt-5 pb-4">
+        <span className="placeholder h-3.5 w-32" />
+        <div className="placeholder mt-2 h-9 w-36" />
+      </div>
+      <div className="surface px-5 pt-4 pb-4">
+        <span className="placeholder h-3.5 w-24" />
+        <div className="placeholder mt-2 h-6 w-28" />
+      </div>
+    </div>
+  )
+}
 
 // Barra de avance del pago. Es la única señal visual propia de esta pantalla:
 // la parte accent es lo ya pagado. Verde y no clay a propósito — pagar una deuda
@@ -82,7 +94,7 @@ export function DebtCard({ debt, expanded, onToggle, onEdit, onPay, onEditPaymen
           <Pencil />
         </button>
 
-        <p className="mt-1.5 text-[28px] leading-none font-semibold">
+        <p className="text-title1 mt-1.5 leading-none font-semibold">
           <Money value={balance} />
         </p>
         <p className="mt-1.5 text-footnote text-ink-soft">
@@ -137,38 +149,21 @@ function Debts() {
   // carga, con la primera preseleccionada.
   const { accounts, defaultAccountId, addAccount } = useAccounts()
   const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
-  const [debts, setDebts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const { debts, loading, error, reload: load } = useDebts()
   const [expandedId, setExpandedId] = useState(null)
   const [showSettled, setShowSettled] = useState(false)
   const [debtModal, setDebtModal] = useState({ open: false, editing: null })
   const [paymentModal, setPaymentModal] = useState({ open: false, debt: null, editing: null })
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      setDebts(await getDebts())
-    } catch (e) {
-      setError({ message: 'No se pudieron cargar las deudas.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
 
   function closeModals() {
     setDebtModal({ open: false, editing: null })
     setPaymentModal({ open: false, debt: null, editing: null })
   }
 
+  // Guardar no vacía nada: cierra el modal y listo, la invalidación global
+  // refresca la lista de deudas por detrás (ver lib/queryClient.js).
   function refresh() {
     closeModals()
-    load()
   }
 
   const { active, settled, totalBalance, totalOriginal, totalPaid: paidAll } = summarizeDebts(debts)
@@ -194,7 +189,7 @@ function Debts() {
       />
 
       {loading ? (
-        <ListSkeleton />
+        <DebtsSkeleton />
       ) : error ? (
         <ErrorNotice error={error} onRetry={load} />
       ) : debts.length === 0 ? (
@@ -219,7 +214,7 @@ function Debts() {
           <div className="surface overflow-hidden">
             <div className="px-5 pt-5 pb-4">
               <span className="eyebrow">Te queda por pagar</span>
-              <p className="mt-2 text-[40px] leading-none font-semibold md:text-[44px]">
+              <p className="text-display mt-2 leading-none font-semibold md:text-[44px]">
                 <Money value={totalBalance} />
               </p>
               <PayoffBar progress={overallProgress} className="mt-4" />

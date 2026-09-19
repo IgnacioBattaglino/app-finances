@@ -54,6 +54,23 @@ function monthRange(month, year) {
   return { start, next }
 }
 
+// El portafolio ENTERO, sin filtrar por activo: lo que usa usePortfolio para
+// calcular valuaciones y totales. A diferencia de getContributions() sin
+// argumentos, PAGINA (fetchAllPages, lib/pagination.js): con años de
+// historia en varios activos, esta consulta sí puede pasar el corte
+// silencioso de 1000 filas de PostgREST -- getContributions({ assetId }),
+// acotada a un solo activo, no lo hace en la práctica y se deja como está.
+export async function getAllContributions() {
+  return fetchAllPages((from, to) =>
+    supabase
+      .from('contributions')
+      .select('*')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(from, to),
+  )
+}
+
 export async function getContributions({ assetId, month, year, limit, offset = 0 } = {}) {
   let query = supabase.from('contributions').select('*')
 

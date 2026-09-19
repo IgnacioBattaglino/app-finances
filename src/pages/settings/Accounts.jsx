@@ -1,17 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getAccounts, reorderAccounts } from '../../lib/liquidAccounts.js'
-import { getAccountBalances } from '../../lib/liquid.js'
+import { reorderAccounts } from '../../lib/liquidAccounts.js'
 import { formatByCurrency } from '../../lib/format.js'
 import PageHeader from '../../components/PageHeader.jsx'
 import { SettingsGroup, SettingsCreateRow } from '../../components/settings/SettingsList.jsx'
-import ListSkeleton from '../../components/ListSkeleton.jsx'
 import { ErrorNotice } from '../../components/form/FormError.jsx'
 import AccountCreateForm from '../../components/form/AccountCreateForm.jsx'
 import { ReorderableRows } from '../../components/settings/ReorderableRows.jsx'
 import LiquidModal from '../../components/LiquidModal.jsx'
 import AccountTransferModal from '../../components/account/AccountTransferModal.jsx'
+import { useAccountBalances } from '../../hooks/useAccountBalances.js'
 import { ChevronRight, Grip } from '../../components/Icons.jsx'
+
+// El grupo "Disponible" con dos filas, con la MISMA forma que el contenido
+// (`list`/`row`) y un `.placeholder` en vez del nombre y el saldo. Los dos
+// botones de arriba (Contar mi plata / Transferir) no dependen de esta
+// consulta -- se quedan afuera del esqueleto y siguen tocables desde el
+// primer cuadro.
+function AccountsSkeleton() {
+  return (
+    <div className="list" aria-busy="true" aria-label="Cargando">
+      {[0, 1].map((r) => (
+        <div key={r} className="row">
+          <span className="placeholder h-3.5 w-2/5" />
+          <span className="placeholder h-3.5 w-1/5" />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 // Alta al pie de la lista, escondida hasta que se la pide: mismo patrón que
 // "Nueva categoría". `extended` le agrega moneda y tipo — acá, y solo acá, se
@@ -73,54 +90,38 @@ function AccountRow({ account, dragHandlers }) {
 }
 
 function Accounts() {
-  const [accounts, setAccounts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const { accounts, loading, error: loadError, reload: load, setAccountsOptimistic } = useAccountBalances()
+  const [reorderError, setReorderError] = useState(null)
+  const error = loadError ?? reorderError
   const [reconcileOpen, setReconcileOpen] = useState(false)
   const [transferOpen, setTransferOpen] = useState(false)
 
-  async function load() {
-    setLoading(true)
-    setError(null)
-    try {
-      const [accountRows, balances] = await Promise.all([getAccounts(), getAccountBalances()])
-      const byId = new Map(balances.map((b) => [b.account_id, Number(b.amount)]))
-      setAccounts(accountRows.map((a) => ({ ...a, amount: byId.get(a.id) ?? 0 })))
-    } catch (e) {
-      setError({ message: 'No se pudieron cargar las cuentas.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
-
   // Reordena SOLO el subconjunto que se arrastró (uso diario o ahorro): cada
   // grupo se ordena por separado y el resultado se mezcla de vuelta en la
-  // lista completa, sin pisar al otro grupo.
+  // lista completa, sin pisar al otro grupo. El escrito optimista es sobre la
+  // caché compartida (ver useAccountBalances): no hace falta esperar la
+  // invalidación para ver el nuevo orden.
   async function commitOrder(orderedSubset) {
     const positioned = new Map(orderedSubset.map((a, i) => [a.id, i]))
-    setAccounts((prev) =>
+    setAccountsOptimistic((prev) =>
       prev.map((a) => (positioned.has(a.id) ? { ...a, position: positioned.get(a.id) } : a)),
     )
     try {
       await reorderAccounts(orderedSubset)
     } catch (e) {
-      setError({ message: 'No se pudo guardar el orden.', detail: e })
+      setReorderError({ message: 'No se pudo guardar el orden.', detail: e })
       load()
     }
   }
 
+  // Guardar no vacía nada: cerrar el modal alcanza, la invalidación global
+  // refresca los saldos por detrás (ver lib/queryClient.js).
   function afterReconciled() {
     setReconcileOpen(false)
-    load()
   }
 
   function afterTransferred() {
     setTransferOpen(false)
-    load()
   }
 
   const dailyAccounts = accounts.filter((a) => !a.is_savings)
@@ -134,7 +135,13 @@ function Accounts() {
       />
 
       <div className="space-y-7">
-        <ErrorNotice error={error} onRetry={load} />
+        <ErrorNotice
+          error={error}
+          onRetry={() => {
+            setReorderError(null)
+            load()
+          }}
+        />
 
         {/* Las dos operaciones sobre las cuentas, juntas y arriba: la fila de
             acciones rápidas de cualquier app de banco. Antes eran dos tarjetas
@@ -151,7 +158,7 @@ function Accounts() {
         </div>
 
         {loading ? (
-          <ListSkeleton rows={3} />
+          <AccountsSkeleton />
         ) : (
           <>
             <SettingsGroup
@@ -178,7 +185,9 @@ function Accounts() {
             {/* Crear una cuenta es raro: va al final, donde va a aparecer la
                 cuenta nueva, y no en el botón "+" de las acciones frecuentes. */}
             <SettingsGroup>
-              <NewAccountRow onCreated={(created) => setAccounts((prev) => [...prev, { ...created, amount: 0 }])} />
+              <NewAccountRow
+                onCreated={(created) => setAccountsOptimistic((prev) => [...prev, created])}
+              />
             </SettingsGroup>
           </>
         )}

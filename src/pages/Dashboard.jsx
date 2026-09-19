@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import CommitmentReminder from '../components/commitments/CommitmentReminder.jsx'
@@ -8,15 +8,11 @@ import TransactionFormModal from '../components/TransactionFormModal.jsx'
 import { ErrorNotice } from '../components/form/FormError.jsx'
 import InfoButton from '../components/InfoButton.jsx'
 import { usePortfolio } from '../hooks/usePortfolio.js'
-import {
-  computeCurrentLiquid,
-  totalsByCurrency,
-  visibleBreakdown,
-  summarizeSavingsCard,
-  sumToUsd,
-} from '../lib/liquid.js'
+import { useLiquid } from '../hooks/useLiquid.js'
+import { useDebts } from '../hooks/useDebts.js'
+import { totalsByCurrency, visibleBreakdown, summarizeSavingsCard, sumToUsd } from '../lib/liquid.js'
 import { toUsd } from '../lib/localCurrency.js'
-import { getDebts, summarizeDebts } from '../lib/debts.js'
+import { summarizeDebts } from '../lib/debts.js'
 import { formatARS, formatUSD, todayISO } from '../lib/format.js'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useDuePayments } from '../hooks/useCommitments.js'
@@ -33,7 +29,7 @@ const PortfolioEvolutionChart = lazy(() => loadCharts().then((m) => ({ default: 
 const ExpensesBlock = lazy(() => loadCharts().then((m) => ({ default: m.ExpensesBlock })))
 
 function ChartPlaceholder({ className = 'h-[380px]' }) {
-  return <div className={`surface animate-pulse ${className}`} aria-busy="true" aria-label="Calculando" />
+  return <div className={`surface ${className}`} aria-busy="true" aria-label="Calculando" />
 }
 
 // Las tres tarjetas comparten componente a propósito: "Dinero disponible",
@@ -169,7 +165,7 @@ function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onTo
           {loading ? (
             <span className="text-subhead text-ink-soft">Calculando…</span>
           ) : (
-            <Money value={totalUsd} className="text-[22px] font-semibold" />
+            <Money value={totalUsd} className="text-title2 font-semibold" />
           )}
           {!loading && <ChevronDown open={open} />}
         </span>
@@ -232,19 +228,10 @@ function Dashboard() {
     .filter((a) => valuations[a.id]?.outdated)
     .map((a) => a.name)
 
-  const [liquid, setLiquid] = useState(null)
-  const [liquidLoading, setLiquidLoading] = useState(true)
-  const [liquidError, setLiquidError] = useState(null)
-
-  const [debts, setDebts] = useState([])
-  const [debtsLoading, setDebtsLoading] = useState(true)
-  const [debtsError, setDebtsError] = useState(null)
+  const { liquid, loading: liquidLoading, error: liquidError, reload: loadLiquid } = useLiquid()
+  const { debts, loading: debtsLoading, error: debtsError, reload: loadDebts } = useDebts()
 
   const [expenseModalOpen, setExpenseModalOpen] = useState(false)
-  // Se incrementa al guardar un movimiento, para que el bloque de gastos se
-  // entere. Antes solo se recargaba el disponible y el bloque de abajo —en la
-  // misma pantalla— seguía mostrando los números viejos.
-  const [expensesVersion, setExpensesVersion] = useState(0)
 
   // El total convertido (ver más abajo) y si su detalle por moneda está
   // desplegado. Arranca cerrado: el número ya convertido es lo que se lee de
@@ -252,35 +239,6 @@ function Dashboard() {
   const [usdTotals, setUsdTotals] = useState(null)
   const [usdTotalsError, setUsdTotalsError] = useState(null)
   const [totalOpen, setTotalOpen] = useState(false)
-
-  const loadLiquid = useCallback(async () => {
-    setLiquidLoading(true)
-    setLiquidError(null)
-    try {
-      setLiquid(await computeCurrentLiquid())
-    } catch (e) {
-      setLiquidError({ message: 'No se pudo calcular el disponible.', detail: e })
-    } finally {
-      setLiquidLoading(false)
-    }
-  }, [])
-
-  const loadDebts = useCallback(async () => {
-    setDebtsLoading(true)
-    setDebtsError(null)
-    try {
-      setDebts(await getDebts())
-    } catch (e) {
-      setDebtsError({ message: 'No se pudieron cargar las deudas.', detail: e })
-    } finally {
-      setDebtsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadLiquid()
-    loadDebts()
-  }, [loadLiquid, loadDebts])
 
   // El Total (disponible + ahorrado + invertido, todo a dólares de hoy) es la
   // única cuenta de la pantalla que mezcla monedas — todo lo demás se
@@ -332,14 +290,12 @@ function Dashboard() {
     }
   }, [liquid, liquidError, totalValue, portfolioLoading, portfolioError])
 
-  // Un gasto nuevo mueve el disponible; una reconciliación, también. Y las dos
-  // cosas son movimientos, así que el bloque de gastos también se recalcula:
-  // una reconciliación inserta una transaction de ajuste, que cuenta como
-  // cualquier otra.
+  // Guardar no vacía nada: cierra el modal y listo. La escritura ya invalidó
+  // toda la caché del usuario (ver lib/queryClient.js) -- el disponible y el
+  // bloque de gastos se refrescan solos por detrás, sin ningún token que
+  // alguien tenga que acordarse de subir.
   function afterLiquidChanged() {
     setExpenseModalOpen(false)
-    loadLiquid()
-    setExpensesVersion((v) => v + 1)
   }
 
   // Desglose del disponible por cuenta, para la tarjeta. El balde "sin
@@ -545,7 +501,7 @@ function Dashboard() {
         {/* Gastos: se maneja solo (transactions no depende de usePortfolio),
             con su propio loading/error/Reintentar. */}
         <Suspense fallback={<ChartPlaceholder className="h-[140px]" />}>
-          <ExpensesBlock reloadToken={expensesVersion} />
+          <ExpensesBlock />
         </Suspense>
       </div>
 

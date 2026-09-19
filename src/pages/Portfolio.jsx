@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import AssetGroup, { AssetRow } from '../components/AssetGroup.jsx'
@@ -7,8 +7,7 @@ import ValuationModal from '../components/ValuationModal.jsx'
 import Gain from '../components/Gain.jsx'
 import Money from '../components/Money.jsx'
 import { ErrorNotice } from '../components/form/FormError.jsx'
-import { usePortfolio } from '../hooks/usePortfolio.js'
-import { useScrollRestoration } from '../hooks/useScrollRestoration.js'
+import { usePortfolio, useArchivedAssets } from '../hooks/usePortfolio.js'
 import {
   needsManualValuation,
   portfolioEntries,
@@ -16,10 +15,42 @@ import {
   PORTFOLIO_SORTS,
 } from '../lib/portfolio.js'
 import { readStoredPortfolioSortId, storePortfolioSortId } from '../lib/portfolioSort.js'
-import { getArchivedAssets, restoreAsset } from '../lib/assets.js'
+import { restoreAsset } from '../lib/assets.js'
 import { formatUSD } from '../lib/format.js'
-import ListSkeleton from '../components/ListSkeleton.jsx'
 import { ChevronDown, ChevronRight } from '../components/Icons.jsx'
+
+// El esqueleto tiene la FORMA del contenido: la tarjeta del total con un
+// marcador en el monto grande, la fila de herramientas y dos grupos de dos
+// filas -- las mismas clases (`surface`, `list`, `row`) que el contenido
+// real, con un `.placeholder` en vez de texto. Nunca `animate-pulse`.
+function PortfolioSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Cargando">
+      <div className="surface px-5 pt-5 pb-4">
+        <span className="placeholder h-3.5 w-28" />
+        <div className="placeholder mt-3 h-10 w-40" />
+      </div>
+      <div className="flex min-h-11 items-center px-1">
+        <span className="placeholder h-3.5 w-16" />
+      </div>
+      {[0, 1].map((g) => (
+        <div key={g} className="list">
+          <div className="bg-mist px-4 py-3">
+            <span className="placeholder h-3.5 w-24" />
+          </div>
+          <div className="rows">
+            {[0, 1].map((r) => (
+              <div key={r} className="row">
+                <span className="placeholder h-3.5 w-2/5" />
+                <span className="placeholder h-3.5 w-1/5" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 // Gestión de grupos a la izquierda, orden a la derecha (ver el render).
 function ListToolbar({ sortId, onSortChange }) {
@@ -71,14 +102,10 @@ function Portfolio() {
     loading,
     error,
     reload: load,
-    reloadAssetTypes: refreshAssetTypes,
+    addAssetType,
   } = usePortfolio()
 
-  // Volver de un activo o del detalle de un grupo (se entra tocando el
-  // encabezado) devuelve a la lista donde estaba, no arriba de todo. Espera a
-  // que la lista esté cargada: antes de eso la página no tiene alto que
-  // scrollear.
-  useScrollRestoration('portafolio', !loading)
+  const { archivedAssets, error: loadArchivedError, reload: loadArchived } = useArchivedAssets()
 
   const [assetModal, setAssetModal] = useState({ open: false, editing: null })
   const [valuationModal, setValuationModal] = useState({ open: false, assets: [] })
@@ -86,37 +113,24 @@ function Portfolio() {
   // El orden de la lista se recuerda por dispositivo, como el acento y el modo
   // claro/oscuro (ver lib/portfolioSort.js). Se lee una sola vez, al montar.
   const [sortId, setSortId] = useState(readStoredPortfolioSortId)
+  const [showArchived, setShowArchived] = useState(false)
+  const [restoreError, setRestoreError] = useState(null)
+  const archivedError = loadArchivedError ?? restoreError
 
   function handleSortChange(id) {
     setSortId(id)
     storePortfolioSortId(id)
   }
 
-  const [archivedAssets, setArchivedAssets] = useState([])
-  const [archivedError, setArchivedError] = useState(null)
-  const [showArchived, setShowArchived] = useState(false)
-
-  async function loadArchived() {
-    setArchivedError(null)
-    try {
-      setArchivedAssets(await getArchivedAssets())
-    } catch (e) {
-      setArchivedError({ message: 'No se pudieron cargar los activos archivados.', detail: e })
-    }
-  }
-
-  useEffect(() => {
-    loadArchived()
-  }, [])
-
+  // Ni `load()` ni `loadArchived()` después de restaurar: la escritura ya
+  // invalida toda la caché del usuario sola (ver lib/queryClient.js), así que
+  // las dos consultas se refrescan por detrás sin que la pantalla se lo pida.
   async function handleRestore(id) {
-    setArchivedError(null)
+    setRestoreError(null)
     try {
       await restoreAsset(id)
-      setArchivedAssets((prev) => prev.filter((a) => a.id !== id))
-      load()
     } catch (e) {
-      setArchivedError({ message: 'No se pudo restaurar el activo.', detail: e })
+      setRestoreError({ message: 'No se pudo restaurar el activo.', detail: e })
     }
   }
 
@@ -139,9 +153,10 @@ function Portfolio() {
     setValuationModal({ open: false, assets: [] })
   }
 
+  // Guardar no vacía nada: cierra el modal y listo, la invalidación global
+  // refresca la lista por detrás (ver lib/queryClient.js).
   function refresh() {
     closeModals()
-    load()
   }
 
   // Las mismas dos acciones en los dos lugares donde tienen sentido: en el
@@ -182,7 +197,7 @@ function Portfolio() {
       />
 
       {loading ? (
-        <ListSkeleton />
+        <PortfolioSkeleton />
       ) : error ? (
         <ErrorNotice error={error} onRetry={load} />
       ) : assets.length === 0 ? (
@@ -214,7 +229,7 @@ function Portfolio() {
             <div className="px-5 pt-5 pb-4 md:flex md:items-end md:justify-between md:gap-8">
               <div>
                 <span className="eyebrow">Dinero invertido</span>
-                <p className="mt-2 text-[40px] leading-none font-semibold md:text-[44px]">
+                <p className="text-display mt-2 leading-none font-semibold md:text-[44px]">
                   <Money value={totalValue} />
                 </p>
               </div>
@@ -311,7 +326,14 @@ function Portfolio() {
       {/* Archivados: mismo patrón visual que "Archivadas (N)" de Ajustes.
           Se muestra siempre que haya alguno, independiente del estado de los
           activos activos (incluido el portafolio vacío). */}
-      <ErrorNotice error={archivedError} onRetry={loadArchived} className="mt-4" />
+      <ErrorNotice
+        error={archivedError}
+        onRetry={() => {
+          setRestoreError(null)
+          loadArchived()
+        }}
+        className="mt-4"
+      />
       {archivedAssets.length > 0 && (
         <div className="mt-8">
           <button
@@ -352,13 +374,10 @@ function Portfolio() {
         initial={assetModal.editing}
         assetTypes={assetTypes}
         assets={assets}
-        onAssetTypesChanged={refreshAssetTypes}
+        onAssetTypesChanged={addAssetType}
         onClose={closeModals}
         onSaved={refresh}
-        onArchived={() => {
-          refresh()
-          loadArchived()
-        }}
+        onArchived={refresh}
       />
       <ValuationModal
         open={valuationModal.open}

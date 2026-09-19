@@ -11,8 +11,35 @@ import {
   visibleBreakdown,
   summarizeSavingsCard,
   sumToUsd,
+  batchesByTransaction,
 } from './liquid.js'
 import { round } from './money.js'
+
+// Extraída para useMovements (bloque 05, caché compartida): el Map se arma
+// acá y no en la consulta, porque un Map no sobrevive el paso por
+// localStorage (ver lib/queryClient.js).
+describe('batchesByTransaction', () => {
+  it('mapea el ajuste y el reparto de una fila a su batch_id', () => {
+    const rows = [
+      { batch_id: 'b1', adjustment_transaction_id: 't1', redistribution_transaction_id: 't2' },
+    ]
+    const byTransaction = batchesByTransaction(rows)
+    expect(byTransaction.get('t1')).toBe('b1')
+    expect(byTransaction.get('t2')).toBe('b1')
+  })
+
+  it('una fila sin batch_id (conteo anterior a la migración 0042) no aporta nada', () => {
+    const rows = [{ batch_id: null, adjustment_transaction_id: 't1', redistribution_transaction_id: null }]
+    expect(batchesByTransaction(rows).size).toBe(0)
+  })
+
+  it('filas sin ajuste o sin reparto no meten claves null', () => {
+    const rows = [{ batch_id: 'b1', adjustment_transaction_id: null, redistribution_transaction_id: 't2' }]
+    const byTransaction = batchesByTransaction(rows)
+    expect(byTransaction.has(null)).toBe(false)
+    expect(byTransaction.get('t2')).toBe('b1')
+  })
+})
 
 describe('computeLiquidFromCollections', () => {
   it('colecciones vacías → 0', () => {

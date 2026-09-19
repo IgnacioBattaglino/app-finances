@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useTheme } from '../hooks/useTheme.jsx'
 import { readChartColors } from '../lib/chartColors.js'
 import { ErrorNotice } from './form/FormError.jsx'
 import MoneyStack from './MoneyStack.jsx'
-import { getExpenses } from '../lib/transactions.js'
+import { useExpenses } from '../hooks/useExpenses.js'
 import {
-  lastMonths,
-  monthKey,
   monthLabel,
   fullMonthName,
   sumByCurrency,
@@ -16,8 +14,6 @@ import {
   previousMonthToDate,
   monthOverMonthPct,
   groupByCategory,
-  countMonthsWithData,
-  monthlyUsdTotals,
 } from '../lib/expensesSummary.js'
 import { formatByCurrency, formatUSD, formatPercent, formatCompactNumber, todayISO } from '../lib/format.js'
 import { currencyLines } from '../lib/currencyTotals.js'
@@ -54,82 +50,30 @@ function BarTooltip({ active, payload }) {
 // categoría y serie de 12 meses en USD. Todo sale de transactions, kind
 // 'expense', sin categorías de sistema (getExpenses ya las excluye) — ninguna
 // operación del portafolio escribe ahí, así que no hace falta más filtro.
-// `reloadToken` cambia cada vez que se guarda un movimiento desde Inicio. Sin
-// eso, el bloque solo se cargaba al montarse: cargabas un gasto con el botón
-// "+" de esta misma pantalla, el "Dinero disponible" de arriba se actualizaba
-// y acá abajo seguía diciendo "$ 0 · Sin gastos este mes" hasta recargar la
-// app entera. Es un token y no los gastos ya cargados a propósito: quien
-// guarda no tiene por qué saber qué consulta hace este bloque.
-function ExpensesBlock({ reloadToken = 0 }) {
+// Sobre la caché compartida (bloque 05): ya no hace falta ningún token que
+// alguien suba al guardar -- toda escritura invalida esta consulta sola (ver
+// lib/queryClient.js), así que cargar un gasto con el "+" de Inicio actualiza
+// este bloque solo, sin que nadie se lo pida.
+function ExpensesBlock() {
   const { accent, isDark } = useTheme()
   // accent e isDark no se usan adentro a propósito: son la SEÑAL de que las
   // variables CSS cambiaron, y readChartColors las lee del DOM. Sin ellas en
   // las deps el gráfico se quedaría con los colores del tema anterior.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const colors = useMemo(() => readChartColors(), [accent, isDark])
-  const [expenses, setExpenses] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  // La serie en dólares se carga aparte, con su propio estado y su propio
-  // error. Antes iba dentro del mismo try que los gastos: si fallaba la
-  // conversión a dólares (que necesita la serie de cotizaciones) se caía el
-  // bloque ENTERO y desaparecían el total del mes y el desglose por
-  // categoría, que ya estaban cargados y son lo que se mira todos los días.
-  // Un gráfico secundario no puede llevarse puesto el número principal.
-  const [usdSeries, setUsdSeries] = useState(null)
-  const [usdError, setUsdError] = useState(false)
-
+  // La serie en dólares llega aparte, con su propio error: si falla la
+  // conversión (que necesita la serie de cotizaciones) el bloque no se cae
+  // entero -- el total del mes y el desglose por categoría, que ya llegaron,
+  // siguen ahí. Un gráfico secundario no puede llevarse puesto el número
+  // principal.
+  const { expenses, months, loading, error, reload: load, usdSeries, usdError, reloadUsd: loadUsd } =
+    useExpenses()
   const today = todayISO()
-  const months = useMemo(() => lastMonths(today, 12), [today])
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const from = `${monthKey(months[0])}-01`
-      setExpenses(await getExpenses({ from, to: today }))
-    } catch (e) {
-      setError({ message: 'No se pudieron cargar los gastos.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-    // reloadToken entra en las deps para que un movimiento nuevo vuelva a
-    // pedir los gastos; no se usa adentro.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [months, today, reloadToken])
-
-  // Con menos de dos meses de datos no hay serie que dibujar (un solo punto no
-  // es una tendencia) y no se pide ninguna cotización.
-  const loadUsd = useCallback(async () => {
-    if (countMonthsWithData(expenses, months) < 2) {
-      setUsdSeries(null)
-      setUsdError(false)
-      return
-    }
-    setUsdError(false)
-    try {
-      setUsdSeries(await monthlyUsdTotals(expenses, months))
-    } catch {
-      // Sin detalle técnico a la vista: es un gráfico de apoyo, no una
-      // operación que el usuario haya pedido. El detalle no le sirve para
-      // decidir nada; el botón de reintentar, sí.
-      setUsdSeries(null)
-      setUsdError(true)
-    }
-  }, [expenses, months])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  useEffect(() => {
-    loadUsd()
-  }, [loadUsd])
 
   if (loading) {
     return (
       <Section>
-        <div className="surface h-[140px] animate-pulse" aria-busy="true" aria-label="Calculando" />
+        <div className="surface h-[140px]" aria-busy="true" aria-label="Calculando" />
       </Section>
     )
   }

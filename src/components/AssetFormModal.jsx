@@ -146,7 +146,7 @@ function AssetFormModal({ open, initial, assetTypes, assets, onAssetTypesChanged
   }
 
   async function handleBolsaCreated(created) {
-    await onAssetTypesChanged?.()
+    onAssetTypesChanged?.(created)
     setAssetTypeId(created.id)
     setYieldsFlag(created.earns_yield)
     setCreatingBolsa(false)
