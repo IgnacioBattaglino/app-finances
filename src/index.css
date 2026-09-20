@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* El layout de escritorio (columna lateral, tarjetas más chicas, sin FAB)
+   pide ANCHO Y ALTO: un iPhone horizontal mide 844px de ancho pero solo
+   ~390px de alto, y con solo el ancho por condición recibía el layout de
+   escritorio (bloque 12). Pisa el breakpoint `md` de Tailwind entero -- así
+   los ~40 usos de `md:` en src/ (layout) ya quedan cubiertos sin tocarlos
+   uno por uno. El tamaño de los CONTROLES es un eje aparte y no usa esto:
+   depende del puntero (hover:hover + pointer:fine), ver `.btn` más abajo. */
+@custom-variant md (@media (min-width: 48rem) and (min-height: 37.5rem));
+
 /* ---------------------------------------------------------------------------
    SISTEMA VISUAL
    ---------------------------------------------------------------------------
@@ -16,7 +25,10 @@
 
 @theme {
   /* SUPERFICIES — el fondo es gris frío y las tarjetas blancas. La jerarquía
-     la da el contraste entre los dos, no un borde. */
+     la da el contraste entre los dos, no un borde. #f1f2f6 y su versión
+     oscura (#0b0c10, más abajo) están repetidos a mano en el <style>/<script>
+     de arranque de index.html: tienen que coincidir siempre, porque ese
+     fragmento pinta antes de que este CSS llegue (bloque 12). */
   --color-paper: #f1f2f6;
   --color-card: #ffffff;
 
@@ -223,7 +235,7 @@
     max-width: 34rem;
   }
 
-  @media (min-width: 48rem) {
+  @media (min-width: 48rem) and (min-height: 37.5rem) {
     .page {
       max-width: 70rem;
     }
@@ -415,7 +427,11 @@
     transition-duration: var(--duration-fast);
   }
 
-  @media (min-width: 48rem) {
+  /* El tamaño depende del PUNTERO, no del ancho de pantalla (bloque 12): un
+     iPad o un teléfono horizontal siguen tocándose con el dedo aunque tengan
+     ancho de escritorio, así que el botón chico de mouse solo aparece con
+     `hover:hover` + `pointer:fine` -- nunca por un `min-width` solo. */
+  @media (hover: hover) and (pointer: fine) {
     .btn {
       height: 2.25rem;
       padding-inline: 0.875rem;
@@ -425,8 +441,8 @@
   }
 
   /* La acción única de una pantalla que no tiene nada más (login, registro):
-     conserva el tamaño del celular también en desktop. */
-  @media (min-width: 48rem) {
+     conserva el tamaño del celular también con mouse. */
+  @media (hover: hover) and (pointer: fine) {
     .btn-lg {
       height: 3rem;
       border-radius: var(--radius-control);
@@ -533,7 +549,7 @@
     background-color: var(--color-accent-deep);
   }
 
-  @media (min-width: 48rem) {
+  @media (min-width: 48rem) and (min-height: 37.5rem) {
     .fab {
       display: none;
     }
@@ -548,7 +564,7 @@
     text-wrap: balance;
   }
 
-  @media (min-width: 48rem) {
+  @media (min-width: 48rem) and (min-height: 37.5rem) {
     .title-page {
       font-size: 30px;
     }

@@ -19,6 +19,7 @@ Multiusuario con registro por invitación: la única forma de crear una cuenta e
 - **Tres mundos separados**: la app maneja tres magnitudes que se muestran SIEMPRE por separado — el dinero líquido (pesos, operativo, día a día), lo invertido (USD, con rendimiento) y la deuda (saldo restante). NO existe un "patrimonio total" que sume líquido + invertido: pesos inflacionarios y dólares no son comparables ni sumables de forma útil.
 - Monedas: gastos, ingresos y líquido en ARS. Todo lo invertido se mide y se muestra en USD, siempre, porque en pesos las estadísticas se distorsionan por inflación. Cada inversión congela su tipo de cambio en el momento del aporte; las métricas históricas no dependen de la cotización de hoy.
 - Extensible: activos y categorías los gestiona el usuario, no están fijos en el código.
+- **Empaquetado futuro (App Store / Play Store, bloque 12):** hoy la web instalada no puede fijar la orientación — iOS ignora `orientation: portrait` del manifest en una PWA y por eso el layout de escritorio depende de ancho Y alto (`@custom-variant md`, `src/index.css`), no solo del ancho, para no activarse con el teléfono horizontal. Al empaquetar con código nativo (Capacitor o similar), fijar la orientación vertical a nivel del empaquetado resuelve esto de raíz y esa regla de alto deja de hacer falta. Generar también la pantalla de arranque nativa (con variante oscura) en esa instancia: es configuración del empaquetador, no código de la app — las `apple-touch-startup-image` de hoy son el reemplazo web mientras tanto.
 
 ## Navegación ✅
 

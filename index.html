@@ -16,6 +16,28 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
+    <!-- Pantallas de arranque de iOS (bloque 12): el anillo de la app
+         centrado sobre `paper`, para que el hueco entre tocar el ícono y que
+         React monte no se vea blanco/negro liso ni en blanco puro. Generadas
+         renderizando public/apple-splash-*.png con Playwright (ver el
+         comentario del bloque 12 en CLAUDE.md). Un `media` por tamaño exacto
+         de dispositivo (device-width/height a 3x) y por `prefers-color-scheme`;
+         si el tamaño no coincide EXACTO, iOS la ignora sin avisar. Cubre los
+         tres tamaños de iPhone más comunes con pantalla Super Retina: el
+         estándar (390×844), el Pro (393×852) y el Plus/Pro Max (430×932). -->
+    <link rel="apple-touch-startup-image" href="/apple-splash-1170-2532-light.png"
+      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1170-2532-dark.png"
+      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1179-2556-light.png"
+      media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1179-2556-dark.png"
+      media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1290-2796-light.png"
+      media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/apple-splash-1290-2796-dark.png"
+      media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)" />
+
     <!-- theme-color pinta la barra de estado en standalone. Va el FONDO de la
          app (paper), no el acento: el acento es configurable y vive en
          localStorage, pero además el tope de todas las pantallas es paper —
@@ -37,6 +59,39 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Finanzas" />
+
+    <!-- Arranque sin destello (bloque 12). Antes de que llegue el CSS de
+         Vite (y mucho antes de que React monte), este <style> pinta html del
+         mismo fondo que --color-paper de src/index.css -- los dos tienen que
+         coincidir siempre, a mano, no hay una sola fuente porque uno es CSS
+         de la app y el otro tiene que estar disponible ANTES del CSS. Y este
+         <script> síncrono replica el primer paso de applyTheme (lib/theme.js,
+         NO se toca): lee la preferencia guardada y, si es explícita, la pone
+         en <html> antes del primer paint -- si no, entra por el @media de
+         abajo. Misma clave, mismos valores y mismo atributo que lib/theme.js. -->
+    <style>
+      html {
+        background-color: #f1f2f6;
+      }
+      /* Elección explícita en oscuro (mismo criterio de dos reglas que
+         :root[data-theme='dark'] en index.css): tiene que ganar aunque el
+         sistema esté en claro, así que no puede vivir solo adentro del
+         @media de abajo. */
+      html[data-theme='dark'] {
+        background-color: #0b0c10;
+      }
+      @media (prefers-color-scheme: dark) {
+        html:not([data-theme='light']) {
+          background-color: #0b0c10;
+        }
+      }
+    </style>
+    <script>
+      try {
+        var t = localStorage.getItem('finanzas:theme')
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
