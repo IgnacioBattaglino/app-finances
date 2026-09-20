@@ -26,7 +26,8 @@ Multiusuario con registro por invitación: la única forma de crear una cuenta e
 - **Volver retrocede de verdad**: si hay una pantalla anterior dentro de la app, "volver" la recupera del historial (el atrás del sistema nunca reabre una pantalla ya cerrada); si no la hay —un link directo, la PWA reabierta en esa ruta—, vuelve a la pantalla madre sin agregar historia. Después de eliminar algo (una cuenta, un plan, una categoría) la app vuelve por el mismo camino, nunca a una ruta fija a ciegas.
 - **El volver vive siempre en la misma barra**, arriba de cada subpantalla — nunca hay que buscarlo en otro lado ni perderlo scrolleando (en el celular esa barra queda fija; en desktop, arriba del título).
 - **Cambiar de pestaña es instantáneo** y nunca acumula historia; entrar al detalle de algo trae la pantalla nueva desde el costado, y volver hace el camino inverso — dos gestos que se leen distinto porque son cosas distintas.
-- Detalle técnico en `hooks/useGoBack.js` y `components/PageHeader.jsx` (ver CLAUDE.md, "Sistema visual").
+- **Volver deslizando desde el borde izquierdo** (bloque 13, iOS, solo con el dedo): en las pantallas que puede cubrir, reemplaza al gesto nativo de la PWA instalada — que existe pero se ve con un flash en blanco durante la transición y exige una franja de arrastre muy angosta. En el detalle de un activo (que reemplaza la barra de pestañas por la suya) sigue el gesto nativo tal cual: darle el mismo trato ahí exigiría que la barra de pestañas supiera el progreso de un arrastre ajeno a su pantalla.
+- Detalle técnico en `hooks/useGoBack.js`, `components/PageHeader.jsx` y `components/EdgeSwipeBack.jsx` (ver CLAUDE.md, "Sistema visual").
 
 ## Dinero líquido ✅
 

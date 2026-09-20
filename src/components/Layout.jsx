@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useMatches } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import RingsMark from './RingsMark.jsx'
 import { Toaster } from './Toast.jsx'
+import EdgeSwipeBack from './EdgeSwipeBack.jsx'
 import { SETTINGS_PATH } from './Icons.jsx'
 import { categoriesQueryKey } from '../hooks/useCategories.js'
 import { accountsQueryKey } from '../hooks/useAccounts.js'
@@ -159,9 +160,12 @@ function Layout() {
             no un valor fijo: la propia barra reserva su lugar. Los laterales
             son el mayor entre 16px y la zona segura, para el empaquetado a
             pantalla completa (ver "Sistema visual" en CLAUDE.md). */}
-        <div className="pt-[calc(2.75rem+env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-32 pl-[max(1rem,env(safe-area-inset-left))] md:px-10 md:pt-10 md:pb-16">
+        {/* Volver deslizando desde el borde (bloque 13): un componente
+            propio, autocontenido, que solo se arma cuando sabe qué pantalla
+            va a mostrar debajo. Ver EdgeSwipeBack.jsx. */}
+        <EdgeSwipeBack className="pt-[calc(2.75rem+env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-32 pl-[max(1rem,env(safe-area-inset-left))] md:px-10 md:pt-10 md:pb-16">
           <Outlet />
-        </div>
+        </EdgeSwipeBack>
       </main>
 
       {!ownBottomBar && (

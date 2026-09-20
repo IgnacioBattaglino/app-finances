@@ -673,11 +673,19 @@ Si hay que recortar algo de esta propuesta, **es esto**: con C.2 el volver
 siempre está a la vista, y la app es usable sin el gesto. Pero es lo que más
 separa una app de una web en iOS.
 
-**Se cortó, en la puerta de entrada (2026-09-19).** Nacho confirmó que la app
-instalada en su iPhone ya vuelve sola al deslizar desde el borde izquierdo en
-un detalle: iOS tiene el gesto nativo en ese modo. Un gesto propio se
-pelearía con el del sistema, así que este bloque no se implementó — exactamente
-la salida que I.2 preveía.
+**Segundo intento (2026-09-19).** En la puerta de entrada, Nacho confirmó que
+la app instalada en su iPhone ya vuelve sola al deslizar desde el borde
+izquierdo en un detalle — el gesto nativo de iOS existe en ese modo, y el
+bloque se dio por cortado. Probándolo más, apareció el motivo real de I.1:
+el gesto nativo funciona pero se ve mal (la pantalla queda en blanco durante
+la transición) y exige una franja de arrastre muy angosta contra el borde.
+Con eso, y con que el empaquetado futuro (App Store/Play Store) sigue sin
+código nativo — la restricción de I.2 no es transitoria —, se implementó
+igual: `components/EdgeSwipeBack.jsx` reemplaza al gesto nativo suprimiéndolo
+con `overscroll-behavior-x` solo en las pantallas donde sabe qué dibujar
+debajo (el mismo mapa chico ruta-madre → componente que ya usan los `backTo`
+de cada detalle); en el resto —el detalle de un activo, que reemplaza la
+barra de pestañas por la suya— sigue el gesto nativo tal cual.
 
 ---
 
