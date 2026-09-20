@@ -2,7 +2,7 @@
 // apple-design): `damping` (1 = sin rebote) y `response` (segundos; más
 // bajo, más rápido). Es la única primitiva de movimiento guiado por un
 // gesto de la app: la usan los sheets (este bloque) y, después, reordenar y
-// volver deslizando.
+// pasar entre pestañas arrastrando.
 //
 // En el navegador se mueve con requestAnimationFrame; en un entorno sin
 // rAF (los tests, en Node) cae a setTimeout, que los fake timers de vitest

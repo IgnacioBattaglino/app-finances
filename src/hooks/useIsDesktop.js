@@ -11,6 +11,10 @@ import { useSyncExternalStore } from 'react'
 // plegado, siempre abierto desde acá).
 const QUERY = '(min-width: 768px) and (min-height: 600px)'
 
+// La misma pregunta, en el momento (un gesto, un evento): para lo que no
+// necesita re-renderizar cuando cambia.
+export const isDesktopNow = () => window.matchMedia(QUERY).matches
+
 function subscribe(callback) {
   const mql = window.matchMedia(QUERY)
   mql.addEventListener('change', callback)
