@@ -116,6 +116,14 @@ function FormSheet({
   // corrige solo.
   useEffect(() => setWantOpen(open), [open])
 
+  // Montarse en el MISMO render que el toque: si esperara a un efecto, el
+  // `<input autoFocus>` del formulario de gasto recién existiría un render
+  // después, fuera del turno del gesto, y iOS no abre el teclado si el
+  // focus() no ocurre dentro del toque. setState en el render es lo
+  // permitido para derivar estado propio: React re-renderiza en el acto,
+  // antes de commitear.
+  if (open && !mounted) setMounted(true)
+
   const mountedRef = useRef(mounted)
   useEffect(() => {
     mountedRef.current = mounted
@@ -184,13 +192,16 @@ function FormSheet({
     if (wantOpen) {
       setClosing(false)
       if (!mountedRef.current) {
-        setMounted(true) // el layout effect de abajo dispara la entrada real
+        setMounted(true)
         return
       }
       if (reduced) {
         applyVisual(0)
         return
       }
+      // La entrada ya la arrancó el layout effect de abajo: no reiniciarla
+      // (perdería la velocidad). Solo se redirige un resorte de salida.
+      if (springRef.current && !closing) return
       runSpring({ from: offsetRef.current, to: 0, velocity: 0, damping: 1, response: 0.35 })
       return
     }
@@ -221,7 +232,7 @@ function FormSheet({
   // Primer render con el panel ya en el DOM de esta sesión: arranca desde
   // abajo (o desde escala/opacidad reducidas en desktop) y entra.
   useLayoutEffect(() => {
-    if (!mounted || !wantOpen) return
+    if (!mounted || !open) return
     const reduced = prefersReducedMotion()
     const h = measurePanelHeight()
     if (reduced) {
