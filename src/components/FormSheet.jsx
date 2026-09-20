@@ -122,12 +122,27 @@ function FormSheet({
   // focus() no ocurre dentro del toque. setState en el render es lo
   // permitido para derivar estado propio: React re-renderiza en el acto,
   // antes de commitear.
-  if (open && !mounted) setMounted(true)
+  //
+  // `expanded` también se reinicia acá: ahora el sheet queda montado en el
+  // padre para siempre, así que ya no nace de cero en cada apertura y, sin
+  // esto, un campo enfocado en una apertura lo dejaría a pantalla completa
+  // en todas las siguientes.
+  if (open && !mounted) {
+    setMounted(true)
+    setExpanded(startExpanded)
+  }
 
   const mountedRef = useRef(mounted)
   useEffect(() => {
     mountedRef.current = mounted
   }, [mounted])
+
+  // Un sheet que autoenfoca (el de gasto) NO entra deslizándose desde abajo
+  // en el celular: el input recibe el foco en el mismo toque, y si el panel
+  // todavía está fuera de pantalla cuando iOS calcula cómo revelarlo sobre el
+  // teclado, desplaza la página y el formulario queda corrido hacia arriba
+  // con una franja vacía. Entra en su lugar, con un fundido.
+  const fadeEntrance = startExpanded && isCoarsePointer()
 
   const panelHeightRef = useRef(0)
   const offsetRef = useRef(0) // 0 = posición de reposo (abierto)
@@ -235,7 +250,7 @@ function FormSheet({
     if (!mounted || !open) return
     const reduced = prefersReducedMotion()
     const h = measurePanelHeight()
-    if (reduced) {
+    if (reduced || fadeEntrance) {
       applyVisual(0)
       return
     }
@@ -414,7 +429,13 @@ function FormSheet({
       data-sheet=""
       inert={closing || undefined}
       className={`fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-4 ${
-        prefersReducedMotion() ? (closing ? 'animate-fade-out' : 'animate-fade') : ''
+        prefersReducedMotion()
+          ? closing
+            ? 'animate-fade-out'
+            : 'animate-fade'
+          : fadeEntrance && !closing
+            ? 'animate-fade'
+            : ''
       }`}
     >
       <div ref={backdropRef} className="absolute inset-0 bg-scrim" aria-hidden="true" onClick={onClose} />

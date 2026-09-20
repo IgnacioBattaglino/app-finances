@@ -458,7 +458,7 @@ function TransactionFormModal({
             : 'Nuevo ingreso'
       }
       onClose={onClose}
-      startExpanded
+      startExpanded={!editing}
       onSubmit={handleSubmit}
       canSubmit={valid}
       busy={busy}
@@ -494,7 +494,7 @@ function TransactionFormModal({
                   enterKeyHint="next"
                   placeholder="0"
                   required
-                  autoFocus
+                  autoFocus={!editing}
                   // `size` 1: sin esto el ancho intrínseco del input (unos 20
                   // caracteres) estira la celda y el número se corre a la izquierda.
                   size={1}
