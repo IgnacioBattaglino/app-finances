@@ -596,13 +596,16 @@
 
   /* ---- COLOR DE UN GRUPO DE ACTIVOS -------------------------------------
      El color es un dato por fila: llega por `--group-color` y
-     `--group-color-dark` inline (ver lib/theme.js). Bloque 10: el color dejó
-     de teñir el encabezado y las filas (un grupo "Vino" al lado de una
-     pérdida en rojo se leía como pérdida); ahora es solo `.group-mark`, la
-     marca redonda de ~10px al lado del nombre. En oscuro usa el tono claro
-     del color, igual que antes. */
-  .group-mark {
-    background-color: var(--group-color);
+     `--group-color-dark` inline (ver lib/theme.js). El encabezado del grupo
+     lleva el tinte fuerte (20%) y sus filas el suave (13%); más tinte le
+     come contraste al rojo de pérdida y al texto secundario. En oscuro se
+     tiñe con el tono claro del color y un punto más. */
+  .group-tint {
+    background-color: color-mix(in oklab, var(--group-color) 20%, transparent);
+  }
+
+  .group-tint-soft {
+    background-color: color-mix(in oklab, var(--group-color) 13%, transparent);
   }
 
   .group-swatch {
@@ -613,8 +616,12 @@
 
 /* Fuera de @layer a propósito: una regla dentro de la capa no le gana a otra
    de la misma capa por especificidad de :root. */
-:root[data-theme='dark'] .group-mark {
-  background-color: var(--group-color-dark);
+:root[data-theme='dark'] .group-tint {
+  background-color: color-mix(in oklab, var(--group-color-dark) 22%, transparent);
+}
+
+:root[data-theme='dark'] .group-tint-soft {
+  background-color: color-mix(in oklab, var(--group-color-dark) 14%, transparent);
 }
 
 :root[data-theme='dark'] .group-swatch {
@@ -623,8 +630,12 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .group-mark {
-    background-color: var(--group-color-dark);
+  :root:not([data-theme='light']) .group-tint {
+    background-color: color-mix(in oklab, var(--group-color-dark) 22%, transparent);
+  }
+
+  :root:not([data-theme='light']) .group-tint-soft {
+    background-color: color-mix(in oklab, var(--group-color-dark) 14%, transparent);
   }
 
   :root:not([data-theme='light']) .group-swatch {

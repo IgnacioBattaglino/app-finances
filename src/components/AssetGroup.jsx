@@ -96,10 +96,10 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
   // exactamente como se veía antes de que esto existiera. No hay un color por
   // default — un color que el usuario no eligió diría algo que él no dijo.
   //
-  // Bloque 10: el color dejó de teñir el encabezado y las filas (un grupo
-  // "Vino" al lado de una pérdida en rojo se leía como pérdida). Ahora es
-  // solo una marca chica al lado del nombre; los dos tonos siguen yendo como
-  // variables inline y `.group-mark` decide cuál usar según el modo.
+  // El color tiñe el encabezado (fuerte) y las filas (suave): los dos tonos
+  // van como variables inline y `.group-tint` / `.group-tint-soft` (index.css)
+  // deciden cuál usar según el modo. El bloque 10 lo había pasado a una marca
+  // chica, pero a Nacho le gustaba el tinte y se restauró.
   const color = getGroupColor(assetType.color)
   const tintVars = color ? { '--group-color': color.fill, '--group-color-dark': color.inkDark } : undefined
 
@@ -117,13 +117,10 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
         viewTransition
         to={`/inversiones/grupos/${assetType.id}`}
         state={{ from: { label: 'Inversiones' } }}
-        className="block bg-mist px-4 py-3 transition active:opacity-90"
+        className={`block px-4 py-3 transition active:opacity-90 ${color ? 'group-tint' : 'bg-mist'}`}
       >
         <div className="flex items-baseline justify-between gap-3">
           <span className="flex items-center gap-1.5 text-subhead font-semibold">
-            {color && (
-              <span aria-hidden="true" className="group-mark inline-block h-2.5 w-2.5 shrink-0 rounded-full" />
-            )}
             {assetType.name}
             <ChevronRight />
             {outOfTotal && (
@@ -169,7 +166,7 @@ function AssetGroup({ assetType, assets, valuations, contributions }) {
 
       {/* Las filas ya no llevan tinte de color (bloque 10): la marca del
           encabezado alcanza para leer "estas son las de ese grupo". */}
-      <div className="rows">
+      <div className={`rows ${color ? 'group-tint-soft' : ''}`}>
         {assets.map((asset) => (
           <AssetRow
             key={asset.id}
