@@ -1,72 +1,114 @@
-# Product
+# Product — EnCuenta
 
 <!-- impeccable:product-schema 1 -->
 
+> Las marcas **[PROPUESTA]** señalan texto nuevo que no sale de ningún documento existente ni de una decisión ya tomada. Hay que revisarlas y, una vez aprobadas, sacar la marca.
+
 ## Platform
 
-web
+ios
 
-## Users
+## 1. Qué es y para quién
 
-- **Principal: Nacho**, el autor. Inversor amateur que arranca, en Argentina. Usa la app todos los días desde el iPhone, instalada como PWA: carga un gasto en segundos, mira cuánta plata tiene y dónde, y sigue su portafolio en dólares.
-- **Gente cercana invitada**: familia y amigos, argentinos, que no necesariamente saben de inversiones. Entran solo con un link de un solo uso que genera el administrador; no hay registro público. Cada uno opera aislado, con sus propios datos.
+**Qué es.** EnCuenta es una app de finanzas personales. Sirve para ver con claridad cuánta plata tenés, dónde está y hacia dónde va. La meta de fondo es la independencia financiera: llegar a vivir de lo que generan tus inversiones, sin depender de un sueldo. Para eso el capital tiene que crecer (lo que ganás se suma al capital y a su vez genera más), estar protegido de la inflación y avanzar de a poco hacia esa meta.
 
-Para ellos no se da por sabido ningún término del sistema. Las ayudas se escriben para alguien que usa la app por primera vez.
+**Cuándo funciona.** EnCuenta funciona si:
 
-## Product Purpose
+- cargar un gasto es más rápido que no cargarlo;
+- la foto de tu plata (lo que tenés, lo que invertiste, lo que debés y lo que se viene a pagar) es verdadera sin que tengas que hacer cuentas a mano.
 
-Finanzas personales con enfoque FIRE (Financial Independence, Retire Early): hacer crecer el capital ("bola de nieve"), protegerlo de la inflación y avanzar hacia la independencia financiera.
+**Para quién.**
 
-El éxito es que cargar un gasto sea más rápido que no cargarlo, y que la foto de la plata (disponible, invertido, deuda, compromisos) sea verdadera sin tener que hacer cuentas a mano.
+- **Principal: Nacho**, el autor. Inversor amateur que arranca, en Argentina. Usa la app todos los días desde el iPhone: carga un gasto en segundos, mira cuánta plata tiene y dónde, y sigue sus inversiones en dólares.
+- **Gente cercana invitada:** familia y amigos, argentinos, que no necesariamente saben de inversiones. Entran solo por invitación; no hay registro público. Cada uno usa la app aislado, con sus propios datos.
 
-El uso real manda. La app también es pieza de portfolio, pero de rebote: ninguna decisión se toma para mostrarla.
+Para ellos no se da por sabido ningún término. Las ayudas se escriben para alguien que usa la app por primera vez.
 
-## Positioning
+**Cómo se usa.**
 
-La app está pensada para la realidad argentina. Muestra **tres mundos que nunca se suman**:
+- **iPhone primero**, con una mano, varias veces por día. Desktop: a definir (ver "Preguntas abiertas").
+- **Rituales:** cargar gastos en el momento, contar la plata de cada cuenta de vez en cuando, confirmar los vencimientos de tarjetas y suscripciones, aportar o retirar de las inversiones.
 
-- el dinero líquido, en pesos, para el día a día;
-- lo invertido, en dólares y con rendimiento;
-- la deuda, como saldo restante en dólares.
+**El uso real manda.** La app también es una pieza de portfolio, pero de rebote: ninguna decisión se toma para mostrarla (ver "Preguntas abiertas").
 
-Pesos inflacionarios y dólares no son comparables, así que no existe un "patrimonio total". Cada aporte congela su tipo de cambio MEP del día, y las métricas históricas no dependen de la cotización de hoy.
+## 2. Cómo se siente
 
-La app guarda eventos, nunca totales. Todo saldo se calcula, y la reconciliación ("Contar mi plata") separa el gasto real del simple reparto entre cuentas.
+**Calma.** Es la vara con la que se mide cada pantalla, y pesa más que "que quede lindo". EnCuenta se siente:
 
-## Operating Context
+- **Silenciosa.** Nada late, parpadea ni se mueve solo. Todo movimiento responde a algo que hizo la persona. Cuando llegan datos nuevos, los números cambian en su lugar, sin avisar ni saltar: la calma es que no pase nada visible hasta que haya algo nuevo que mostrar.
+- **Espaciosa.** Pocas cosas por pantalla y con aire entre ellas. Menos tarjetas, más espacio.
+- **Con la información justa.** Inicio condensa lo importante en una sola pantalla, y el detalle queda a un toque. Nada pesa más que lo demás importante; lo que no es esencial baja de volumen.
+- **Firme.** La pantalla no se vacía ni salta mientras carga o después de guardar, y nada aparece de golpe arriba de lo que ya estabas mirando.
+- **Hecha para quien arranca de cero.** Nadie tiene que saber de finanzas para entender qué está viendo.
+- **Pegada a la mano.** En el teléfono responde al dedo (se agarra, se arrastra, se suelta) en lugar de reproducir animaciones.
 
-- **Uso principal:** iPhone, PWA instalada a pantalla completa y en vertical, con una mano, varias veces por día. Sin service worker ni modo offline a propósito.
-- **Uso secundario:** desktop, para mirar con más calma: portafolio, historial y ajustes.
-- **Rituales:** capturar gastos al momento, contar la plata de cada cuenta de vez en cuando, confirmar los vencimientos de tarjetas y suscripciones, aportar o retirar de inversiones.
-- **Datos externos:** precios de Binance/CoinGecko (cripto), data912/BYMA (CEDEARs, acciones y bonos) y dolarapi/argentinadatos (MEP).
+## 3. Nombre y promesa
 
-## Capabilities and Constraints
+**EnCuenta**, siempre con C mayúscula.
 
-- Cinco pestañas, todas de plata: Inicio, Movimientos, Mi plata, Inversiones y Compromisos. Ajustes no es una pestaña.
-- Multimoneda por fila (ISO 4217). Gastos y disponible en la moneda de su cuenta; inversiones y deudas en USD. Nada convierte en silencio, salvo la serie histórica y el Total de Inicio, que unifican a dólares (ADR-015).
-- Interfaz en español rioplatense. Código en inglés.
-- Estado funcional de cada sección: `docs/FUNCTIONAL.md`. Modelo de datos y decisiones: `docs/ARCHITECTURE.md` y `docs/adr/`.
-- **Pendiente:**
-  - la pestaña/sección Objetivo FIRE (proyección);
-  - el rendimiento en la tarjeta de Inicio;
-  - las vistas históricas por año en Movimientos.
+El nombre juega con dos ideas: *tener en cuenta* o *darse cuenta*, y la *cuenta* donde está tu plata.
 
-## Brand Commitments
+**Promesa:** ser consciente de en qué se te va la plata, sin retarte.
 
-- Nombre visible: "finanzas".
-- Voz: castellano rioplatense, directo y concreto. Cada campo se nombra con la pregunta que responde, nunca desde la implementación.
-- Los errores de la base nunca llegan crudos a la pantalla.
+## 4. Voz y tono
 
-## Evidence on Hand
+**Voz.** Castellano rioplatense, directo y concreto. Cada campo se nombra con la pregunta que responde, con palabras de quien usa la app y no de quien la programó.
 
-- Datos reales: viven solo en Supabase y nunca en el repo, las capturas ni la documentación.
-- Cuenta test: contiene datos basura (activos "ZZ" archivados, cantidades falsas) y no sirve como muestra representativa.
-- No hay testimonios, métricas de uso ni usuarios públicos, y no se deben inventar.
+**Cuando la noticia es mala** (una pérdida, una deuda, un gasto alto), EnCuenta dice lo que pasó, con el número, y no dramatiza:
 
-## Product Principles
+- **Gastar no es una alarma:** es el uso normal de la plata. El total de gastos se muestra en el color del texto común, no en rojo.
+- **El rojo tiene un solo significado:** plata que se fue (una pérdida, un gasto en una lista) o algo que no se pudo hacer (un error, borrar algo). Nada más se pinta de rojo.
+- **Lo que pide atención pero no es grave no se pinta de alarma.** Un pago atrasado, una valuación vieja o un dato que falta se marcan con un punto chico de color apagado. Si el asunto es urgente, insiste con las palabras ("venció hace 12 días"), no con un bloque de color.
+- **Un dato que falta no es un error ni una culpa.** Se dice qué falta y se ofrece completarlo.
+- **Un número que no se puede afirmar no se muestra**, o se muestra con su aviso.
+- **Los errores técnicos nunca llegan crudos.** Se le habla a la persona en castellano: qué pasó y qué puede hacer.
+- **No se reprocha.** Nada de "gastaste demasiado" ni de tono de reto. [PROPUESTA]
+
+## 5. Los mundos de la plata
+
+EnCuenta muestra tres mundos que no se mezclan a ciegas:
+
+- **La plata**, en pesos, para el día a día.
+  - **El ahorro es un sector apartado dentro de la plata.** Es plata guardada, que no es la del día a día, y puede estar en otra moneda. No es un cuarto mundo: es parte de la plata. Pero tiene su propio lugar visible: no se esconde en una línea chica ni se confunde con lo disponible.
+- **Lo invertido**, en dólares y con rendimiento.
+- **Lo que debés**, como saldo restante en dólares.
+
+**Por qué separados.** Los pesos con inflación y los dólares no se pueden comparar. Cada vez que aportás a una inversión queda anotada la cotización de ese día, así la historia no cambia con la cotización de hoy.
+
+**Nunca sumar sin decir cómo.** Se puede unir plata de distintos mundos solo si queda a la vista que es una conversión y a qué cotización. Es el caso del Total en dólares de Inicio: es un pie de la pantalla, no un cuarto mundo.
+
+**Dos monedas, dos hechos pares.** Cuando un saldo está en más de una moneda, cada monto se muestra con el mismo peso, uno debajo del otro. Ninguno es "el principal".
+
+**A pagar** reúne lo que vence: tarjetas, suscripciones y deudas.
+
+**Contar tu plata.** De vez en cuando contás lo que hay en cada cuenta, y EnCuenta separa lo que de verdad gastaste de lo que solo cambió de lugar.
+
+**La app se recorre en cinco pestañas, todas de plata:** Inicio, Movimientos, Mi plata, Inversiones y A pagar. Ajustes queda aparte.
+
+## 6. Qué NO es EnCuenta
+
+- **No es un tablero para operar.** No está hecha para mirar cotizaciones minuto a minuto ni para comprar y vender.
+- **No gamifica.** Sin puntos, rachas, medallas ni premios por cargar gastos.
+- **No reta.** No juzga cómo gastás ni te hace sentir culpa.
+- **No arma un patrimonio único** que sume peras con manzanas: si une plata de distintos mundos, lo dice y aclara la cotización.
+- **No es un asesor.** No te dice qué comprar ni cuándo. [PROPUESTA]
+
+## 7. Principios
 
 1. **La verdad antes que la comodidad.** Si un número no se puede afirmar, no se muestra, o se muestra con su aviso. Un pendiente no se inventa como confirmado.
-2. **Capturar primero.** La acción más frecuente, cargar un gasto, cuesta un toque y unos segundos, desde cualquier lugar.
-3. **Mundos separados, monedas separadas.** Nunca sumar lo que no se puede sumar. Dos monedas son dos hechos pares.
-4. **Entendible para quien no sabe de finanzas.** Sin jerga ni flags internos a la vista. La gente cercana tiene que poder usarla sin explicación.
-5. **Nada se pierde.** Lo que tiene historia se archiva u oculta, no se borra, y guardar sin tocar nada deja la fila idéntica.
+2. **Capturar primero.** La acción más frecuente, cargar un gasto, cuesta un toque y unos segundos, desde las pantallas que más se usan.
+3. **Mundos separados; unir solo diciendo cómo.** No se suma lo que no se puede sumar sin decirlo. Si se une, queda a la vista que es una conversión y a qué cotización.
+4. **Entendible para quien no sabe de finanzas.** Sin jerga a la vista. La gente cercana tiene que poder usarla sin explicación.
+5. **Nada se pierde sin que lo decidas.** Lo que tiene historia se archiva u oculta, no se borra. Lo que se puede eliminar se elimina solo después de avisar que es permanente. [PROPUESTA]
+
+## 8. Preguntas abiertas
+
+1. **Desktop:** ¿existe en la versión de iOS nativo? Hoy se piensa como un uso secundario, para mirar con más calma. Si sigue, hay que decidir qué cambia respecto del teléfono.
+2. **¿Solo Argentina o también otros países?** Hoy está pensada para la realidad argentina, pero la base del sistema admite otras monedas. Hay que decidir si el producto es local o apunta a otros países.
+3. **¿El portfolio sigue siendo "de rebote"?** Con un nombre y una identidad propios, hay que decidir si eso se mantiene.
+4. **¿Cuánto rendimiento de las inversiones entra en Inicio?** Inicio se aligeró a propósito y el rendimiento se mudó a Inversiones, pero Nacho lo extraña.
+5. **¿Cómo se ve el ahorro con su propio lugar visible?** Está decidido que tiene lugar propio; falta definir de qué forma y con qué peso. [PROPUESTA]
+
+## 9. Lo que no se inventa
+
+Todavía no hay testimonios, métricas de uso ni usuarios públicos. No se deben inventar.

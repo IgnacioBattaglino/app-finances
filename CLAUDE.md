@@ -83,5 +83,6 @@ El lenguaje es el de una app de iOS: fondo agrupado gris frío, tarjetas SIN mar
 - Copiá `.env.test.example` a `.env.test.local` y completá `TEST_USER_EMAIL` / `TEST_USER_PASSWORD` con el usuario test (ese archivo lo creás vos a mano, nunca por acá).
 - `npm run verify:rls` corre solo lectura contra Supabase y confirma que RLS aísla los datos por usuario.
 - El login manual en `npm run dev` se hace con ese mismo usuario test.
+- La cuenta test contiene datos basura (activos "ZZ" archivados, cantidades falsas): no sirve como muestra representativa, y cualquier total que se lea ahí está distorsionado.
 - La verificación de datos con `npm run verify:rls` se corre siempre antes de proponer commit.
 - La verificación visual con navegador queda reservada para cambios grandes de UI o cuando el usuario lo pida explícitamente; por defecto la hace el usuario manualmente. Cuando se use navegador, exclusivamente Playwright MCP — nunca Claude in Chrome ni el navegador personal del usuario. Nunca incluir credenciales en output, código ni screenshots.
