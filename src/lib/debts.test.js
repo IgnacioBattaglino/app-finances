@@ -73,15 +73,15 @@ describe('isSettled', () => {
 
 describe('payoffProgress', () => {
   it('sin pagos → 0', () => {
-    expect(payoffProgress(debt(1000))).toBe(0)
+    expect(payoffProgress(0, 1000)).toBe(0)
   })
 
   it('mitad pagada → 0,5', () => {
-    expect(payoffProgress(debt(1000, [500]))).toBe(0.5)
+    expect(payoffProgress(500, 1000)).toBe(0.5)
   })
 
   it('pagada de más → se corta en 1, la barra nunca se pasa', () => {
-    expect(payoffProgress(debt(1000, [1500]))).toBe(1)
+    expect(payoffProgress(1500, '1000')).toBe(1)
   })
 })
 

@@ -18,7 +18,7 @@ import {
 } from '../lib/liquid.js'
 import { toUsd } from '../lib/localCurrency.js'
 import { getCategories } from '../lib/categories.js'
-import { getDebts, summarizeDebts } from '../lib/debts.js'
+import { getDebts, summarizeDebtBalances } from '../lib/debts.js'
 import { formatARS, formatUSD, todayISO } from '../lib/format.js'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useDuePayments } from '../hooks/useCommitments.js'
@@ -547,7 +547,7 @@ function Dashboard() {
         {hasDebts && (
           <SummaryCard
             label="Deudas"
-            lines={[{ currency: 'USD', amount: summarizeDebts(debts).totalBalance }]}
+            lines={[{ currency: 'USD', amount: summarizeDebtBalances(debts).totalBalance }]}
             note="Te queda por pagar"
             loading={debtsLoading}
             error={debtsError}

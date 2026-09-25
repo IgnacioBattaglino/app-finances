@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createPayment, updatePayment, deletePayment, debtBalance } from '../lib/debts.js'
+import { createPayment, updatePayment, deletePayment } from '../lib/debts.js'
 import { retroactiveReconciliation } from '../lib/liquid.js'
 import { todayISO, formatUSD, formatDayYear, toDecimalInput } from '../lib/format.js'
 import { round } from '../lib/money.js'
@@ -119,7 +119,7 @@ function DebtPaymentModal({
 
   // Pagar más de lo que resta no se bloquea (el saldo real lo sabe el usuario,
   // no la app), pero se avisa: el saldo se queda en 0, no pasa a negativo.
-  const balanceBefore = debtBalance(debt) + (editing ? Number(initial.amount_usd) : 0)
+  const balanceBefore = debt.balance_usd + (editing ? Number(initial.amount_usd) : 0)
   const excess = amount > 0 && amount > balanceBefore
 
   async function handleSubmit(event) {

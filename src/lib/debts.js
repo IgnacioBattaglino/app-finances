@@ -7,15 +7,57 @@ import { UserError } from './errors.js'
 const SELECT =
   '*, payments:debt_payments(id, date, amount_usd, mep_rate, affects_liquid, account_id, created_at)'
 
+// El saldo lo calcula la base (vista debt_balances, migración 0049) y viaja
+// pegado a cada deuda como balance_usd / paid_usd / is_settled. Dos consultas y
+// no un embed: la vista no tiene FK hacia debts, y PostgREST solo embebe por FK.
 export async function getDebts() {
-  const { data, error } = await supabase
-    .from('debts')
-    .select(SELECT)
-    .order('start_date', { ascending: false })
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data
+  const [debts, balances] = await Promise.all([
+    supabase
+      .from('debts')
+      .select(SELECT)
+      .order('start_date', { ascending: false })
+      .order('created_at', { ascending: false }),
+    supabase.from('debt_balances').select('debt_id, paid_usd, balance_usd, is_settled'),
+  ])
+  if (debts.error) throw debts.error
+  if (balances.error) throw balances.error
+  return withBalances(debts.data, balances.data)
 }
+
+// Pega a cada deuda su fila de la vista. Exportada para el test de paridad,
+// que arma las deudas igual que la app.
+export function withBalances(debts, balances) {
+  const byId = new Map(balances.map((b) => [b.debt_id, b]))
+  return debts.map((d) => {
+    const b = byId.get(d.id)
+    return {
+      ...d,
+      paid_usd: Number(b.paid_usd),
+      balance_usd: Number(b.balance_usd),
+      is_settled: b.is_settled,
+    }
+  })
+}
+
+// Lo que muestran las pantallas: activas, saldadas y los totales, a partir de
+// lo que ya calculó la vista. Solo suma — la regla del saldo no vive acá.
+export function summarizeDebtBalances(debts) {
+  const sum = (list, field) => round(list.reduce((s, d) => s + Number(d[field]), 0))
+  const active = debts.filter((d) => !d.is_settled)
+  return {
+    active,
+    settled: debts.filter((d) => d.is_settled),
+    totalBalance: sum(active, 'balance_usd'),
+    totalOriginal: sum(debts, 'original_amount_usd'),
+    totalPaid: sum(debts, 'paid_usd'),
+  }
+}
+
+// ── Definición de la regla ──────────────────────────────────────────────────
+// Desde la 0049 la app NO usa debtBalance / isSettled / summarizeDebts: el saldo
+// sale de la vista. Siguen acá como definición ejecutable, contra la que
+// debtBalanceSql.test.js corre la vista. Se borran cuando la vista quede
+// verificada en producción (ver docs/mudanza-reglas.md).
 
 // Saldo restante de una deuda = monto original − todo lo pagado. Nunca baja de
 // 0: pagar de más salda la deuda, no genera un saldo negativo a favor (eso
@@ -36,13 +78,14 @@ export function isSettled(debt) {
   return debtBalance(debt) <= 0
 }
 
-// Cuánto falta pagar sobre el total, entre 0 y 1. Alimenta la barra de avance.
+// Cuánto se pagó sobre el total, entre 0 y 1. Alimenta la barra de avance: es
+// presentación, recibe el pagado ya calculado (paid_usd de la vista).
 // Una deuda con monto original 0 no existe (CHECK > 0 en la base), pero si
 // llegara, se considera saldada en vez de dividir por cero.
-export function payoffProgress(debt) {
-  const original = Number(debt.original_amount_usd)
+export function payoffProgress(paid, original) {
+  original = Number(original)
   if (!(original > 0)) return 1
-  return Math.min(1, totalPaid(debt) / original)
+  return Math.min(1, Number(paid) / original)
 }
 
 // Separa activas de saldadas y suma los totales. El total que importa es el
