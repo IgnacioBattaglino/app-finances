@@ -56,7 +56,13 @@ const ADMIN_EMAIL = 'battaglinoignacio@gmail.com'
 // used_by_email) y `raw_user_meta_data` (ahí viaja el invite_code, que es lo
 // único que un signUp público puede escribir).
 const SCHEMA = `
+-- Los roles son del cluster, no de la base: 0043 hace grant a anon y a
+-- authenticated. Se crean acá si faltan, porque en un Postgres limpio (el del
+-- CI) no existen, y solo "andaba" donde ya los había dejado otra cosa.
 do $$ begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then
+    create role anon;
+  end if;
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then
     create role authenticated;
   end if;
