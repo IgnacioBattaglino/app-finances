@@ -52,7 +52,7 @@ El nombre juega con dos ideas: *tener en cuenta* o *darse cuenta*, y la *cuenta*
 
 ## 4. Voz y tono
 
-**Voz.** Castellano rioplatense, directo y concreto. Cada campo se nombra con la pregunta que responde, con palabras de quien usa la app y no de quien la programó.
+**Voz.** Castellano rioplatense, directo y concreto. Los títulos de campo son descriptivos, no preguntas: "Cuenta", no "¿En qué cuenta?". Con palabras de quien usa la app y no de quien la programó.
 
 **Cuando la noticia es mala** (una pérdida, una deuda, un gasto alto), EnCuenta dice lo que pasó, con el número, y no dramatiza:
 
