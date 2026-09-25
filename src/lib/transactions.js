@@ -44,6 +44,10 @@ function toRow({ date, kind, categoryId, description, amount, currency, accountI
     description: description?.trim() || null,
     // El monto, en la moneda de su cuenta (ver transactionCurrency).
     amount,
+    // Desde la 0050 la moneda la pone la base (trigger transactions_currency_
+    // from_account): al crear ignora esto. Al editar se manda igual, porque
+    // pasar a una cuenta de otra moneda solo se acepta con la moneda nueva
+    // explícita — y el formulario la manda recién después de vaciar el monto.
     currency: currency ?? 'ARS',
     // De qué cuenta del disponible salió (o a cuál entró). Nullable: null es
     // "sin cuenta", el balde que no se muestra como cuenta pero suma al total

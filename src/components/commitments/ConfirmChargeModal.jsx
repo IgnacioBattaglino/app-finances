@@ -66,6 +66,7 @@ function ConfirmChargeModal({ open, occurrence, accounts, onClose, onSaved, onAc
 
   const missing = []
   if (!(value > 0)) missing.push('monto')
+  if (!accountId) missing.push('cuenta')
   if (!date) missing.push('fecha')
   const valid = missing.length === 0
 

@@ -395,8 +395,21 @@ function TransactionFormModal({
   const missing = []
   if (!(amountValue > 0)) missing.push('monto')
   if (!categoryId) missing.push('categoría')
+  if (!accountId) missing.push('cuenta')
   if (!date) missing.push('fecha')
   const valid = missing.length === 0
+  // Editando, pasar el movimiento a una cuenta de otra moneda: el número que
+  // estaba escrito quería decir otra cosa. Mismo criterio que ConfirmChargeModal.
+  const originalCurrency = initial?.currency ?? 'ARS'
+  const currencyChanged = editing && currency !== originalCurrency
+
+  // Cambiar a una cuenta de otra moneda VACÍA el monto, no lo reinterpreta:
+  // "50.000" son pesos o dólares según el símbolo de al lado. La base además
+  // rechaza el cambio de moneda si no llega explícito (0050, regla D).
+  function changeAccount(next) {
+    if (editing && transactionCurrency({ initial, accountId: next, accounts }) !== currency) setAmount('')
+    setAccountId(next)
+  }
 
   function changeKind(next) {
     setKind(next)
@@ -599,7 +612,7 @@ function TransactionFormModal({
             <AccountField
               accounts={accounts}
               value={accountId}
-              onChange={setAccountId}
+              onChange={changeAccount}
               label={kind === 'income' ? '¿A qué cuenta?' : '¿De qué cuenta?'}
               onAccountCreated={onAccountCreated}
             />
@@ -625,6 +638,12 @@ function TransactionFormModal({
               solo lectura más arriba mientras eso no se descarta. Si el
               formulario editable de siempre se está mostrando es porque ya se
               descartó, o porque nunca hizo falta preguntarlo. */}
+          {currencyChanged && (
+            <div className="notice text-[13px]">
+              Esta cuenta está en {currency} y el movimiento estaba en {originalCurrency}. Escribí de
+              nuevo el monto, en {currency}: la app no convierte monedas por su cuenta.
+            </div>
+          )}
           {!confirmDelete && retroNotice}
           <FormError message={error?.message} detail={error?.detail} />
           <MissingHint missing={missing} />

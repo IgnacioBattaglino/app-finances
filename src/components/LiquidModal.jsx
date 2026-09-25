@@ -115,7 +115,7 @@ function Summary({ plan }) {
 
 function LiquidModal({ open, onClose, onSaved }) {
   const [state, setState] = useState(null) // null = cargando
-  const [declared, setDeclared] = useState({}) // accountId (o '__none__') → texto
+  const [declared, setDeclared] = useState({}) // accountId → texto
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -141,30 +141,9 @@ function LiquidModal({ open, onClose, onSaved }) {
   const totalsText = totals
     .map((line) => formatByCurrency(line.currency, line.amount))
     .join(' y ')
-  // Sin ninguna cuenta cargada, se declara el disponible entero: es el camino
-  // de antes de la migración 0032, y el que queda si el usuario borra todas
-  // sus cuentas. La clave '__none__' representa esa declaración sin cuenta.
-  // Sin cuentas no hay ninguna moneda que no sea la local (los baldes null y
-  // huérfano se leen así), por eso alcanza con esa línea.
-  const localTotal = totals.find((line) => line.currency === LOCAL_CURRENCY)?.amount ?? 0
-  const liquidRows = state
-    ? accounts.length > 0
-      ? accounts.map((a) => ({ ...a, key: a.id, accountId: a.id }))
-      : [
-          {
-            key: '__none__',
-            accountId: null,
-            name: 'Dinero disponible',
-            amount: localTotal,
-            currency: LOCAL_CURRENCY,
-            is_savings: false,
-            // Antes que cualquier cuenta en los desempates de la ancla, aunque
-            // nunca compite con ninguna: si esta fila existe, es la única.
-            position: -1,
-            last: state.last,
-          },
-        ]
-    : []
+  // Una fila por cuenta del día a día. No hay declaración "sin cuenta": desde
+  // la 0050 todo usuario tiene al menos una, y la base rechaza un conteo sin cuenta.
+  const liquidRows = state ? accounts.map((a) => ({ ...a, key: a.id, accountId: a.id })) : []
 
   // Las cuentas de ahorro también se cuentan: guardaste esa plata aparte, pero
   // sigue siendo plata real y hay que poder decir "esto tiene tanto" como con
