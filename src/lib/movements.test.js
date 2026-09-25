@@ -180,6 +180,12 @@ describe('contributionLabel', () => {
     expect(contributionLabel(contribution)).toBe('Inversión')
     expect(contributionLabel(withdrawal)).toBe('Retiro')
   })
+
+  it('con un activo convertido en cuenta de ahorro (savings_account_id), es ahorro', () => {
+    const savingsAsset = { id: 'a2', name: 'USDs físicos', savings_account_id: 'acc-1' }
+    expect(contributionLabel({ ...contribution, asset: savingsAsset })).toBe('Ahorro')
+    expect(contributionLabel({ ...withdrawal, asset: savingsAsset })).toBe('Retiro de ahorro')
+  })
 })
 
 describe('mergeMovements', () => {
