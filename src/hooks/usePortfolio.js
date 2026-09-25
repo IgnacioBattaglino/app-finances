@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getAssets } from '../lib/assets.js'
 import { getAssetTypes } from '../lib/assetTypes.js'
-import { getContributions } from '../lib/contributions.js'
+import { getAllContributions } from '../lib/contributions.js'
 import { getLatestValuations } from '../lib/valuations.js'
 import { resolveAssetPrices } from '../lib/portfolioPrices.js'
 import {
@@ -36,7 +36,7 @@ export function usePortfolio() {
       const [assetsData, assetTypesData, contributionsData, valuationsData] = await Promise.all([
         getAssets(),
         getAssetTypes(),
-        getContributions(),
+        getAllContributions(),
         getLatestValuations(),
       ])
       setAssets(assetsData)

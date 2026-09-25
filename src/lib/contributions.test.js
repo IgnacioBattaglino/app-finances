@@ -4,12 +4,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // cada método llamado (from/select/eq/order/range/…) para poder afirmar cómo
 // getContributions arma la consulta, y resuelve con un resultado controlable.
 const h = vi.hoisted(() => {
-  const state = { result: { data: [], error: null }, calls: [] }
+  const state = { result: { data: [], error: null }, calls: [], pages: [] }
   const query = new Proxy(
     {},
     {
       get(_t, prop) {
-        if (prop === 'then') return (resolve) => resolve(state.result)
+        if (prop === 'then') return (resolve) => resolve(state.pages.length ? state.pages.shift() : state.result)
         return (...args) => {
           state.calls.push([prop, args])
           return query
@@ -32,6 +32,7 @@ vi.mock('./supabase.js', () => ({
 import {
   splitPage,
   getContributions,
+  getAllContributions,
   getTransferPair,
   deleteTransfer,
   createWithdrawal,
@@ -100,6 +101,53 @@ describe('getContributions (paginación)', () => {
   it('propaga el error de la consulta', async () => {
     h.state.result = { data: null, error: new Error('boom') }
     await expect(getContributions({ assetId: 'a1' })).rejects.toThrow('boom')
+  })
+})
+
+describe('getAllContributions (más de 1000 aportes)', () => {
+  const rows = (n, from = 0) => Array.from({ length: n }, (_, i) => ({ id: from + i }))
+  const page = (data) => ({ data, error: null })
+  const ranges = () => h.state.calls.filter(([m]) => m === 'range').map(([, args]) => args)
+
+  beforeEach(() => {
+    h.state.calls = []
+    h.state.pages = []
+    h.state.result = { data: [], error: null }
+  })
+
+  it('con 1250 aportes trae las dos páginas, no las primeras 1000', async () => {
+    h.state.pages = [page(rows(1000)), page(rows(250, 1000))]
+    const data = await getAllContributions()
+    expect(data).toHaveLength(1250)
+    expect(data.at(-1)).toEqual({ id: 1249 })
+    expect(ranges()).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ])
+  })
+
+  it('con exactamente 1000 pide una página más para confirmar que no queda nada', async () => {
+    h.state.pages = [page(rows(1000)), page([])]
+    expect(await getAllContributions()).toHaveLength(1000)
+    expect(ranges()).toHaveLength(2)
+  })
+
+  it('con pocos aportes hace un solo pedido', async () => {
+    h.state.pages = [page(rows(3))]
+    expect(await getAllContributions()).toHaveLength(3)
+    expect(ranges()).toEqual([[0, 999]])
+  })
+
+  it('ordena por fecha, created_at y un desempate por id', async () => {
+    h.state.pages = [page([])]
+    await getAllContributions()
+    const orders = h.state.calls.filter(([m]) => m === 'order').map(([, a]) => a[0])
+    expect(orders).toEqual(['date', 'created_at', 'id'])
+  })
+
+  it('propaga el error de una página', async () => {
+    h.state.pages = [page(rows(1000)), { data: null, error: new Error('boom') }]
+    await expect(getAllContributions()).rejects.toThrow('boom')
   })
 })
 

@@ -71,6 +71,28 @@ export async function getContributions({ assetId, month, year, limit, offset = 0
   return data
 }
 
+// El portafolio ENTERO, sin filtrar por activo: lo que usa usePortfolio para
+// calcular valuaciones y totales. A diferencia de getContributions() sin
+// argumentos, PAGINA (fetchAllPages, lib/pagination.js): con años de historia
+// en varios activos esta consulta sí puede pasar el corte silencioso de 1000
+// filas de PostgREST, y el valor y lo aportado del portafolio darían de menos
+// sin avisar. getContributions({ assetId }), acotada a un solo activo, no
+// llega a eso en la práctica y se deja como está.
+export async function getAllContributions() {
+  return fetchAllPages((from, to) =>
+    supabase
+      .from('contributions')
+      .select('*')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      // Desempate único: sin él, filas con la misma fecha y created_at (las dos
+      // patas de una transferencia comparten transacción) podrían caer en dos
+      // páginas o en ninguna (ver pagination.js).
+      .order('id')
+      .range(from, to),
+  )
+}
+
 // Las inversiones del mes que Movimientos muestra junto a los gastos e
 // ingresos: SOLO las que mueven el disponible (affects_liquid), que son las
 // que pasaron por el bolsillo en pesos. Un aporte "de afuera" no aparece —
