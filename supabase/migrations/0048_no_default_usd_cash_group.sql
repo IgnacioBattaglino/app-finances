@@ -89,8 +89,9 @@ $$;
 
 -- Verificación (correr a mano después de aplicar):
 --
---   -- la función ya no menciona el grupo:
---   select prosrc like '%Efectivo USD%' as todavia_lo_siembra
+--   -- la función ya no siembra el grupo (buscar la fila, no el nombre a secas:
+--   -- el comentario de la propia función lo menciona):
+--   select prosrc like '%''Efectivo USD'', false%' as todavia_lo_siembra
 --     from pg_proc where proname = 'handle_new_user'; -- false
 --
 --   -- los usuarios existentes conservan el suyo (no debería cambiar):
