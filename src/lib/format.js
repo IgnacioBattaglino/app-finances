@@ -1,23 +1,20 @@
-const ars = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-})
+// Montos: centavos siempre de a dos ("340,90", nunca "340,9"), salvo que el
+// monto sea entero ("400"). Un solo decimal se lee como un número a medio
+// escribir, no como plata.
+const moneyOptions = { style: 'currency', minimumFractionDigits: 2, trailingZeroDisplay: 'stripIfInteger' }
+const ars = new Intl.NumberFormat('es-AR', { ...moneyOptions, currency: 'ARS' })
+const usd = new Intl.NumberFormat('es-AR', { ...moneyOptions, currency: 'USD' })
+
+// es-AR usa el guion ("-$ 5") y la app escribe a mano el menos tipográfico
+// ("−") en los signos de las filas: un solo glifo en toda la pantalla.
+const minus = (text) => text.replace('-', '−')
 
 export function formatARS(value) {
-  return ars.format(value)
+  return minus(ars.format(value))
 }
 
-const usd = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-})
-
 export function formatUSD(value) {
-  return usd.format(value)
+  return minus(usd.format(value))
 }
 
 // Un monto en la moneda de su propia cuenta: hoy siempre ARS o USD (las dos
