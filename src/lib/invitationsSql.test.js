@@ -58,14 +58,12 @@ const ADMIN_EMAIL = 'battaglinoignacio@gmail.com'
 const SCHEMA = `
 -- Los roles son del cluster, no de la base: 0043 hace grant a anon y a
 -- authenticated. Se crean acá si faltan, porque en un Postgres limpio (el del
--- CI) no existen, y solo "andaba" donde ya los había dejado otra cosa.
+-- CI) no existen, y solo "andaba" donde ya los había dejado otra cosa. Un
+-- sub-bloque por rol: los archivos corren en paralelo y si dos crean el mismo
+-- a la vez, el que pierde no tiene que deshacer el otro rol.
 do $$ begin
-  if not exists (select 1 from pg_roles where rolname = 'anon') then
-    create role anon;
-  end if;
-  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
-    create role authenticated;
-  end if;
+  begin create role anon; exception when duplicate_object or unique_violation then null; end;
+  begin create role authenticated; exception when duplicate_object or unique_violation then null; end;
 end $$;
 
 create schema if not exists auth;

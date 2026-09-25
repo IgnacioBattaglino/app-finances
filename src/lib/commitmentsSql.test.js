@@ -70,6 +70,7 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then
     create role authenticated;
   end if;
+exception when duplicate_object or unique_violation then null; -- carrera entre archivos en paralelo
 end $$;
 create schema if not exists auth;
 create or replace function auth.uid() returns uuid language sql stable as $$

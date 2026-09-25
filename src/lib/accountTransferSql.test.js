@@ -93,6 +93,7 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then
     create role authenticated;
   end if;
+exception when duplicate_object or unique_violation then null; -- carrera entre archivos en paralelo
 end $$;
 -- auth.uid() no existe fuera de Supabase: se emula leyendo un GUC de sesión,
 -- fijado con "set" en el mismo -c que hace la llamada real.
