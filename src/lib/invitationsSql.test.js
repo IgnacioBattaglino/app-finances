@@ -127,6 +127,8 @@ describe.skipIf(!available)('registro por invitación (SQL, migración 0043)', (
     execFileSync('createdb', [DB])
     psql(SCHEMA)
     psql(readFileSync('supabase/migrations/0043_signup_invitations.sql', 'utf8'))
+    // El sembrado vigente es el de la 0048 (sin el grupo "Efectivo USD").
+    psql(readFileSync('supabase/migrations/0048_no_default_usd_cash_group.sql', 'utf8'))
     // La 0043 no crea el trigger (ya existe desde la 0007): se agrega acá,
     // después de sembrar el admin, para no exigirle invitación a ese insert.
     psql(`create trigger on_auth_user_created
@@ -194,7 +196,8 @@ describe.skipIf(!available)('registro por invitación (SQL, migración 0043)', (
     const userId = signup('amigo@example.com', id)
 
     expect(count('categories', `where user_id = '${userId}'`)).toBe(16) // 10 genéricas + 6 del sistema
-    expect(count('asset_types', `where user_id = '${userId}'`)).toBe(5)
+    expect(count('asset_types', `where user_id = '${userId}'`)).toBe(4)
+    expect(count('asset_types', `where user_id = '${userId}' and name = 'Efectivo USD'`)).toBe(0)
     expect(count('liquid_accounts', `where user_id = '${userId}'`)).toBe(1)
     expect(count('settings', `where user_id = '${userId}'`)).toBe(1)
   })
