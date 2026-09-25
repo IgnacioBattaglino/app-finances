@@ -12,7 +12,7 @@ import { useCommitments } from '../hooks/useCommitments.js'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { getCards } from '../lib/paymentCards.js'
 import { getCategories } from '../lib/categories.js'
-import { getDebts, summarizeDebts } from '../lib/debts.js'
+import { getDebts, summarizeDebtBalances } from '../lib/debts.js'
 import {
   committedInMonth,
   duePayments,
@@ -244,7 +244,7 @@ function Commitments() {
           <SettingsLinkRow
             to="/compromisos/deudas"
             label="Deudas"
-            value={formatUSD(summarizeDebts(debts).totalBalance)}
+            value={formatUSD(summarizeDebtBalances(debts).totalBalance)}
           />
         </SettingsGroup>
 

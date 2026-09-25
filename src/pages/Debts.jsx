@@ -7,13 +7,7 @@ import DebtPaymentModal from '../components/DebtPaymentModal.jsx'
 import { useAccounts } from '../hooks/useAccounts.js'
 import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
 import FormError from '../components/form/FormError.jsx'
-import {
-  getDebts,
-  debtBalance,
-  totalPaid,
-  payoffProgress,
-  summarizeDebts,
-} from '../lib/debts.js'
+import { getDebts, payoffProgress, summarizeDebtBalances } from '../lib/debts.js'
 import { formatUSD, formatDayYear, formatPercent } from '../lib/format.js'
 
 // Barra de avance del pago. Es la única señal visual propia de esta pantalla:
@@ -64,9 +58,9 @@ function PaymentRow({ payment, onEdit }) {
 // Exportada solo para testearla: una deuda saldada tiene que seguir mostrando
 // la vía a sus pagos (ver DebtCard.test.jsx). No se usa fuera de esta pantalla.
 export function DebtCard({ debt, expanded, onToggle, onEdit, onPay, onEditPayment }) {
-  const balance = debtBalance(debt)
-  const paid = totalPaid(debt)
-  const progress = payoffProgress(debt)
+  const balance = debt.balance_usd
+  const paid = debt.paid_usd
+  const progress = payoffProgress(paid, debt.original_amount_usd)
   const payments = [...(debt.payments ?? [])].sort((a, b) => (a.date < b.date ? 1 : -1))
 
   return (
@@ -170,7 +164,7 @@ function Debts() {
     load()
   }
 
-  const { active, settled, totalBalance, totalOriginal, totalPaid: paidAll } = summarizeDebts(debts)
+  const { active, settled, totalBalance, totalOriginal, totalPaid: paidAll } = summarizeDebtBalances(debts)
   const overallProgress = totalOriginal > 0 ? Math.min(1, paidAll / totalOriginal) : 0
 
   return (

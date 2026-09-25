@@ -1,0 +1,39 @@
+# Receta: mudar una regla de plata a Supabase
+
+Una regla por rama. El piloto fue el saldo de deudas (0049, `debt_balances`). Contexto y orden en `informe-reglas-de-plata.md`.
+
+## 1. Migración
+
+- Vista si es una lectura sin parámetros; función SQL (`get_…`, `stable`, `security invoker`) si recibe fechas o filtros. Si depende de "hoy", `p_today date default current_date`.
+- **Vista con datos de usuario: `with (security_invoker = true)`, sin condicional.** Sin eso corre como su dueño, saltea RLS y devuelve filas de todos. Mejor que la migración falle en un Postgres viejo a que filtre.
+- `revoke all … from public, anon` y `grant select` (o `execute`) `to authenticated`.
+- Al pie, comentada, la consulta de verificación (solo lectura) para después de aplicar.
+- No se aplica desde la rama: la aplica Nacho.
+
+## 2. Paridad
+
+- La función JS queda como **definición ejecutable**. No se toca su lógica.
+- Test `src/lib/<regla>Sql.test.js`: base scratch, el archivo de migración **tal cual**, el mismo dataset a las dos, comparación fila por fila.
+- Dataset: casos de borde con nombre + lote aleatorio con semilla fija. Un test que confirme que los bordes están en el dataset.
+- Seguridad: RLS encendido con las mismas policies que la base, consulta con `set role authenticated` + usuario en sesión, y un segundo usuario cuyas filas no pueden aparecer. Un chequeo de que `anon` no lee.
+- Probar que el test muerde: sacar `security_invoker` (o romper la regla) y ver que falla.
+- Sin Postgres ≥ 15 local: `initdb` + `pg_ctl -o "-p 5433 -k ''"` con el de Homebrew, `PGHOST=localhost PGPORT=5433`.
+
+## 3. La app
+
+- `lib/<x>.js` lee la vista/función y le pega los campos calculados a las filas. Las pantallas leen esos campos; ninguna importa la regla JS.
+- Lo que queda en el cliente es presentación (sumar lo ya calculado para un total, anchos de barra, formato).
+- Una vista sin FK no se embebe en PostgREST: consulta aparte en paralelo y merge por id.
+- Si se lee por RPC y hay caché con lista de RPC de lectura, agregarla ahí (o que empiece con `get_`) para no disparar invalidaciones.
+- Los fixtures de tests de componentes arman los campos nuevos con la definición JS.
+- Lo visible no cambia: si cambia algo, es otro PR.
+
+## 4. Después de aplicar
+
+- Correr la consulta del pie de la migración con el MCP (solo lectura): la columna de control tiene que dar `true` en todas las filas.
+- Mirar la pantalla una vez con datos reales.
+
+## 5. Cuándo borrar la versión JS
+
+- Cuando la vista está aplicada y verificada en producción, y la app lleva un tiempo leyéndola sin diferencias.
+- En un PR aparte: los casos del test de paridad se reescriben como aserciones SQL (valores esperados fijos) y se borran la función JS y sus tests unitarios.

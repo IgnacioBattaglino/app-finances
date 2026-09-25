@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
 import { DebtCard } from './Debts.jsx'
+import { debtBalance, isSettled, totalPaid } from '../lib/debts.js'
 
 // ATENCIÓN — alcance real de este archivo: estos tests fijan el CONTRATO de
 // DebtCard, y NO reproducen el defecto que los motivó. El bug estaba en la
@@ -19,19 +20,24 @@ import { DebtCard } from './Debts.jsx'
 
 const render = (props) => renderToStaticMarkup(createElement(DebtCard, { ...props }))
 
-const debt = (original, payments = []) => ({
-  id: 'd1',
-  creditor: 'Alguien',
-  original_amount_usd: original,
-  start_date: '2025-01-01',
-  payments: payments.map((amount_usd, i) => ({
-    id: `p${i}`,
-    date: '2025-06-01',
-    amount_usd,
-    mep_rate: 1000,
-    affects_liquid: true,
-  })),
-})
+// Los campos de la vista debt_balances (0049) salen de la definición JS: es lo
+// que la vista devuelve, según debtBalanceSql.test.js.
+const debt = (original, payments = []) => {
+  const d = {
+    id: 'd1',
+    creditor: 'Alguien',
+    original_amount_usd: original,
+    start_date: '2025-01-01',
+    payments: payments.map((amount_usd, i) => ({
+      id: `p${i}`,
+      date: '2025-06-01',
+      amount_usd,
+      mep_rate: 1000,
+      affects_liquid: true,
+    })),
+  }
+  return { ...d, paid_usd: totalPaid(d), balance_usd: debtBalance(d), is_settled: isSettled(d) }
+}
 
 describe('DebtCard', () => {
   it('una deuda saldada sigue ofreciendo la vía a sus pagos', () => {
