@@ -4,23 +4,19 @@ import { useTheme } from '../hooks/useTheme.jsx'
 import { readChartColors } from '../lib/chartColors.js'
 import FormError from './form/FormError.jsx'
 import MoneyStack from './MoneyStack.jsx'
-import { getExpenses } from '../lib/transactions.js'
+import { getPeriodTotals, getExpensesByCategory, getMonthlyExpensesUsd } from '../lib/transactions.js'
 import {
   lastMonths,
   monthKey,
   monthLabel,
   fullMonthName,
-  sumByCurrency,
   localAmount,
-  expensesInMonth,
-  previousMonthToDate,
   monthOverMonthPct,
-  groupByCategory,
-  countMonthsWithData,
-  monthlyUsdTotals,
+  breakdownFromRows,
+  previousMonthToDateRange,
 } from '../lib/expensesSummary.js'
+import { periodLines } from '../lib/movements.js'
 import { formatByCurrency, formatUSD, formatPercent, formatCompactNumber, todayISO } from '../lib/format.js'
-import { currencyLines } from '../lib/currencyTotals.js'
 
 // Los colores del gráfico salen de las variables CSS del tema, igual que en
 // la curva del portafolio (ver lib/chartColors.js).
@@ -38,126 +34,13 @@ function BarTooltip({ active, payload }) {
   )
 }
 
-// Bloque de gastos de Inicio: total del mes + comparación, desglose por
-// categoría y serie de 12 meses en USD. Todo sale de transactions, kind
-// 'expense', sin categorías de sistema (getExpenses ya las excluye) — ninguna
-// operación del portafolio escribe ahí, así que no hace falta más filtro.
-// `reloadToken` cambia cada vez que se guarda un movimiento desde Inicio. Sin
-// eso, el bloque solo se cargaba al montarse: cargabas un gasto con el botón
-// "+" de esta misma pantalla, el "Dinero disponible" de arriba se actualizaba
-// y acá abajo seguía diciendo "$ 0 · Sin gastos este mes" hasta recargar la
-// app entera. Es un token y no los gastos ya cargados a propósito: quien
-// guarda no tiene por qué saber qué consulta hace este bloque.
-function ExpensesBlock({ reloadToken = 0 }) {
-  const { accent, isDark } = useTheme()
-  // accent e isDark no se usan adentro a propósito: son la SEÑAL de que las
-  // variables CSS cambiaron, y readChartColors las lee del DOM. Sin ellas en
-  // las deps el gráfico se quedaría con los colores del tema anterior.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const colors = useMemo(() => readChartColors(), [accent, isDark])
-  const [expenses, setExpenses] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  // La serie en dólares se carga aparte, con su propio estado y su propio
-  // error. Antes iba dentro del mismo try que los gastos: si fallaba la
-  // conversión a dólares (que necesita la serie de cotizaciones) se caía el
-  // bloque ENTERO y desaparecían el total del mes y el desglose por
-  // categoría, que ya estaban cargados y son lo que se mira todos los días.
-  // Un gráfico secundario no puede llevarse puesto el número principal.
-  const [usdSeries, setUsdSeries] = useState(null)
-  const [usdError, setUsdError] = useState(false)
-
-  const today = todayISO()
-  const months = useMemo(() => lastMonths(today, 12), [today])
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const from = `${monthKey(months[0])}-01`
-      setExpenses(await getExpenses({ from, to: today }))
-    } catch (e) {
-      setError({ message: 'No se pudieron cargar los gastos.', detail: e })
-    } finally {
-      setLoading(false)
-    }
-    // reloadToken entra en las deps para que un movimiento nuevo vuelva a
-    // pedir los gastos; no se usa adentro.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [months, today, reloadToken])
-
-  // Con menos de dos meses de datos no hay serie que dibujar (un solo punto no
-  // es una tendencia) y no se pide ninguna cotización.
-  const loadUsd = useCallback(async () => {
-    if (countMonthsWithData(expenses, months) < 2) {
-      setUsdSeries(null)
-      setUsdError(false)
-      return
-    }
-    setUsdError(false)
-    try {
-      setUsdSeries(await monthlyUsdTotals(expenses, months))
-    } catch {
-      // Sin detalle técnico a la vista: es un gráfico de apoyo, no una
-      // operación que el usuario haya pedido. El detalle no le sirve para
-      // decidir nada; el botón de reintentar, sí.
-      setUsdSeries(null)
-      setUsdError(true)
-    }
-  }, [expenses, months])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  useEffect(() => {
-    loadUsd()
-  }, [loadUsd])
-
-  if (loading) {
-    return (
-      <div className="surface flex h-[140px] items-center justify-center text-[15px] text-ink-soft">
-        Calculando…
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="notice space-y-2">
-        <FormError message={error.message} detail={error.detail} />
-        <button type="button" onClick={load} className="text-[15px] font-semibold text-clay underline">
-          Reintentar
-        </button>
-      </div>
-    )
-  }
-
-  if (expenses.length === 0) {
-    return (
-      <div className="surface px-5 py-8 text-center">
-        <p className="text-[15px] text-ink-soft">
-          Todavía no cargaste ningún gasto. Cuando registres el primero, acá vas a ver en qué se te va
-          la plata.
-        </p>
-      </div>
-    )
-  }
-
-  const currentMonth = months.at(-1)
-  const previousMonth = months.at(-2)
-  const currentMonthExpenses = expensesInMonth(expenses, currentMonth)
-  const currentTotals = sumByCurrency(currentMonthExpenses)
-  const totalLines = currencyLines(currentTotals)
-  // La comparación con el mes anterior se hace en la moneda del día a día: un
-  // solo porcentaje no puede describir dos monedas, y dos porcentajes en una
-  // línea de 13px no se leen. Cuando además hubo gastos en otra moneda, la
-  // frase lo aclara — una palabra de más, y solo en el caso raro.
-  const previousTotals = sumByCurrency(previousMonthToDate(expenses, today))
-  const pct = monthOverMonthPct(localAmount(currentTotals), localAmount(previousTotals))
+// La parte que dibuja, sin cargar nada: recibe lo ya calculado. Separada de
+// ExpensesBlock para poder probarla sin Supabase (ver ExpensesBlock.test.jsx).
+// La comparación con el mes anterior se hace en la moneda del día a día: un
+// solo porcentaje no puede describir dos monedas; cuando además hubo gastos en
+// otra moneda, la frase lo aclara.
+export function ExpensesCard({ totalLines, pct, previousMonth, breakdown, usdSeries, usdError, onRetryUsd, colors }) {
   const mixed = totalLines.length > 1
-  const breakdown = groupByCategory(currentMonthExpenses)
-
   return (
     <div className="surface px-5 py-4">
       <span className="eyebrow">Gastos del mes</span>
@@ -170,7 +53,7 @@ function ExpensesBlock({ reloadToken = 0 }) {
       )}
 
       {/* Desglose por categoría */}
-      {/* Una lista por moneda (ver groupByCategory). La barra de cada categoría
+      {/* Una lista por moneda (ver breakdownFromRows). La barra de cada categoría
           se mide contra la más grande DE SU MONEDA: una barra que compara pesos
           con dólares no dice nada. Con gastos en una sola moneda es exactamente
           el desglose de siempre, sin encabezado que lo anuncie. */}
@@ -215,7 +98,7 @@ function ExpensesBlock({ reloadToken = 0 }) {
           </span>
           <button
             type="button"
-            onClick={loadUsd}
+            onClick={onRetryUsd}
             className="shrink-0 text-[13px] font-semibold text-accent-ink underline"
           >
             Reintentar
@@ -255,6 +138,131 @@ function ExpensesBlock({ reloadToken = 0 }) {
         </div>
       )}
     </div>
+  )
+}
+
+// Bloque de gastos de Inicio: total del mes + comparación, desglose por
+// categoría y serie de 12 meses en USD. Todo lo suma la base (migraciones
+// 0055 y 0056): los gastos reales, con la misma regla que Movimientos.
+// `reloadToken` cambia cada vez que se guarda un movimiento desde Inicio: sin
+// eso, el bloque solo se cargaba al montarse y seguía mostrando lo viejo.
+function ExpensesBlock({ reloadToken = 0 }) {
+  const { accent, isDark } = useTheme()
+  // accent e isDark no se usan adentro a propósito: son la SEÑAL de que las
+  // variables CSS cambiaron, y readChartColors las lee del DOM.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const colors = useMemo(() => readChartColors(), [accent, isDark])
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [usdSeries, setUsdSeries] = useState(null)
+  const [usdError, setUsdError] = useState(false)
+
+  const today = todayISO()
+  const months = useMemo(() => lastMonths(today, 12), [today])
+  const monthStart = `${monthKey(months.at(-1))}-01`
+  const windowStart = `${monthKey(months[0])}-01`
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [current, previous, byCategory, lastYear] = await Promise.all([
+        getPeriodTotals({ from: monthStart, to: today }),
+        getPeriodTotals(previousMonthToDateRange(today)),
+        getExpensesByCategory({ from: monthStart, to: today }),
+        getPeriodTotals({ from: windowStart, to: today }),
+      ])
+      setData({
+        current: periodLines(current).expenses,
+        previous: periodLines(previous).expenses,
+        breakdown: breakdownFromRows(byCategory),
+        // Sin ningún gasto en los 12 meses, el bloque invita a cargar el
+        // primero en vez de mostrar ceros.
+        hasAny: lastYear.some((r) => Number(r.expenses) > 0),
+      })
+    } catch (e) {
+      setError({ message: 'No se pudieron cargar los gastos.', detail: e })
+    } finally {
+      setLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthStart, windowStart, today, reloadToken])
+
+  // La serie falla sola: el total del mes y el desglose ya se vieron. Se
+  // muestra solo con al menos dos meses con gastos — un mes solo no es una
+  // comparación.
+  const loadUsd = useCallback(async () => {
+    setUsdError(false)
+    try {
+      const rows = await getMonthlyExpensesUsd({ from: windowStart, to: today })
+      const withData = rows.filter((r) => Number(r.expense_count) > 0).length
+      setUsdSeries(
+        withData < 2
+          ? null
+          : rows.map((r) => ({
+              year: Number(r.month.slice(0, 4)),
+              month: Number(r.month.slice(5, 7)),
+              total: Number(r.total_usd),
+            })),
+      )
+    } catch {
+      setUsdSeries(null)
+      setUsdError(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowStart, today, reloadToken])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useEffect(() => {
+    loadUsd()
+  }, [loadUsd])
+
+  if (loading) {
+    return (
+      <div className="surface flex h-[140px] items-center justify-center text-[15px] text-ink-soft">
+        Calculando…
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="notice space-y-2">
+        <FormError message={error.message} detail={error.detail} />
+        <button type="button" onClick={load} className="text-[15px] font-semibold text-clay underline">
+          Reintentar
+        </button>
+      </div>
+    )
+  }
+
+  if (!data.hasAny) {
+    return (
+      <div className="surface px-5 py-8 text-center">
+        <p className="text-[15px] text-ink-soft">
+          Todavía no cargaste ningún gasto. Cuando registres el primero, acá vas a ver en qué se te va
+          la plata.
+        </p>
+      </div>
+    )
+  }
+
+  const local = (lines) => localAmount(new Map(lines.map((l) => [l.currency, l.amount])))
+  return (
+    <ExpensesCard
+      totalLines={data.current}
+      pct={monthOverMonthPct(local(data.current), local(data.previous))}
+      previousMonth={months.at(-2)}
+      breakdown={data.breakdown}
+      usdSeries={usdSeries}
+      usdError={usdError}
+      onRetryUsd={loadUsd}
+      colors={colors}
+    />
   )
 }
 

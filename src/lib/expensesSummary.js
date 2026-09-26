@@ -1,5 +1,4 @@
 import { round } from './money.js'
-import { toUsd } from './localCurrency.js'
 import { LOCAL_CURRENCY } from './currencyTotals.js'
 
 function dateMonthKey(date) {
@@ -90,33 +89,34 @@ export function monthOverMonthPct(currentTotal, previousTotal) {
 }
 
 // Desglose por categoría, mayor a menor, DENTRO DE CADA MONEDA: una lista por
-// moneda, la local primero. Los gastos ya vienen sin categorías de sistema (se
-// filtran al leerlos, ver getExpenses en transactions.js).
+// moneda, la local primero. Recibe las filas de get_expenses_by_category
+// (migración 0055), que ya decidió qué es un gasto real y sumó; esto solo les
+// da la forma que dibujan Inicio y Movimientos.
 //
-// No es una lista sola con dos montos por fila, y no es un capricho: el
-// desglose se lee por la proporción entre sus filas —la barra de cada
-// categoría se dibuja contra la más grande— y una proporción entre pesos y
-// dólares no significa nada. Cada moneda se compara consigo misma o no se
-// compara. Con gastos en una sola moneda esto devuelve una sola lista, idéntica
-// a la de antes.
-export function groupByCategory(expenses) {
+// No es una lista sola con dos montos por fila: el desglose se lee por la
+// proporción entre sus filas —la barra de cada categoría se dibuja contra la
+// más grande— y una proporción entre pesos y dólares no significa nada.
+export function breakdownFromRows(rows) {
   const byCurrency = new Map()
-  for (const t of expenses) {
-    const currency = t.currency ?? LOCAL_CURRENCY
-    const name = t.category?.name ?? 'Sin categoría'
-    if (!byCurrency.has(currency)) byCurrency.set(currency, new Map())
-    const totals = byCurrency.get(currency)
-    totals.set(name, (totals.get(name) ?? 0) + Number(t.amount))
+  for (const row of rows) {
+    if (!byCurrency.has(row.currency)) byCurrency.set(row.currency, [])
+    byCurrency.get(row.currency).push({ name: row.category_name, total: Number(row.total) })
   }
-
   return [...byCurrency.entries()]
-    .map(([currency, totals]) => ({
-      currency,
-      categories: [...totals.entries()]
-        .map(([name, total]) => ({ name, total: round(total) }))
-        .sort((a, b) => b.total - a.total),
-    }))
+    .map(([currency, categories]) => ({ currency, categories: categories.sort((a, b) => b.total - a.total) }))
     .sort((a, b) => (a.currency === LOCAL_CURRENCY ? -1 : b.currency === LOCAL_CURRENCY ? 1 : a.currency < b.currency ? -1 : 1))
+}
+
+// El rango de fechas del mes anterior "a esta altura": del 1 al mismo día que
+// hoy, o hasta fin de mes si ese mes es más corto. Es la ventana de
+// previousMonthToDate, en fechas, para pedirle el total a la base.
+export function previousMonthToDateRange(today) {
+  const [y, m] = today.split('-').map(Number)
+  const { year, month } = monthFromIndex(monthIndex(y, m) - 1)
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const day = Math.min(dateDay(today), lastDay)
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+  return { from: `${prefix}-01`, to: `${prefix}-${String(day).padStart(2, '0')}` }
 }
 
 // Cuántos de `months` tienen al menos un gasto. Determina si hay suficiente
@@ -135,20 +135,17 @@ export function countMonthsWithData(expenses, months) {
 // "cuánto tengo" se muestra tal cual es, pero "cuánto gasté comparado con
 // antes" necesita UNA sola vara o los meses no se pueden comparar.
 //
-// La conversión pasa por toUsd y no por localCurrencyToUsd: un gasto que YA
-// está en dólares vuelve tal cual, en vez de dividirse por el MEP una segunda
-// vez. Para un gasto en pesos las dos son la misma función, así que esto no
-// mueve ni un centavo de lo que la serie venía mostrando.
-export async function monthlyUsdTotals(expenses, months) {
+// Desde la 0056 la app la lee de la base (get_monthly_expenses_usd); esto
+// queda como DEFINICIÓN EJECUTABLE, contra la que corre monthlyUsdSql.test.js.
+// `convert(amount, currency, date)` es la conversión: un gasto que YA está en
+// dólares vuelve tal cual, en vez de dividirse por el MEP una segunda vez.
+export async function monthlyUsdTotals(expenses, months, convert) {
   const totals = new Map(months.map((m) => [monthKey(m), 0]))
-  // El primer día del mes más viejo de la ventana: acota la consulta de
-  // cotizaciones a lo que esta serie realmente necesita (ver localCurrency.js).
-  const from = `${monthKey(months[0])}-01`
   await Promise.all(
     expenses.map(async (t) => {
       const key = dateMonthKey(t.date)
       if (!totals.has(key)) return
-      const usd = await toUsd(Number(t.amount), t.currency ?? LOCAL_CURRENCY, t.date, from)
+      const usd = await convert(Number(t.amount), t.currency ?? LOCAL_CURRENCY, t.date)
       totals.set(key, totals.get(key) + usd)
     }),
   )

@@ -1,107 +1,67 @@
 import { supabase } from './supabase.js'
 import { UserError } from './errors.js'
 
-// Conversión de moneda local a dólares — el ÚNICO lugar del código que la
-// hace. Hoy la resuelve el dólar MEP (instruments source='mep', symbol='mep',
-// serie diaria en instrument_prices); el día que la app sirva otro país, se
-// cambia acá adentro y en ningún otro lado — nada más en la app conoce la
-// palabra "MEP". La serie se trae una sola vez por sesión (promise cacheada)
-// y se reusa en cada conversión.
-let ratesPromise = null
-
-// Margen hacia atrás de `from`, para el carry-forward: la cotización vigente
-// en la fecha más vieja pedida puede ser de unos días antes (fin de semana,
-// feriado, el MEP no cotiza todos los días). 10 días de sobra.
-const CARRY_FORWARD_MARGIN_DAYS = 10
-
-function daysBefore(dateStr, days) {
-  const d = new Date(`${dateStr}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() - days)
-  return d.toISOString().slice(0, 10)
-}
-
-// `from`: la fecha más vieja que hace falta convertir (el consumidor de hoy
-// es la serie de 12 meses de gastos de Inicio, ver monthlyUsdTotals). Sin
-// acotar la consulta, PostgREST corta en 1000 filas sin avisar -- y como la
-// serie es diaria desde hace años, ya se pasó ese límite. Pedir solo la
-// ventana necesaria alcanza para no tocar el límite ni una vez.
-async function loadRates(from) {
-  const { data: instrument, error: instrumentError } = await supabase
-    .from('instruments')
-    .select('id')
-    .eq('source', 'mep')
-    .eq('symbol', 'mep')
-    .single()
-  if (instrumentError) throw instrumentError
-
-  let query = supabase
-    .from('instrument_prices')
-    .select('date, price')
-    .eq('instrument_id', instrument.id)
-  if (from) query = query.gte('date', daysBefore(from, CARRY_FORWARD_MARGIN_DAYS))
-
-  // Ordenada DESCENDENTE (más nueva primero) como cinturón de seguridad: si
-  // por lo que fuera la ventana pedida tuviera más de 1000 cotizaciones, lo
-  // que el corte de PostgREST se comería son las más VIEJAS, nunca las de
-  // hoy -- que es al revés de como fallaba esto antes (ascendente y sin
-  // límite: lo que se perdía eran justo las recientes). Se revierte antes de
-  // devolver: el resto del módulo camina la serie de más vieja a más nueva.
-  const { data: prices, error: pricesError } = await query
-    .order('date', { ascending: false })
-    .limit(1000)
-  if (pricesError) throw pricesError
-  if (prices.length === 0) throw new UserError('No hay cotizaciones cargadas para convertir a dólares.')
-  return prices.slice().reverse()
-}
-
-function getRates(from) {
-  if (!ratesPromise) {
-    // Se cachea la PROMESA para que varias conversiones en paralelo compartan
-    // una sola consulta. Pero si falla, lo que quedaba cacheado era el
-    // fracaso: cada reintento recibía la misma promesa ya rechazada y volvía
-    // a fallar al instante, para siempre, hasta recargar la app entera — el
-    // botón "Reintentar" del bloque de gastos no servía para nada. Por eso el
-    // error limpia la caché antes de propagarse: lo que se guarda es el
-    // resultado, no el intento.
-    ratesPromise = loadRates(from).catch((e) => {
-      ratesPromise = null
-      throw e
-    })
-  }
-  return ratesPromise
-}
-
-// Solo para tests: la caché es un módulo de por vida y no hay otra forma de
-// devolverla a cero entre casos.
-export function resetRatesCache() {
-  ratesPromise = null
-}
-
-// Convierte un monto en moneda local a dólares, a la cotización vigente en
-// `date` ('YYYY-MM-DD'): la última conocida en esa fecha o antes
-// (carry-forward, mismo criterio que get_instrument_series). Si `date` es
-// anterior a toda la serie, usa la cotización más vieja disponible.
+// Conversión de moneda local a dólares — el ÚNICO lugar del cliente que la
+// hace. La cotización de cada día la da la base (get_usd_rate, migración
+// 0056): el dólar MEP del catálogo, vigente ese día (carry-forward). Nada más
+// en la app conoce la palabra "MEP".
 //
-// `from`: la fecha más vieja que este llamado (y los demás que comparten la
-// caché de la sesión) va a pedir -- acota la consulta a esa ventana. Quien
-// convierte una serie de fechas conocida de antemano (ver monthlyUsdTotals)
-// la pasa siempre igual, así que la caché sigue sirviendo una sola consulta
-// por sesión.
-export async function localCurrencyToUsd(amountLocal, date, from) {
-  const rates = await getRates(from)
+// Hasta la 0056 la búsqueda "cotización vigente ese día" se hacía acá, sobre
+// una serie traída una vez por sesión — y esa caché guardaba la ventana de
+// fechas de la PRIMERA llamada, así que quien después pedía una fecha anterior
+// recibía en silencio la cotización más vieja que tuviera (D5 del informe).
+// Ahora se cachea la respuesta de la base por fecha, que no tiene ventana.
+const ratesByDate = new Map()
+
+function getRate(date) {
+  if (!ratesByDate.has(date)) {
+    // Se cachea la PROMESA para que varias conversiones del mismo día
+    // compartan una sola consulta; si falla, se borra antes de propagar el
+    // error, para que "Reintentar" consulte de nuevo en vez de recibir el
+    // mismo fracaso para siempre.
+    const promise = supabase
+      .rpc('get_usd_rate', { p_date: date })
+      .then(({ data, error }) => {
+        if (error) throw error
+        if (data == null) throw new UserError('No hay cotizaciones cargadas para convertir a dólares.')
+        return Number(data)
+      })
+      .catch((e) => {
+        ratesByDate.delete(date)
+        throw e
+      })
+    ratesByDate.set(date, promise)
+  }
+  return ratesByDate.get(date)
+}
+
+// Solo para tests: la caché es un módulo de por vida.
+export function resetRatesCache() {
+  ratesByDate.clear()
+}
+
+// DEFINICIÓN EJECUTABLE de get_usd_rate (la búsqueda que hacía este módulo
+// hasta la 0056): la cotización vigente en `date` es la última conocida ese
+// día o antes; si `date` es anterior a toda la serie, la más vieja. `rates`
+// ordenadas de más vieja a más nueva. La corre monthlyUsdSql.test.js.
+export function rateOn(rates, date) {
   let rate = rates[0].price
   for (const r of rates) {
     if (r.date > date) break
     rate = r.price
   }
-  return amountLocal / rate
+  return rate
+}
+
+// Convierte un monto en moneda local a dólares, a la cotización vigente en
+// `date` ('YYYY-MM-DD').
+export async function localCurrencyToUsd(amountLocal, date) {
+  return amountLocal / (await getRate(date))
 }
 
 // Como localCurrencyToUsd, pero para un monto que puede ya estar en dólares:
-// 'USD' vuelve tal cual (no pisa el MEP contra sí mismo), cualquier otra
-// moneda pasa por la conversión de arriba. Para sumar montos de distinta
-// moneda a un mismo total (ver Dashboard: disponible en ARS + ahorro que
-// podría estar en cualquier moneda + invertido, que ya está en USD).
-export async function toUsd(amountLocal, currency, date, from) {
-  return currency === 'USD' ? amountLocal : localCurrencyToUsd(amountLocal, date, from)
+// 'USD' vuelve tal cual, cualquier otra moneda pasa por la conversión. Para
+// sumar montos de distinta moneda a un mismo total (el Total de Inicio).
+export async function toUsd(amountLocal, currency, date) {
+  return currency === 'USD' ? amountLocal : localCurrencyToUsd(amountLocal, date)
 }

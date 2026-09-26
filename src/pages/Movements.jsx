@@ -7,7 +7,8 @@ import { useLastReconciliations } from '../hooks/useLastReconciliations.js'
 import FilterChips from '../components/form/FilterChips.jsx'
 import EditIcon from '../components/EditIcon.jsx'
 import FormError from '../components/form/FormError.jsx'
-import { getTransactions, groupExpensesByCategory } from '../lib/transactions.js'
+import { getTransactions, getPeriodTotals, getExpensesByCategory } from '../lib/transactions.js'
+import { breakdownFromRows } from '../lib/expensesSummary.js'
 import { getLiquidContributions } from '../lib/contributions.js'
 import {
   contributionAmount,
@@ -15,7 +16,7 @@ import {
   contributionLabel,
   transactionCurrencyOf,
   mergeMovements,
-  monthTotals,
+  periodLines,
 } from '../lib/movements.js'
 import { getCategories } from '../lib/categories.js'
 import {
@@ -304,6 +305,10 @@ function Movements() {
   // desglose "Gastos por categoría" recorre monthItems buscando gastos, y una
   // inversión no es un gasto — meterlas ahí las metería en el desglose.
   const [monthInvestments, setMonthInvestments] = useState([])
+  // Los cinco renglones y el desglose por categoría del período, sumados por
+  // la base (migración 0055): la lista de abajo sigue armándose con las filas.
+  const [periodTotals, setPeriodTotals] = useState([])
+  const [categoryRows, setCategoryRows] = useState([])
   // Qué conteo escribió cada movimiento (id → batch_id). Es lo que permite
   // aparear los repartos de un mismo conteo entre sí sin mezclar dos conteos
   // del mismo día; `transactions` no lleva esa columna (ver
@@ -336,13 +341,17 @@ function Movements() {
       // falla — un mes al que le faltan las inversiones muestra un balance
       // equivocado, y es peor que decir que no se pudo cargar.
       const { from, to } = bounds(range)
-      const [transactions, investments, reconciliationBatches] = await Promise.all([
+      const [transactions, investments, reconciliationBatches, totals, byCategory] = await Promise.all([
         getTransactions({ from, to }),
         getLiquidContributions({ from, to }),
         getReconciliationBatches(),
+        getPeriodTotals({ from, to }),
+        getExpensesByCategory({ from, to }),
       ])
       setMonthItems(transactions)
       setMonthInvestments(investments)
+      setPeriodTotals(totals)
+      setCategoryRows(byCategory)
       setBatches(reconciliationBatches)
     } catch (e) {
       setError({ message: 'No se pudieron cargar los movimientos.', detail: e })
@@ -438,12 +447,9 @@ function Movements() {
       (item) => !categoryId || (item.source === 'transaction' && item.row.category_id === categoryId),
     )
 
-  const { expenses, incomes, invested, saved, balance } = monthTotals({
-    transactions: monthItems,
-    contributions: monthInvestments,
-  })
+  const { expenses, incomes, invested, saved, balance } = periodLines(periodTotals)
   const hasExtraFilters = bucket !== ALL || categoryId !== ''
-  const categoryBreakdown = groupExpensesByCategory(monthItems)
+  const categoryBreakdown = breakdownFromRows(categoryRows)
 
   return (
     <div className="page">

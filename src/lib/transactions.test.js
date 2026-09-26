@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
-// Mock mínimo de supabase para las dos funciones que FILTRAN al leer
-// (getExpenses y getTransactions): la cadena de .select/.eq/.gte/.order no
+// Mock mínimo de supabase para la función que filtra al leer
+// (getTransactions): la cadena de .select/.eq/.gte/.order no
 // importa acá, lo que se prueba es qué filas sobreviven al filtro del cliente.
 const h = vi.hoisted(() => ({ rows: [] }))
 
@@ -21,7 +21,6 @@ vi.mock('./supabase.js', () => {
 import {
   transactionCurrency,
   groupExpensesByCategory,
-  getExpenses,
   getTransactions,
 } from './transactions.js'
 
@@ -126,35 +125,6 @@ describe('groupExpensesByCategory y las categorías del sistema', () => {
   it('una fila sin categoría no se cae ni se excluye', () => {
     const [{ categories }] = groupExpensesByCategory([{ kind: 'expense', amount: 10 }])
     expect(categories).toEqual([{ name: 'Sin categoría', total: 10 }])
-  })
-})
-
-// ── Qué llega a cada pantalla ─────────────────────────────────────────────
-// Inicio y Movimientos venían filtrando con criterios distintos y los dos
-// equivocados: Inicio escondía los ajustes enteros (`!is_system`, así que ni
-// la plata que de verdad faltó se veía) y Movimientos no excluía nada en su
-// desglose. Desde el neteo de la migración 0041 las dos aplican la misma
-// regla, que es la del significado de cada categoría (ver systemCategories.js).
-describe('getExpenses (el bloque de Gastos de Inicio)', () => {
-  const expense = (name, systemKey = null) => ({
-    date: '2026-09-01',
-    amount: 100,
-    currency: 'ARS',
-    category: { name, system_key: systemKey },
-  })
-
-  it('el ajuste de un conteo cuenta como gasto; el reparto y las transferencias no', async () => {
-    h.rows = [
-      expense('Comida'),
-      expense('Ajuste de saldo', 'balance_adjustment'),
-      expense('Transferencia de cuenta', 'account_transfer'),
-      expense('Movimiento de ahorro', 'savings_movement'),
-    ]
-
-    expect((await getExpenses()).map((t) => t.category.name)).toEqual([
-      'Comida',
-      'Ajuste de saldo',
-    ])
   })
 })
 
