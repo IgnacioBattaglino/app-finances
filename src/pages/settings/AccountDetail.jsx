@@ -26,6 +26,7 @@ import BinaryChoice from '../../components/form/BinaryChoice.jsx'
 import SavingsMovementModal from '../../components/account/SavingsMovementModal.jsx'
 import AccountHistory from '../../components/account/AccountHistory.jsx'
 import TransactionFormModal from '../../components/TransactionFormModal.jsx'
+import AccountTransferModal from '../../components/account/AccountTransferModal.jsx'
 
 const PAGE_SIZE = 20
 
@@ -59,6 +60,7 @@ function AccountDetail() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [transferOpen, setTransferOpen] = useState(false)
   const [movement, setMovement] = useState(null) // 'contribution' | 'withdrawal' | null
   const [history, setHistory] = useState([]) // página visible del historial
   const [hasMoreHistory, setHasMoreHistory] = useState(false)
@@ -127,6 +129,13 @@ function AccountDetail() {
 
   function afterMovement() {
     setMovement(null)
+    reload()
+  }
+
+  // Vaciarla pasando la plata a otra cuenta: con el saldo en cero, la
+  // confirmación de eliminar queda en su versión simple.
+  function afterTransfer() {
+    setTransferOpen(false)
     reload()
   }
 
@@ -340,11 +349,24 @@ function AccountDetail() {
                 gasto, es un ajuste — la misma distinción que hace "Contar mi
                 plata" — y recién con eso en $0 se intenta borrar de verdad. */}
             {hasBalance ? (
-              <p className="text-[13px] text-ink-soft">
-                Tiene {formatByCurrency(account.currency, balance.amount)}. Antes de eliminarla, ese
-                saldo se registra como un ajuste de saldo (no como un gasto) para dejarla en cero, y
-                recién ahí se elimina.
-              </p>
+              <div className="space-y-1.5">
+                <p className="text-[13px] text-ink-soft">
+                  Tiene {formatByCurrency(account.currency, balance.amount)}. Una cuenta con plata no
+                  se puede eliminar: "Sí, vaciar y eliminar" registra ese saldo como un ajuste de saldo
+                  (no como un gasto) para dejarla en cero. Si esa plata sigue existiendo en otro
+                  lado, pasala a otra cuenta.
+                </p>
+                {balance.amount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTransferOpen(true)}
+                    disabled={busy}
+                    className="text-[13px] font-semibold text-accent-ink"
+                  >
+                    Pasar la plata a otra cuenta
+                  </button>
+                )}
+              </div>
             ) : (
               <p className="text-[13px] text-ink-soft">
                 Si tiene movimientos, dejará de ofrecerse en vez de eliminarse.
@@ -360,6 +382,15 @@ function AccountDetail() {
           />
         )}
       </SettingsGroup>
+
+      <AccountTransferModal
+        open={transferOpen}
+        accounts={[account, ...dailyAccounts.filter((a) => a.id !== account.id)]}
+        initialFromAccountId={account.id}
+        initialAmount={hasBalance && balance.amount > 0 ? balance.amount : null}
+        onClose={() => setTransferOpen(false)}
+        onSaved={afterTransfer}
+      />
 
       <SavingsMovementModal
         open={movement != null}
