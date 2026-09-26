@@ -134,6 +134,9 @@ create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('app.current_user_id', true), '')::uuid
 $$;
 grant usage on schema auth to authenticated, anon;
+-- Lo que hace Supabase: toda función nueva de public nace ejecutable por anon.
+-- Sin esto, un revoke que solo nombra a public pasa acá y falla en producción.
+alter default privileges in schema public grant execute on functions to anon;
 
 create table liquid_accounts (
   id uuid primary key, user_id uuid not null, name text not null default 'x',

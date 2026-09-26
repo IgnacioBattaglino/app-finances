@@ -95,7 +95,10 @@ $$;
 comment on function public.get_liquid_summary() is
   'Por moneda: el disponible (cuentas del día a día) y el ahorro, por separado. Nunca mezcla monedas ni suma ahorro al disponible (migración 0051).';
 
-revoke all on function public.get_liquid_summary() from public;
+-- `from public, anon` y no solo `public`: Supabase tiene privilegios por
+-- defecto que le dan EXECUTE directamente a anon en toda función nueva de
+-- public, y revocárselo a public no se lo saca.
+revoke all on function public.get_liquid_summary() from public, anon;
 grant execute on function public.get_liquid_summary() to authenticated;
 
 -- ── Verificación (solo lectura, correr después de aplicar) ─────────────────
