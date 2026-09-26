@@ -1,5 +1,6 @@
 // Paridad de la migración 0057: get_top_categories contra su definición en JS
 // (categoryUsage + topCategories, rescatadas de la etiqueta archivo/ui-polish).
+// Se aplican la 0057 y la 0058 (que corta la ventana en hoy) tal cual.
 //
 // Base scratch, la migración TAL CUAL, el mismo dataset a las dos. RLS
 // encendido y otro usuario cuyas categorías y movimientos no pueden contar.
@@ -140,6 +141,7 @@ describe.skipIf(!available)('0057: las categorías más usadas (SQL) vs topCateg
     execFileSync('createdb', [DB])
     psql(SCHEMA)
     psql(readFileSync('supabase/migrations/0057_top_categories.sql', 'utf8'))
+    psql(readFileSync('supabase/migrations/0058_top_categories_until_today.sql', 'utf8'))
     psql(seedSql())
   })
 
@@ -165,15 +167,24 @@ describe.skipIf(!available)('0057: las categorías más usadas (SQL) vs topCateg
       .split('\n').filter(Boolean).map((l) => l.split('\t'))
     const usesOf = (name) => Number(uses.find(([n]) => n === name)[1])
     const count = (name, from) =>
-      TRANSACTIONS.filter((t) => t.category_id === CATEGORIES.find((c) => c.name === name).id && t.date >= from).length
+      TRANSACTIONS.filter((t) => t.category_id === CATEGORIES.find((c) => c.name === name).id && t.date >= from && t.date <= TODAY).length
     expect(usesOf('Regalos')).toBe(count('Regalos', addDays(TODAY, -90))) // las 40 de 91 días atrás no suman
     expect(usesOf('Ropa')).toBe(count('Ropa', addDays(TODAY, -90)))
   })
 
+  it('un movimiento con fecha futura no cuenta', () => {
+    const future = TRANSACTIONS.filter((t) => t.user_id === USER && t.date > TODAY)
+    expect(future.length).toBeGreaterThan(0) // si no, el test no prueba nada
+    const uses = asUser(USER, `select id, uses from get_top_categories('expense', 20, '${TODAY}');`)
+      .split('\n').filter(Boolean).map((l) => l.split('\t'))
+    for (const [id, n] of uses) {
+      const counted = TRANSACTIONS.filter((t) => t.category_id === id && t.date >= addDays(TODAY, -90) && t.date <= TODAY)
+      expect(Number(n)).toBe(counted.length)
+    }
+  })
+
   it('sin movimientos en la ventana, salen las primeras por posición (el relleno)', () => {
-    // La ventana es "desde 90 días antes, sin tope", igual que la definición:
-    // con `p_today` en el futuro queda vacía.
-    expect(asUser(USER, `select name from get_top_categories('income', 2, '2030-01-01');`).split('\n').filter(Boolean)).toEqual([
+    expect(asUser(USER, `select name from get_top_categories('income', 2, '2020-01-01');`).split('\n').filter(Boolean)).toEqual([
       'Sueldo',
       'Freelance',
     ])

@@ -179,9 +179,10 @@ export async function renameCategory(id, name) {
 // y topCategories), y solo las corre topCategoriesSql.test.js contra la
 // función SQL. De getCategoryUsage se rescata el conteo, no la consulta.
 
-// Cuántas veces se usó cada categoría desde 90 días antes de `today`,
-// inclusive. Cuenta MOVIMIENTOS, no plata: importa cuántas veces se toca cada
-// una, no cuánto mueve.
+// Cuántas veces se usó cada categoría en los últimos 90 días hasta `today`,
+// los dos extremos incluidos. Un movimiento con fecha futura todavía no pasó y
+// no cuenta (0058). Cuenta MOVIMIENTOS, no plata: importa cuántas veces se toca
+// cada una, no cuánto mueve.
 export function categoryUsage(transactions, today) {
   const since = new Date(`${today}T00:00:00Z`)
   since.setUTCDate(since.getUTCDate() - 90)
@@ -189,7 +190,7 @@ export function categoryUsage(transactions, today) {
 
   const counts = new Map()
   for (const { category_id, kind, date } of transactions) {
-    if (date < sinceISO) continue
+    if (date < sinceISO || date > today) continue
     const key = `${category_id}:${kind}`
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }

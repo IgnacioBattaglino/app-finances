@@ -340,7 +340,7 @@ RLS de instruments e instrument_prices: SELECT para authenticated, **ninguna pol
   - `get_expenses_by_category(from, to)` (0055): los gastos reales por moneda y categoría; lo leen Movimientos e Inicio, así que el desglose ya no existe dos veces (D3). Definición: `groupExpensesByCategory`.
   - `get_usd_rate(date)` (0056): el MEP vigente ese día (carry-forward; si la fecha es anterior a la serie, la más vieja). `lib/localCurrency.js` convierte con esto, cacheado por fecha (D5). Definición: `rateOn`.
   - `get_monthly_expenses_usd(from, to)` (0056): la serie mensual de gastos en dólares de Inicio, con cuántos gastos tuvo cada mes. Definición: `monthlyUsdTotals`.
-  - `get_top_categories(kind, limit, today)` (0057): las categorías más usadas en 90 días, para la app nativa (la web no tiene la grilla). Definición: `categoryUsage` + `topCategories`.
+  - `get_top_categories(kind, limit, today)` (0057, ventana cortada en hoy desde la 0058): las categorías más usadas en los últimos 90 días, para la app nativa (la web no tiene la grilla). Definición: `categoryUsage` + `topCategories`.
   - Todas SECURITY INVOKER, solo authenticated. Como agregan en la base, ninguna choca con el corte de 1000 filas de PostgREST (D2: `getExpenses` no paginaba y se borró).
 - Vista debt_balances (migración 0049): el saldo de cada deuda. `security_invoker = true` sin condicional — con datos de usuario, una vista sin esa opción correría como su dueño y saltearía RLS. `select` solo para authenticated.
 - Función get_liquid_summary (migración 0051): por moneda, el disponible y el ahorro por separado, sumando `get_liquid_by_account()`. SECURITY INVOKER; solo authenticated puede ejecutarla.
