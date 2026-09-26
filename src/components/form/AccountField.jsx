@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AccountCreateForm from './AccountCreateForm.jsx'
+import { reloadAccounts } from '../../hooks/useAccounts.js'
 
 // ¿De qué cuenta sale (o a cuál entra) esta plata? Una fila de lista, con el
 // mismo alto y la misma forma que las demás del formulario.
@@ -28,6 +29,19 @@ function AccountField({ accounts = [], value, onChange, label = '¿De qué cuent
     cancel()
   }
 
+  // Sin cuentas en la lista es que no se pudieron cargar: todo usuario tiene al
+  // menos una del día a día, y la base no deja borrar la última (0050).
+  if (accounts.length === 0) {
+    return (
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <span className="text-[15px] text-ink-soft">No se pudieron cargar tus cuentas.</span>
+        <button type="button" onClick={reloadAccounts} className="text-[15px] font-semibold text-accent-ink">
+          Reintentar
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="px-4 py-3">
       <label className="flex items-center justify-between gap-3">
@@ -45,9 +59,14 @@ function AccountField({ accounts = [], value, onChange, label = '¿De qué cuent
           }}
           className="max-w-[55%] bg-transparent text-right text-[17px] outline-none"
         >
-          {/* Sin cuentas no hay nada que elegir todavía; con cuentas, esta
-              opción es la que deja una operación sin asignar a propósito. */}
-          <option value="">{accounts.length === 0 ? 'Sin cuentas' : 'Sin cuenta'}</option>
+          {/* No hay "Sin cuenta" (0050): toda plata del disponible está en
+              alguna. Esta opción solo aparece si todavía no se eligió ninguna,
+              para no mostrar la primera como elegida cuando no lo está. */}
+          {value == null && !creating && (
+            <option value="" disabled>
+              Elegí una
+            </option>
+          )}
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
               {account.name}

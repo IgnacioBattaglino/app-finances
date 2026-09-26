@@ -114,6 +114,7 @@ function DebtPaymentModal({
   // El tipo de cambio solo hace falta si el pago descuenta del líquido: es lo
   // que traduce los dólares a los pesos que se restan.
   if (affectsLiquid && !(mepRate > 0)) missing.push('tipo de cambio')
+  if (affectsLiquid && !accountId) missing.push('cuenta')
   if (!date) missing.push('fecha')
   const valid = missing.length === 0
 

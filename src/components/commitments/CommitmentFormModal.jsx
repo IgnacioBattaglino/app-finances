@@ -186,6 +186,7 @@ function CommitmentFormModal({
   if (!name.trim()) missing.push(isInstallments ? 'qué compraste' : 'qué es')
   if (!(typed > 0)) missing.push('monto')
   if (!categoryId) missing.push('categoría')
+  if (!accountId) missing.push('cuenta')
   if (!startDate) missing.push('fecha')
   if (isInstallments) {
     if (!(count > 0)) missing.push('cuántas cuotas')

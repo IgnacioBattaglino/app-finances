@@ -99,6 +99,7 @@ function LiquidatePositionModal({
   // El tipo de cambio solo hace falta si la venta entra al disponible —
   // mismo criterio que Aportar/Retirar.
   if (affectsLiquid && !(mepRate > 0)) missing.push('tipo de cambio')
+  if (affectsLiquid && !accountId) missing.push('cuenta')
   if (!date) missing.push('fecha')
   const valid = missing.length === 0
 

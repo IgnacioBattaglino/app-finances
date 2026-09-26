@@ -319,6 +319,7 @@ function ContributionFormModal({
   // afuera" no lo necesita para nada — se guarda si se consigue, pero no se
   // le pide al usuario.
   if (affectsLiquid && !(mepRate > 0)) missing.push('tipo de cambio')
+  if (affectsLiquid && !accountId) missing.push('cuenta')
   if (!date) missing.push('fecha')
   if (exceedsHoldings) missing.push('una cantidad que no supere lo que tenés')
   const valid = missing.length === 0

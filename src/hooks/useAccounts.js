@@ -8,14 +8,22 @@ import { getAccounts } from '../lib/liquidAccounts.js'
 // `defaultAccountId` es la primera por position: la que los formularios
 // preseleccionan para que quien no quiera pensar en cuentas no toque nada.
 //
-// Un fallo cargándolas NO se propaga como error de la pantalla: las cuentas son
-// un dato accesorio del formulario, y quedarse sin poder cargar un gasto porque
-// no se pudo leer la lista de cuentas es peor que cargarlo sin cuenta.
+// Un fallo cargándolas NO se propaga como error de la pantalla: deja la lista
+// vacía, y AccountField la muestra como "no se pudieron cargar" con un botón
+// para reintentar. Desde la 0050 no hay plata sin cuenta, así que el
+// formulario no deja guardar hasta que haya una cuenta elegida.
 //
 // Las cuentas de AHORRO quedan afuera (migración 0036): un gasto o un aporte
 // no sale de la plata guardada, y todavía no existe la forma de mover plata
 // entre cuentas — eso llega con las transferencias entre cuentas. Ofrecerlas
 // en el selector sería ofrecer una operación que la app no sabe registrar.
+// Reintentar desde AccountField, que no sabe qué pantalla cargó las cuentas:
+// recarga todas las instancias montadas del hook.
+const reloaders = new Set()
+export function reloadAccounts() {
+  reloaders.forEach((reload) => reload())
+}
+
 export function useAccounts() {
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -33,6 +41,8 @@ export function useAccounts() {
 
   useEffect(() => {
     load()
+    reloaders.add(load)
+    return () => reloaders.delete(load)
   }, [load])
 
   // Una cuenta creada al vuelo desde un formulario entra a la lista sin
