@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js'
 import { round } from './money.js'
-import { LOCAL_CURRENCY, currencyLines, hasAmount, amountInCurrency } from './currencyTotals.js'
+import { LOCAL_CURRENCY, currencyLines, amountInCurrency } from './currencyTotals.js'
 import { getAccounts } from './liquidAccounts.js'
 
 // Todas las reconciliaciones, de la más nueva a la más vieja. La tabla crece
@@ -246,55 +246,58 @@ export function computeLiquidFromCollections(collections) {
   return total
 }
 
-// El estado completo del disponible: el total (igual que siempre), el desglose
-// por cuenta, y la última reconciliación de cada una.
-//
-// LAS CUENTAS DE AHORRO QUEDAN AFUERA del total y del desglose (migración
-// 0037, cuando aparecieron las primeras). "Disponible" es la plata del día a
-// día; el ahorro es plata guardada, y sumarlos daría un número que no responde
-// ninguna pregunta. Además son cuentas en otra moneda: meterlas en `current`
-// sumaría dólares con pesos como si fueran la misma unidad.
-//
-// Vuelven aparte, en `savings`, sin convertir y con su moneda — el insumo de
-// los cuatro números de Inicio, que todavía no los muestra nadie.
-//
-// El desglose lo suma la base (get_liquid_by_account, migración 0033) y vuelve
-// como una fila por cuenta, no como los miles de movimientos que la componen:
-// una agregación no puede toparse con el corte de PostgREST en 1000 filas
-// porque nunca devuelve tantas. La regla que aplica es la misma que
-// computeLiquidByAccount, y hay un test que lo verifica contra datos.
 // El desglose por cuenta tal cual lo devuelve la base: una fila por cuenta con
-// su moneda, su marca de ahorro y su saldo (get_liquid_by_account, migración
-// 0036). Para Mi plata, que solo necesita el saldo de cada cuenta —
-// sin el total, lo sin asignar ni la última reconciliación que arma
-// computeCurrentLiquid.
+// su moneda, su marca de ahorro y su saldo (get_liquid_by_account). Una
+// agregación: no puede toparse con el corte de PostgREST en 1000 filas porque
+// nunca devuelve tantas.
 export async function getAccountBalances() {
   const { data, error } = await supabase.rpc('get_liquid_by_account')
   if (error) throw error
   return data
 }
 
+// El resumen del disponible, por moneda: el total de las cuentas del día a
+// día y el del ahorro, por separado. Lo calcula la base (get_liquid_summary,
+// migración 0051); la app lo lee de ahí.
+export async function getLiquidSummary() {
+  const { data, error } = await supabase.rpc('get_liquid_summary')
+  if (error) throw error
+  return data
+}
+
+// DEFINICIÓN EJECUTABLE de get_liquid_summary: la app no la usa, la corre
+// liquidSummarySql.test.js contra la función SQL. Recibe los baldes por cuenta
+// (con la moneda y la marca de ahorro de cada una, incluidas las ocultas: su
+// plata no desaparece por ocultarlas) y devuelve una fila por moneda. Nunca
+// suma entre monedas ni el ahorro al disponible.
+export function summarizeLiquid(buckets) {
+  const byCurrency = new Map()
+  for (const b of buckets) {
+    const row = byCurrency.get(b.currency) ?? { currency: b.currency, available: 0, savings: 0 }
+    row[b.is_savings ? 'savings' : 'available'] += Number(b.amount)
+    byCurrency.set(b.currency, row)
+  }
+  return [...byCurrency.values()]
+    .map((r) => ({ ...r, available: round(r.available), savings: round(r.savings) }))
+    .sort((a, b) => (a.currency < b.currency ? -1 : 1))
+}
+
+// El estado completo del disponible: los totales por moneda (del disponible y
+// del ahorro, que salen de get_liquid_summary), el desglose por cuenta y la
+// última reconciliación de cada una.
+//
+// getAccounts() filtra las ocultas (is_archived): no se ofrecen para contar ni
+// se listan en el desglose. Los totales sí las incluyen (ver 0051): ocultar una
+// cuenta no hace desaparecer su plata.
 export async function computeCurrentLiquid() {
-  // getAccounts() (no getAccountsRaw ni un select propio): filtra
-  // is_archived, que es lo que significa "eliminada" para una cuenta con
-  // historia (ver deleteAccount, lib/liquidAccounts.js). Sin este filtro una
-  // cuenta borrada así seguía apareciendo acá —con su saldo en 0, pero como
-  // fila propia— tanto en el desglose de Inicio como en las filas de "Contar
-  // mi plata", que la ofrecía para reconciliar de nuevo. El total no
-  // depende de esta lista (sale de TODOS los baldes, más abajo), así que
-  // filtrar no le esconde plata a nadie.
-  const [reconciliations, accountRows, buckets] = await Promise.all([
+  const [reconciliations, accountRows, buckets, summary] = await Promise.all([
     getReconciliations(),
     getAccounts(),
-    supabase.rpc('get_liquid_by_account').then(({ data, error }) => {
-      if (error) throw error
-      return data
-    }),
+    getAccountBalances(),
+    getLiquidSummary(),
   ])
 
-  // Mismo Map que devolvía computeLiquidByAccount: account_id → monto, con el
-  // null como balde "sin cuenta".
-  const byAccount = new Map(buckets.map((row) => [row.account_id ?? null, Number(row.amount)]))
+  const byAccount = new Map(buckets.map((row) => [row.account_id, Number(row.amount)]))
   const lastByAccount = lastReconciliationByAccount(reconciliations)
 
   const withAmount = (account) => ({
@@ -303,45 +306,20 @@ export async function computeCurrentLiquid() {
     last: lastByAccount.get(account.id) ?? null,
   })
 
-  const accounts = accountRows.filter((a) => !a.is_savings).map(withAmount)
-  const savings = accountRows.filter((a) => a.is_savings).map(withAmount)
-
-  // El total sale de TODOS los baldes del día a día, no solo de los que tienen
-  // una cuenta en la lista: si una fila apunta a una cuenta que ya no está (se
-  // borró entre las dos consultas), su plata tiene que seguir contando. Sumar
-  // solo las cuentas conocidas la haría desaparecer del disponible en
-  // silencio, que es el peor error posible acá.
-  //
-  // `is_savings` y `currency` se leen del balde y no de la lista de cuentas
-  // por esa misma razón: un balde huérfano no tiene fila que consultar, y el
-  // RPC ya lo devuelve como no-ahorro y en la moneda local (migración 0036),
-  // que es lo que corresponde.
-  //
-  // Y SEPARADO POR MONEDA, no sumado: dólares y pesos no se suman ni acá ni en
-  // pantalla. La app tiene un solo lugar donde mezcla monedas —el Total
-  // convertido de Inicio— y se arma aparte, a la cotización de hoy.
-  const byCurrency = new Map()
-  for (const row of buckets) {
-    if (row.is_savings) continue
-    const currency = row.currency ?? LOCAL_CURRENCY
-    byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + Number(row.amount))
-  }
-  const totals = currencyLines(byCurrency)
-
-  // Y lo "sin cuenta" es, por definición, todo lo que el desglose no explica:
-  // el balde null más cualquier huérfano. Definido como resta, las líneas que
-  // se muestran en pantalla siempre suman exactamente el total de arriba —
-  // redondear cada parte por su lado dejaría diferencias de un centavo que en
-  // una pantalla de plata se leen como un error.
-  //
-  // Está siempre en la moneda LOCAL y por eso es un número y no una lista: los
-  // dos baldes que lo componen son los dos que el RPC devuelve como locales.
-  const localTotal = byCurrency.get(LOCAL_CURRENCY) ?? 0
-  const localAccounts = accounts.filter((a) => (a.currency ?? LOCAL_CURRENCY) === LOCAL_CURRENCY)
-  const unassigned = round(localTotal - localAccounts.reduce((sum, a) => sum + a.amount, 0))
+  // Una línea por moneda con saldo, la local primero (currencyLines). Pesos y
+  // dólares no se suman; el único lugar que mezcla monedas es el Total de
+  // Inicio, que convierte aparte.
+  const lines = (field) => currencyLines(new Map(summary.map((r) => [r.currency, Number(r[field])])))
 
   const last = reconciliations[0] ?? null
-  return { totals, isFirst: !last, last, accounts, unassigned, savings }
+  return {
+    totals: lines('available'),
+    savingsTotals: lines('savings'),
+    isFirst: !last,
+    last,
+    accounts: accountRows.filter((a) => !a.is_savings).map(withAmount),
+    savings: accountRows.filter((a) => a.is_savings).map(withAmount),
+  }
 }
 
 // Cuánto hay por moneda dentro de un conjunto de cuentas (disponible o
@@ -360,21 +338,6 @@ export function totalsByCurrency(accounts) {
 // criterio para el disponible y para el ahorro.
 export function visibleBreakdown(rows) {
   return rows.length > 1 ? rows : null
-}
-
-// Qué muestra la tarjeta "Dinero ahorrado": si aparece, y con qué líneas.
-//
-// Una línea por moneda, sin convertir — el ahorro se muestra tal cual es. Con
-// varias monedas ya no hace falta esperar al Total convertido de Inicio para
-// saber qué poner (antes la tarjeta dependía de esa conversión y, mientras no
-// llegaba, no se sabía si mostrarla): ahora la respuesta sale del mismo dato
-// que las líneas.
-//
-// Sin saldo no se muestra: un "US$ 0" fijo sería ruido, igual que "Deudas" sin
-// deudas.
-export function summarizeSavingsCard(accounts) {
-  const lines = currencyLines(totalsByCurrency(accounts))
-  return { show: hasAmount(lines), lines }
 }
 
 // Suma a dólares un Map moneda → monto, con `convert` como el único punto de
@@ -547,9 +510,8 @@ export function rowMovement(current, declaredAmount) {
 // nada — y el reintento las duplicaba. Una llamada RPC es una transacción:
 // entra todo o no entra nada.
 //
-// declarations: [{ accountId, declaredAmount }]. Un accountId null declara el
-// disponible entero sin cuentas — el camino de antes de la 0032, que sigue
-// funcionando si el usuario se quedó sin ninguna cuenta.
+// declarations: [{ accountId, declaredAmount }]. Siempre con cuenta: desde la
+// 0050 la base rechaza un conteo sin cuenta.
 export async function reconcile({ date, declarations }) {
   const { data, error } = await supabase.rpc('reconcile_liquid', {
     p_date: date,

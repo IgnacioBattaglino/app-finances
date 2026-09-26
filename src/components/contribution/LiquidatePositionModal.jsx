@@ -228,9 +228,7 @@ function LiquidatePositionModal({
             </div>
 
             {/* Liquidar también acredita en el disponible cuando va "a mi
-                disponible": sin este campo, toda liquidación caería en el balde
-                "sin cuenta" y el desglose dejaría de cuadrar con lo que el
-                usuario ve en el bolsillo. */}
+                disponible": la plata tiene que entrar a una cuenta (0050). */}
             {affectsLiquid && (
               <AccountField
                 accounts={accounts}

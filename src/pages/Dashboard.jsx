@@ -13,10 +13,10 @@ import {
   computeCurrentLiquid,
   totalsByCurrency,
   visibleBreakdown,
-  summarizeSavingsCard,
   sumToUsd,
 } from '../lib/liquid.js'
 import { toUsd } from '../lib/localCurrency.js'
+import { hasAmount } from '../lib/currencyTotals.js'
 import { getCategories } from '../lib/categories.js'
 import { getDebts, summarizeDebtBalances } from '../lib/debts.js'
 import { formatARS, formatUSD, todayISO } from '../lib/format.js'
@@ -360,15 +360,10 @@ function Dashboard() {
     const today = todayISO()
     const convert = (amount, currency) => toUsd(amount, currency, today)
 
-    const disponibleAccounts = [
-      ...liquid.accounts.map((a) => ({ amount: a.amount, currency: a.currency })),
-      ...(Math.abs(liquid.unassigned) >= 0.01 ? [{ amount: liquid.unassigned, currency: 'ARS' }] : []),
-    ]
-    const savingsAccounts = liquid.savings.map((a) => ({ amount: a.amount, currency: a.currency }))
-
+    // Los totales por moneda ya vienen de la base (get_liquid_summary).
     Promise.all([
-      sumToUsd(totalsByCurrency(disponibleAccounts), convert),
-      sumToUsd(totalsByCurrency(savingsAccounts), convert),
+      sumToUsd(totalsByCurrency(liquid.totals), convert),
+      sumToUsd(totalsByCurrency(liquid.savingsTotals), convert),
     ])
       .then(([disponibleUsd, ahorradoUsd]) => {
         if (cancelled) return
@@ -412,22 +407,17 @@ function Dashboard() {
     setExpensesVersion((v) => v + 1)
   }
 
-  // Desglose del disponible por cuenta, para la tarjeta. El balde "sin
-  // cuenta" entra como una línea más solo si tiene algo — cuenta para el
-  // total, así que sin él la suma de las líneas no daría.
-  const liquidRows = liquid
-    ? [
-        ...liquid.accounts.map((a) => ({ key: a.id, name: a.name, amount: a.amount, currency: a.currency })),
-        ...(Math.abs(liquid.unassigned) >= 0.01
-          ? [{ key: '__none__', name: 'Sin cuenta', amount: liquid.unassigned, currency: 'ARS' }]
-          : []),
-      ]
-    : []
+  // Desglose del disponible por cuenta, para la tarjeta.
+  const liquidRows = (liquid?.accounts ?? []).map((a) => ({
+    key: a.id,
+    name: a.name,
+    amount: a.amount,
+    currency: a.currency,
+  }))
   const liquidBreakdown = visibleBreakdown(liquidRows)
 
-  // Ver summarizeSavingsCard (lib/liquid.js): una línea por moneda, sin
-  // convertir, y si la tarjeta se muestra. Ya no depende del Total convertido
-  // de abajo: mostrar el ahorro tal cual es no necesita ninguna cotización.
+  // El ahorro: una línea por moneda, sin convertir, de get_liquid_summary. Sin
+  // saldo la tarjeta no se muestra — un "US$ 0" fijo sería ruido.
   const savingsRows = (liquid?.savings ?? []).map((a) => ({
     key: a.id,
     name: a.name,
@@ -435,7 +425,8 @@ function Dashboard() {
     currency: a.currency,
   }))
   const savingsBreakdown = visibleBreakdown(savingsRows)
-  const { show: hasSavings, lines: savingsLines } = summarizeSavingsCard(savingsRows)
+  const savingsLines = liquid?.savingsTotals ?? []
+  const hasSavings = hasAmount(savingsLines)
 
   const hasDebts = debtsError || debts.length > 0
 
@@ -461,8 +452,8 @@ function Dashboard() {
   // "cuánto en dólares", no "cuánto tiene cada tarjeta".
   const totalBreakdown = usdTotals
     ? [...totalsByCurrency([
-        ...liquidRows.map((r) => ({ amount: r.amount, currency: r.currency })),
-        ...savingsRows.map((r) => ({ amount: r.amount, currency: r.currency })),
+        ...liquid.totals,
+        ...liquid.savingsTotals,
         { amount: totalValue, currency: 'USD' },
       ])].map(([currency, amount]) => ({ currency, amount }))
     : null

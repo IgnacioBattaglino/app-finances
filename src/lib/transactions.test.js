@@ -35,10 +35,6 @@ describe('transactionCurrency', () => {
     expect(transactionCurrency({ accountId: 'acc-ars', accounts })).toBe('ARS')
   })
 
-  it('creando sin cuenta: pesos, igual que el balde "sin cuenta"', () => {
-    expect(transactionCurrency({ accountId: null, accounts })).toBe('ARS')
-  })
-
   it('una cuenta que no está en la lista no inventa una moneda', () => {
     // Puede pasar con una cuenta oculta o de ahorro, que los selectores no
     // ofrecen. Cae en la local, que es el mismo default de todo el sistema.
@@ -63,11 +59,6 @@ describe('transactionCurrency', () => {
     // nombre.
     const initial = { account_id: 'acc-ars', currency: 'ARS' }
     expect(transactionCurrency({ initial, accountId: 'acc-usd', accounts })).toBe('USD')
-  })
-
-  it('editando y sacándole la cuenta: vuelve a pesos', () => {
-    const initial = { account_id: 'acc-usd', currency: 'USD' }
-    expect(transactionCurrency({ initial, accountId: null, accounts })).toBe('ARS')
   })
 })
 

@@ -40,6 +40,7 @@ Una regla por rama. El piloto fue el saldo de deudas (0049, `debt_balances`, reg
 ## 4. Después de aplicar
 
 - Correr la consulta del pie de la migración con el MCP (solo lectura): la columna de control tiene que dar `true` en todas las filas.
+- Si la migración **reemplaza** una función existente, la versión vieja deja de existir al aplicar. Antes, tomar con el MCP una huella de su resultado (`count` + `md5` de las filas ordenadas, sin montos a la vista) y anotarla en el pie: después de aplicar tiene que dar igual. Solo vale si no se cargó nada en el medio.
 - Mirar la pantalla una vez con datos reales.
 
 ## 5. Cuándo borrar la versión JS
