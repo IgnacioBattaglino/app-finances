@@ -49,3 +49,7 @@ Una regla por rama. El piloto fue el saldo de deudas (0049, `debt_balances`, reg
 
 - Cuando la vista está aplicada y verificada en producción, y la app lleva un tiempo leyéndola sin diferencias.
 - En un PR aparte: los casos del test de paridad se reescriben como aserciones SQL (valores esperados fijos) y se borran la función JS y sus tests unitarios.
+
+## Pendiente atado a un paso
+
+- El conteo retroactivo (`informe-conteo-retroactivo.md`: opción A más el aviso al crear, solo gastos e ingresos, solo conteos de la 0041 en adelante, un gasto mayor que la diferencia se absorbe entero) se implementa junto con el paso que lleva el conteo a SQL (vista previa del conteo, `planReconciliation`).

@@ -60,7 +60,7 @@ El lenguaje es el de una app de iOS: fondo agrupado gris frío, tarjetas SIN mar
 - Los gráficos (recharts) pintan en SVG y no entienden clases: leen los colores del DOM con `readChartColors()` (`src/lib/chartColors.js`), memorizado contra `accent` e `isDark`. Nunca copiar hex a un archivo de gráfico.
 
 ## Convenciones de formularios
-- Cada campo se nombra con la pregunta que responde, en el idioma del usuario — nunca desde la implementación. Nada de nombres que asuman conocimiento del sistema ("Va por MEP") ni que nombren flags internos ("Ya lo tenía"). Las ayudas se escriben para alguien que usa la app por primera vez.
+- Cada campo se nombra con la pregunta que responde, en el idioma del usuario — nunca desde la implementación. (La regla nueva de PRODUCT.md —títulos de campo descriptivos, no preguntas: "Cuenta", no "¿En qué cuenta?"— vale para la app nativa; los formularios web quedan como están.) Nada de nombres que asuman conocimiento del sistema ("Va por MEP") ni que nombren flags internos ("Ya lo tenía"). Las ayudas se escriben para alguien que usa la app por primera vez.
 - Segmentado (`BinaryChoice`, en `src/components/form/`) para elegir entre modos, cuando la operación cambia de naturaleza (ej. Gasto/Ingreso). Switch (`Switch`, mismo directorio) para un ajuste sí/no que no transforma la operación.
 - Eliminar (permanente): botón rojo + confirmación que dice explícitamente "es permanente". Archivar (reversible): botón neutro + confirmación suave, sin esa palabra.
 - Botón primario de los modales: siempre "Guardar", salvo un verbo explícito que describa mejor la acción (ej. "Liquidar" en la liquidación de una posición — no es un guardado genérico, es vender).
