@@ -146,6 +146,23 @@ function savedByCurrency(transactions) {
   return saved
 }
 
+// Las filas de get_period_totals (migración 0055) como las muestran las
+// pantallas: cada renglón, una lista de líneas por moneda (currencyLines). La
+// suma ya la hizo la base; esto es solo la forma.
+export function periodLines(rows) {
+  const lines = (field) => currencyLines(new Map(rows.map((r) => [r.currency, Number(r[field])])))
+  return {
+    expenses: lines('expenses'),
+    incomes: lines('incomes'),
+    invested: lines('invested'),
+    saved: lines('saved'),
+    balance: lines('balance'),
+  }
+}
+
+// DEFINICIÓN EJECUTABLE de get_period_totals (0055): la app lee los totales de
+// la base; esta función la corre periodTotalsSql.test.js contra la SQL.
+//
 // Los cinco números del mes, cada uno como una lista de líneas (una por
 // moneda con saldo, la local primero — ver currencyLines). Se calculan sobre
 // el mes COMPLETO, no sobre lo que haya quedado visible con los filtros de la

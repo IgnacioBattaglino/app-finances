@@ -171,3 +171,52 @@ export async function renameCategory(id, name) {
   if (error) throw error
   return data
 }
+
+// ── Las categorías más usadas: DEFINICIÓN EJECUTABLE ────────────────────────
+// La grilla de "las seis más usadas" vive en la app nativa, no en la web; la
+// calcula la base (get_top_categories, migración 0057). Estas dos funciones
+// son la regla, rescatadas de la etiqueta archivo/ui-polish (getCategoryUsage
+// y topCategories), y solo las corre topCategoriesSql.test.js contra la
+// función SQL. De getCategoryUsage se rescata el conteo, no la consulta.
+
+// Cuántas veces se usó cada categoría desde 90 días antes de `today`,
+// inclusive. Cuenta MOVIMIENTOS, no plata: importa cuántas veces se toca cada
+// una, no cuánto mueve.
+export function categoryUsage(transactions, today) {
+  const since = new Date(`${today}T00:00:00Z`)
+  since.setUTCDate(since.getUTCDate() - 90)
+  const sinceISO = since.toISOString().slice(0, 10)
+
+  const counts = new Map()
+  for (const { category_id, kind, date } of transactions) {
+    if (date < sinceISO) continue
+    const key = `${category_id}:${kind}`
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts].map(([key, count]) => {
+    const [category_id, kind] = key.split(':')
+    return { category_id, kind, count }
+  })
+}
+
+// Las `n` categorías que más se usaron. Cuáles ENTRAN lo decide el uso; en qué
+// ORDEN se muestran es siempre `position` — así la pastilla de una categoría
+// está siempre en el mismo lugar, aunque esta semana se haya usado más otra.
+// Los empates de uso (incluido el 0-0 de las que no se usaron) los desempata
+// `position` también, que es lo que hace que "completar hasta seis con las
+// primeras por position" salga solo.
+export function topCategories(categories, usage, kind, n = 6) {
+  const pool = categories.filter((cat) => cat.kind === kind && !cat.is_system && !cat.is_archived)
+
+  const countOf = new Map(
+    usage.filter((row) => row.kind === kind).map((row) => [row.category_id, row.count]),
+  )
+
+  const ranked = [...pool].sort((a, b) => {
+    const byUsage = (countOf.get(b.id) ?? 0) - (countOf.get(a.id) ?? 0)
+    return byUsage !== 0 ? byUsage : a.position - b.position
+  })
+
+  const chosen = new Set(ranked.slice(0, n).map((cat) => cat.id))
+  return pool.filter((cat) => chosen.has(cat.id)).sort((a, b) => a.position - b.position)
+}

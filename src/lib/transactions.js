@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js'
 import { LOCAL_CURRENCY } from './currencyTotals.js'
-import { isMovedMoney, movementType, isMovedMoneyType } from './systemCategories.js'
+import { movementType, isMovedMoneyType } from './systemCategories.js'
 import { fetchAllPages } from './pagination.js'
 
 // El join implícito trae el nombre y la llave de la categoría en la misma
@@ -106,34 +106,38 @@ export async function getAccountTransactions({ accountId, limit, offset = 0 } = 
   return data
 }
 
-// Gastos "reales" en un rango de fechas: excluye lo que solo movió plata de
-// lugar (transferencias entre cuentas y movimientos de ahorro, ver
-// isMovedMoney). Lo usa el bloque de Gastos de Inicio.
-//
-// EL AJUSTE DE UN CONTEO SÍ ENTRA, y es un cambio respecto de cómo venía
-// filtrando esto (`!is_system`, que lo escondía entero). Desde el neteo de la
-// migración 0041 un "Ajuste de saldo" es el gasto real que no habías cargado,
-// no el reparto entre cuentas — el reparto tiene su propia categoría y queda
-// afuera por el mismo filtro. Esconderlo era esconder plata que de verdad
-// faltó; es la misma regla que aplica Movimientos, que antes contaba de más.
-export async function getExpenses({ from, to } = {}) {
-  let query = supabase
-    .from('transactions')
-    .select('date, amount, currency, category:categories(name, system_key)')
-    .eq('kind', 'expense')
-  if (from) query = query.gte('date', from)
-  if (to) query = query.lte('date', to)
+// ── Lo que suma la base (migraciones 0055 y 0056) ──────────────────────────
+// `from`/`to` inclusivos y opcionales, como getTransactions. Las tres son
+// agregaciones: devuelven una fila por moneda, categoría o mes, así que no
+// hay corte de 1000 filas que las alcance (D2 del informe: la versión
+// anterior de Inicio traía los gastos sin paginar y perdía los más nuevos).
 
-  const { data, error } = await query.order('date', { ascending: true })
+async function rpc(name, params) {
+  const { data, error } = await supabase.rpc(name, params)
   if (error) throw error
-  return data.filter((t) => !isMovedMoney(t.category))
+  return data
 }
 
-// Desglose de gastos por categoría, mayor a menor, DENTRO DE CADA MONEDA: una
-// lista por moneda, la local primero. Mismo criterio y mismo motivo que
-// groupByCategory en lib/expensesSummary.js — un desglose se lee comparando
-// sus filas entre sí, y pesos contra dólares no se comparan. Con gastos en una
-// sola moneda devuelve una sola lista, idéntica a la de antes.
+// Los cinco renglones, por moneda: expenses, incomes, invested, saved, balance.
+export function getPeriodTotals({ from = null, to = null } = {}) {
+  return rpc('get_period_totals', { p_from: from, p_to: to })
+}
+
+// Los gastos reales, por moneda y categoría (ver breakdownFromRows).
+export function getExpensesByCategory({ from = null, to = null } = {}) {
+  return rpc('get_expenses_by_category', { p_from: from, p_to: to })
+}
+
+// Una fila por mes con el total en dólares y cuántos gastos tuvo.
+export function getMonthlyExpensesUsd({ from, to }) {
+  return rpc('get_monthly_expenses_usd', { p_from: from, p_to: to })
+}
+
+// DEFINICIÓN EJECUTABLE de get_expenses_by_category (0055): la app ya no la
+// usa, la corre periodTotalsSql.test.js contra la función SQL. Era una de las
+// dos copias de "gastos por categoría" (D3); la otra, groupByCategory en
+// lib/expensesSummary.js, se borró. Desglose por categoría, mayor a menor,
+// DENTRO DE CADA MONEDA.
 //
 // Lo que solo movió plata de lugar queda afuera, igual que en los totales del
 // mes y en el bloque de Inicio (ver isMovedMoney): esta era la única función

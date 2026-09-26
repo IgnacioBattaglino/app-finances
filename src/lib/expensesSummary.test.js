@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
   lastMonths,
   monthKey,
@@ -8,18 +8,15 @@ import {
   expensesInMonth,
   previousMonthToDate,
   monthOverMonthPct,
-  groupByCategory,
+  breakdownFromRows,
+  previousMonthToDateRange,
   countMonthsWithData,
   monthlyUsdTotals,
 } from './expensesSummary.js'
 
-vi.mock('./localCurrency.js', () => ({
-  // Tasa fija simple para no depender de la red: 2 pesos = 1 dólar. `toUsd`
-  // es el que usa monthlyUsdTotals; se replica su regla real (un monto que ya
-  // está en dólares vuelve tal cual) para poder verificar justamente eso.
-  localCurrencyToUsd: vi.fn(async (amount) => amount / 2),
-  toUsd: vi.fn(async (amount, currency) => (currency === 'USD' ? amount : amount / 2)),
-}))
+// Tasa fija simple: 2 pesos = 1 dólar. Se replica la regla real de toUsd (un
+// monto que ya está en dólares vuelve tal cual) para poder verificar eso.
+const convert = async (amount, currency) => (currency === 'USD' ? amount : amount / 2)
 
 describe('lastMonths', () => {
   it('12 meses terminando en el mes de hoy, cruzando el año', () => {
@@ -81,16 +78,13 @@ describe('monthOverMonthPct', () => {
   })
 })
 
-describe('groupByCategory', () => {
-  it('agrupa y ordena de mayor a menor', () => {
-    const expenses = [
-      { amount: 100, category: { name: 'Comida' } },
-      { amount: 300, category: { name: 'Alquiler' } },
-      { amount: 50, category: { name: 'Comida' } },
+describe('breakdownFromRows', () => {
+  it('ordena de mayor a menor dentro de la moneda', () => {
+    const rows = [
+      { currency: 'ARS', category_name: 'Comida', total: '150' },
+      { currency: 'ARS', category_name: 'Alquiler', total: 300 },
     ]
-    // Con gastos en una sola moneda: una sola lista, y adentro exactamente el
-    // desglose de siempre.
-    expect(groupByCategory(expenses)).toEqual([
+    expect(breakdownFromRows(rows)).toEqual([
       {
         currency: 'ARS',
         categories: [
@@ -101,20 +95,13 @@ describe('groupByCategory', () => {
     ])
   })
 
-  it('sin categoría cae en "Sin categoría"', () => {
-    const expenses = [{ amount: 10, category: null }]
-    expect(groupByCategory(expenses)).toEqual([
-      { currency: 'ARS', categories: [{ name: 'Sin categoría', total: 10 }] },
-    ])
-  })
-
-  it('pesos y dólares no se suman en la misma categoría: son dos listas', () => {
-    const expenses = [
-      { amount: 100, currency: 'ARS', category: { name: 'Comida' } },
-      { amount: 30, currency: 'USD', category: { name: 'Comida' } },
-      { amount: 20, currency: 'USD', category: { name: 'Suscripciones' } },
+  it('pesos y dólares son dos listas, la local primero', () => {
+    const rows = [
+      { currency: 'USD', category_name: 'Comida', total: 30 },
+      { currency: 'ARS', category_name: 'Comida', total: 100 },
+      { currency: 'USD', category_name: 'Suscripciones', total: 20 },
     ]
-    expect(groupByCategory(expenses)).toEqual([
+    expect(breakdownFromRows(rows)).toEqual([
       { currency: 'ARS', categories: [{ name: 'Comida', total: 100 }] },
       {
         currency: 'USD',
@@ -124,6 +111,24 @@ describe('groupByCategory', () => {
         ],
       },
     ])
+  })
+
+  it('sin filas, sin listas', () => {
+    expect(breakdownFromRows([])).toEqual([])
+  })
+})
+
+describe('previousMonthToDateRange', () => {
+  it('del 1 al mismo día del mes anterior', () => {
+    expect(previousMonthToDateRange('2026-06-15')).toEqual({ from: '2026-05-01', to: '2026-05-15' })
+  })
+
+  it('si el mes anterior es más corto, hasta su último día', () => {
+    expect(previousMonthToDateRange('2026-03-31')).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+  })
+
+  it('en enero, diciembre del año anterior', () => {
+    expect(previousMonthToDateRange('2026-01-10')).toEqual({ from: '2025-12-01', to: '2025-12-10' })
   })
 })
 
@@ -150,7 +155,7 @@ describe('monthlyUsdTotals', () => {
       { date: '2026-07-20', amount: 100 }, // 50 USD
       { date: '2026-08-01', amount: 40 }, // 20 USD
     ]
-    const result = await monthlyUsdTotals(expenses, months)
+    const result = await monthlyUsdTotals(expenses, months, convert)
     expect(result).toEqual([
       { year: 2026, month: 7, total: 150 },
       { year: 2026, month: 8, total: 20 },
@@ -167,6 +172,7 @@ describe('monthlyUsdTotals', () => {
         { date: '2026-07-11', amount: 40, currency: 'USD' }, // 40 USD, tal cual
       ],
       months,
+      convert,
     ).then((result) => {
       expect(result).toEqual([{ year: 2026, month: 7, total: 140 }])
     })
@@ -177,7 +183,7 @@ describe('monthlyUsdTotals', () => {
       { year: 2026, month: 6 },
       { year: 2026, month: 7 },
     ]
-    const result = await monthlyUsdTotals([], months)
+    const result = await monthlyUsdTotals([], months, convert)
     expect(result).toEqual([
       { year: 2026, month: 6, total: 0 },
       { year: 2026, month: 7, total: 0 },

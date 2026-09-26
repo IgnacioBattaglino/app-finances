@@ -114,7 +114,7 @@ function PlusIcon() {
 // Con `info`, el nombre y el botón (i) viven en una fila propia, fuera del
 // botón que abre la tarjeta (el modal / la navegación): dos botones
 // anidados tampoco es HTML válido.
-function SummaryCard({
+export function SummaryCard({
   label,
   lines,
   hint,
@@ -208,7 +208,7 @@ function SummaryCard({
 // El detalle por moneda queda oculto por default (el mismo criterio que
 // InfoButton): un número ya convertido sin decirlo de dónde sale es una caja
 // negra, pero mostrarlo siempre competiría con el monto grande.
-function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onToggle }) {
+export function TotalSummary({ loading, error, onRetry, totalUsd, breakdown, open, onToggle }) {
   if (error) {
     return (
       <div className="notice mt-3 space-y-2">
