@@ -46,6 +46,7 @@ function DebtPaymentModal({
   const [amountUsd, setAmountUsd] = useState('') // solo al editar: input propio
   const [railAmountUsd, setRailAmountUsd] = useState(null) // al crear: lo reporta ExchangeRateField
   const [mepRate, setMepRate] = useState(null)
+  const [interestUsd, setInterestUsd] = useState('')
   const [origin, setOrigin] = useState('liquid')
   const [accountId, setAccountId] = useState(null)
   const [date, setDate] = useState(todayISO())
@@ -63,6 +64,7 @@ function DebtPaymentModal({
     if (!open) return
     setAmountUsd(initial ? toDecimalInput(Number(initial.amount_usd)) : '')
     setRailAmountUsd(null)
+    setInterestUsd(initial?.interest_usd != null ? toDecimalInput(Number(initial.interest_usd)) : '')
     // Igual que en Aportar: la tasa guardada del pago se siembra ACÁ, no la
     // reporta el campo hijo al montar. Los efectos de los hijos corren antes
     // que los del padre, así que un reseteo a null pisaba lo que el hijo
@@ -84,6 +86,10 @@ function DebtPaymentModal({
 
   const amount = editing ? Number(amountUsd.replace(',', '.')) : railAmountUsd
   const affectsLiquid = origin === 'liquid'
+  // Cuánto de este pago son intereses (0059): gasto, no capital. Opcional, y
+  // nunca más que el pago — la base también lo rechaza.
+  const interest = interestUsd.trim() === '' ? 0 : Number(interestUsd.replace(',', '.'))
+  const interestTooHigh = interest > 0 && amount > 0 && interest > amount
 
   // Aviso no bloqueante: este pago cae en o antes de la última vez que se
   // contó SU cuenta. Solo aplica si el pago tocó el disponible — pagado con
@@ -110,6 +116,8 @@ function DebtPaymentModal({
   )
 
   const missing = []
+  if (!(interest >= 0)) missing.push('intereses')
+  if (interestTooHigh) missing.push('intereses que no superen el pago')
   if (!(amount > 0)) missing.push('monto')
   // El tipo de cambio solo hace falta si el pago descuenta del líquido: es lo
   // que traduce los dólares a los pesos que se restan.
@@ -120,8 +128,10 @@ function DebtPaymentModal({
 
   // Pagar más de lo que resta no se bloquea (el saldo real lo sabe el usuario,
   // no la app), pero se avisa: el saldo se queda en 0, no pasa a negativo.
-  const balanceBefore = debt.balance_usd + (editing ? Number(initial.amount_usd) : 0)
-  const excess = amount > 0 && amount > balanceBefore
+  // Lo que baja la deuda es el capital (el pago menos sus intereses).
+  const balanceBefore =
+    debt.balance_usd + (editing ? Number(initial.amount_usd) - Number(initial.interest_usd ?? 0) : 0)
+  const excess = amount > 0 && amount - interest > balanceBefore
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -132,6 +142,7 @@ function DebtPaymentModal({
       debtId: debt.id,
       date,
       amountUsd: amount,
+      interestUsd: interest,
       mepRate: mepRate ?? null,
       affectsLiquid,
       accountId,
@@ -214,6 +225,26 @@ function DebtPaymentModal({
           />
 
           <div className="px-4 py-3">
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-[17px]">¿Cuánto son intereses?</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[15px] text-ink-soft">US$</span>
+                <input
+                  value={interestUsd}
+                  onChange={(e) => setInterestUsd(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0"
+                  className="font-money w-28 bg-transparent text-right text-[17px] outline-none placeholder:text-ink-faint"
+                />
+              </div>
+            </label>
+            <p className="mt-1.5 text-[13px] text-ink-soft">
+              Opcional. Lo que pagás por encima de lo que te prestaron cuenta como gasto; el resto
+              baja la deuda. Si pagás de más, el excedente también cuenta como intereses.
+            </p>
+          </div>
+
+          <div className="px-4 py-3">
             <p className="mb-2 text-[15px]">¿De dónde sale?</p>
             <BinaryChoice options={ORIGIN_OPTIONS} value={origin} onChange={setOrigin} />
             <p className="mt-1.5 text-[13px] text-ink-soft">
@@ -239,7 +270,7 @@ function DebtPaymentModal({
         {excess && (
           <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
             Es más de lo que queda ({formatUSD(balanceBefore)}). La deuda queda saldada, sin saldo
-            a favor.
+            a favor, y lo que sobra cuenta como intereses.
           </p>
         )}
 

@@ -10,6 +10,8 @@ import FormError from '../components/form/FormError.jsx'
 import { getTransactions, getPeriodTotals, getExpensesByCategory } from '../lib/transactions.js'
 import { breakdownFromRows } from '../lib/expensesSummary.js'
 import { getLiquidContributions } from '../lib/contributions.js'
+import { getDebtPayments } from '../lib/debts.js'
+import { amountInCurrency } from '../lib/currencyTotals.js'
 import {
   contributionAmount,
   contributionCurrency,
@@ -21,15 +23,16 @@ import {
 import { getCategories } from '../lib/categories.js'
 import {
   collapseTransfers,
-  movementBucket,
   bucketHasCategories,
   MOVEMENT_BUCKETS,
+  DEBTS,
+  inBucket,
   ALL,
   EXPENSES,
 } from '../lib/movementList.js'
 import { getReconciliationBatches } from '../lib/liquid.js'
 import { movementType, isMovedMoneyType } from '../lib/systemCategories.js'
-import { formatByCurrency, formatDay } from '../lib/format.js'
+import { formatByCurrency, formatDay, formatUSD } from '../lib/format.js'
 import RangeSheet from '../components/movements/RangeSheet.jsx'
 import {
   bounds,
@@ -179,6 +182,38 @@ export function InvestmentRow({ contribution: c }) {
   )
 }
 
+// Un pago de deuda (0059): de solo lectura, lleva a Deudas, donde se edita.
+// El monto va en la moneda de la cuenta de la que salió, igual que el resto
+// de la lista, y sin color: el capital no es un gasto. Si tiene intereses se
+// dice, porque esa parte sí suma a Gastos.
+function DebtPaymentRow({ payment: p }) {
+  const currency = p.account?.currency ?? 'USD'
+  const amount = amountInCurrency(Number(p.amount_usd), Number(p.mep_rate), currency)
+  return (
+    <Link to="/compromisos/deudas" state={{ from: 'movements' }} className={ROW_CLASS}>
+      <div className="min-w-0">
+        <p className="flex items-center gap-1.5 truncate text-[17px]">
+          <span className="truncate">
+            Pago de deuda
+            <span className="text-ink-soft"> · {p.debt?.creditor ?? 'Deuda'}</span>
+          </span>
+          <span className="shrink-0 text-ink-faint">
+            <Arrow direction="right" />
+          </span>
+        </p>
+        <p className="mt-0.5 truncate text-[13px] text-ink-soft">
+          {formatDay(p.date)}
+          {p.account?.name && ` · ${p.account.name}`}
+          {Number(p.interest_usd) > 0 && ` · incluye ${formatUSD(Number(p.interest_usd))} de intereses`}
+        </p>
+      </div>
+      <span className="font-money shrink-0 text-[17px] font-medium">
+        −{formatByCurrency(currency, amount)}
+      </span>
+    </Link>
+  )
+}
+
 // Movimiento de una cuenta de AHORRO: un aporte, un retiro, la pata de una
 // transferencia o el ajuste de un conteo que cayó ahí. Mismo patrón que
 // InvestmentRow y por el mismo motivo: acá es de solo lectura y lleva al lugar
@@ -294,7 +329,7 @@ function TotalRow({ label, lines, labelClass = 'text-[15px] text-ink-soft', amou
 function Movements() {
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
-  const { accounts, defaultAccountId, addAccount } = useAccounts()
+  const { accounts, savingsAccounts, defaultAccountId, addAccount } = useAccounts()
   const { byAccount: lastReconciliations, reload: reloadLastReconciliations } = useLastReconciliations()
   // Movimientos del mes navegado, sin filtrar por tipo/categoría: de acá
   // salen tanto los totales y el desglose (que describen el mes completo)
@@ -308,6 +343,8 @@ function Movements() {
   // Los cinco renglones y el desglose por categoría del período, sumados por
   // la base (migración 0055): la lista de abajo sigue armándose con las filas.
   const [periodTotals, setPeriodTotals] = useState([])
+  // Los pagos de deuda del período que salieron del disponible (0059).
+  const [debtPayments, setDebtPayments] = useState([])
   const [categoryRows, setCategoryRows] = useState([])
   // Qué conteo escribió cada movimiento (id → batch_id). Es lo que permite
   // aparear los repartos de un mismo conteo entre sí sin mezclar dos conteos
@@ -341,17 +378,19 @@ function Movements() {
       // falla — un mes al que le faltan las inversiones muestra un balance
       // equivocado, y es peor que decir que no se pudo cargar.
       const { from, to } = bounds(range)
-      const [transactions, investments, reconciliationBatches, totals, byCategory] = await Promise.all([
+      const [transactions, investments, reconciliationBatches, totals, byCategory, payments] = await Promise.all([
         getTransactions({ from, to }),
         getLiquidContributions({ from, to }),
         getReconciliationBatches(),
         getPeriodTotals({ from, to }),
         getExpensesByCategory({ from, to }),
+        getDebtPayments({ from, to }),
       ])
       setMonthItems(transactions)
       setMonthInvestments(investments)
       setPeriodTotals(totals)
       setCategoryRows(byCategory)
+      setDebtPayments(payments)
       setBatches(reconciliationBatches)
     } catch (e) {
       setError({ message: 'No se pudieron cargar los movimientos.', detail: e })
@@ -436,8 +475,8 @@ function Movements() {
     (id) => batches.get(id) ?? null,
   )
 
-  const items = mergeMovements(looseTransactions, monthInvestments, transfers)
-    .filter((item) => bucket === ALL || movementBucket(item) === bucket)
+  const items = mergeMovements(looseTransactions, monthInvestments, transfers, debtPayments)
+    .filter((item) => inBucket(item, bucket))
     // El filtro de categoría solo puede alcanzar a gastos e ingresos: una
     // inversión no tiene categoría, y una transferencia lleva siempre la del
     // sistema. Con una categoría elegida, lo que no es una transaction se va
@@ -447,7 +486,7 @@ function Movements() {
       (item) => !categoryId || (item.source === 'transaction' && item.row.category_id === categoryId),
     )
 
-  const { expenses, incomes, invested, saved, balance } = periodLines(periodTotals)
+  const { expenses, incomes, invested, saved, debts, hasDebts, balance } = periodLines(periodTotals)
   const hasExtraFilters = bucket !== ALL || categoryId !== ''
   const categoryBreakdown = breakdownFromRows(categoryRows)
 
@@ -557,6 +596,10 @@ function Movements() {
                 <TotalRow label="Ingresos" lines={incomes} amountClass="text-gain" />
                 <TotalRow label="Invertido" lines={invested} />
                 <TotalRow label="Ahorrado" lines={saved} />
+                {/* Lo que entró por préstamos menos lo devuelto de capital
+                    (0059). Solo aparece si el período tuvo movimiento de
+                    deudas: sin él, los cinco renglones de siempre. */}
+                {hasDebts && <TotalRow label="Deudas" lines={debts} />}
                 <TotalRow label="Balance" lines={balance} labelClass="text-[15px] font-medium" />
               </div>
 
@@ -606,7 +649,7 @@ function Movements() {
               bucketHasCategories). */}
           <div className="space-y-2">
             <FilterChips
-              options={MOVEMENT_BUCKETS}
+              options={hasDebts ? MOVEMENT_BUCKETS : MOVEMENT_BUCKETS.filter((b) => b.value !== DEBTS)}
               value={bucket}
               onChange={changeBucket}
               label="Filtrar por tipo de movimiento"
@@ -646,6 +689,8 @@ function Movements() {
                 {items.slice(0, visible).map(({ source, row }) =>
                   source === 'contribution' ? (
                     <InvestmentRow key={`c-${row.id}`} contribution={row} />
+                  ) : source === 'debt_payment' ? (
+                    <DebtPaymentRow key={`d-${row.id}`} payment={row} />
                   ) : source === 'transfer' ? (
                     <TransferRow
                       key={`x-${row.id}`}
@@ -703,6 +748,7 @@ function Movements() {
         initial={editing}
         categories={categories}
         accounts={accounts}
+        savingsAccounts={savingsAccounts}
         defaultAccountId={defaultAccountId}
         lastReconciliations={lastReconciliations}
         onCategoryCreated={(created) => setCategories((prev) => [...prev, created])}

@@ -47,6 +47,11 @@ function PaymentRow({ payment, onEdit }) {
             <span className="ml-2 text-[13px] text-clay">sin tipo de cambio</span>
           )
         )}
+        {Number(payment.interest_usd) > 0 && (
+          <span className="ml-2 text-[13px] text-ink-soft">
+            {' '}incluye {formatUSD(Number(payment.interest_usd))} de intereses
+          </span>
+        )}
       </span>
       <span className="font-money shrink-0 text-[15px] font-medium">
         {formatUSD(Number(payment.amount_usd))}
@@ -299,6 +304,9 @@ function Debts() {
       <DebtFormModal
         open={debtModal.open}
         initial={debtModal.editing}
+        accounts={accounts}
+        defaultAccountId={defaultAccountId}
+        onAccountCreated={addAccount}
         onClose={closeModals}
         onSaved={refresh}
         onDeleted={refresh}

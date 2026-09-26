@@ -14,7 +14,10 @@ import { reloadAccounts } from '../../hooks/useAccounts.js'
 // de movimiento, y encaja por el mismo motivo: la cuenta nueva aparece cuando
 // aparece la plata —abriste Cuenta DNI y estás cargando el primer gasto—, y
 // mandar al usuario a Ajustes lo obliga a abandonar lo que estaba cargando.
-function AccountField({ accounts = [], value, onChange, label = '¿De qué cuenta?', onAccountCreated }) {
+// `savingsAccounts` (solo el formulario de gasto e ingreso) se ofrecen en un
+// grupo aparte, "Ahorro": gastar desde lo guardado es posible, pero no es lo
+// mismo que gastar del día a día, y el selector lo dice.
+function AccountField({ accounts = [], savingsAccounts = [], value, onChange, label = '¿De qué cuenta?', onAccountCreated }) {
   const [creating, setCreating] = useState(false)
 
   function cancel() {
@@ -67,11 +70,30 @@ function AccountField({ accounts = [], value, onChange, label = '¿De qué cuent
               Elegí una
             </option>
           )}
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}
-            </option>
-          ))}
+          {savingsAccounts.length > 0 ? (
+            <>
+              <optgroup label="Día a día">
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Ahorro">
+                {savingsAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </optgroup>
+            </>
+          ) : (
+            accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))
+          )}
           <option value="__new__">+ Nueva cuenta</option>
         </select>
       </label>
