@@ -13,7 +13,7 @@ Una regla por rama. El piloto fue el saldo de deudas (0049, `debt_balances`, reg
 - Regla de escritura: trigger `before insert or update of <columnas>`, `security invoker`, con mensajes en castellano (`raise exception`, que la app muestra). Restricciones declarativas (`not null`, `check`) además del trigger, no en su lugar.
 - Vista si es una lectura sin parámetros; función SQL (`get_…`, `stable`, `security invoker`) si recibe fechas o filtros. Si depende de "hoy", `p_today date default current_date`.
 - **Vista con datos de usuario: `with (security_invoker = true)`, sin condicional.** Sin eso corre como su dueño, saltea RLS y devuelve filas de todos. Mejor que la migración falle en un Postgres viejo a que filtre.
-- `revoke all … from public, anon` y `grant select` (o `execute`) `to authenticated`.
+- `revoke all … from public, anon` y `grant select` (o `execute`) `to authenticated`. **Nombrar a `anon` siempre**: Supabase le da EXECUTE (y SELECT en tablas y vistas) directamente a `anon` en todo objeto nuevo de `public`, y revocárselo a `public` no se lo saca. El test lo imita con `alter default privileges … to anon`.
 - Al pie, comentada, la consulta de verificación (solo lectura) para después de aplicar.
 - No se aplica desde la rama: la aplica Nacho.
 
@@ -40,6 +40,7 @@ Una regla por rama. El piloto fue el saldo de deudas (0049, `debt_balances`, reg
 ## 4. Después de aplicar
 
 - Correr la consulta del pie de la migración con el MCP (solo lectura): la columna de control tiene que dar `true` en todas las filas.
+- Si la migración **reemplaza** una función existente, la versión vieja deja de existir al aplicar. Antes, tomar con el MCP una huella de su resultado (`count` + `md5` de las filas ordenadas, sin montos a la vista) y anotarla en el pie: después de aplicar tiene que dar igual. Solo vale si no se cargó nada en el medio.
 - Mirar la pantalla una vez con datos reales.
 
 ## 5. Cuándo borrar la versión JS
@@ -48,3 +49,7 @@ Una regla por rama. El piloto fue el saldo de deudas (0049, `debt_balances`, reg
 
 - Cuando la vista está aplicada y verificada en producción, y la app lleva un tiempo leyéndola sin diferencias.
 - En un PR aparte: los casos del test de paridad se reescriben como aserciones SQL (valores esperados fijos) y se borran la función JS y sus tests unitarios.
+
+## Pendiente atado a un paso
+
+- El conteo retroactivo (`informe-conteo-retroactivo.md`: opción A más el aviso al crear, solo gastos e ingresos, solo conteos de la 0041 en adelante, un gasto mayor que la diferencia se absorbe entero) se implementa junto con el paso que lleva el conteo a SQL (vista previa del conteo, `planReconciliation`).

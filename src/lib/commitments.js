@@ -79,8 +79,8 @@ function toRow({
     kind,
     name: name.trim(),
     category_id: categoryId,
-    // Nullable = "sin cuenta", el mismo balde que en transactions (0032).
-    account_id: accountId ?? null,
+    // Obligatoria desde la 0050: no hay plata "sin cuenta".
+    account_id: accountId,
     // Solo las cuotas cuelgan de una tarjeta; la base también lo exige
     // (commitments_card_only_for_installments), así que forzarlo acá evita
     // que un cambio de tipo en el formulario deje un vínculo colgado.

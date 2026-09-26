@@ -44,7 +44,7 @@ function byAmountThenName(a, b) {
 function sideOf(row) {
   return {
     row,
-    name: row.account?.name ?? 'Sin cuenta',
+    name: row.account?.name,
     currency: transactionCurrencyOf(row),
     cents: toCents(row.amount),
   }

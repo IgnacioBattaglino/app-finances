@@ -9,7 +9,6 @@ import {
   planReconciliation,
   totalsByCurrency,
   visibleBreakdown,
-  summarizeSavingsCard,
   sumToUsd,
 } from './liquid.js'
 import { round } from './money.js'
@@ -398,54 +397,6 @@ describe('visibleBreakdown', () => {
       { key: 'b', name: 'Mercado Pago', amount: 200 },
     ]
     expect(visibleBreakdown(rows)).toBe(rows)
-  })
-})
-
-describe('summarizeSavingsCard', () => {
-  it('sin cuentas de ahorro → no se muestra', () => {
-    expect(summarizeSavingsCard([])).toEqual({
-      show: false,
-      lines: [{ currency: 'ARS', amount: 0 }],
-    })
-  })
-
-  it('con saldo 0 (una sola cuenta, vacía) → no se muestra', () => {
-    expect(summarizeSavingsCard([{ amount: 0, currency: 'USD' }]).show).toBe(false)
-  })
-
-  it('una sola moneda con saldo > 0 → una línea, tal cual, sin convertir', () => {
-    const accounts = [
-      { amount: 500, currency: 'USD' },
-      { amount: 287.19, currency: 'USD' },
-    ]
-    expect(summarizeSavingsCard(accounts)).toEqual({
-      show: true,
-      lines: [{ currency: 'USD', amount: 787.19 }],
-    })
-  })
-
-  it('monedas mixtas → una línea por moneda, sin pasar por ninguna cotización', () => {
-    // Antes esta tarjeta convertía a dólares y no se podía dibujar hasta que
-    // llegara el Total convertido de Inicio. Ahora se resuelve sola.
-    const accounts = [
-      { amount: 500, currency: 'USD' },
-      { amount: 10000, currency: 'ARS' },
-    ]
-    expect(summarizeSavingsCard(accounts)).toEqual({
-      show: true,
-      lines: [
-        { currency: 'ARS', amount: 10000 },
-        { currency: 'USD', amount: 500 },
-      ],
-    })
-  })
-
-  it('una moneda en cero no ocupa una línea al lado de otra que sí tiene', () => {
-    const accounts = [
-      { amount: 500, currency: 'USD' },
-      { amount: 0, currency: 'ARS' },
-    ]
-    expect(summarizeSavingsCard(accounts).lines).toEqual([{ currency: 'USD', amount: 500 }])
   })
 })
 

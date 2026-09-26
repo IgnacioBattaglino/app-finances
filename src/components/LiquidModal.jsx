@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { computeCurrentLiquid, reconcile, rowMovement, planReconciliation } from '../lib/liquid.js'
-import { formatARS, formatByCurrency, todayISO, formatDayYear } from '../lib/format.js'
+import { formatByCurrency, todayISO, formatDayYear } from '../lib/format.js'
 import { LOCAL_CURRENCY } from '../lib/currencyTotals.js'
 import FormSheet from './FormSheet.jsx'
 import FormError from './form/FormError.jsx'
@@ -232,18 +232,6 @@ function LiquidModal({ open, onClose, onSaved }) {
                 />
               ))}
             </div>
-
-            {/* El balde de lo que quedó sin cuenta: se muestra porque suma al
-                total y si no, el desglose no cerraría, pero no se declara —
-                no es una cuenta, es lo que ninguna migración alcanzó a
-                asignar. */}
-            {accounts.length > 0 && Math.abs(state.unassigned) >= 0.01 && (
-              <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
-                Además hay <span className="font-money">{formatARS(state.unassigned)}</span> en
-                movimientos sin cuenta asignada. Suman a tu total, pero no se reconcilian acá:
-                asignales una cuenta desde el movimiento.
-              </p>
-            )}
 
             {/* Cuentas de ahorro: plata real, aparte del disponible de arriba
                 (ver ADR-014). Sección propia porque no comparten el "total"

@@ -75,8 +75,10 @@ vi.mock('./supabase.js', () => ({
           error: null,
         }
       }
-      if (name !== 'get_liquid_by_account') throw new Error(`RPC no esperado: ${name}`)
-      const { computeLiquidByAccount } = await import('./liquid.js')
+      if (name !== 'get_liquid_by_account' && name !== 'get_liquid_summary') {
+        throw new Error(`RPC no esperado: ${name}`)
+      }
+      const { computeLiquidByAccount, summarizeLiquid } = await import('./liquid.js')
       // `accounts` va con las tablas y no es un detalle: desde la migración
       // 0039 la moneda de la cuenta decide si un aporte se multiplica por su
       // MEP congelado o entra tal cual. Sin pasarlo, el mock convertiría
@@ -88,19 +90,20 @@ vi.mock('./supabase.js', () => ({
         debtPayments: h.state.tables.debt_payments ?? [],
         accounts: h.state.tables.liquid_accounts ?? [],
       })
-      // Desde la 0036 la función devuelve además la moneda y la marca de ahorro
-      // de cada balde. Se copian de la cuenta, con ARS/false para lo que no
-      // tiene cuenta, igual que el coalesce del SQL.
+      // Cada balde con la moneda y la marca de ahorro de su cuenta. Desde la
+      // 0051 es un join común: no hay baldes sin cuenta.
       const accounts = new Map((h.state.tables.liquid_accounts ?? []).map((a) => [a.id, a]))
-      return {
-        data: [...byAccount].map(([account_id, amount]) => ({
+      const buckets = [...byAccount]
+        .filter(([account_id]) => accounts.has(account_id))
+        .map(([account_id, amount]) => ({
           account_id,
-          currency: accounts.get(account_id)?.currency ?? 'ARS',
-          is_savings: accounts.get(account_id)?.is_savings ?? false,
+          currency: accounts.get(account_id).currency,
+          is_savings: accounts.get(account_id).is_savings,
           amount,
-        })),
-        error: null,
-      }
+        }))
+      // get_liquid_summary: su definición es summarizeLiquid (ver
+      // liquidSummarySql.test.js, que las compara contra Postgres).
+      return { data: name === 'get_liquid_summary' ? summarizeLiquid(buckets) : buckets, error: null }
     },
   },
 }))
@@ -164,7 +167,6 @@ describe('el desglose que ve la pantalla', () => {
       ['Efectivo', 10000],
       ['Mercado Pago', 5000],
     ])
-    expect(state.unassigned).toBe(0)
   })
 
   it('cada cuenta trae SU última reconciliación, no la última de todas', async () => {
@@ -173,25 +175,14 @@ describe('el desglose que ve la pantalla', () => {
     expect(accounts.find((a) => a.id === MERCADO_PAGO).last).toBe(null)
   })
 
-  it('plata apuntando a una cuenta que ya no está sigue contando en el total, y cae en "sin cuenta"', async () => {
-    // Carrera real: la cuenta se borró entre la consulta de cuentas y la de
-    // movimientos. Sumar solo las cuentas conocidas la haría desaparecer del
-    // disponible en silencio.
-    h.state.tables.transactions.push({ kind: 'income', amount: 900, account_id: 'acc-borrada' })
+  it('una cuenta oculta con plata sigue contando en el total, aunque no se liste', async () => {
+    // Ocultar una cuenta no hace desaparecer su plata (0051).
+    h.state.tables.liquid_accounts.push({
+      id: 'acc-oculta', name: 'Vieja', position: 9, currency: 'ARS', is_savings: false, is_archived: true,
+    })
+    h.state.tables.transactions.push({ kind: 'income', amount: 900, account_id: 'acc-oculta' })
     const state = await computeCurrentLiquid()
     expect(onlyLocal(state)).toBe(15900)
-    expect(state.unassigned).toBe(900)
-    // Y el desglose que se muestra sigue sumando exactamente el total.
-    const shown = state.accounts.reduce((s, a) => s + a.amount, 0) + state.unassigned
-    expect(shown).toBe(localTotal(state))
-  })
-
-  it('lo que quedó sin cuenta va a su propio balde y suma al total', async () => {
-    h.state.tables.transactions.push({ kind: 'income', amount: 700, account_id: null })
-    const state = await computeCurrentLiquid()
-    expect(state.unassigned).toBe(700)
-    expect(onlyLocal(state)).toBe(15700)
-    expect(state.accounts.every((a) => a.amount !== 700)).toBe(true)
   })
 })
 
@@ -230,11 +221,9 @@ describe('las cuentas de ahorro no son el disponible', () => {
     expect(savings[0]).toMatchObject({ name: 'Dólares', currency: 'USD', amount: 220 })
   })
 
-  it('no ensucian el balde "sin cuenta", que se define por resta', async () => {
-    h.state.tables.transactions.push({ kind: 'income', amount: 700, account_id: null })
-    const state = await computeCurrentLiquid()
-    expect(state.unassigned).toBe(700)
-    expect(onlyLocal(state)).toBe(15700)
+  it('su total vuelve aparte, por moneda, en savingsTotals', async () => {
+    const { savingsTotals } = await computeCurrentLiquid()
+    expect(savingsTotals).toEqual([{ currency: 'USD', amount: 220 }])
   })
 })
 
@@ -302,14 +291,6 @@ describe('una cuenta en dólares del día a día', () => {
     const state = await computeCurrentLiquid()
     // 15.000 − 6.000: la regla vieja, intacta donde corresponde.
     expect(state.totals.find((l) => l.currency === 'ARS').amount).toBe(9000)
-  })
-
-  it('lo "sin cuenta" se calcula dentro de los pesos, sin restarle los dólares', async () => {
-    h.state.tables.transactions.push({ kind: 'income', amount: 700, account_id: null })
-    const state = await computeCurrentLiquid()
-    // 15.700 pesos − (10.000 + 5.000) de las cuentas en pesos. Si los 100
-    // dólares entraran en esta resta, daría 600.
-    expect(state.unassigned).toBe(700)
   })
 })
 

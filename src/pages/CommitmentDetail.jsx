@@ -232,7 +232,7 @@ function CommitmentDetail() {
           )}
           <p>
             {plan.category?.name ?? 'Sin categoría'}
-            {plan.account?.name ? ` · sale de ${plan.account.name}` : ' · sin cuenta'}
+            {plan.account?.name && ` · sale de ${plan.account.name}`}
             {plan.card?.name ? ` · ${plan.card.name}` : ''}
           </p>
           {finished && plan.ends_on && (

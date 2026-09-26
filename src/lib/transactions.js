@@ -21,9 +21,6 @@ export const SELECT = '*, category:categories(name, system_key), account:liquid_
 // no mandaba `currency` y la base completaba 'ARS' por default, así que un
 // gasto cargado desde una cuenta en dólares quedaba escrito como pesos.
 //
-// Sin cuenta ('sin cuenta', account_id null) es ARS: es la misma lectura que
-// hace get_liquid_by_account del balde null.
-//
 // EDITANDO, si la cuenta no cambió, manda la moneda QUE YA TIENE LA FILA, no
 // la de la cuenta hoy. Es la regla de "guardar sin tocar nada deja la fila
 // idéntica" y el mismo criterio que empties_asset (ADR-011): el insumo de un
@@ -49,11 +46,9 @@ function toRow({ date, kind, categoryId, description, amount, currency, accountI
     // pasar a una cuenta de otra moneda solo se acepta con la moneda nueva
     // explícita — y el formulario la manda recién después de vaciar el monto.
     currency: currency ?? 'ARS',
-    // De qué cuenta del disponible salió (o a cuál entró). Nullable: null es
-    // "sin cuenta", el balde que no se muestra como cuenta pero suma al total
-    // (migración 0032). `?? null` y no un default: el formulario ya elige la
-    // cuenta por defecto, acá un undefined es ausencia, no "la primera".
-    account_id: accountId ?? null,
+    // De qué cuenta del disponible salió (o a cuál entró). Obligatoria desde
+    // la 0050: el formulario no deja guardar sin una, y la base lo exige.
+    account_id: accountId,
   }
 }
 
