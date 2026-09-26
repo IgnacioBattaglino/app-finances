@@ -13,7 +13,7 @@ Una regla por rama. El piloto fue el saldo de deudas (0049, `debt_balances`, reg
 - Regla de escritura: trigger `before insert or update of <columnas>`, `security invoker`, con mensajes en castellano (`raise exception`, que la app muestra). Restricciones declarativas (`not null`, `check`) además del trigger, no en su lugar.
 - Vista si es una lectura sin parámetros; función SQL (`get_…`, `stable`, `security invoker`) si recibe fechas o filtros. Si depende de "hoy", `p_today date default current_date`.
 - **Vista con datos de usuario: `with (security_invoker = true)`, sin condicional.** Sin eso corre como su dueño, saltea RLS y devuelve filas de todos. Mejor que la migración falle en un Postgres viejo a que filtre.
-- `revoke all … from public, anon` y `grant select` (o `execute`) `to authenticated`. **Nombrar a `anon` siempre**: Supabase le da EXECUTE (y SELECT en tablas y vistas) directamente a `anon` en todo objeto nuevo de `public`, y revocárselo a `public` no se lo saca. El test lo imita con `alter default privileges … to anon`.
+- `revoke all … from public, anon` y `grant select` (o `execute`) `to authenticated`. **Nombrar a `anon` siempre**: Supabase le da EXECUTE (y SELECT en tablas y vistas) directamente a `anon` en todo objeto nuevo de `public`, y revocárselo a `public` no se lo saca. El test lo imita con `alter default privileges … to anon`. Desde la 0052 una función nueva ya nace cerrada para anon, pero el `revoke` explícito se sigue escribiendo: el archivo tiene que decir lo que quiere, no depender de un default.
 - Al pie, comentada, la consulta de verificación (solo lectura) para después de aplicar.
 - No se aplica desde la rama: la aplica Nacho.
 
