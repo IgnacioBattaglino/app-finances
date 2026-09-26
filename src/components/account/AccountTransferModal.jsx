@@ -19,7 +19,9 @@ import ExchangeRateField from '../contribution/ExchangeRateField.jsx'
 // "la cuenta en pesos" y "la cuenta en dólares" son, en la práctica, origen y
 // destino en algún orden — de ahí sale a cuál de las dos cuentas le
 // corresponde cada monto, no de si es el origen o el destino.
-function AccountTransferModal({ open, accounts, onClose, onSaved }) {
+// `initialFromAccountId` e `initialAmount` precargan el formulario cuando se
+// abre para vaciar una cuenta antes de eliminarla (AccountDetail, 0054).
+function AccountTransferModal({ open, accounts, initialFromAccountId, initialAmount, onClose, onSaved }) {
   const [fromAccountId, setFromAccountId] = useState('')
   const [toAccountId, setToAccountId] = useState('')
   const [amount, setAmount] = useState('') // misma moneda: un solo monto
@@ -31,15 +33,15 @@ function AccountTransferModal({ open, accounts, onClose, onSaved }) {
 
   useEffect(() => {
     if (!open) return
-    setFromAccountId('')
+    setFromAccountId(initialFromAccountId ?? '')
     setToAccountId('')
-    setAmount('')
+    setAmount(initialAmount != null ? String(initialAmount) : '')
     setDolares(null)
     setPesos(null)
     setDate(todayISO())
     setError(null)
     setBusy(false)
-  }, [open])
+  }, [open, initialFromAccountId, initialAmount])
 
   if (!open) return null
 
