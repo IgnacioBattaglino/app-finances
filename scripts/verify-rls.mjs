@@ -126,7 +126,7 @@ async function checkAnon(client, table) {
   // importa: sin login no se vio ninguna fila. No se distingue si la tabla no
   // existe — desde acá es indistinguible de una bloqueada, y la conclusión de
   // seguridad es la misma.
-  if (error) return { ok: true, count: 0, note: 'bloqueado por RLS (error)' }
+  if (error) return { ok: true, count: 0, note: error.code === '42501' ? 'sin permiso (0053)' : 'bloqueado (error)' }
   return {
     ok: data.length === 0,
     count: data.length,
