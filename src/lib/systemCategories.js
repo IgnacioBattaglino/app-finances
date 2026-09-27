@@ -21,8 +21,15 @@
 export const BALANCE_ADJUSTMENT = 'balance_adjustment'
 export const SAVINGS_MOVEMENT = 'savings_movement'
 export const ACCOUNT_TRANSFER = 'account_transfer'
+// La entrada de un préstamo (migración 0059): plata que llegó a una cuenta pero
+// no es un ingreso — se devuelve. Suma al renglón "Deudas", no a "Ingresos".
+export const DEBT_MOVEMENT = 'debt_movement'
+// Los intereses de un pago de deuda (0059). No es una llave de transactions:
+// los pagos viven en su propia tabla, y esta categoría solo pone el nombre con
+// el que los intereses aparecen en "Gastos por categoría".
+export const DEBT_INTEREST = 'debt_interest'
 
-const MOVED_MONEY = new Set([SAVINGS_MOVEMENT, ACCOUNT_TRANSFER])
+const MOVED_MONEY = new Set([SAVINGS_MOVEMENT, ACCOUNT_TRANSFER, DEBT_MOVEMENT])
 
 // ¿Esta fila solo movió plata de lugar? Lo preguntan los cuatro lugares que
 // suman o agrupan movimientos (los totales del mes y el desglose de
@@ -61,7 +68,7 @@ export const INCOME = 'income'
 export const RECONCILIATION_SPLIT = 'reconciliation_split'
 export const CONTRIBUTION = 'contribution'
 
-const MOVED_MONEY_TYPES = new Set([ACCOUNT_TRANSFER, RECONCILIATION_SPLIT, SAVINGS_MOVEMENT])
+const MOVED_MONEY_TYPES = new Set([ACCOUNT_TRANSFER, RECONCILIATION_SPLIT, SAVINGS_MOVEMENT, DEBT_MOVEMENT])
 
 // ¿Este TIPO (ya calculado por movementType) es plata que solo cambió de
 // lugar? Mismo criterio que isMovedMoney, pero sobre el tipo en vez de la
@@ -100,6 +107,7 @@ export function movementType(row) {
   if (row.direction !== undefined) return CONTRIBUTION
   if (row.transfer_id) return ACCOUNT_TRANSFER
   if (isBalanceAdjustment(row.category)) return BALANCE_ADJUSTMENT
+  if (row.category?.system_key === DEBT_MOVEMENT) return DEBT_MOVEMENT
   if (isMovedMoney(row.category)) {
     return row.category.system_key === ACCOUNT_TRANSFER ? RECONCILIATION_SPLIT : SAVINGS_MOVEMENT
   }

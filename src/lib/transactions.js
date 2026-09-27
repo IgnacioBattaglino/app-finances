@@ -1,5 +1,5 @@
 import { supabase } from './supabase.js'
-import { LOCAL_CURRENCY } from './currencyTotals.js'
+import { LOCAL_CURRENCY, amountInCurrency } from './currencyTotals.js'
 import { movementType, isMovedMoneyType } from './systemCategories.js'
 import { fetchAllPages } from './pagination.js'
 
@@ -145,16 +145,26 @@ export function getMonthlyExpensesUsd({ from, to }) {
 // de un conteo y las transferencias entre cuentas aparecían acá como una
 // categoría de gasto propia. El ajuste de un conteo sí cuenta: es un gasto
 // real.
-export function groupExpensesByCategory(transactions) {
+//
+// Desde la 0059 suma los intereses de los pagos de deuda (`debtPayments`, ya
+// partidos con paymentParts), bajo el nombre de la categoría del sistema
+// "Intereses": los mismos pagos que cuenta monthTotals.
+export function groupExpensesByCategory(transactions, debtPayments = [], interestName = 'Intereses') {
   const byCurrency = new Map()
+  const add = (currency, name, amount) => {
+    if (!byCurrency.has(currency)) byCurrency.set(currency, new Map())
+    const totals = byCurrency.get(currency)
+    totals.set(name, (totals.get(name) ?? 0) + amount)
+  }
   for (const t of transactions) {
     if (t.kind !== 'expense') continue
     if (isMovedMoneyType(movementType(t))) continue
-    const currency = t.currency ?? LOCAL_CURRENCY
-    const name = t.category?.name ?? 'Sin categoría'
-    if (!byCurrency.has(currency)) byCurrency.set(currency, new Map())
-    const totals = byCurrency.get(currency)
-    totals.set(name, (totals.get(name) ?? 0) + Number(t.amount))
+    add(t.currency ?? LOCAL_CURRENCY, t.category?.name ?? 'Sin categoría', Number(t.amount))
+  }
+  for (const p of debtPayments) {
+    if (!p.affects_liquid || p.mep_rate == null || !p.account || !(Number(p.interest_usd) > 0)) continue
+    const currency = p.account.currency ?? LOCAL_CURRENCY
+    add(currency, interestName, amountInCurrency(Number(p.interest_usd), Number(p.mep_rate), currency))
   }
 
   return [...byCurrency.entries()]

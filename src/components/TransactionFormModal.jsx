@@ -24,6 +24,8 @@ function TransactionFormModal({
   defaultKind = 'expense',
   categories = [],
   accounts = [],
+  // Las de ahorro (0059): se puede gastar o cobrar desde lo guardado.
+  savingsAccounts = [],
   defaultAccountId = null,
   lastReconciliations = new Map(),
   onClose,
@@ -72,12 +74,16 @@ function TransactionFormModal({
 
   const editing = Boolean(initial?.id)
   const isTransferPart = Boolean(initial?.transfer_id)
+  // La entrada de un préstamo (0059): la escribe la deuda y se edita desde ahí.
+  const isDebtInflow = editing && Boolean(initial?.debt_id)
+  const allAccounts = [...accounts, ...savingsAccounts.filter((s) => !accounts.some((a) => a.id === s.id))]
   // Un movimiento PUEDE venir de un conteo solo si lleva una de sus dos
   // categorías y no es una pata de transferencia (que comparte la categoría
   // del reparto). Se filtra acá para no consultar en cada gasto común.
   const couldBeReconciliation =
     editing &&
     !isTransferPart &&
+    !isDebtInflow &&
     (isBalanceAdjustment(initial?.category) || isMovedMoney(initial?.category))
 
   useEffect(() => {
@@ -148,7 +154,7 @@ function TransactionFormModal({
   const retro = editing
     ? retroactiveReconciliation(lastReconciliations, accountId, date)
     : null
-  const retroAccountName = accounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
+  const retroAccountName = allAccounts.find((a) => a.id === accountId)?.name ?? 'esta cuenta'
   const retroNotice = retro && (
     <div className="notice space-y-1.5 text-[13px]">
       <p>
@@ -213,6 +219,33 @@ function TransactionFormModal({
   // corregirla hay que borrar la transferencia entera (las dos patas,
   // atómico) y volver a cargarla. Mismo criterio que ContributionFormModal
   // con isTransferPart.
+  // La entrada de un préstamo: de solo lectura, como una pata de
+  // transferencia. Cambiarla acá descuadraría la deuda que la registró.
+  if (isDebtInflow) {
+    return (
+      <FormSheet title="Entrada de un préstamo" onClose={onClose}>
+        <div className="space-y-3">
+          <div className="list">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-[15px] text-ink-soft">Monto</span>
+              <span className="font-money text-[15px]">
+                {formatByCurrency(initial.currency, Number(initial.amount))}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-[15px] text-ink-soft">Fecha</span>
+              <span className="text-[17px]">{formatDayYear(initial.date)}</span>
+            </div>
+          </div>
+          <p className="rounded-[16px] bg-mist px-4 py-3 text-[13px] text-ink-soft">
+            La plata que te prestaron, que entró a esta cuenta. No es un ingreso: suma al renglón
+            Deudas. Se cambia o se quita desde la deuda, en Compromisos.
+          </p>
+        </div>
+      </FormSheet>
+    )
+  }
+
   if (isTransferPart) {
     return (
       <>
@@ -391,7 +424,7 @@ function TransactionFormModal({
   // de moneda que sería una segunda forma de decir lo mismo — y que dejaría
   // elegir una moneda distinta de la de la cuenta, que no es una operación que
   // la app sepa registrar.
-  const currency = transactionCurrency({ initial, accountId, accounts })
+  const currency = transactionCurrency({ initial, accountId, accounts: allAccounts })
   const missing = []
   if (!(amountValue > 0)) missing.push('monto')
   if (!categoryId) missing.push('categoría')
@@ -407,7 +440,7 @@ function TransactionFormModal({
   // "50.000" son pesos o dólares según el símbolo de al lado. La base además
   // rechaza el cambio de moneda si no llega explícito (0050, regla D).
   function changeAccount(next) {
-    if (editing && transactionCurrency({ initial, accountId: next, accounts }) !== currency) setAmount('')
+    if (editing && transactionCurrency({ initial, accountId: next, accounts: allAccounts }) !== currency) setAmount('')
     setAccountId(next)
   }
 
@@ -611,6 +644,7 @@ function TransactionFormModal({
                 deuda, que pueden no tocarlo. */}
             <AccountField
               accounts={accounts}
+              savingsAccounts={savingsAccounts}
               value={accountId}
               onChange={changeAccount}
               label={kind === 'income' ? '¿A qué cuenta?' : '¿De qué cuenta?'}

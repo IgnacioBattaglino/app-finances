@@ -260,7 +260,7 @@ function Dashboard() {
 
   // Cuentas del disponible (migración 0032): las ofrece el formulario de
   // carga, con la primera preseleccionada.
-  const { accounts, defaultAccountId, addAccount } = useAccounts()
+  const { accounts, savingsAccounts, defaultAccountId, addAccount } = useAccounts()
   // Lo que hay que confirmar. Un fallo cargándolo NO se propaga como error de
   // la pantalla: el recordatorio es un agregado y quedarse sin ver el
   // disponible porque no se pudieron leer los compromisos sería peor (mismo
@@ -634,6 +634,7 @@ function Dashboard() {
           defaultKind="expense"
           categories={categories ?? []}
           accounts={accounts}
+          savingsAccounts={savingsAccounts}
           defaultAccountId={defaultAccountId}
           onCategoryCreated={(created) => setCategories((prev) => [...(prev ?? []), created])}
           onAccountCreated={addAccount}

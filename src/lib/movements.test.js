@@ -117,6 +117,8 @@ describe('monthTotals', () => {
       incomes: [{ currency: 'ARS', amount: 0 }],
       invested: [{ currency: 'ARS', amount: 0 }],
       saved: [{ currency: 'ARS', amount: 0 }],
+      debts: [{ currency: 'ARS', amount: 0 }],
+      hasDebts: false,
       balance: [{ currency: 'ARS', amount: 0 }],
     })
   })
@@ -417,9 +419,10 @@ describe('monthTotals → Ahorrado', () => {
     expect(line(t.expenses)).toBe(0)
   })
 
-  it('el ajuste de un conteo en una cuenta de ahorro sigue siendo un gasto real', () => {
-    // No lo toca esta regla: si contaste tu ahorro y faltaba plata, falta de
-    // verdad (ADR-016).
+  it('el ajuste de un conteo en una cuenta de ahorro es un gasto real, y sale del ahorro', () => {
+    // Si contaste tu ahorro y faltaba plata, falta de verdad (ADR-016): es un
+    // gasto. Y como salió de lo guardado, no del disponible, además resta en
+    // Ahorrado (0059), así el balance no cambia.
     const t = totals([
       {
         id: 'aj',
@@ -434,7 +437,8 @@ describe('monthTotals → Ahorrado', () => {
     ])
 
     expect(line(t.expenses)).toBe(1500)
-    expect(line(t.saved)).toBe(0)
+    expect(line(t.saved)).toBe(-1500)
+    expect(line(t.balance)).toBe(0)
   })
 
   it('con monedas distintas cuenta lo que salió del bolsillo, no lo que entró', () => {

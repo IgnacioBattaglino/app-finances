@@ -1,11 +1,15 @@
 import { supabase } from './supabase.js'
 import { round } from './money.js'
 import { UserError } from './errors.js'
+import { fetchAllPages } from './pagination.js'
 
 // Los pagos vienen en la misma query que la deuda: el saldo no se puede leer
 // sin ellos (es original − pagos, calculado siempre al vuelo, nunca guardado).
+//
+// `inflow` es la entrada del préstamo (migración 0059), si se registró: el
+// ingreso con la categoría "Movimiento de deuda" que apunta a esta deuda.
 const SELECT =
-  '*, payments:debt_payments(id, date, amount_usd, mep_rate, affects_liquid, account_id, created_at)'
+  '*, payments:debt_payments(id, date, amount_usd, interest_usd, mep_rate, affects_liquid, account_id, created_at), inflow:transactions(id, amount, currency, account_id)'
 
 // El saldo lo calcula la base (vista debt_balances, migración 0049) y viaja
 // pegado a cada deuda como balance_usd / paid_usd / is_settled. Dos consultas y
@@ -59,16 +63,44 @@ export function summarizeDebtBalances(debts) {
 // debtBalanceSql.test.js corre la vista. Se borran cuando la vista quede
 // verificada en producción (ver docs/mudanza-reglas.md).
 
-// Saldo restante de una deuda = monto original − todo lo pagado. Nunca baja de
-// 0: pagar de más salda la deuda, no genera un saldo negativo a favor (eso
-// sería otra cosa — un préstamo al revés — y la app no lo modela).
+// Saldo restante de una deuda = monto original − el capital pagado. Nunca baja
+// de 0: pagar de más salda la deuda, no genera un saldo negativo a favor (eso
+// sería otra cosa — un préstamo al revés — y la app no lo modela). Desde la
+// 0059 lo que baja la deuda es el CAPITAL: lo que un pago declara como
+// intereses es gasto y no la toca.
 export function debtBalance(debt) {
   const paid = totalPaid(debt)
   return round(Math.max(0, Number(debt.original_amount_usd) - paid))
 }
 
+// El capital pagado: cada pago menos lo que declaró como intereses.
 export function totalPaid(debt) {
-  return round((debt.payments ?? []).reduce((sum, p) => sum + Number(p.amount_usd), 0))
+  return round(
+    (debt.payments ?? []).reduce((sum, p) => sum + Number(p.amount_usd) - Number(p.interest_usd ?? 0), 0),
+  )
+}
+
+// DEFINICIÓN EJECUTABLE de la vista debt_payment_parts (0059): el capital y los
+// intereses de cada pago. En orden (fecha, alta, id): el capital es lo que no
+// son intereses a mano, y lo que de ese capital cruza el monto de la deuda es
+// interés también — la red, para quien no carga los intereses. Así la suma del
+// capital nunca pasa el monto original. La corre periodTotalsSql.test.js.
+export function paymentParts(debt) {
+  const original = Number(debt.original_amount_usd)
+  const ordered = [...(debt.payments ?? [])].sort(
+    (a, b) =>
+      (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) ||
+      (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  )
+  let before = 0
+  return ordered.map((p) => {
+    const manualInterest = Number(p.interest_usd ?? 0)
+    const manualCapital = Number(p.amount_usd) - manualInterest
+    const excess = Math.max(0, before + manualCapital - original) - Math.max(0, before - original)
+    before += manualCapital
+    return { ...p, interest_usd: manualInterest + excess, capital_usd: manualCapital - excess }
+  })
 }
 
 // Una deuda está saldada cuando ya no queda nada por pagar. Es un estado
@@ -103,31 +135,19 @@ export function summarizeDebts(debts) {
   }
 }
 
-function toDebtRow({ creditor, originalAmountUsd, startDate }) {
-  return {
-    creditor: creditor.trim(),
-    original_amount_usd: originalAmountUsd,
-    start_date: startDate,
-  }
-}
-
-export async function createDebt(fields) {
-  const { data, error } = await supabase
-    .from('debts')
-    .insert(toDebtRow(fields))
-    .select(SELECT)
-    .single()
-  if (error) throw error
-  return data
-}
-
-export async function updateDebt(id, fields) {
-  const { data, error } = await supabase
-    .from('debts')
-    .update(toDebtRow(fields))
-    .eq('id', id)
-    .select(SELECT)
-    .single()
+// Crear o editar una deuda, con la entrada del préstamo si se indicó, en una
+// sola transacción (save_debt, migración 0059). `inflow`: { accountId, amount }
+// en la moneda de la cuenta, o null para no registrar ninguna (y borrar la que
+// hubiera).
+export async function saveDebt(id, { creditor, originalAmountUsd, startDate, inflow = null }) {
+  const { data, error } = await supabase.rpc('save_debt', {
+    p_id: id ?? null,
+    p_creditor: creditor,
+    p_original_amount_usd: originalAmountUsd,
+    p_start_date: startDate,
+    p_inflow_account_id: inflow?.accountId ?? null,
+    p_inflow_amount: inflow?.amount ?? null,
+  })
   if (error) throw error
   return data
 }
@@ -152,11 +172,14 @@ export async function deleteDebt(id) {
   if (error) throw error
 }
 
-function toPaymentRow({ debtId, date, amountUsd, mepRate, affectsLiquid, accountId }) {
+function toPaymentRow({ debtId, date, amountUsd, interestUsd, mepRate, affectsLiquid, accountId }) {
   return {
     debt_id: debtId,
     date,
     amount_usd: amountUsd,
+    // Cuánto de este pago son intereses (0059): gasto, no capital. Null = no
+    // se indicó, y cuenta como 0 (salvo la red de lo pagado de más).
+    interest_usd: interestUsd > 0 ? interestUsd : null,
     mep_rate: mepRate,
     affects_liquid: affectsLiquid,
     // De qué cuenta del disponible salió el pago (migración 0032). Un pago
@@ -192,4 +215,24 @@ export async function updatePayment(id, fields) {
 export async function deletePayment(id) {
   const { error } = await supabase.from('debt_payments').delete().eq('id', id)
   if (error) throw error
+}
+
+// Los pagos de deuda de un período, para la lista de Movimientos: salieron de
+// una cuenta y cambian el renglón "Deudas". Paginada como el resto de la lista.
+export async function getDebtPayments({ from, to } = {}) {
+  return fetchAllPages((pageFrom, pageTo) => {
+    let query = supabase
+      .from('debt_payments')
+      .select('id, date, amount_usd, interest_usd, mep_rate, affects_liquid, created_at, account:liquid_accounts(name, currency), debt:debts(id, creditor)')
+      // Como los aportes: la lista es lo que pasó por el bolsillo. Un pago con
+      // dólares que ya tenías baja la deuda pero no tocó ninguna cuenta.
+      .eq('affects_liquid', true)
+    if (from) query = query.gte('date', from)
+    if (to) query = query.lte('date', to)
+    return query
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(pageFrom, pageTo)
+  })
 }

@@ -6,6 +6,7 @@ import {
   INCOME,
   RECONCILIATION_SPLIT,
   SAVINGS_MOVEMENT,
+  DEBT_MOVEMENT,
 } from './systemCategories.js'
 
 // CÓMO SE ARMA LA LISTA DE MOVIMIENTOS: qué filas se juntan en una sola línea
@@ -263,6 +264,9 @@ export const INCOMES = 'incomes'
 export const INVESTMENTS = 'investments'
 export const SAVINGS = 'savings'
 export const TRANSFERS = 'transfers'
+// Pagos de deuda y entradas de préstamos (0059): lo que suma el renglón
+// "Deudas". El chip solo se muestra si el período tuvo movimiento de deudas.
+export const DEBTS = 'debts'
 
 export const MOVEMENT_BUCKETS = [
   { value: ALL, label: 'Todos' },
@@ -271,6 +275,7 @@ export const MOVEMENT_BUCKETS = [
   { value: INVESTMENTS, label: 'Inversiones' },
   { value: SAVINGS, label: 'Ahorros' },
   { value: TRANSFERS, label: 'Transferencias' },
+  { value: DEBTS, label: 'Deudas' },
 ]
 
 // Los únicos cajones donde una categoría de usuario significa algo. En los
@@ -303,6 +308,9 @@ export function movementBucket({ source, row }) {
   // disponible.
   if (source === 'transfer') return row.crossesSavings ? SAVINGS : TRANSFERS
 
+  // Un pago de deuda (0059): su capital suma al renglón "Deudas".
+  if (source === 'debt_payment') return DEBTS
+
   switch (movementType(row)) {
     // El ajuste del neto de un conteo es un gasto o un ingreso REAL (la plata
     // que faltaba y no habías cargado), así que va con ellos: es lo que ya
@@ -316,6 +324,9 @@ export function movementBucket({ source, row }) {
     // cayera acá no habría ningún cajón donde encontrarla.
     case SAVINGS_MOVEMENT:
       return SAVINGS
+    // La entrada de un préstamo: suma al renglón "Deudas", no a Ingresos.
+    case DEBT_MOVEMENT:
+      return DEBTS
     // Patas huérfanas y repartos que no se pudieron aparear: siguen siendo lo
     // que son. Del lado del ahorro si su cuenta lo es.
     case ACCOUNT_TRANSFER:
@@ -326,4 +337,13 @@ export function movementBucket({ source, row }) {
     default:
       return EXPENSES
   }
+}
+
+// Si un ítem se ve bajo un cajón. Casi siempre es su cajón (movementBucket),
+// con una excepción: un pago de deuda con intereses también se ve en Gastos,
+// porque sus intereses suman a ese renglón — lo que se ve en un chip tiene que
+// ser lo que suma el renglón homónimo.
+export function inBucket(item, bucket) {
+  if (bucket === ALL || movementBucket(item) === bucket) return true
+  return bucket === EXPENSES && item.source === 'debt_payment' && Number(item.row.interest_usd) > 0
 }

@@ -26,14 +26,20 @@ export function reloadAccounts() {
 
 export function useAccounts() {
   const [accounts, setAccounts] = useState([])
+  // Las de ahorro, aparte: solo las ofrece el formulario de gasto e ingreso
+  // (0059: gastar desde el ahorro). Aportes y pagos de deuda no.
+  const [savingsAccounts, setSavingsAccounts] = useState([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      setAccounts((await getAccounts()).filter((account) => !account.is_savings))
+      const all = await getAccounts()
+      setAccounts(all.filter((account) => !account.is_savings))
+      setSavingsAccounts(all.filter((account) => account.is_savings))
     } catch {
       setAccounts([])
+      setSavingsAccounts([])
     } finally {
       setLoading(false)
     }
@@ -51,5 +57,5 @@ export function useAccounts() {
     setAccounts((prev) => (prev.some((a) => a.id === account.id) ? prev : [...prev, account]))
   }, [])
 
-  return { accounts, defaultAccountId: accounts[0]?.id ?? null, loading, reload: load, addAccount }
+  return { accounts, savingsAccounts, defaultAccountId: accounts[0]?.id ?? null, loading, reload: load, addAccount }
 }

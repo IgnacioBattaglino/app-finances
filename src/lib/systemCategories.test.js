@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   movementType,
+  DEBT_MOVEMENT,
   isMovedMoneyType,
   isMovedMoney,
   isBalanceAdjustment,
@@ -77,5 +78,13 @@ describe('isMovedMoney / isBalanceAdjustment (sin cambios)', () => {
     expect(isMovedMoney({ system_key: 'savings_movement' })).toBe(true)
     expect(isMovedMoney({ system_key: 'balance_adjustment' })).toBe(false)
     expect(isBalanceAdjustment({ system_key: 'balance_adjustment' })).toBe(true)
+  })
+})
+
+describe('movementType: la entrada de un préstamo (0059)', () => {
+  it('es plata que cambió de lugar, no un ingreso', () => {
+    const row = { kind: 'income', category: { system_key: 'debt_movement' } }
+    expect(movementType(row)).toBe(DEBT_MOVEMENT)
+    expect(isMovedMoneyType(movementType(row))).toBe(true)
   })
 })

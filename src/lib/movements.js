@@ -4,6 +4,7 @@ import {
   isMovedMoneyType,
   ACCOUNT_TRANSFER,
   RECONCILIATION_SPLIT,
+  DEBT_MOVEMENT,
 } from './systemCategories.js'
 
 // Movimientos = lo que pasó por el bolsillo. Son dos tablas: los gastos e
@@ -156,6 +157,10 @@ export function periodLines(rows) {
     incomes: lines('incomes'),
     invested: lines('invested'),
     saved: lines('saved'),
+    // El renglón "Deudas" (0059): lo que entró por préstamos − lo devuelto de
+    // capital. Se muestra solo si hubo movimiento de deudas en el período.
+    debts: lines('debts'),
+    hasDebts: rows.some((r) => Number(r.debt_movements) > 0),
     balance: lines('balance'),
   }
 }
@@ -171,12 +176,39 @@ export function periodLines(rows) {
 // "Invertido" y "Ahorrado" pueden dar negativo: un mes en el que se retiró más
 // de lo que se aportó devolvió plata al bolsillo, y el balance lo refleja
 // sumándola.
-export function monthTotals({ transactions, contributions }) {
+//
+// Desde la 0059:
+//   · `debtPayments`: los pagos del período, YA partidos en capital e intereses
+//     (paymentParts, lib/debts.js — la partición depende de los pagos
+//     anteriores, así que se hace sobre toda la deuda y después se recorta al
+//     período). Cuentan los que salieron del disponible con su tasa: los
+//     intereses son gasto; el capital, el renglón "Deudas".
+//   · La entrada de un préstamo ("Movimiento de deuda") suma a "Deudas".
+//   · Lo que cae en una cuenta de AHORRO (un gasto, un ingreso, una entrada o
+//     un pago de deuda) cuenta en su renglón y además en Ahorrado, con el signo
+//     que deja el balance igual: gastar desde el ahorro es lo mismo que
+//     transferir primero y gastar después.
+export function monthTotals({ transactions, contributions, debtPayments = [] }) {
   const expenses = new Map()
   const incomes = new Map()
   const invested = new Map()
+  const debts = new Map()
+  const mirrored = new Map() // lo que se refleja en Ahorrado
+  let debtMovements = 0
+
+  // `effect` es lo que la fila le hace al balance (+ entra, − sale).
+  const mirror = (isSavings, currency, effect) => {
+    if (isSavings) addTo(mirrored, currency, effect)
+  }
 
   for (const t of transactions) {
+    if (movementType(t) === DEBT_MOVEMENT) {
+      const signed = t.kind === 'income' ? Number(t.amount) : -Number(t.amount)
+      addTo(debts, transactionCurrencyOf(t), signed)
+      mirror(t.account?.is_savings, transactionCurrencyOf(t), signed)
+      debtMovements += 1
+      continue
+    }
     // Una transferencia entre cuentas o un movimiento de ahorro no es un gasto
     // ni un ingreso real: es plata que cambió de lugar, igual que un aporte a
     // un activo no cuenta acá sino en `invested`. Se excluye por la LLAVE,
@@ -191,8 +223,21 @@ export function monthTotals({ transactions, contributions }) {
     if (isMovedMoneyType(movementType(t))) continue
     const currency = transactionCurrencyOf(t)
     addTo(t.kind === 'income' ? incomes : expenses, currency, Number(t.amount))
+    mirror(t.account?.is_savings, currency, t.kind === 'income' ? Number(t.amount) : -Number(t.amount))
   }
   const saved = savedByCurrency(transactions)
+
+  for (const p of debtPayments) {
+    if (!p.affects_liquid || p.mep_rate == null || !p.account) continue
+    const currency = p.account.currency ?? LOCAL_CURRENCY
+    const inCurrency = (usd) => amountInCurrency(Number(usd), Number(p.mep_rate), currency)
+    const interest = inCurrency(p.interest_usd)
+    const capital = inCurrency(p.capital_usd)
+    if (Number(p.interest_usd) > 0) addTo(expenses, currency, interest)
+    addTo(debts, currency, -capital)
+    mirror(p.account.is_savings, currency, -interest - capital)
+    debtMovements += 1
+  }
 
   for (const c of contributions) {
     const amount = contributionAmount(c)
@@ -221,12 +266,15 @@ export function monthTotals({ transactions, contributions }) {
   // cerrado: los cuatro términos son plata que de verdad entró o salió del
   // disponible. Un balance mezclado no existe: si cobraste en pesos y gastaste
   // en dólares, son dos saldos distintos y la pantalla muestra los dos.
+  for (const [currency, amount] of mirrored) addTo(saved, currency, amount)
+
   const balance = new Map()
   const currencies = new Set([
     ...incomes.keys(),
     ...expenses.keys(),
     ...invested.keys(),
     ...saved.keys(),
+    ...debts.keys(),
   ])
   for (const currency of currencies) {
     addTo(
@@ -235,7 +283,8 @@ export function monthTotals({ transactions, contributions }) {
       (incomes.get(currency) ?? 0) -
         (expenses.get(currency) ?? 0) -
         (invested.get(currency) ?? 0) -
-        (saved.get(currency) ?? 0),
+        (saved.get(currency) ?? 0) +
+        (debts.get(currency) ?? 0),
     )
   }
 
@@ -244,6 +293,8 @@ export function monthTotals({ transactions, contributions }) {
     incomes: currencyLines(incomes),
     invested: currencyLines(invested),
     saved: currencyLines(saved),
+    debts: currencyLines(debts),
+    hasDebts: debtMovements > 0,
     balance: currencyLines(balance),
   }
 }
@@ -259,11 +310,12 @@ export function monthTotals({ transactions, contributions }) {
 // filas de la base entra acá como un ítem solo. Se ordenan con el mismo
 // criterio que el resto porque llevan la fecha y el created_at de su pata de
 // origen, que es la misma que la de su hermana — las dos se escriben juntas.
-export function mergeMovements(transactions, contributions, transfers = []) {
+export function mergeMovements(transactions, contributions, transfers = [], debtPayments = []) {
   const items = [
     ...transactions.map((row) => ({ source: 'transaction', row })),
     ...contributions.map((row) => ({ source: 'contribution', row })),
     ...transfers.map((row) => ({ source: 'transfer', row })),
+    ...debtPayments.map((row) => ({ source: 'debt_payment', row })),
   ]
 
   return items.sort((a, b) => {
