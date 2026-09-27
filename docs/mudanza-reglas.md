@@ -52,5 +52,5 @@ Una regla por rama. El piloto fue el saldo de deudas (0049, `debt_balances`, reg
 
 ## Pendiente atado a un paso
 
-- El conteo retroactivo (`informe-conteo-retroactivo.md`: opción A más el aviso al crear, solo gastos e ingresos, solo conteos de la 0041 en adelante, un gasto mayor que la diferencia se absorbe entero) se implementa junto con el paso que lleva el conteo a SQL (vista previa del conteo, `planReconciliation`).
+- El conteo retroactivo (`informe-conteo-retroactivo.md`: opción A más el aviso al crear, solo gastos e ingresos, solo conteos de la 0041 en adelante, un gasto mayor que la diferencia se absorbe entero) se implementa junto con el paso que lleva el conteo a SQL (vista previa del conteo, `planReconciliation`). "Cargado después de contar" se decide con `transactions.captured_at` (0060), no con `created_at`: un gasto cargado sin señal sube tarde.
 - App nativa: el renglón "Deudas" (0059) no se muestra con signo sino con palabras: "Te prestaron $ X" si en el período entró más de lo que se devolvió, "Pagaste de deudas $ X" si fue al revés. El cálculo no cambia (`debts` de `get_period_totals`, lo que entró − lo devuelto de capital); solo cómo se lee.
