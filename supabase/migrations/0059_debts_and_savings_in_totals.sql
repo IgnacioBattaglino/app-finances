@@ -481,6 +481,38 @@ end;
 $$;
 
 -- ── Verificación (solo lectura, correr después de aplicar) ─────────────────
--- Ver la consulta combinada del bloque 3 (la da el chat que acompaña esta
--- rama): categorías sembradas por usuario, vistas con security_invoker,
--- permisos, y que ningún pago viejo cambió de capital.
+-- Una sola consulta: cada fila tiene que coincidir con la columna `esperado`.
+--
+--   select 'usuarios sin las dos categorías nuevas' as chequeo, count(*)::text as resultado, '0' as esperado
+--   from auth.users u
+--   where (select count(*) from categories c where c.user_id = u.id and c.system_key in ('debt_movement', 'debt_interest')) <> 2
+--   union all
+--   select 'vistas nuevas con security_invoker', count(*)::text, '2'
+--   from pg_class where relname in ('debt_payment_parts', 'expense_lines') and 'security_invoker=true' = any (reloptions)
+--   union all
+--   select 'saldos de deuda que cambiaron (los pagos viejos no tienen intereses)', count(*)::text, '0'
+--   from debt_balances b join debts d on d.id = b.debt_id
+--   where b.paid_usd <> coalesce((select sum(amount_usd) from debt_payments p where p.debt_id = d.id), 0)
+--   union all
+--   select 'pagos con intereses cargados', count(*)::text, '0'
+--   from debt_payments where interest_usd is not null
+--   union all
+--   select 'entradas de préstamo registradas', count(*)::text, '0'
+--   from transactions where debt_id is not null
+--   union all
+--   select 'funciones y vistas nuevas que anon puede usar', count(*)::text, '0'
+--   from (select has_function_privilege('anon', 'public.save_debt(uuid, text, numeric, date, uuid, numeric)', 'execute') a
+--         union all select has_function_privilege('anon', 'public.get_period_totals(date, date)', 'execute')
+--         union all select has_table_privilege('anon', 'public.debt_payment_parts', 'select')
+--         union all select has_table_privilege('anon', 'public.expense_lines', 'select')
+--         union all select has_table_privilege('anon', 'public.debt_balances', 'select')) x where a
+--   union all
+--   select 'funciones y vistas nuevas que authenticated NO puede usar', count(*)::text, '0'
+--   from (select has_function_privilege('authenticated', 'public.save_debt(uuid, text, numeric, date, uuid, numeric)', 'execute') a
+--         union all select has_function_privilege('authenticated', 'public.get_period_totals(date, date)', 'execute')
+--         union all select has_table_privilege('authenticated', 'public.debt_payment_parts', 'select')
+--         union all select has_table_privilege('authenticated', 'public.expense_lines', 'select')
+--         union all select has_table_privilege('authenticated', 'public.debt_balances', 'select')) x where not a
+--   union all
+--   select 'handle_new_user siembra las dos nuevas', (position('debt_interest' in prosrc) > 0)::text, 'true'
+--   from pg_proc where oid = 'public.handle_new_user()'::regprocedure;
