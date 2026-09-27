@@ -32,9 +32,13 @@
 --      reintente con el mismo id. Vale para gastos e ingresos, aportes y
 --      pagos de deuda, al crear y al mudar un movimiento a esa cuenta.
 --      Al medir: 0 movimientos en las 2 cuentas ocultas.
---      Editar el monto de un movimiento que ya estaba en una cuenta oculta no
---      pasa por acá (no cambia la cuenta): la web no ofrece esas filas para
---      editar y la app nativa solo crea.
+--
+--   4. UN MOVIMIENTO DE UNA CUENTA OCULTA NO SE EDITA en lo que mueve su saldo:
+--      monto, fecha, tipo, moneda, tasa, origen, intereses ni cuenta (sacarlo
+--      de la cuenta oculta también le cambia el saldo). La app nativa permite
+--      editar movimientos, y cualquiera de esos cambios rompería el saldo cero
+--      que exige la 0054. La descripción sí se puede cambiar. Qué columnas
+--      cuenta cada tabla va como argumento del trigger.
 
 -- ══ 1. captured_at ══════════════════════════════════════════════════════════
 alter table public.transactions add column captured_at timestamptz;
@@ -63,13 +67,28 @@ create trigger transactions_captured_at
   for each row execute function public.transaction_captured_at();
 
 -- ══ 2. Una cuenta oculta no recibe movimientos nuevos ═══════════════════════
+-- Los argumentos del trigger (tg_argv) son las columnas de esa tabla que
+-- mueven el saldo de la cuenta: si una cambia en un movimiento de una cuenta
+-- oculta, se rechaza.
 create or replace function public.reject_hidden_account()
 returns trigger
 language plpgsql
 security invoker
 set search_path = public
 as $$
+declare
+  v_column text;
 begin
+  if tg_op = 'UPDATE'
+     and old.account_id is not null
+     and exists (select 1 from liquid_accounts where id = old.account_id and is_archived) then
+    foreach v_column in array tg_argv loop
+      if to_jsonb(new) -> v_column is distinct from to_jsonb(old) -> v_column then
+        raise exception 'Este movimiento es de una cuenta que ya no está disponible: no se puede cambiar su monto, fecha, tipo ni cuenta.';
+      end if;
+    end loop;
+  end if;
+
   if new.account_id is not null
      and (tg_op = 'INSERT' or new.account_id is distinct from old.account_id)
      and exists (select 1 from liquid_accounts where id = new.account_id and is_archived) then
@@ -80,14 +99,14 @@ end;
 $$;
 
 create trigger transactions_reject_hidden_account
-  before insert or update of account_id on public.transactions
-  for each row execute function public.reject_hidden_account();
+  before insert or update on public.transactions
+  for each row execute function public.reject_hidden_account('amount', 'date', 'kind', 'currency', 'account_id');
 create trigger contributions_reject_hidden_account
-  before insert or update of account_id on public.contributions
-  for each row execute function public.reject_hidden_account();
+  before insert or update on public.contributions
+  for each row execute function public.reject_hidden_account('amount_usd', 'mep_rate', 'direction', 'affects_liquid', 'date', 'account_id');
 create trigger debt_payments_reject_hidden_account
-  before insert or update of account_id on public.debt_payments
-  for each row execute function public.reject_hidden_account();
+  before insert or update on public.debt_payments
+  for each row execute function public.reject_hidden_account('amount_usd', 'interest_usd', 'mep_rate', 'affects_liquid', 'date', 'account_id');
 
 revoke all on function public.transaction_captured_at() from public, anon;
 revoke all on function public.reject_hidden_account() from public, anon;

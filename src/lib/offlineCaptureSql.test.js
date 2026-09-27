@@ -49,6 +49,9 @@ const OCULTA = '22222222-2222-4222-8222-222222222222'
 const CAT = 'aaaaaaaa-0000-4000-8000-000000000001'
 const OLD_TX = 'bbbbbbbb-0000-4000-8000-000000000001'
 const PHONE_ID = 'cccccccc-0000-4000-8000-000000000001' // el id que generó el teléfono
+const HIDDEN_TX = 'dddddddd-0000-4000-8000-000000000001'
+const HIDDEN_C = 'dddddddd-0000-4000-8000-000000000002'
+const HIDDEN_P = 'dddddddd-0000-4000-8000-000000000003'
 
 const SCHEMA = `
 do $$ begin
@@ -76,8 +79,10 @@ create table transactions (
   account_id uuid references liquid_accounts(id), created_at timestamptz not null default now()
 );
 create table contributions (id uuid primary key default gen_random_uuid(), amount_usd numeric(14,2) not null,
+  date date not null default current_date, mep_rate numeric(10,2), direction text not null default 'in',
   affects_liquid boolean not null default true, account_id uuid references liquid_accounts(id));
 create table debt_payments (id uuid primary key default gen_random_uuid(), amount_usd numeric(14,2) not null,
+  date date not null default current_date, mep_rate numeric(10,2), interest_usd numeric(14,2),
   affects_liquid boolean not null default true, account_id uuid references liquid_accounts(id));
 create table commitments (id uuid primary key default gen_random_uuid(), name text, account_id uuid references liquid_accounts(id));
 create table liquid_reconciliations (id uuid primary key default gen_random_uuid(), declared_amount numeric(14,2) not null,
@@ -93,6 +98,11 @@ insert into categories values ('${CAT}', '${USER}', 'Comida');
 -- Un gasto de antes de la 0060: tiene que quedar con captured_at = created_at.
 insert into transactions (id, user_id, category_id, amount, account_id, created_at)
   values ('${OLD_TX}', '${USER}', '${CAT}', 100, '${EFECTIVO}', '2026-01-15T10:00:00Z');
+-- Movimientos que ya estaban en la cuenta antes de ocultarla.
+insert into transactions (id, user_id, category_id, amount, account_id, description)
+  values ('${HIDDEN_TX}', '${USER}', '${CAT}', 500, '${OCULTA}', 'viejo');
+insert into contributions (id, amount_usd, mep_rate, account_id) values ('${HIDDEN_C}', 10, 1000, '${OCULTA}');
+insert into debt_payments (id, amount_usd, mep_rate, account_id) values ('${HIDDEN_P}', 10, 1000, '${OCULTA}');
 `
 
 const upload = (id, capturedAt, account = EFECTIVO) =>
@@ -171,5 +181,29 @@ describe.skipIf(!available)('0060: carga sin conexión (SQL)', () => {
     const id = 'cccccccc-0000-4000-8000-000000000004'
     asUser(`insert into transactions (id, category_id, amount, currency, account_id) values ('${id}', '${CAT}', 10, 'USD', '${EFECTIVO}');`)
     expect(psql(`select currency from transactions where id = '${id}';`).trim()).toBe('ARS')
+  })
+
+  describe('un movimiento de una cuenta oculta no se edita en lo que mueve su saldo', () => {
+    const NOT_EDITABLE = /no se puede cambiar su monto, fecha, tipo ni cuenta/
+    for (const [label, sql] of [
+      ['el monto', `update transactions set amount = 600 where id = '${HIDDEN_TX}';`],
+      ['la fecha', `update transactions set date = '2026-01-01' where id = '${HIDDEN_TX}';`],
+      ['el tipo', `update transactions set kind = 'income' where id = '${HIDDEN_TX}';`],
+      ['sacarlo de la cuenta oculta', `update transactions set account_id = '${EFECTIVO}' where id = '${HIDDEN_TX}';`],
+    ]) {
+      it(`gasto o ingreso: ${label}`, () => {
+        expect(rejection(sql)).toMatch(NOT_EDITABLE)
+      })
+    }
+
+    it('aporte: el monto; pago de deuda: los intereses', () => {
+      expect(rejection(`update contributions set amount_usd = 20 where id = '${HIDDEN_C}';`)).toMatch(NOT_EDITABLE)
+      expect(rejection(`update debt_payments set interest_usd = 1 where id = '${HIDDEN_P}';`)).toMatch(NOT_EDITABLE)
+    })
+
+    it('la descripción sí se puede cambiar, y nada más se movió', () => {
+      asUser(`update transactions set description = 'corregido' where id = '${HIDDEN_TX}';`)
+      expect(psql(`select description, amount from transactions where id = '${HIDDEN_TX}';`).trim()).toBe('corregido\t500.00')
+    })
   })
 })
