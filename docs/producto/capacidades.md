@@ -45,7 +45,7 @@ Estado: grupos 1 a 4 revisados (2026-10-09). Los grupos 5 a 8 están pendientes.
 - Crear una cuenta: nombre, moneda, si es de ahorro. Existe
 - Color de cuenta. Duda: el diseño lo promete y la base no lo guarda (propuesta: columna nueva; **pendiente de confirmar**)
 - Ordenar y editar cuentas. Existe
-- Ocultar una cuenta (con saldo: mover el dinero o dejarla en $ 0). Existe (ver verificación 4)
+- Ocultar una cuenta (con saldo: mover el dinero o dejarla en $ 0). Existe (ver verificación 4). Dejarla en $ 0 registra un gasto o ingreso real del mes (verificación 4): **pendiente de confirmar** cómo se dice en pantalla
 - Borrar una cuenta sin historia. Existe
 - Ver los movimientos de una cuenta. Existe
 - Transferir entre cuentas de la misma moneda. Existe. Entre monedas distintas: Decidida (falta en la base, Bloque A)

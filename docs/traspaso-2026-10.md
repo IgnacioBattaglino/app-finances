@@ -76,6 +76,7 @@ Está en uso diario. Se va a reemplazar, así que solo lleva arreglos. **Hallazg
 - Arreglo: separar lo que se busca en palabras y exigir que coincidan todas (en el nombre o el símbolo), tratando el guion como un espacio.
 - Además, a `getInstruments()` le falta `limit`. Pasando las 1000 filas, el catálogo se corta sin avisar, y hay que resolverlo antes de cargar los ~385 CEDEARs.
 - Está en `src/lib/instruments.js` (`searchInstruments`).
+- Actualización 2026-10-09: el arreglo de búsqueda por palabras ya está en main (3687576); falta solo el limit.
 
 ### 3.3 App nativa de iOS: EN PAUSA
 
