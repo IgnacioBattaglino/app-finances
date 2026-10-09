@@ -6,7 +6,7 @@ Contexto: `docs/arquitectura-nativa.md` (secciones 3, 5 y 7).
 
 ## 1. Seguridad y rendimiento (lo que marcó Supabase)
 
-> **2026-10-09: hecho en la migración 0061** (rama `chore/seguridad-rendimiento-base`, pendiente de aplicar): §1.1 completo, los 6 índices de §1.2, y en §1.4 el `search_path` de las dos funciones y el `revoke` de `handle_new_user`. **Sigue pendiente:** los índices compuestos por período (§1.2, medir primero), §1.3 (lo prende Nacho en el panel) y `pg_net`, que se deja.
+> **2026-10-09: hecho en la migración 0061** (aplicada y verificada): §1.1 completo, los 6 índices de §1.2, y en §1.4 el `search_path` de las dos funciones y el `revoke` de `handle_new_user`. **Sigue pendiente:** los índices compuestos por período (§1.2, medir primero), §1.3 (lo prende Nacho en el panel) y `pg_net`, que se deja.
 
 ### 1.1 Reglas de acceso que se recalculan fila por fila — prioridad alta
 
