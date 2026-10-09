@@ -33,7 +33,7 @@ Una regla por rama. El piloto fue el saldo de deudas (0049, `debt_balances`, reg
 - `lib/<x>.js` lee la vista/función y le pega los campos calculados a las filas. Las pantallas leen esos campos; ninguna importa la regla JS.
 - Lo que queda en el cliente es presentación (sumar lo ya calculado para un total, anchos de barra, formato).
 - Una vista sin FK no se embebe en PostgREST: consulta aparte en paralelo y merge por id.
-- Si se lee por RPC y hay caché con lista de RPC de lectura, agregarla ahí (o que empiece con `get_`) para no disparar invalidaciones.
+- Si se lee por RPC y hay caché con lista de RPC de lectura, agregarla ahí (o que empiece con `get_`) para no disparar invalidaciones. **Hoy no aplica en `main`**: esa caché (`src/lib/queryClient.js`, `READONLY_RPCS`) existe solo en la etiqueta `archivo/ui-polish`. Lo que sí vale en `main`: nombrar las funciones de lectura con el prefijo `get_`, para que sigan sirviendo si esa caché vuelve.
 - Los fixtures de tests de componentes arman los campos nuevos con la definición JS.
 - Lo visible no cambia: si cambia algo, es otro PR.
 

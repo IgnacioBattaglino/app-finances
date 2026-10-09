@@ -2,6 +2,33 @@
 
 Fecha: 2026-09-25. Contexto: la app va a tener tres frentes (web, iOS nativo, Android nativo) y se evalúa mover la lógica de plata a Supabase —funciones SQL o Edge Functions en TypeScript— para que las apps sean solo pantallas.
 
+
+## Estado al 2026-10-08
+
+Agregado en la tercera pasada de documentación (el resto del informe es del 2026-09-25 y se conserva como estaba, salvo las correcciones marcadas con «[corregido 2026-10-08]»). Evidencia: migraciones en `supabase/migrations/` y objetos de la base consultados en solo lectura el 2026-10-08.
+
+| Paso (sección 6) | Estado | Migración o evidencia |
+|---|---|---|
+| 0. CI con Postgres | **Hecho** | `.github/workflows/test.yml` (corre `npm test` con un Postgres 15); 17 archivos `*Sql.test.js` |
+| 0. Trampa de `READONLY_RPCS` | **No aplica en main** | `src/lib/queryClient.js` no existe en `main`: solo vive en la etiqueta `archivo/ui-polish`. La regla «toda función de lectura empieza con `get_`» está escrita en `docs/pendientes-base.md` §3 |
+| 0. Parámetro `p_today` | **Parcial** | Solo en `get_top_categories` (0057, 0058). En las demás funciones: pendiente de verificar si alguna lo necesita |
+| 1. Deudas como vista | **Hecho** | 0049 (`debt_balances`) |
+| 2. Moneda de la fila por trigger | **Hecho** | 0050 |
+| 3. Resumen del disponible y categorías más usadas | **Hecho** | 0051 (`get_liquid_summary`), 0057 y 0058 (`get_top_categories`). El aviso de «ya contaste esta cuenta» (#26) sigue en JS |
+| 4. Gastos del mes, por categoría, cinco renglones y serie de 12 meses | **Hecho** (D2 y D3 resueltos) | 0055 (`get_period_totals`, `get_expenses_by_category`, `transaction_movement_types`), 0056 (`get_usd_rate`, `get_monthly_expenses_usd`) |
+| 5. Vista previa del conteo en SQL (+ conteo retroactivo) | **Pendiente** | Bloque 5, sin arrancar; ver `informe-conteo-retroactivo.md` |
+| 6. Tipo de cada movimiento en SQL | **Hecho** | Vista `transaction_movement_types` (0055) |
+| 6. Lista con apareo de transferencias y repartos | **Pendiente** | Hoy en `lib/movementList.js` |
+| 7. Cuotas y suscripciones en SQL | **Pendiente** | Hoy en `lib/commitmentSchedule.js`; en SQL solo `confirm_/unconfirm_commitment_charge` |
+| 8. MEP de los formularios y precios en vivo desde el servidor | **Pendiente** | |
+| 9. Ganancia realizada en el servidor | **Pendiente** | |
+| 10. Foto del portafolio unificada con la curva (D1) | **Pendiente** | |
+| 11. Total de Inicio en USD | **Pendiente** | |
+| 12. Ganancia por período | **Pendiente** | |
+| Fuera del orden original: deudas, intereses, gastar desde el ahorro | **Hecho** | 0059 |
+| Fuera del orden original: carga sin conexión | **Hecho** | 0060 |
+| Fuera del orden original: permisos de `anon` y de tablas, cuenta con saldo no se oculta | **Hecho** | 0052, 0053, 0054 |
+
 ## Resumen
 
 1. Hoy casi todas las cuentas de plata se hacen en la web. Solo tres ya viven en la base: el saldo de cada cuenta, "Contar mi plata" y la curva del portafolio.
@@ -19,7 +46,7 @@ Fecha: 2026-09-25. Contexto: la app va a tener tres frentes (web, iOS nativo, An
 
 ## 1. Inventario de reglas
 
-Los tests se cuentan como bloques `it(...)` por archivo (≈). Los que terminan en `*Sql.test.js` corren contra un Postgres local y **se saltean si no hay uno**. No hay CI.
+Los tests se cuentan como bloques `it(...)` por archivo (≈). Los que terminan en `*Sql.test.js` corren contra un Postgres local y **se saltean si no hay uno**. ~~No hay CI.~~ [corregido 2026-10-08] Hay CI con Postgres (`.github/workflows/test.yml`).
 
 | # | Regla | Dónde vive | Datos / servicio externo | Pantallas | Tests |
 |---|---|---|---|---|---|
@@ -63,11 +90,11 @@ Ordenadas de mayor a menor riesgo.
 - **El precio de hoy.** La tarjeta usa el precio en vivo de cripto y el gráfico el último cierre, así que el último punto nunca coincide con la tarjeta.
 - Además, la fórmula de lo aportado neto está escrita dos veces: `computeContributed` en JS y el CTE `ops` en SQL.
 
-**D2. Gastos del mes: Inicio contra Movimientos.**
+**D2. Gastos del mes: Inicio contra Movimientos.** [corregido 2026-10-08: resuelto con la 0055–0056; `getExpenses` ya no existe y Inicio y Movimientos leen las mismas funciones de la base]
 - `getExpenses` (`src/lib/transactions.js`) **no pagina** y ordena de la fecha más vieja a la más nueva. Pasando las 1000 filas, el corte de PostgREST se lleva **los gastos más recientes**. El mes actual es lo primero que desaparece de Inicio y de la serie de 12 meses, mientras Movimientos (que sí pagina) sigue bien.
 - Hace falta ~2,7 gastos por día durante un año para llegar. Con una sola cuenta de uso diario es alcanzable.
 
-**D3. Gastos por categoría, dos veces.**
+**D3. Gastos por categoría, dos veces.** [corregido 2026-10-08: resuelto con la 0055; `get_expenses_by_category` es la única fuente y `groupExpensesByCategory` quedó como definición ejecutable]
 - Una copia está en `transactions.js` y la otra en `expensesSummary.js`. Filtran con criterios distintos (por `movementType` y por `isMovedMoney` sobre la categoría) y solo una redondea.
 - Hoy dan lo mismo, pero nada obliga a que lo sigan dando.
 
@@ -108,7 +135,7 @@ Ordenadas de mayor a menor riesgo.
 - `lastMonths` y `monthKey` existen dos veces cada una.
 - Hay tres formas de redondear: `round`, `round2` y centavos enteros.
 
-**Una trampa para la mudanza.** `READONLY_RPCS` (`src/lib/queryClient.js`) trata como escritura a cualquier función RPC que no esté en esa lista, y una escritura invalida todo lo cacheado. Una función nueva de lectura que se olvide agregar ahí dispara invalidar, volver a pedir, volver a invalidar, en un ciclo sin fin.
+**Una trampa para la mudanza.** [corregido 2026-10-08: `READONLY_RPCS` y `src/lib/queryClient.js` solo existen en la etiqueta `archivo/ui-polish`, no en `main`; en `main` esta trampa no existe hoy y solo importaría si esa línea se retoma.] `READONLY_RPCS` (`src/lib/queryClient.js`) trata como escritura a cualquier función RPC que no esté en esa lista, y una escritura invalida todo lo cacheado. Una función nueva de lectura que se olvide agregar ahí dispara invalidar, volver a pedir, volver a invalidar, en un ciclo sin fin.
 
 ## 3. Recomendación por regla
 
@@ -166,11 +193,11 @@ Ordenadas de mayor a menor riesgo.
 - **Si una regla pasa a una Edge Function**, los tests se reusan casi completos, con vitest.
   - El requisito es separar los módulos que no leen datos (`movementList.js`, `movements.js`, `currencyTotals.js`, `systemCategories.js`) de los que importan `supabase.js`, porque ese archivo usa `import.meta.env`.
   - `planReconciliation`, por ejemplo, está en `liquid.js`, que sí importa `supabase.js`.
-- **Si una regla pasa a SQL**, el patrón ya existe: 7 archivos `*Sql.test.js` que aplican las migraciones reales a una base temporal. Hay dos estrategias:
+- **Si una regla pasa a SQL**, el patrón ya existe: 7 archivos `*Sql.test.js` [corregido 2026-10-08: hoy son 17] que aplican las migraciones reales a una base temporal. Hay dos estrategias:
   1. **Paridad**: se conserva la función JS como definición ejecutable y se compara contra el SQL con datos aleatorios, como `liquidSql.test.js`. Es lo mejor mientras dura la mudanza, porque los tests JS actuales siguen sirviendo.
   2. Después, reescribir cada caso como aserción SQL y borrar la versión JS.
 - **Lo que se pierde al pasar a SQL:**
-  - Esos tests **se saltean sin un Postgres local** y no hay CI. Hoy, en la práctica, corren solo en la máquina de desarrollo.
+  - Esos tests **se saltean sin un Postgres local** y no hay CI [corregido 2026-10-08: hay CI con Postgres, ver la tabla de estado]. Hoy, en la práctica, corren solo en la máquina de desarrollo.
   - Pasan de milisegundos a segundos, porque cada archivo crea una base.
   - Las funciones que dependen de "hoy" (cuotas, gastos del mes, 24 h) necesitan recibir la fecha como parámetro (`p_today date default current_date`) para que los tests sigan siendo repetibles. Hoy los tests JS inyectan `today`.
   - Algunos valores esperados pueden moverse un centavo: JS trabaja con decimales aproximados y SQL con decimales exactos.

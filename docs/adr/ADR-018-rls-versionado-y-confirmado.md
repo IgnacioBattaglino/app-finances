@@ -80,3 +80,6 @@ ya está todo en `true`, no cambia nada.
   migración es que esa configuración no tiene una forma correcta de vivir en
   una migración SQL, mientras que el estado de RLS sí la tiene y no la estaba
   usando.
+
+## Nota (2026-10-08)
+Las «15 tablas de `public`» son las que había cuando se escribió este ADR. Hoy son 18, todas con RLS activo (`list_tables`, 2026-10-08). Las tres nuevas son `payment_cards`, `commitments` y `commitment_charges` (migración 0045); `app_admins` e `invitations` (0043) ya estaban contadas.

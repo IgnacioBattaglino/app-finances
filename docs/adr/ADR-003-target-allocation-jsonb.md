@@ -16,3 +16,6 @@ Campo JSONB en settings: {"crypto": 15, "cedear": 65, "bond": 10, "fund": 10, "c
 
 ## Nota (migración 0014 — bolsas personalizables)
 Los tipos de activo dejaron de ser 5 valores fijos: ahora son `asset_types`, una bolsa por fila, personalizable por usuario (crear, renombrar, archivar). El JSONB de esta decisión sigue sin usarse en el código (el rebalanceo se sacó de la UI, ver FUNCTIONAL.md) y no se toca en esta migración. Pero el día que el rebalanceo vuelva como vista propia, `target_allocation` no puede seguir keyed por el nombre del tipo (`{"crypto":15,...}`): las bolsas son arbitrarias y renombrables por usuario. Va a necesitar indexarse por `asset_type_id`, no por string fijo.
+
+## Nota (2026-10-08)
+`settings.target_allocation` existe en la base (jsonb NOT NULL, con un valor por defecto de cinco claves), pero no tiene uso en el código: `getSettings()` (`src/lib/settings.js`) no se llama desde ninguna pantalla y nada lee ni escribe este campo. Verificado con `grep` en `src/` y con `information_schema.columns`.
