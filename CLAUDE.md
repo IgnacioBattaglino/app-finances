@@ -22,6 +22,13 @@ Actualizá esta sección cuando agregues o muevas un archivo importante. Es un �
 - **Formularios compartidos**: `components/FormSheet.jsx` (chrome del modal) · `components/form/{CollapsedDateField,BinaryChoice,Switch,FormError,MissingHint}.jsx` · `lib/errors.js` (qué parte de un error puede leer una persona: el único lugar que lo decide).
 - **App nativa iOS** (ver `docs/arquitectura-nativa.md`): `ios/EnCuenta.xcodeproj` (carpetas sincronizadas: un archivo nuevo entra solo al target) · `ios/EnCuenta/App/EnCuentaApp.swift` (arranque) · `ios/EnCuenta/Features/<pestaña>/` · `ios/EnCuenta/Core/{Backend,Offline,Design,Format}/`. Lo que falta en la base para la app: `docs/pendientes-base.md`.
 
+- **Documentación viva**: `docs/ESTADO.md` (dónde estamos hoy, una página) · `docs/mudanza-reglas.md` (la receta para mudar una regla de plata a la base) · `docs/decisiones/README.md` (formato y índice de decisiones; las nuevas van ahí) · `docs/ARCHITECTURE.md` y `docs/FUNCTIONAL.md` (modelo de datos y diseño funcional). Lo viejo está en `docs/archivo/`.
+
+## Cierre de sesión (obligatorio)
+- **Al empezar**: leé `docs/ESTADO.md` antes de tocar nada.
+- **Al terminar, y siempre antes de proponer un commit o un merge**: actualizá `docs/ESTADO.md` (fecha, commit de `main`, última migración aplicada verificada con el MCP en solo lectura, qué quedó a medias, ramas abiertas). Si tomaste una decisión que cambia cómo se hace algo, escribila en `docs/decisiones/` con el formato fijo; nada se decide en un chat sin quedar escrito. Si agregaste o moviste un archivo importante, actualizá el Mapa de arriba. Si tu cambio dejó vieja otra documentación, corregila en el mismo commit o anotá en `ESTADO.md` cuál queda desactualizada.
+- Si una rama quedó mergeada o abandonada, anotalo en `ESTADO.md` y proponé borrarla. Nunca dejes trabajo que solo exista en una rama o etiqueta sin mencionarlo en `ESTADO.md`.
+
 ## Stack
 - React + Vite
 - Tailwind CSS
@@ -79,6 +86,7 @@ El lenguaje es el de una app de iOS: fondo agrupado gris frío, tarjetas SIN mar
 - `npm run preview` — sirve el build localmente
 - `npm run lint` — linter (oxlint)
 - `npm run verify:rls` — verifica el aislamiento RLS con el usuario test (requiere `.env.test.local`, ver `.env.test.example`)
+- `npm test` — tests (vitest). Los `*Sql.test.js` necesitan un Postgres local y se saltean sin él; el CI (`.github/workflows/test.yml`, en cada push y pull request) los corre con un Postgres 15, así que ahí no se saltean
 
 ## Cómo probar
 - Copiá `.env.test.example` a `.env.test.local` y completá `TEST_USER_EMAIL` / `TEST_USER_PASSWORD` con el usuario test (ese archivo lo creás vos a mano, nunca por acá).

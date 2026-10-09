@@ -2,6 +2,16 @@
 
 Instancia nueva, sin memoria de las conversaciones anteriores. Fuentes: el repo (main, ramas, etiqueta, worktree), `docs/`, `PRODUCT.md`, `CLAUDE.md`, `gh` (CI) y el MCP de Supabase **solo lectura** (`list_tables`, `list_migrations`, `get_advisors`, consultas `select`). No se cambió código, ramas, documentos ni base; este archivo es lo único escrito.
 
+## Correcciones posteriores
+
+Agregadas el 2026-10-08, después del diagnóstico de la fase 1 de la limpieza. Lo que sigue **corrige** este informe; el resto del texto queda como se escribió.
+
+1. **`docs/ux/inventario-de-datos.md` no se archiva.** El plan de limpieza (sección 10, filas 14 y 15) proponía archivar `docs/ux/` en bloque. Ese archivo es la «fuente de verdad de los datos» que cita `design/decisiones.md`, y cuatro informes más (`ux/movimientos.md`, `ux/reconciliacion-y-transferencias.md`, `ux/deudas-y-gastos-del-mes.md`, `ux/arquitectura-informacion.md`) están citados desde comentarios de `src/` y de migraciones. Quedaron los cinco en `docs/ux/`; el resto se archivó en `docs/archivo/`.
+2. **`archivo/ui-polish` ya está resuelto.** La decisión abierta n.º 17 («qué pasa con ui-polish») queda cerrada por `docs/traspaso-2026-10.md` §3.1: la rama se archivó con la etiqueta `archivo/ui-polish` después de rescatar lo útil. Lo que sí sigue siendo cierto es que su código no está en `main`.
+3. **`PRODUCT.md` tiene cuatro marcas [PROPUESTA], no cinco.** La quinta coincidencia de `grep` es la leyenda que explica la marca.
+4. **`docs/informe-deudas-ahorro-offline.md`** tampoco se archivó: lo citan los comentarios de las migraciones 0059 y 0060.
+5. **Ya hecho de lo propuesto:** borrar las 7 ramas `feat/*`, mergear la rama nativa, borrar `../app-finanzas` y `auditoria-capturas/`, mover `docs/relevamiento/` a `~/Proyectos/_archivo-local/`.
+
 ## Resumen en 15 líneas
 
 1. EnCuenta (repo `app-finances`) es una app de finanzas personales para Nacho y gente cercana invitada; hoy existe como **web/PWA en producción** (React + Vite + Supabase, v0.9.1). iOS y Android están previstos.
