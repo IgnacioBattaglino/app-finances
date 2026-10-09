@@ -9,10 +9,10 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 
 ## Base (Supabase)
 - **Última migración aplicada: 0060**, verificada por objetos en la base (existen `transactions.captured_at`, `reject_hidden_account`, `save_debt`, `get_period_totals`, etc.). — 2026-10-08
-- Los archivos van de la 0001 a la 0060, sin huecos ni repetidos. `list_migrations` de Supabase devuelve vacío: las migraciones se aplican a mano y la base no guarda cuáles tiene. La única forma de saberlo es buscar objetos. — 2026-10-08
+- Los archivos van de la 0001 a la 0061, sin huecos ni repetidos. **La 0061 está escrita y probada, sin aplicar** (la aplica Nacho; ver abajo). `list_migrations` de Supabase devuelve vacío: las migraciones se aplican a mano y la base no guarda cuáles tiene. La única forma de saberlo es buscar objetos. — 2026-10-08
 - 18 tablas en `public`, todas con RLS. — 2026-10-08
 - Mudanza de reglas de plata a la base: hechos los pasos 0 a 4, más 0059 (deudas, ahorro) y 0060 (carga sin conexión). Faltan los pasos 5 a 12: ver la tabla de `docs/informe-reglas-de-plata.md`. — 2026-10-08
-- `docs/pendientes-base.md` (seguridad y rendimiento, y lo que pide la app nativa): **nada hecho**; los avisos de Supabase del 2026-10-08 coinciden con lo que ese documento describe. — 2026-10-08
+- `docs/pendientes-base.md`: la parte de seguridad y rendimiento (§1) está en la migración 0061, pendiente de aplicar. Lo que pide la app nativa (§2) y los índices compuestos por período (§1.2) siguen sin hacer. — 2026-10-09
 
 ## Frentes
 | Frente | Estado | Fecha |
@@ -32,7 +32,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 2. **Email del admin hardcodeado** en `supabase/migrations/0043_signup_invitations.sql` y en `src/lib/invitationsSql.test.js`, en un repo público (ADR-017 lo aclara: el email está solo en la migración, una vez, para sembrar `app_admins`; no en funciones que corran en producción). Lo maneja Nacho. — 2026-10-08
 3. **Contraseña débil del usuario test** (4 caracteres). Lo maneja Nacho. — 2026-10-08
 4. **Supabase en plan Free, sin backups diarios: por confirmar.** Lo dice `docs/arquitectura-nativa.md` §7; no se puede verificar desde el MCP. El respaldo es la exportación CSV de la web. Pasar a Pro antes de invitar gente nueva (`docs/traspaso-2026-10.md` §3.3). — 2026-10-08
-5. **Avisos de seguridad de Supabase sin atender:** 15 policies con `auth.uid()` sin `select`, 6 claves foráneas sin índice, contraseñas filtradas apagado, 2 funciones sin `search_path`. — 2026-10-08
+5. **Avisos de seguridad de Supabase:** la 0061 (sin aplicar todavía) resuelve las 15 policies, las 6 claves foráneas, las 2 funciones sin `search_path` y `handle_new_user` expuesta. **Falta un paso manual de Nacho:** prender la protección contra contraseñas filtradas (Supabase → Authentication → contraseñas). Seguirán apareciendo a propósito `validate_invite` (ADR-017), `pg_net` en `public` y los índices "sin uso". — 2026-10-09
 6. **Documentos con marcas pendientes:** `PRODUCT.md` tiene 4 marcas [PROPUESTA] sin aprobar; `design/decisiones.md` es un borrador con contradicciones conocidas (Inicio, rojo/coral, archivar, etiquetas de formulario) y promesas que la base no tiene (Meta sin estado «sin meta», orden manual de activos, ganancia por período, color de cuenta). `FUNCTIONAL.md` se corrigió el 2026-10-08 pero no se revisó entero. `docs/ux/inventario-de-datos.md` tiene 4 datos viejos (dice que el ahorro no es origen de un gasto, pero sí lo es desde la 0059; habla de 5 grupos sembrados y son 4 desde la 0048; dice cron a las 9:00 y corre cada hora; dice que los parámetros de independencia financiera no tienen pantalla y la Meta está decidida), y `design/decisiones.md` tiene secciones reemplazadas por ADR-026 y ADR-028. No se corrigen todavía. — 2026-10-09
 7. **`delete_reconciliation` deja desfasados los conteos posteriores.** Permite borrar un conteo que tiene conteos posteriores. Está roto frente a ADR-026 (solo se borra el último de cada moneda); el arreglo va en la base. — verificado 2026-10-09
 8. **`get_top_categories` usa `current_date` en UTC por defecto** (`p_today`); entre las 21:00 y las 24:00 argentinas el «hoy» es el día siguiente. Borde menor. — verificado 2026-10-09
@@ -41,6 +41,8 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 **Base real > `ARCHITECTURE.md` > `FUNCTIONAL.md` > `PRODUCT.md` > informes.** Los informes y `docs/archivo/` son historia. `design/decisiones.md` no manda hasta que Nacho lo revise.
 
 ## En curso
+Rama `chore/seguridad-rendimiento-base` (migración 0061 + `src/lib/rlsInitplanSql.test.js`): lista, esperando que Nacho aplique la migración y la verifique; no se mergea antes. Después de aplicar: correr la verificación del pie del archivo y `npm run verify:rls`. — 2026-10-09
+
 Especificación de producto: capa 1 hecha para los grupos 1 a 4 (`docs/producto/capacidades.md`, ADR-025 a 028); faltan los grupos 5 a 8 y la capa 2. Rama `docs/especificacion-capa1` mergeada a `main`; se puede borrar. — 2026-10-09
 
 ## Próximo paso
