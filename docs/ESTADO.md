@@ -5,7 +5,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 Última actualización: 2026-10-09.
 
 ## Repo y CI
-- `main` en `7188332`, CI verde (workflow `test`, 47 s). — 2026-10-08
+- `main` en `12d3f58` (merge de `docs/especificacion-capa1`); último CI verde conocido: 47 s, sobre `7188332`. — 2026-10-09
 
 ## Base (Supabase)
 - **Última migración aplicada: 0060**, verificada por objetos en la base (existen `transactions.captured_at`, `reject_hidden_account`, `save_debt`, `get_period_totals`, etc.). — 2026-10-08
@@ -41,7 +41,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 **Base real > `ARCHITECTURE.md` > `FUNCTIONAL.md` > `PRODUCT.md` > informes.** Los informes y `docs/archivo/` son historia. `design/decisiones.md` no manda hasta que Nacho lo revise.
 
 ## En curso
-Especificación de producto: capa 1 hecha para los grupos 1 a 4 (`docs/producto/capacidades.md`, ADR-025 a 028); faltan los grupos 5 a 8 y la capa 2. Rama `docs/especificacion-capa1`, sin mergear (la revisa Nacho). — 2026-10-09
+Especificación de producto: capa 1 hecha para los grupos 1 a 4 (`docs/producto/capacidades.md`, ADR-025 a 028); faltan los grupos 5 a 8 y la capa 2. Rama `docs/especificacion-capa1` mergeada a `main`; se puede borrar. — 2026-10-09
 
 ## Próximo paso
 Chat nuevo para los grupos 5 a 8 de la capa 1 (leer este archivo, `docs/producto/capacidades.md` y las decisiones 025 a 028). `docs/ROADMAP.md` todavía no existe. — 2026-10-09
