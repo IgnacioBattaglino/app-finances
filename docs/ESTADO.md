@@ -5,7 +5,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 Última actualización: 2026-10-09.
 
 ## Repo y CI
-- `main` en `12d3f58` (merge de `docs/especificacion-capa1`); último CI verde conocido: 47 s, sobre `7188332`. — 2026-10-09
+- `main` en `27689b0` (merge de `chore/seguridad-rendimiento-base`), CI verde en la rama. — 2026-10-09
 
 ## Base (Supabase)
 - **Última migración aplicada: 0061**, verificada por Nacho con la consulta combinada del pie del archivo (todo `ok = true`) y con `get_advisors`. La 0060 se había verificado por objetos (`transactions.captured_at`, `reject_hidden_account`, `save_debt`, etc.). — 2026-10-09
