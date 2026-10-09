@@ -100,6 +100,7 @@ EnCuenta muestra tres mundos que no se mezclan a ciegas:
 3. **Mundos separados; unir solo diciendo cómo.** No se suma lo que no se puede sumar sin decirlo. Si se une, queda a la vista que es una conversión y a qué cotización.
 4. **Entendible para quien no sabe de finanzas.** Sin jerga a la vista. La gente cercana tiene que poder usarla sin explicación.
 5. **Nada se pierde sin que lo decidas.** Lo que tiene historia se archiva u oculta, no se borra. Lo que se puede eliminar se elimina solo después de avisar que es permanente. [PROPUESTA]
+6. **La app explica sus números, no enseña finanzas.** Los (i) justifican un número de la app (cómo se calcula, a qué dólar se convirtió), nunca explican qué es un instrumento.
 
 ## 8. Preguntas abiertas
 
