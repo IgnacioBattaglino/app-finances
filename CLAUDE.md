@@ -20,6 +20,7 @@ Actualizá esta sección cuando agregues o muevas un archivo importante. Es un �
 - **Deudas** (dentro de Compromisos): `pages/Debts.jsx` · `components/DebtFormModal.jsx` (con la entrada opcional del préstamo), `components/DebtPaymentModal.jsx` (con los intereses) · `lib/debts.js` (`saveDebt`, `getDebtPayments`; `paymentParts` es la definición de capital e intereses que corre el test de paridad).
 - **Ajustes**: `pages/settings/SettingsHome.jsx` (índice, con el email y Cerrar sesión al pie) → `Appearance.jsx`, `Categories.jsx`/`CategoryDetail.jsx`, `ExportData.jsx` · `components/settings/{SettingsList,SettingsPage}.jsx` (piezas compartidas).
 - **Formularios compartidos**: `components/FormSheet.jsx` (chrome del modal) · `components/form/{CollapsedDateField,BinaryChoice,Switch,FormError,MissingHint}.jsx` · `lib/errors.js` (qué parte de un error puede leer una persona: el único lugar que lo decide).
+- **App nativa iOS** (ver `docs/arquitectura-nativa.md`): `ios/EnCuenta.xcodeproj` (carpetas sincronizadas: un archivo nuevo entra solo al target) · `ios/EnCuenta/App/EnCuentaApp.swift` (arranque) · `ios/EnCuenta/Features/<pestaña>/` · `ios/EnCuenta/Core/{Backend,Offline,Design,Format}/`. Lo que falta en la base para la app: `docs/pendientes-base.md`.
 
 ## Stack
 - React + Vite
