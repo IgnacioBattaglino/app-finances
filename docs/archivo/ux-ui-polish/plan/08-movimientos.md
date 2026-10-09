@@ -1,3 +1,5 @@
+Archivado 2026-10-08. Motivo: trabajo de la rama feat/ui-polish, que vive solo en la etiqueta archivo/ui-polish y no está en main. Reemplazado por: la etiqueta archivo/ui-polish.
+
 # Bloque 08 de 13 · Movimientos en el teléfono
 
 > **Cómo usar este archivo.** Pegalo entero como primer mensaje de una sesión
@@ -152,7 +154,7 @@ Para que la lista quede cerca:
 - **Los filtros por tipo y categoría,** el navegador de período y la hoja de
   rango (`RangeSheet`).
 - **Los textos** fuera de "Te sobró", "Ahorro" y "Retiro de ahorro"
-  (`docs/ux/textos.md` lo trabaja Nacho y **no se toca**).
+  (`docs/archivo/ux-ui-polish/textos.md` lo trabaja Nacho y **no se toca**).
 
 ## Qué se ve distinto en pantalla
 

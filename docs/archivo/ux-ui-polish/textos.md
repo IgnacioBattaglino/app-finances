@@ -1,3 +1,5 @@
+Archivado 2026-10-08. Motivo: inventario de textos duplicado y anterior a ui-polish y a la 0059. Reemplazado por: nada por ahora; ver design/decisiones.md (borrador) y el código.
+
 # Inventario de textos de usuario
 
 Todo lo que un usuario lee en app-finances, agrupado por pantalla en el orden en que se recorre la app. Fase 1: solo inventario — la columna "Texto nuevo" queda vacía para completarse después.

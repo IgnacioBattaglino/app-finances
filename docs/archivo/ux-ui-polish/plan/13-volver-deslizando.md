@@ -1,3 +1,5 @@
+Archivado 2026-10-08. Motivo: trabajo de la rama feat/ui-polish, que vive solo en la etiqueta archivo/ui-polish y no está en main. Reemplazado por: la etiqueta archivo/ui-polish.
+
 # Bloque 13 de 13 · Volver deslizando desde el borde
 
 > **Cómo usar este archivo.** Pegalo entero como primer mensaje de una sesión
@@ -174,7 +176,7 @@ función pura, con `project`. Casos:
   y `npm run verify:rls`.
 - **Si queda:** `CLAUDE.md` (mapa, "Piezas de pantalla") y `docs/FUNCTIONAL.md`
   (principios).
-- **Si se corta:** una línea en `docs/ux/propuesta-frontend.md`, sección I, con
+- **Si se corta:** una línea en `docs/archivo/ux-ui-polish/propuesta-frontend.md`, sección I, con
   por qué.
 - **El resumen para Nacho** y la lista para el iPhone.
 - **El commit:** proponé algo como `feat(nav): volver deslizando desde el

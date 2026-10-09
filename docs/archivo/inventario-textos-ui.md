@@ -1,3 +1,5 @@
+Archivado 2026-10-08. Motivo: inventario de textos anterior a ui-polish y a la 0059; cita pantallas que ya no existen. Reemplazado por: nada por ahora (la próxima pasada de contenido decide el inventario vigente; ver el código de src/).
+
 # Inventario de textos de interfaz
 
 Solo lectura — sin propuestas de redacción. Agrupado por pantalla; cada modal

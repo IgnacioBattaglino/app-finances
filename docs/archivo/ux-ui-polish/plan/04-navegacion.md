@@ -1,3 +1,5 @@
+Archivado 2026-10-08. Motivo: trabajo de la rama feat/ui-polish, que vive solo en la etiqueta archivo/ui-polish y no está en main. Reemplazado por: la etiqueta archivo/ui-polish.
+
 # Bloque 04 de 13 · Navegación: volver, barra superior y transiciones
 
 > **Cómo usar este archivo.** Pegalo entero como primer mensaje de una sesión
@@ -257,7 +259,7 @@ existente manda cualquier acceso viejo a Inicio.
 - **El contenido de las pantallas.**
 - **Los sheets y el toast,** salvo la zona segura del encabezado del sheet.
 - **La capa de datos.**
-- **`docs/ux/textos.md`:** lo trabaja Nacho.
+- **`docs/archivo/ux-ui-polish/textos.md`:** lo trabaja Nacho.
 
 ## Qué se ve distinto en pantalla
 

@@ -1,3 +1,5 @@
+Archivado 2026-10-08. Motivo: trabajo de la rama feat/ui-polish, que vive solo en la etiqueta archivo/ui-polish y no está en main. Reemplazado por: la etiqueta archivo/ui-polish.
+
 # Bloque 01 de 13 · La app recuerda: la base
 
 > **Cómo usar este archivo.** Pegalo entero como primer mensaje de una sesión
@@ -19,8 +21,8 @@
 - **La dirección.** La app tiene que sentirse **calma**: silenciosa, espaciosa,
   con la información justa. En el teléfono tiene que poder **agarrarse con el
   dedo**. El usuario tipo arranca de cero con sus finanzas.
-- **El diagnóstico,** si lo necesitás, está en `docs/ux/auditoria-frontend.md`
-  y `docs/ux/propuesta-frontend.md` (sección A). Este archivo trae todo lo que
+- **El diagnóstico,** si lo necesitás, está en `docs/archivo/ux-ui-polish/auditoria-frontend.md`
+  y `docs/archivo/ux-ui-polish/propuesta-frontend.md` (sección A). Este archivo trae todo lo que
   te toca.
 
 ## Skills

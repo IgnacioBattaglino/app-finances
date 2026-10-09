@@ -1,3 +1,5 @@
+Archivado 2026-10-08. Motivo: relevamiento de formularios anterior a las reformas de ui-polish. Reemplazado por: el código de src/components y CLAUDE.md (Convenciones de formularios).
+
 # Relevamiento de formularios — app-finances
 
 Estado actual de los formularios y modales de la app. Fuente: el código en

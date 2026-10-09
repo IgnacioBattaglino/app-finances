@@ -1,3 +1,5 @@
+Archivado 2026-10-08. Motivo: relevamiento anterior a ADR-014 y a la 0038; describe el modo 'contributed' como vigente. Reemplazado por: docs/adr/ADR-014-activos-que-valen-lo-aportado-son-cuentas-de-ahorro.md.
+
 # Análisis — activos manuales (modelo, cálculo y terminología)
 
 Relevamiento de solo lectura para decidir un cambio de diseño sobre los activos

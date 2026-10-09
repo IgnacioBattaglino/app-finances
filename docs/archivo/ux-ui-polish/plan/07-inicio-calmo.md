@@ -1,3 +1,5 @@
+Archivado 2026-10-08. Motivo: trabajo de la rama feat/ui-polish, que vive solo en la etiqueta archivo/ui-polish y no está en main. Reemplazado por: la etiqueta archivo/ui-polish.
+
 # Bloque 07 de 13 · Inicio calmo, y cada detalle a su pantalla
 
 > **Cómo usar este archivo.** Pegalo entero como primer mensaje de una sesión
@@ -82,7 +84,7 @@ De arriba abajo, sin scrollear, en 390 × 844:
    - **Los tres montos van del mismo tamaño y peso** (`--text-title2`,
      semibold), con cifras tabulares. Ninguno manda.
    - **Los nombres son los de hoy.** No inventes textos nuevos: Nacho está
-     trabajando los textos aparte, en `docs/ux/textos.md`.
+     trabajando los textos aparte, en `docs/archivo/ux-ui-polish/textos.md`.
 3. **El total en dólares, como pie de esa misma tarjeta:** separado por la
    línea interna, en tamaño menor y con el desglose que se abre al tocarlo.
    Reutilizá el comportamiento de `TotalSummary` de `src/pages/Dashboard.jsx`.
@@ -167,7 +169,7 @@ aparece en su destino en el mismo commit.
 - **La decisión de que los mundos no se mandan entre sí:** las tres filas van
   iguales.
 - **Los textos existentes:** no se reescriben. Nacho los trabaja en
-  `docs/ux/textos.md`, y ese archivo **no se toca**.
+  `docs/archivo/ux-ui-polish/textos.md`, y ese archivo **no se toca**.
 - **Los colores del recordatorio y de los avisos de valuación:** son el bloque
   12.
 

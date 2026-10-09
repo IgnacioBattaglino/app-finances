@@ -1,7 +1,9 @@
+Archivado 2026-10-08. Motivo: trabajo de la rama feat/ui-polish, que vive solo en la etiqueta archivo/ui-polish y no está en main. Reemplazado por: la etiqueta archivo/ui-polish.
+
 # Plan de implementación del frontend: índice
 
 Etapa 4 de 5. Es el plan para llevar a código lo que aprobaste de
-`docs/ux/propuesta-frontend.md`, con tus decisiones. No tiene código.
+`docs/archivo/ux-ui-polish/propuesta-frontend.md`, con tus decisiones. No tiene código.
 
 **Cómo se usa:**
 
@@ -109,5 +111,5 @@ Son decisiones de implementación, no de producto:
 ## Lo que ningún bloque toca
 
 - **El cálculo de ningún monto,** las conversiones y las migraciones.
-- **`docs/ux/textos.md`.** Los únicos textos nuevos son los que decidiste: "A
+- **`docs/archivo/ux-ui-polish/textos.md`.** Los únicos textos nuevos son los que decidiste: "A
   pagar", "Te sobró", "Ahorro" y "Retiro de ahorro".
