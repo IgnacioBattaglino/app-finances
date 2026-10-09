@@ -49,3 +49,7 @@ Si la decisión se escribió a posteriori a partir de otros documentos, se agreg
 | [022](ADR-022-conteo-retroactivo-opcion-a.md) | Conteo retroactivo: preguntar y absorber (opción A) | Aceptada (sin implementar) |
 | [023](ADR-023-monorepo-y-apps-nativas.md) | Un solo repo y apps nativas con el contrato en la base | Aceptada (iOS en pausa) |
 | [024](ADR-024-archivo-de-ui-polish.md) | La rama `feat/ui-polish` se archiva en una etiqueta | Aceptada |
+| [025](ADR-025-voz-y-terminos.md) | Voz y términos: «dinero», «Sobró»/«Faltó» y la app explica sus números | Aceptada |
+| [026](ADR-026-contar-disponible.md) | Contar disponible: dos pasos, una moneda por vez, sin ahorro | Aceptada (sin implementar) |
+| [027](ADR-027-gasto-cargado-tarde-frente-a-un-conteo.md) | Gasto cargado tarde frente a un conteo: cartel de doble confirmación | Aceptada (sin implementar; cambia ADR-022) |
+| [028](ADR-028-inversiones-para-quien-invierte-cada-mes.md) | Inversiones para quien invierte cada mes, todo en dólares | Aceptada (fórmula pendiente) |

@@ -2,7 +2,7 @@
 
 Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo actualiza este archivo antes de proponer un commit** (regla en `CLAUDE.md`).
 
-Última actualización: 2026-10-08.
+Última actualización: 2026-10-09.
 
 ## Repo y CI
 - `main` en `55cfaaf` (merge de `docs/tercera-pasada` sobre `dcf82d3`), CI verde (workflow `test`, 47 s). — 2026-10-08
@@ -33,13 +33,13 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 3. **Contraseña débil del usuario test** (4 caracteres). Lo maneja Nacho. — 2026-10-08
 4. **Supabase en plan Free, sin backups diarios: por confirmar.** Lo dice `docs/arquitectura-nativa.md` §7; no se puede verificar desde el MCP. El respaldo es la exportación CSV de la web. Pasar a Pro antes de invitar gente nueva (`docs/traspaso-2026-10.md` §3.3). — 2026-10-08
 5. **Avisos de seguridad de Supabase sin atender:** 15 policies con `auth.uid()` sin `select`, 6 claves foráneas sin índice, contraseñas filtradas apagado, 2 funciones sin `search_path`. — 2026-10-08
-6. **Documentos con marcas pendientes:** `PRODUCT.md` tiene 4 marcas [PROPUESTA] sin aprobar; `design/decisiones.md` es un borrador con contradicciones conocidas (Inicio, rojo/coral, archivar, etiquetas de formulario) y promesas que la base no tiene (Meta sin estado «sin meta», orden manual de activos, ganancia por período, color de cuenta). `FUNCTIONAL.md` se corrigió el 2026-10-08 pero no se revisó entero. — 2026-10-08
+6. **Documentos con marcas pendientes:** `PRODUCT.md` tiene 4 marcas [PROPUESTA] sin aprobar; `design/decisiones.md` es un borrador con contradicciones conocidas (Inicio, rojo/coral, archivar, etiquetas de formulario) y promesas que la base no tiene (Meta sin estado «sin meta», orden manual de activos, ganancia por período, color de cuenta). `FUNCTIONAL.md` se corrigió el 2026-10-08 pero no se revisó entero. `docs/ux/inventario-de-datos.md` tiene 4 datos viejos (dice que el ahorro no es origen de un gasto, pero sí lo es desde la 0059; habla de 5 grupos sembrados y son 4 desde la 0048; dice cron a las 9:00 y corre cada hora; dice que los parámetros de independencia financiera no tienen pantalla y la Meta está decidida), y `design/decisiones.md` tiene secciones reemplazadas por ADR-026 y ADR-028. No se corrigen todavía. — 2026-10-09
 
 ## Qué documento manda si dos se contradicen
 **Base real > `ARCHITECTURE.md` > `FUNCTIONAL.md` > `PRODUCT.md` > informes.** Los informes y `docs/archivo/` son historia. `design/decisiones.md` no manda hasta que Nacho lo revise.
 
 ## En curso
-Nada. — 2026-10-08
+Especificación de producto: capa 1 hecha para los grupos 1 a 4 (`docs/producto/capacidades.md`, ADR-025 a 028); faltan los grupos 5 a 8 y la capa 2. Rama `docs/especificacion-capa1`, sin mergear (la revisa Nacho). — 2026-10-09
 
 ## Próximo paso
-Especificación de producto, en un chat nuevo (según `docs/traspaso-2026-10.md` §6, el chat nuevo arranca leyendo este archivo, `docs/ROADMAP.md` si existe, las decisiones recientes y `design/decisiones.md`). `docs/ROADMAP.md` todavía no existe. — 2026-10-08
+Chat nuevo para los grupos 5 a 8 de la capa 1 (leer este archivo, `docs/producto/capacidades.md` y las decisiones 025 a 028). `docs/ROADMAP.md` todavía no existe. — 2026-10-09
