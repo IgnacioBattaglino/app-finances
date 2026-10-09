@@ -30,7 +30,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 
 ## Advertencias activas
 1. **Cron de precios con deriva.** En producción el job `refresh-prices-daily` corre cada hora (`0 * * * *`); el repo (0018), `ARCHITECTURE.md` y el ADR-006 dicen una vez por día. Sin resolver: falta decidir si la hora es a propósito. — verificado 2026-10-08
-2. **Email del admin hardcodeado** en `supabase/migrations/0043_signup_invitations.sql` y en `src/lib/invitationsSql.test.js`, en un repo público. Lo maneja Nacho. — 2026-10-08
+2. **Email del admin hardcodeado** en `supabase/migrations/0043_signup_invitations.sql` y en `src/lib/invitationsSql.test.js`, en un repo público (ADR-017 lo aclara: el email está solo en la migración, una vez, para sembrar `app_admins`; no en funciones que corran en producción). Lo maneja Nacho. — 2026-10-08
 3. **Contraseña débil del usuario test** (4 caracteres). Lo maneja Nacho. — 2026-10-08
 4. **Supabase en plan Free, sin backups diarios: por confirmar.** Lo dice `docs/arquitectura-nativa.md` §7; no se puede verificar desde el MCP. El respaldo es la exportación CSV de la web. Pasar a Pro antes de invitar gente nueva (`docs/traspaso-2026-10.md` §3.3). — 2026-10-08
 5. **Avisos de seguridad de Supabase sin atender:** 15 policies con `auth.uid()` sin `select`, 6 claves foráneas sin índice, contraseñas filtradas apagado, 2 funciones sin `search_path`. — 2026-10-08
