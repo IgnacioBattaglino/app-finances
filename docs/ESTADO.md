@@ -5,7 +5,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 Última actualización: 2026-10-08.
 
 ## Repo y CI
-- `main` en `dcf82d3` (merge de `chore/limpieza`), CI verde (workflow `test`, 59 s). — 2026-10-08
+- `main` en `55cfaaf` (merge de `docs/tercera-pasada` sobre `dcf82d3`), CI verde (workflow `test`, 47 s). — 2026-10-08
 
 ## Base (Supabase)
 - **Última migración aplicada: 0060**, verificada por objetos en la base (existen `transactions.captured_at`, `reject_hidden_account`, `save_debt`, `get_period_totals`, etc.). — 2026-10-08
