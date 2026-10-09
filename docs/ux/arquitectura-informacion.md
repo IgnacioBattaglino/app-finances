@@ -13,7 +13,7 @@ cuántos toques cuesta llegar. No propone features nuevas —todo lo que aparece
 la propuesta existe hoy y solo cambia de lugar— ni toca la estética (colores,
 tipografía, tarjetas), que son decisiones ya tomadas y documentadas en
 `CLAUDE.md`. El inventario campo por campo de los formularios está en
-`form-inventory.md`, que este documento no repite.
+`docs/archivo/ux-ui-polish/form-inventory.md`, que este documento no repite.
 
 ---
 

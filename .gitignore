@@ -33,3 +33,9 @@ auditoria-capturas/
 
 # Relevamientos de trabajo (notas locales, no forman parte del repo)
 docs/relevamiento/
+
+# Herramientas locales de Claude/Codex y skills de terceros (rutas absolutas, no son del proyecto)
+.claude/
+.agents/
+.codex/
+skills-lock.json
