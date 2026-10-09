@@ -48,4 +48,4 @@ Si la decisión se escribió a posteriori a partir de otros documentos, se agreg
 | [021](ADR-021-deudas-intereses-ahorro-y-carga-sin-conexion.md) | Deudas con intereses, gastar desde el ahorro y carga sin conexión | Aceptada (hecha: 0059, 0060) |
 | [022](ADR-022-conteo-retroactivo-opcion-a.md) | Conteo retroactivo: preguntar y absorber (opción A) | Aceptada (sin implementar) |
 | [023](ADR-023-monorepo-y-apps-nativas.md) | Un solo repo y apps nativas con el contrato en la base | Aceptada (iOS en pausa) |
-| [024](ADR-024-archivo-de-ui-polish.md) | La rama `feat/ui-polish` se archiva en una etiqueta | Aceptada (incompleta: faltan datos) |
+| [024](ADR-024-archivo-de-ui-polish.md) | La rama `feat/ui-polish` se archiva en una etiqueta | Aceptada |
