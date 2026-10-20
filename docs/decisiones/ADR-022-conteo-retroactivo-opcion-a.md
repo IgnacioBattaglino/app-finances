@@ -1,6 +1,6 @@
 # ADR-022: conteo retroactivo, opción A (preguntar y absorber)
 
-Estado: Aceptada (sin implementar)
+Estado: Aceptada (sin implementar; la absorción entera fue eliminada por ADR-029)
 Fecha: 2026-09-25 (fecha del informe de origen)
 
 Redactada a partir de: `docs/informe-conteo-retroactivo.md`, `docs/mudanza-reglas.md` («Pendiente atado a un paso») y `docs/traspaso-2026-10.md` §4 y §5.1.
@@ -12,7 +12,7 @@ Un conteo compara lo declarado contra el saldo calculado con todos los movimient
 Opción A más el aviso al crear: al crear un gasto o ingreso con fecha igual o anterior a un conteo que encontró diferencia en esa cuenta y moneda, la app pregunta «¿Esto es parte de esa diferencia?». «Sí» achica el ajuste; «No» lo carga aparte, como hoy. Si el conteo no encontró diferencia, solo un aviso chico.
 - Solo gastos e ingresos (aportes y pagos de deuda quedan para después).
 - Solo conteos de la 0041 en adelante (los que tienen neteo); para los anteriores, solo el aviso.
-- Si el gasto es mayor que la diferencia, se absorbe entero y el ajuste da vuelta.
+- ~~Si el gasto es mayor que la diferencia, se absorbe entero y el ajuste da vuelta.~~ Eliminado por ADR-029: no se vincula ni se absorbe, sale un cartel con «Cargar de todas formas» o «Cancelar».
 - «Cargado después de contar» se decide con `transactions.captured_at` (0060), no con `created_at`.
 - En la interfaz es un interruptor apagado por defecto (`docs/traspaso-2026-10.md` §4).
 - Se implementa junto con la vista previa del conteo en SQL (`planReconciliation`, paso 5 de la mudanza), en SQL como regla de escritura.

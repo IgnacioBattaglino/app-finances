@@ -46,10 +46,13 @@ Si la decisión se escribió a posteriori a partir de otros documentos, se agreg
 | [019](../adr/ADR-019-un-vencimiento-pendiente-no-es-una-fila.md) | Un vencimiento pendiente no es una fila | Aceptada |
 | [020](ADR-020-mudanza-de-reglas-de-plata-a-la-base.md) | Las reglas de plata viven en la base | Aceptada (en ejecución) |
 | [021](ADR-021-deudas-intereses-ahorro-y-carga-sin-conexion.md) | Deudas con intereses, gastar desde el ahorro y carga sin conexión | Aceptada (hecha: 0059, 0060) |
-| [022](ADR-022-conteo-retroactivo-opcion-a.md) | Conteo retroactivo: preguntar y absorber (opción A) | Aceptada (sin implementar) |
+| [022](ADR-022-conteo-retroactivo-opcion-a.md) | Conteo retroactivo: preguntar y absorber (opción A) | Aceptada (sin implementar; la absorción entera la elimina ADR-029) |
 | [023](ADR-023-monorepo-y-apps-nativas.md) | Un solo repo y apps nativas con el contrato en la base | Aceptada (iOS en pausa) |
 | [024](ADR-024-archivo-de-ui-polish.md) | La rama `feat/ui-polish` se archiva en una etiqueta | Aceptada |
 | [025](ADR-025-voz-y-terminos.md) | Voz y términos: «dinero», «Sobró»/«Faltó» y la app explica sus números | Aceptada |
 | [026](ADR-026-contar-disponible.md) | Contar disponible: dos pasos, una moneda por vez, sin ahorro | Aceptada (sin implementar) |
-| [027](ADR-027-gasto-cargado-tarde-frente-a-un-conteo.md) | Gasto cargado tarde frente a un conteo: cartel de doble confirmación | Aceptada (sin implementar; cambia ADR-022) |
+| [027](ADR-027-gasto-cargado-tarde-frente-a-un-conteo.md) | Gasto cargado tarde frente a un conteo: cartel de doble confirmación | Aceptada (sin implementar; cambia ADR-022; sus pendientes los cierra ADR-029) |
 | [028](ADR-028-inversiones-para-quien-invierte-cada-mes.md) | Inversiones para quien invierte cada mes, todo en dólares | Aceptada (fórmula pendiente) |
+| [029](ADR-029-cierre-de-pendientes-de-capa-1-grupos-1-a-4.md) | Cierre de pendientes de la capa 1 (grupos 1 a 4) y términos | Aceptada (sin implementar) |
+| [030](ADR-030-deudas-y-prestamos.md) | Deudas con moneda propia, préstamos en cuotas y Sobró sin deudas | Aceptada (falta el informe de impacto) |
+| [031](ADR-031-tarjetas-y-compras-con-tarjeta.md) | Tarjetas sin moneda propia y compras con tarjeta en un pago | Aceptada (hay verificaciones pendientes) |

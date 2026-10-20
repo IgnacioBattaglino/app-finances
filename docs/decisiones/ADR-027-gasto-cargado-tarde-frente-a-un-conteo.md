@@ -1,5 +1,5 @@
 # ADR-027: gasto cargado tarde frente a un conteo
-Estado: Aceptada (cambia la presentación de ADR-022; sin implementar)
+Estado: Aceptada (cambia la presentación de ADR-022; sin implementar; pendientes (a) y (b) cerrados por ADR-029)
 Fecha: 2026-10-09
 
 ## Contexto
@@ -8,7 +8,7 @@ ADR-022 resolvió el gasto cargado después de un conteo con un interruptor dent
 ## Decisión
 Al guardar un gasto con fecha igual o anterior a un conteo que generó ajuste en esa cuenta y moneda, aparece un cartel de doble confirmación (no un interruptor dentro del formulario): «Al contar el 20/9 se registró un ajuste de saldo de $ 20.000 en Mercado Pago. ¿Este gasto es parte de ese ajuste?» [Sí] [No]. Si es sí, el ajuste baja. Para un ingreso es simétrico (sobrante). No aparece si el conteo no tuvo diferencia en esa cuenta y moneda, ni si la moneda es otra. Motivo: son pocos casos y conviene la doble confirmación.
 
-**Pendientes de confirmar:**
+**Pendientes, cerrados el 2026-10-20 por ADR-029 ((a) confirmado; en (b) se decidió un aviso con «Cargar de todas formas» o «Cancelar», no dejar el caso afuera):**
 - (a) Botón «Cargar un gasto que faltaba» en el detalle de un conteo, que crea el gasto ya vinculado.
 - (b) Dejar afuera de la primera versión el caso «gasto mayor que la diferencia» (en ese caso no se pregunta y se sugiere volver a contar), lo que cambiaría la ADR-022.
 
