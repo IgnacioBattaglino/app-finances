@@ -37,3 +37,13 @@ Solo lectura: no se arregló nada. Base consultada con el MCP de Supabase en mod
 - Excepción: `get_top_categories` usa `current_date` como valor por defecto de `p_today`, y la base está en UTC; entre las 21:00 y las 24:00 argentinas ese «hoy» es el día siguiente. Es un borde menor (la ventana de 90 días).
 - `captured_at` es `timestamptz` (UTC, `now()`), correcto como instante. La Edge Function de precios sí usa `America/Argentina/Buenos_Aires` explícito.
 - Más prolijo: fijar una zona (o pasar siempre `p_today`) cuando haya apps nativas en otros países (PRODUCT.md §8, pregunta 2).
+
+# Pendientes de verificación (2026-10-20)
+
+Nada de esto se hizo todavía. Lo que se decide en las ADR-029 a 031 depende de estos puntos.
+
+1. **Fecha de compra.** ¿La base guarda la fecha de compra de un plan o solo sus vencimientos? (`commitments.start_date` es el primer vencimiento, no la compra.) Hace falta para la vista de cada mes (ADR-031).
+2. **Primera cuota.** A qué resumen va la primera cuota. Lo confirma Nacho con un resumen real.
+3. **Informe previo, con Opus, de tres cambios de deudas** (ADR-030): moneda propia de la deuda, préstamos en cuotas y «Sobró» sin deudas. Debe confirmar que el cambio es chico revisando `get_period_totals`, `monthTotals` y el test de paridad.
+4. **Fórmula de ganancia por período y «Cobrar renta».** Ya anotado (ADR-028 y punto 6 de la sección anterior).
+5. **`delete_reconciliation`.** Ya anotado (punto 3 de la sección anterior, ADR-026).
