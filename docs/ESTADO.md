@@ -5,7 +5,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 Última actualización: 2026-10-20.
 
 ## Repo y CI
-- `main` en `27689b0` (merge de `chore/seguridad-rendimiento-base`), CI verde en la rama. — 2026-10-09
+- `main` en `54c01c1` (merge de `docs/especificacion-grupo-5`, solo documentación). — 2026-10-20
 
 ## Base (Supabase)
 - **Última migración aplicada: 0061**, verificada por Nacho con la consulta combinada del pie del archivo (todo `ok = true`) y con `get_advisors`. La 0060 se había verificado por objetos (`transactions.captured_at`, `reject_hidden_account`, `save_debt`, etc.). — 2026-10-09
@@ -41,7 +41,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 **Base real > `ARCHITECTURE.md` > `FUNCTIONAL.md` > `PRODUCT.md` > informes.** Los informes y `docs/archivo/` son historia. `design/decisiones.md` no manda hasta que Nacho lo revise.
 
 ## En curso
-Especificación de producto, capa 1: grupos 1 a 5 hechos (`docs/producto/capacidades.md`, ADR-025 a 031). Pendientes de grupos 1 a 4 cerrados el 2026-10-20 (ADR-029); deudas y préstamos (ADR-030) y tarjetas (ADR-031) decididos. Solo documentación, sin código ni migraciones. Rama `docs/especificacion-grupo-5`, **sin mergear hasta que Nacho la apruebe**. La rama anterior `docs/especificacion-capa1` ya está mergeada y se puede borrar. — 2026-10-20
+Especificación de producto, capa 1: grupos 1 a 5 hechos (`docs/producto/capacidades.md`, ADR-025 a 031). Pendientes de grupos 1 a 4 cerrados el 2026-10-20 (ADR-029); deudas y préstamos (ADR-030) y tarjetas (ADR-031) decididos. Solo documentación, sin código ni migraciones. Rama `docs/especificacion-grupo-5` mergeada a `main` y borrada. — 2026-10-20
 
 Pendientes para el próximo chat:
 - **De decisión:** pago parcial o mínimo del resumen; percepción de consumos en dólares; si «Deudas» deja de ser un «mundo» propio en `PRODUCT.md`; grupos 6 a 8 de la capa 1; capa 2.
@@ -49,4 +49,4 @@ Pendientes para el próximo chat:
 - **Verificaciones:** `docs/producto/verificaciones-2026-10.md`, sección 2026-10-20. Notas de diseño: `docs/producto/para-diseno.md`.
 
 ## Próximo paso
-Que Nacho apruebe y mergee la rama. Después, chat nuevo para los grupos 6 a 8 de la capa 1 (leer este archivo, `docs/producto/capacidades.md` y las decisiones 025 a 031) y la capa 2. `docs/ROADMAP.md` todavía no existe. — 2026-10-20
+Chat nuevo para los grupos 6 a 8 de la capa 1 (leer este archivo, `docs/producto/capacidades.md` y las decisiones 025 a 031) y la capa 2. `docs/ROADMAP.md` todavía no existe. — 2026-10-20
