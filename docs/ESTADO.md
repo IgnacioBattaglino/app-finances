@@ -5,7 +5,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 Última actualización: 2026-11-16.
 
 ## Repo y CI
-- `main` en `25e77c9` (el commit de `ESTADO.md` posterior al merge de `docs/especificacion-grupo-5`). **Hay dos ramas locales sin mergear ni subir**, ver «Ramas y etiquetas». — 2026-11-16
+- `main` en `25e77c9` (el commit de `ESTADO.md` posterior al merge de `docs/especificacion-grupo-5`). **Hay dos ramas subidas sin mergear**, ver «Ramas y etiquetas». — 2026-11-16
 
 ## Base (Supabase)
 - **Última migración aplicada: 0061** (confirmado el 2026-11-16 con el MCP en solo lectura: existe el índice de la 0061 y ninguna función de las 0062 a 0064), verificada por Nacho con la consulta combinada del pie del archivo (todo `ok = true`) y con `get_advisors`. La 0060 se había verificado por objetos (`transactions.captured_at`, `reject_hidden_account`, `save_debt`, etc.). — 2026-10-09
@@ -25,8 +25,8 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 
 ## Ramas y etiquetas
 - `main`: lo publicado. — 2026-11-16
-- `fix/feedback-pwa` (local, **sin subir**, un commit sobre `main`): los tres arreglos de la web del 2026-11-16. Mergearla a `main` y subirla los publica en Vercel. Verificada con lint, tests, build, `verify:rls` y, el saldo por movimiento, mirándolo en el navegador con el usuario de prueba. — 2026-11-16
-- `feat/ios-app` (local, **sin subir**, en el worktree `../app-finances-native`): la app de iOS, las migraciones 0062 a 0064 y su documentación. **Ya contiene `fix/feedback-pwa`.** No mergear a `main` sin revisar ADR-032; las migraciones se pueden aplicar antes o después, la app tolera que falten. — 2026-11-16
+- `fix/feedback-pwa` (subida a `origin`, sin mergear, un commit sobre `main`): los tres arreglos de la web del 2026-11-16. Mergearla a `main` y subirla los publica en Vercel. Verificada con lint, tests, build, `verify:rls` y, el saldo por movimiento, mirándolo en el navegador con el usuario de prueba. — 2026-11-16
+- `feat/ios-app` (subida a `origin`, sin mergear, en el worktree `../app-finances-native`): la app de iOS, las migraciones 0062 a 0064 y su documentación. **Ya contiene `fix/feedback-pwa`.** No mergear a `main` sin revisar ADR-032; las migraciones se pueden aplicar antes o después, la app tolera que falten. — 2026-11-16
 - Etiqueta `archivo/ui-polish`: el trabajo de pulido de la web (25 commits) que **no está en `main`**; se archivó a propósito tras rescatar lo útil (ADR-024). — 2026-10-08
 - Etiqueta `respaldo/pre-limpieza-2026-10-08`: `main` justo antes de la limpieza (295ac18). — 2026-10-08
 
