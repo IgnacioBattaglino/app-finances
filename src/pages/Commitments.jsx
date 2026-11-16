@@ -159,6 +159,7 @@ function Commitments() {
           accounts={accounts}
           onChanged={reload}
           onAccountCreated={addAccount}
+          showAll
         />
 
         <CommittedCard lines={committed} />
