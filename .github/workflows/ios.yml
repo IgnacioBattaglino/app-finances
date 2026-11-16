@@ -1,0 +1,24 @@
+name: ios
+
+# Solo cuando cambia la app nativa o lo que se genera para ella. El repo es
+# público: los runners de macOS no cuestan.
+on:
+  push:
+    paths: ['ios/**', 'design/**', 'scripts/generate-tokens.mjs', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['ios/**', 'design/**', 'scripts/generate-tokens.mjs', '.github/workflows/ios.yml']
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Los colores de Swift salen de design/tokens.json: falla si alguien
+      # editó uno sin regenerar el otro.
+      - run: node scripts/generate-tokens.mjs --check
+      - name: Tests
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -m1 -o 'iPhone [^(]*' | sed 's/ *$//')
+          echo "Simulador: $DEVICE"
+          xcodebuild test -project ios/EnCuenta.xcodeproj -scheme EnCuenta \
+            -destination "platform=iOS Simulator,name=$DEVICE" CODE_SIGNING_ALLOWED=NO
