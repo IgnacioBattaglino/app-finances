@@ -246,6 +246,8 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
     psql(readFileSync('supabase/migrations/0041_reconcile_netting.sql', 'utf8'))
     // Y la 0042, que agrupa las filas de cada conteo y agrega el borrado.
     psql(readFileSync('supabase/migrations/0042_delete_reconciliation.sql', 'utf8'))
+    // Y la 0064: la vista previa, y borrar solo el último conteo de cada moneda.
+    psql(readFileSync('supabase/migrations/0064_reconciliation_preview.sql', 'utf8'))
   })
 
   afterAll(() => {
@@ -253,6 +255,136 @@ describe.skipIf(!available)('reconcile_liquid (SQL)', () => {
   })
 
   beforeEach(() => psql(SEED))
+
+  // ── La vista previa (0064) ───────────────────────────────────────────
+  // Lo que se muestra antes de guardar tiene que ser lo que se guarda. No se
+  // compara contra una segunda implementación: la vista previa ES
+  // reconcile_liquid, deshecho. Lo que se prueba es eso — que no deja nada
+  // escrito y que coincide con lo que el conteo de verdad escribe después.
+  describe('la vista previa de un conteo', () => {
+    const preview = (date, declarations) =>
+      JSON.parse(
+        psql(
+          `select get_reconciliation_preview('${date}', jsonb_build_array(${declarations
+            .map(([id, amount]) => declaration(id, amount))
+            .join(', ')}));`,
+        ),
+      )
+    const snapshot = () =>
+      psql(`select (select count(*) from transactions), (select count(*) from liquid_reconciliations),
+                   (select coalesce(sum(amount), 0) from get_liquid_by_account());`).trim()
+
+    it('no escribe nada: ni movimientos, ni conteos, ni saldos', () => {
+      const before = snapshot()
+      const result = preview('2026-09-05', [
+        [EFECTIVO, 6000],
+        [MERCADO_PAGO, 8000],
+      ])
+      expect(result.movements.length).toBeGreaterThan(0)
+      expect(snapshot()).toBe(before)
+    })
+
+    it('dice, por cuenta, lo que la app esperaba, lo contado y la diferencia', () => {
+      const { accounts } = preview('2026-09-05', [
+        [EFECTIVO, 6000],
+        [MERCADO_PAGO, 8000],
+      ])
+      expect(accounts).toEqual([
+        { account_id: EFECTIVO, name: 'Efectivo', currency: 'ARS', expected: 10000, declared: 6000, difference: -4000 },
+        { account_id: MERCADO_PAGO, name: 'Mercado Pago', currency: 'ARS', expected: 5000, declared: 8000, difference: 3000 },
+      ])
+    })
+
+    it('los movimientos anunciados son exactamente los que después se escriben', () => {
+      const cases = [
+        [[EFECTIVO, 12000]], // una sola cuenta: un ajuste y nada más
+        [[EFECTIVO, 6000], [MERCADO_PAGO, 8000]], // falta en total, y además se movió entre cuentas
+        [[EFECTIVO, 9000], [MERCADO_PAGO, 6000]], // solo cambió de lugar: ningún ajuste
+        [[EFECTIVO, 10000], [MERCADO_PAGO, 5000]], // todo cierra: nada que registrar
+      ]
+      for (const declarations of cases) {
+        psql(SEED)
+        const announced = preview('2026-09-05', declarations)
+          .movements.map((m) => [m.system_key, m.kind, Number(m.amount).toFixed(2), m.account_id, m.currency].join('|'))
+          .sort()
+        reconcile('2026-09-05', declarations)
+        const written = rows(
+          `select c.system_key, t.kind, t.amount, t.account_id, t.currency
+           from transactions t join categories c on c.id = t.category_id where t.date = '2026-09-05';`,
+        )
+          .map((r) => r.join('|'))
+          .sort()
+        expect(announced).toEqual(written)
+      }
+    })
+
+    it('el ajuste (lo que de verdad falta o sobra) va primero; los repartos, después', () => {
+      const { movements } = preview('2026-09-05', [
+        [EFECTIVO, 6000],
+        [MERCADO_PAGO, 8000],
+      ])
+      expect(movements[0]).toMatchObject({ system_key: 'balance_adjustment', kind: 'expense', amount: 1000 })
+      expect(movements.slice(1).every((m) => m.system_key === 'account_transfer')).toBe(true)
+    })
+
+    it('si todo cierra, no hay nada que registrar', () => {
+      const result = preview('2026-09-05', [
+        [EFECTIVO, 10000],
+        [MERCADO_PAGO, 5000],
+      ])
+      expect(result.movements).toEqual([])
+      expect(result.accounts.every((a) => a.difference === 0)).toBe(true)
+    })
+
+    it('un error de validación sale tal cual, y tampoco escribe nada', () => {
+      const before = snapshot()
+      const error = psqlExpectingFailure(
+        `select get_reconciliation_preview('2026-09-05', jsonb_build_array(${declaration(AJENA, 100)}));`,
+      )
+      expect(error).toMatch(/Cuenta inexistente o de otro usuario/)
+      expect(snapshot()).toBe(before)
+    })
+  })
+
+  // ── Solo el último conteo de cada moneda (0064, ADR-026) ─────────────
+  describe('borrar un conteo que tiene otro después', () => {
+    const adjustmentOf = (date) =>
+      one(`select t.id from transactions t join categories c on c.id = t.category_id
+           where c.system_key = 'balance_adjustment' and t.date = '${date}';`)[0]
+
+    it('el anterior no se puede borrar mientras exista uno posterior de la misma moneda', () => {
+      reconcile('2026-09-05', [[EFECTIVO, 9000]])
+      reconcile('2026-09-20', [[MERCADO_PAGO, 4000]]) // otra cuenta, misma moneda
+      const before = count('transactions')
+      const error = psqlExpectingFailure(`select delete_reconciliation('${adjustmentOf('2026-09-05')}');`)
+      expect(error).toMatch(/Borrá primero el más nuevo/)
+      expect(count('transactions')).toBe(before)
+    })
+
+    it('el último sí; y una vez borrado, el anterior pasa a ser el último', () => {
+      reconcile('2026-09-05', [[EFECTIVO, 9000]])
+      reconcile('2026-09-20', [[EFECTIVO, 8000]])
+      psql(`select delete_reconciliation('${adjustmentOf('2026-09-20')}');`)
+      psql(`select delete_reconciliation('${adjustmentOf('2026-09-05')}');`)
+      expect(balances().get(EFECTIVO)).toBe(10000)
+    })
+
+    it('"posterior" es por cuándo se hizo el conteo, no por la fecha que lleva', () => {
+      reconcile('2026-09-20', [[EFECTIVO, 9000]])
+      reconcile('2026-09-05', [[EFECTIVO, 8000]]) // hecho después, con fecha anterior
+      const error = psqlExpectingFailure(`select delete_reconciliation('${adjustmentOf('2026-09-20')}');`)
+      expect(error).toMatch(/Borrá primero el más nuevo/)
+    })
+
+    it('un conteo posterior de OTRA moneda no impide borrar', () => {
+      psql(`insert into liquid_accounts (id, user_id, name, position, currency)
+            values ('33333333-3333-4333-8333-333333333333', '${USER}', 'Dólares', 2, 'USD');`)
+      reconcile('2026-09-05', [[EFECTIVO, 9000]])
+      reconcile('2026-09-20', [['33333333-3333-4333-8333-333333333333', 100]])
+      psql(`select delete_reconciliation('${adjustmentOf('2026-09-05')}');`)
+      expect(balances().get(EFECTIVO)).toBe(10000)
+    })
+  })
 
   // ── Lo que motiva la 0041 ────────────────────────────────────────────────
   // Un conteo produce DOS hechos: cuánto falta EN TOTAL (el gasto real) y
