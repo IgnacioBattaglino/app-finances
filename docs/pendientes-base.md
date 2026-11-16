@@ -50,6 +50,8 @@ Docs: https://supabase.com/docs/guides/database/database-linter?lint=0001_uninde
 
 ## 2. Lo que necesita la app nativa (en el orden en que la app lo va a pedir)
 
+> **2026-11-16: escrito y con tests, SIN APLICAR** (rama `feat/ios-app`): el punto 1 como función SQL `delete_my_account` y el 2 (`app_config`) en la **0063**; el 4 en la **0064** (`get_reconciliation_preview`, más la regla de borrar solo el último conteo); el 5 en la **0062** (`get_commitment_occurrences`, `get_commitment_status`). **Sigue pendiente** el 3 (la lista armada en el servidor). Ver ADR-032.
+
 1. **`delete_account`** — **decidido: borrar la cuenta va dentro de la app desde la primera versión** (lo exige Apple, guía 5.1.1(v)). Edge Function con la service_role: borra todos los datos del usuario en el orden que piden las FK (varias no tienen `on delete cascade` a propósito) y después el usuario de Auth. Una sola transacción para los datos (función SQL SECURITY DEFINER llamada solo por la Edge Function, sin grant a `authenticated`) y el borrado de Auth al final. Test: después de borrar, ninguna tabla tiene filas de ese usuario y las del otro usuario siguen intactas.
 2. **`app_config`** — una fila con `min_ios_version` y `min_android_version`, lectura para `authenticated`, sin escritura por la API. Es el freno de emergencia cuando un cambio de contrato sea incompatible.
 3. **La lista de Movimientos armada en el servidor** (paso 6 de la mudanza: apareo de transferencias y repartos).

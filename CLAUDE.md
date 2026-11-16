@@ -20,7 +20,7 @@ Actualizá esta sección cuando agregues o muevas un archivo importante. Es un �
 - **Deudas** (dentro de Compromisos): `pages/Debts.jsx` · `components/DebtFormModal.jsx` (con la entrada opcional del préstamo), `components/DebtPaymentModal.jsx` (con los intereses) · `lib/debts.js` (`saveDebt`, `getDebtPayments`; `paymentParts` es la definición de capital e intereses que corre el test de paridad).
 - **Ajustes**: `pages/settings/SettingsHome.jsx` (índice, con el email y Cerrar sesión al pie) → `Appearance.jsx`, `Categories.jsx`/`CategoryDetail.jsx`, `ExportData.jsx` · `components/settings/{SettingsList,SettingsPage}.jsx` (piezas compartidas).
 - **Formularios compartidos**: `components/FormSheet.jsx` (chrome del modal) · `components/form/{CollapsedDateField,BinaryChoice,Switch,FormError,MissingHint}.jsx` · `lib/errors.js` (qué parte de un error puede leer una persona: el único lugar que lo decide).
-- **App nativa iOS** (ver `docs/arquitectura-nativa.md`): `ios/EnCuenta.xcodeproj` (carpetas sincronizadas: un archivo nuevo entra solo al target) · `ios/EnCuenta/App/EnCuentaApp.swift` (arranque) · `ios/EnCuenta/Features/<pestaña>/` · `ios/EnCuenta/Core/{Backend,Offline,Design,Format}/`. Lo que falta en la base para la app: `docs/pendientes-base.md`.
+- **App nativa iOS** (ver `docs/arquitectura-nativa.md`, ADR-032, `ios/README.md` y `contract/README.md`): `ios/EnCuenta.xcodeproj` (carpetas sincronizadas: un archivo nuevo entra solo al target) · `ios/EnCuenta/App/` (`EnCuentaApp.swift` arranque, `SessionStore.swift` sesión, `AppStore.swift` cuentas, categorías y cola compartidas, `LockGate.swift` Face ID, `UpdateGate.swift` versión mínima, `MainTabs.swift`) · `ios/EnCuenta/Core/Backend/{Backend,Models,API}.swift` (el cliente, los tipos del contrato y TODAS las llamadas a la base) · `ios/EnCuenta/Core/Offline/Outbox.swift` (la cola sin conexión) · `ios/EnCuenta/Core/Design/` (`Tokens.swift` se genera desde `design/tokens.json` con `scripts/generate-tokens.mjs`; `Components.swift`) · `ios/EnCuenta/Core/Format/Money.swift` · `ios/EnCuenta/Features/{Capture,Home,Movements,MyMoney,ToPay,Investments,Settings}/` · `ios/EnCuentaTests/` · `scripts/ios-run.sh` (compila y abre en el simulador con el usuario de prueba). Lo que falta en la base para la app: `docs/pendientes-base.md`.
 
 - **Documentación viva**: `docs/ESTADO.md` (dónde estamos hoy, una página) · `docs/mudanza-reglas.md` (la receta para mudar una regla de plata a la base) · `docs/decisiones/README.md` (formato y índice de decisiones; las nuevas van ahí) · `docs/ARCHITECTURE.md` y `docs/FUNCTIONAL.md` (modelo de datos y diseño funcional). Lo viejo está en `docs/archivo/`.
 
@@ -86,6 +86,8 @@ El lenguaje es el de una app de iOS: fondo agrupado gris frío, tarjetas SIN mar
 - `npm run preview` — sirve el build localmente
 - `npm run lint` — linter (oxlint)
 - `npm run verify:rls` — verifica el aislamiento RLS con el usuario test (requiere `.env.test.local`, ver `.env.test.example`)
+- `scripts/ios-run.sh` — compila la app de iOS y la abre en el simulador con el usuario de prueba
+- `node scripts/generate-tokens.mjs` — regenera los colores de Swift desde `design/tokens.json`
 - `npm test` — tests (vitest). Los `*Sql.test.js` necesitan un Postgres local y se saltean sin él; el CI (`.github/workflows/test.yml`, en cada push y pull request) los corre con un Postgres 15, así que ahí no se saltean
 
 ## Cómo probar
