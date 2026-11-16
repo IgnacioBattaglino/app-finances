@@ -30,7 +30,8 @@ import {
   ALL,
   EXPENSES,
 } from '../lib/movementList.js'
-import { getReconciliationBatches } from '../lib/liquid.js'
+import { getReconciliationBatches, getAccountBalances } from '../lib/liquid.js'
+import { effectOf, runningBalances } from '../lib/runningBalance.js'
 import { movementType, isMovedMoneyType } from '../lib/systemCategories.js'
 import { formatByCurrency, formatDay, formatUSD } from '../lib/format.js'
 import RangeSheet from '../components/movements/RangeSheet.jsx'
@@ -52,6 +53,13 @@ const now = new Date()
 // TOTALES siempre se calculan sobre el período entero: esto recorta lo que se
 // dibuja, nunca lo que se cuenta.
 const PAGE = 100
+
+// El día siguiente a una fecha 'YYYY-MM-DD', sin pasar por la zona horaria.
+function nextDay(iso) {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
 
 function Arrow({ direction }) {
   return (
@@ -86,6 +94,25 @@ function PlusIcon() {
   )
 }
 
+// Debajo del monto: cuánto quedó en la cuenta después de este movimiento.
+// Sin signo ni etiqueta larga; si no se pudo calcular, no hay nada que mostrar.
+function Amount({ children, balance, className = '' }) {
+  return (
+    <span className="shrink-0 text-right">
+      <span className={`font-money block text-[17px] font-medium ${className}`}>{children}</span>
+      {balance && (
+        <span
+          className="font-money block text-[13px] text-ink-faint"
+          title="Saldo de la cuenta después de este movimiento"
+          aria-label={`Saldo de la cuenta después de este movimiento: ${balance}`}
+        >
+          {balance}
+        </span>
+      )}
+    </span>
+  )
+}
+
 // Las dos filas de la lista comparten caja: son el mismo tipo de renglón, lo
 // que cambia es qué pasa al tocarlas.
 const ROW_CLASS =
@@ -97,7 +124,7 @@ const ROW_CLASS =
 // pérdida ni una ganancia, son plata que cambió de lugar — van sin color,
 // igual que ya hacen InvestmentRow y SavingsRow. Un gasto, un ingreso o un
 // ajuste de saldo (que sí son reales) se quedan con el color de siempre.
-function TransactionRow({ tx, onEdit }) {
+function TransactionRow({ tx, onEdit, balance }) {
   const isMoved = isMovedMoneyType(movementType(tx))
   return (
     <button type="button" onClick={onEdit} className={ROW_CLASS}>
@@ -114,14 +141,10 @@ function TransactionRow({ tx, onEdit }) {
           {tx.account?.name && ` · ${tx.account.name}`}
         </p>
       </div>
-      <span
-        className={`font-money shrink-0 text-[17px] font-medium ${
-          isMoved ? '' : tx.kind === 'expense' ? 'text-clay' : 'text-gain'
-        }`}
-      >
+      <Amount balance={balance} className={isMoved ? '' : tx.kind === 'expense' ? 'text-clay' : 'text-gain'}>
         {tx.kind === 'expense' ? '−' : '+'}
         {formatByCurrency(transactionCurrencyOf(tx), tx.amount)}
-      </span>
+      </Amount>
     </button>
   )
 }
@@ -138,13 +161,13 @@ function TransactionRow({ tx, onEdit }) {
 // mismo criterio: la fila se ve, pero no se toca, sin chevron y sin el
 // resalte al tacto de una fila interactiva, y con una segunda línea que dice
 // por qué.
-export function InvestmentRow({ contribution: c }) {
+export function InvestmentRow({ contribution: c, balance }) {
   const isOut = c.direction === 'out'
   const amount = (
-    <span className="font-money shrink-0 text-[17px] font-medium">
+    <Amount balance={balance}>
       {isOut ? '+' : '−'}
       {formatByCurrency(contributionCurrency(c), contributionAmount(c))}
-    </span>
+    </Amount>
   )
 
   if (c.asset?.is_archived) {
@@ -186,7 +209,7 @@ export function InvestmentRow({ contribution: c }) {
 // El monto va en la moneda de la cuenta de la que salió, igual que el resto
 // de la lista, y sin color: el capital no es un gasto. Si tiene intereses se
 // dice, porque esa parte sí suma a Gastos.
-function DebtPaymentRow({ payment: p }) {
+function DebtPaymentRow({ payment: p, balance }) {
   const currency = p.account?.currency ?? 'USD'
   const amount = amountInCurrency(Number(p.amount_usd), Number(p.mep_rate), currency)
   return (
@@ -207,9 +230,7 @@ function DebtPaymentRow({ payment: p }) {
           {Number(p.interest_usd) > 0 && ` · incluye ${formatUSD(Number(p.interest_usd))} de intereses`}
         </p>
       </div>
-      <span className="font-money shrink-0 text-[17px] font-medium">
-        −{formatByCurrency(currency, amount)}
-      </span>
+      <Amount balance={balance}>−{formatByCurrency(currency, amount)}</Amount>
     </Link>
   )
 }
@@ -228,7 +249,7 @@ function DebtPaymentRow({ payment: p }) {
 // Sin color, igual que una inversión: lo que domina acá es plata que cambió de
 // lugar, no una pérdida ni una ganancia. El signo dice para qué lado, y el
 // nombre de la cuenta —debajo, como en cualquier fila— dice dónde.
-function SavingsRow({ tx }) {
+function SavingsRow({ tx, balance }) {
   return (
     <Link to={`/plata/${tx.account_id}`} state={{ from: 'movements' }} className={ROW_CLASS}>
       <div className="min-w-0">
@@ -246,10 +267,10 @@ function SavingsRow({ tx }) {
           {tx.account?.name && ` · ${tx.account.name}`}
         </p>
       </div>
-      <span className="font-money shrink-0 text-[17px] font-medium">
+      <Amount balance={balance}>
         {tx.kind === 'expense' ? '−' : '+'}
         {formatByCurrency(transactionCurrencyOf(tx), tx.amount)}
-      </span>
+      </Amount>
     </Link>
   )
 }
@@ -274,7 +295,7 @@ function SavingsRow({ tx }) {
 // igual, y abre el mismo detalle de solo lectura que ya existía, que es desde
 // donde se borra. La flecha del medio es el glifo de esta fila y no se repite
 // en ninguna otra.
-function TransferRow({ transfer, onOpen }) {
+function TransferRow({ transfer, onOpen, balance }) {
   const { from, to } = transfer
   const twoAmounts = from.currency !== to.currency
   return (
@@ -300,6 +321,15 @@ function TransferRow({ transfer, onOpen }) {
           {transfer.origin === 'split' ? ' · Reparto de un conteo' : ' · Transferencia'}
         </p>
       </div>
+      {balance && (
+        <span
+          className="font-money shrink-0 self-end text-[13px] text-ink-faint"
+          title="Saldo de la cuenta de destino después de este movimiento"
+          aria-label={`Saldo de la cuenta de destino después de este movimiento: ${balance}`}
+        >
+          {balance}
+        </span>
+      )}
     </button>
   )
 }
@@ -345,6 +375,10 @@ function Movements() {
   const [periodTotals, setPeriodTotals] = useState([])
   // Los pagos de deuda del período que salieron del disponible (0059).
   const [debtPayments, setDebtPayments] = useState([])
+  // Insumo del saldo corrido (nunca de las listas ni los totales): los saldos
+  // actuales por cuenta y lo que pasó DESPUÉS del período. null = no se pudo
+  // cargar, y la lista se muestra igual sin saldos.
+  const [balanceInput, setBalanceInput] = useState(null)
   const [categoryRows, setCategoryRows] = useState([])
   // Qué conteo escribió cada movimiento (id → batch_id). Es lo que permite
   // aparear los repartos de un mismo conteo entre sí sin mezclar dos conteos
@@ -378,6 +412,18 @@ function Movements() {
       // falla — un mes al que le faltan las inversiones muestra un balance
       // equivocado, y es peor que decir que no se pudo cargar.
       const { from, to } = bounds(range)
+      // ponytail: traer la cola (todo lo posterior al período) al cliente es
+      // el atajo; la versión definitiva es una función SQL con una suma por
+      // ventana (va con la próxima tanda de migraciones).
+      const dayAfter = to ? nextDay(to) : null
+      const balanceLoad = Promise.all([
+        getAccountBalances(),
+        dayAfter ? getTransactions({ from: dayAfter }) : [],
+        dayAfter ? getLiquidContributions({ from: dayAfter }) : [],
+        dayAfter ? getDebtPayments({ from: dayAfter }) : [],
+      ])
+        .then(([accountBalances, tx, co, dp]) => ({ accountBalances, tail: { tx, co, dp } }))
+        .catch(() => null)
       const [transactions, investments, reconciliationBatches, totals, byCategory, payments] = await Promise.all([
         getTransactions({ from, to }),
         getLiquidContributions({ from, to }),
@@ -392,6 +438,7 @@ function Movements() {
       setCategoryRows(byCategory)
       setDebtPayments(payments)
       setBatches(reconciliationBatches)
+      setBalanceInput(await balanceLoad)
     } catch (e) {
       setError({ message: 'No se pudieron cargar los movimientos.', detail: e })
     } finally {
@@ -475,7 +522,8 @@ function Movements() {
     (id) => batches.get(id) ?? null,
   )
 
-  const items = mergeMovements(looseTransactions, monthInvestments, transfers, debtPayments)
+  const allItems = mergeMovements(looseTransactions, monthInvestments, transfers, debtPayments)
+  const items = allItems
     .filter((item) => inBucket(item, bucket))
     // El filtro de categoría solo puede alcanzar a gastos e ingresos: una
     // inversión no tiene categoría, y una transferencia lleva siempre la del
@@ -485,6 +533,40 @@ function Movements() {
     .filter(
       (item) => !categoryId || (item.source === 'transaction' && item.row.category_id === categoryId),
     )
+
+  // Saldo corrido: el actual de cada cuenta menos los efectos de todo lo
+  // posterior, en el orden de la lista (items sin filtrar: el filtro no
+  // cambia qué pasó después). Las patas de una transferencia o de un conteo
+  // entran como filas sueltas.
+  const balanceOf = (() => {
+    if (!balanceInput) return () => null
+    const { accountBalances, tail } = balanceInput
+    const cur = new Map(accountBalances.map((b) => [b.account_id, b.currency]))
+    const currencyOf = (id) => cur.get(id)
+    const toRow = (key, source, row) => {
+      const e = effectOf(source, row, currencyOf)
+      return e && { key, ...e }
+    }
+    // Un reparto de conteo puede partir UNA fila en varias líneas de la lista
+    // (pairAmounts): su efecto se cuenta una sola vez, la primera que aparece.
+    const seen = new Set()
+    const once = (r) => !seen.has(r.id) && seen.add(r.id)
+    const rows = [
+      ...tail.tx.map((r) => toRow(null, 'transaction', r)),
+      ...tail.co.map((r) => toRow(null, 'contribution', r)),
+      ...tail.dp.map((r) => toRow(null, 'debt_payment', r)),
+      ...allItems.flatMap(({ source, row }) =>
+        source === 'transfer'
+          ? row.rows.filter(once).map((r) => toRow(`t-${r.id}`, 'transaction', r))
+          : [toRow(`${source[0]}-${row.id}`, source, row)],
+      ),
+    ].filter(Boolean)
+    const out = runningBalances(new Map(accountBalances.map((b) => [b.account_id, Number(b.amount)])), rows)
+    return (key, id) => {
+      const v = out.get(key)
+      return v == null ? null : formatByCurrency(cur.get(id), v)
+    }
+  })()
 
   const { expenses, incomes, invested, saved, debts, hasDebts, balance } = periodLines(periodTotals)
   const hasExtraFilters = bucket !== ALL || categoryId !== ''
@@ -688,24 +770,42 @@ function Movements() {
                     uuid propios y nada garantiza que no se crucen. */}
                 {items.slice(0, visible).map(({ source, row }) =>
                   source === 'contribution' ? (
-                    <InvestmentRow key={`c-${row.id}`} contribution={row} />
+                    <InvestmentRow
+                      key={`c-${row.id}`}
+                      contribution={row}
+                      balance={balanceOf(`c-${row.id}`, row.account_id)}
+                    />
                   ) : source === 'debt_payment' ? (
-                    <DebtPaymentRow key={`d-${row.id}`} payment={row} />
+                    <DebtPaymentRow
+                      key={`d-${row.id}`}
+                      payment={row}
+                      balance={balanceOf(`d-${row.id}`, row.account_id)}
+                    />
                   ) : source === 'transfer' ? (
                     <TransferRow
                       key={`x-${row.id}`}
                       transfer={row}
+                      balance={(() => {
+                        // La pata que entró: la cuenta de destino.
+                        const dest = row.origin === 'transfer' && row.rows.find((r) => r.kind === 'income')
+                        return dest ? balanceOf(`t-${dest.id}`, dest.account_id) : null
+                      })()}
                       onOpen={() => {
                         setEditing(row.row)
                         setModalOpen(true)
                       }}
                     />
                   ) : row.account?.is_savings ? (
-                    <SavingsRow key={`t-${row.id}`} tx={row} />
+                    <SavingsRow
+                      key={`t-${row.id}`}
+                      tx={row}
+                      balance={balanceOf(`t-${row.id}`, row.account_id)}
+                    />
                   ) : (
                     <TransactionRow
                       key={`t-${row.id}`}
                       tx={row}
+                      balance={balanceOf(`t-${row.id}`, row.account_id)}
                       onEdit={() => {
                         setEditing(row)
                         setModalOpen(true)

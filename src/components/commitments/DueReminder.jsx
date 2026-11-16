@@ -2,14 +2,17 @@ import { Link } from 'react-router-dom'
 import { formatByCurrency, formatDayYear } from '../../lib/format.js'
 import { OVERDUE, occurrenceTitle } from '../../lib/commitmentSchedule.js'
 
-// EL RECORDATORIO. Una sola fila, siempre, pase lo que pase.
+// EL RECORDATORIO. En Inicio, una sola fila, pase lo que pase; en Compromisos
+// (`showAll`), una fila por cada vencimiento, cada una con sus dos acciones.
 //
-// ── POR QUÉ UNA SOLA FILA ──────────────────────────────────────────────────
+// ── POR QUÉ UNA SOLA FILA EN INICIO ────────────────────────────────────────
 // Inicio ya tiene cuatro o cinco tarjetas, la curva y el bloque de gastos. Una
 // lista de seis cuotas arriba de todo lo rompe. Así que el bloque muestra el
 // vencimiento MÁS URGENTE y cuenta el resto en una línea chica: confirmar
 // cuatro son cuatro toques sin salir de Inicio y sin que el bloque crezca un
 // pixel, porque al confirmar uno la misma fila pasa a mostrar el siguiente.
+// Ese "y N más" lleva a Compromisos, que es donde sí están todos a la vista:
+// ahí el bloque puede crecer porque la pantalla es justamente esa lista.
 //
 // ── POR QUÉ NO SE VUELVE PAISAJE ───────────────────────────────────────────
 // Un aviso fijo, siempre igual, deja de avisar a las tres semanas. Acá lo que
@@ -45,12 +48,11 @@ function lateLabel(occurrence) {
   return `vence el ${formatDayYear(dueDate)}`
 }
 
-function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = '' }) {
-  if (due.length === 0) return null
-
-  const [next, ...rest] = due
-  const overdue = next.status === OVERDUE
-  const busy = confirming === `${next.planId}|${next.dueDate}`
+// Una fila de vencimiento: la misma en Inicio (una sola) y en Compromisos
+// (todas). `busy` es ESTA fila guardándose; `locked` es cualquier fila
+// guardándose, para que no se puedan confirmar dos a la vez.
+function DueRow({ occurrence, onConfirm, onAdjust, busy, locked, className = '', children }) {
+  const overdue = occurrence.status === OVERDUE
 
   return (
     <section
@@ -61,23 +63,23 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
           las dos cosas que se leen de un vistazo. */}
       <div className="flex items-baseline justify-between gap-3">
         <p className={`min-w-0 truncate text-[15px] font-semibold ${overdue ? '' : 'text-ink'}`}>
-          {occurrenceTitle(next)}
+          {occurrenceTitle(occurrence)}
         </p>
         <p className="font-money shrink-0 text-[15px] font-semibold">
-          {formatByCurrency(next.currency, next.amount)}
+          {formatByCurrency(occurrence.currency, occurrence.amount)}
         </p>
       </div>
 
       <p className={`mt-0.5 text-[13px] ${overdue ? '' : 'text-ink-soft'}`}>
-        {lateLabel(next)}
-        {next.plan.account?.name ? ` · ${next.plan.account.name}` : ''}
+        {lateLabel(occurrence)}
+        {occurrence.plan.account?.name ? ` · ${occurrence.plan.account.name}` : ''}
       </p>
 
       <div className="mt-3 flex items-center gap-4">
         <button
           type="button"
-          onClick={() => onConfirm(next)}
-          disabled={busy}
+          onClick={() => onConfirm(occurrence)}
+          disabled={locked}
           // Baja en desktop igual que `.btn`, y por el mismo motivo: 42px es
           // la medida del pulgar, no la del mouse. La diferencia
           // celular/desktop sigue viviendo en un solo breakpoint.
@@ -89,7 +91,7 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
             normal no lo cuesta: Confirmar ya usa el monto del plan. */}
         <button
           type="button"
-          onClick={() => onAdjust(next)}
+          onClick={() => onAdjust(occurrence)}
           disabled={busy}
           className={`text-[13px] underline decoration-dotted underline-offset-4 disabled:opacity-40 ${
             overdue ? '' : 'text-ink-soft'
@@ -99,6 +101,53 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
         </button>
       </div>
 
+      {children}
+    </section>
+  )
+}
+
+function DueReminder({
+  due,
+  onConfirm,
+  onAdjust,
+  confirming = null,
+  showAll = false,
+  className = '',
+}) {
+  if (due.length === 0) return null
+
+  const keyOf = (o) => `${o.planId}|${o.dueDate}`
+  const locked = confirming !== null
+
+  if (showAll) {
+    return (
+      <div className={`space-y-3 ${className}`}>
+        {due.map((o) => (
+          <DueRow
+            key={keyOf(o)}
+            occurrence={o}
+            onConfirm={onConfirm}
+            onAdjust={onAdjust}
+            busy={confirming === keyOf(o)}
+            locked={locked}
+          />
+        ))}
+      </div>
+    )
+  }
+
+  const [next, ...rest] = due
+  const overdue = next.status === OVERDUE
+
+  return (
+    <DueRow
+      occurrence={next}
+      onConfirm={onConfirm}
+      onAdjust={onAdjust}
+      busy={confirming === keyOf(next)}
+      locked={confirming === keyOf(next)}
+      className={className}
+    >
       {rest.length > 0 && (
         <Link
           to="/compromisos"
@@ -110,7 +159,7 @@ function DueReminder({ due, onConfirm, onAdjust, confirming = null, className = 
           <span aria-hidden="true">→</span>
         </Link>
       )}
-    </section>
+    </DueRow>
   )
 }
 

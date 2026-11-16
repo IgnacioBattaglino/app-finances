@@ -10,9 +10,12 @@ import FormError from '../form/FormError.jsx'
 // que el comportamiento vive en un solo lado en vez de duplicarse (que es lo
 // que el informe de arquitectura marca como el problema que se agranda, H12).
 //
+// Inicio muestra solo el vencimiento más urgente; Compromisos pasa `showAll` y
+// muestra todos (ver DueReminder).
+//
 // "Confirmar" es UN TOQUE: usa el monto, la cuenta y la fecha que dice el
 // plan, sin abrir nada. El modal es el toque de más, el de "el monto cambió".
-function CommitmentReminder({ due, accounts, onChanged, onAccountCreated, className = '' }) {
+function CommitmentReminder({ due, accounts, onChanged, onAccountCreated, showAll = false, className = '' }) {
   const [confirming, setConfirming] = useState(null)
   const [adjusting, setAdjusting] = useState(null)
   const [error, setError] = useState(null)
@@ -44,6 +47,7 @@ function CommitmentReminder({ due, accounts, onChanged, onAccountCreated, classN
       <DueReminder
         due={due}
         confirming={confirming}
+        showAll={showAll}
         onConfirm={confirmNow}
         onAdjust={setAdjusting}
       />

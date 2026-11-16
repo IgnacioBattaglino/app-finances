@@ -57,6 +57,9 @@ export function ReorderableRows({ items, onCommit, children }) {
       from: order.findIndex((cat) => cat.id === id),
       height,
       origin: order,
+      // El último orden calculado vive acá y no solo en el estado: soltar lee
+      // de acá, así que nunca queda un orden viejo del closure de un render.
+      latest: order,
     }
     setDragId(id)
     setOffset(0)
@@ -76,6 +79,7 @@ export function ReorderableRows({ items, onCommit, children }) {
     const [moved] = next.splice(drag.from, 1)
     next.splice(to, 0, moved)
 
+    drag.latest = next
     setOrder(next)
     setOffset(dy - (to - drag.from) * drag.height)
   }
@@ -86,8 +90,20 @@ export function ReorderableRows({ items, onCommit, children }) {
     dragRef.current = null
     setDragId(null)
     setOffset(0)
-    const changed = order.some((cat, i) => drag.origin[i]?.id !== cat.id)
-    if (changed) await onCommit(order)
+    const changed = drag.latest.some((cat, i) => drag.origin[i]?.id !== cat.id)
+    if (changed) await onCommit(drag.latest)
+  }
+
+  // Un cancel (iOS corta el gesto si el sistema lo interrumpe) no es soltar:
+  // el usuario no eligió ese lugar, así que se vuelve al orden de antes y no
+  // se guarda nada.
+  function handlePointerCancel() {
+    const drag = dragRef.current
+    if (!drag) return
+    dragRef.current = null
+    setDragId(null)
+    setOffset(0)
+    setOrder(drag.origin)
   }
 
   return (
@@ -107,7 +123,7 @@ export function ReorderableRows({ items, onCommit, children }) {
             onPointerDown: (e) => handlePointerDown(e, category.id),
             onPointerMove: handlePointerMove,
             onPointerUp: handlePointerUp,
-            onPointerCancel: handlePointerUp,
+            onPointerCancel: handlePointerCancel,
           })}
         </div>
       ))}
