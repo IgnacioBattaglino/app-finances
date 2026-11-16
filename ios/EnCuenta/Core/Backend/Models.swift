@@ -179,3 +179,78 @@ struct DebtPayment: Codable, Identifiable, Hashable, Sendable {
 func amountInAccountCurrency(usd: Decimal, rate: Decimal?, currency: String) -> Decimal {
     currency == "USD" ? usd : usd * (rate ?? 0)
 }
+
+// MARK: A pagar
+
+struct PaymentCard: Codable, Identifiable, Hashable, Sendable {
+    let id: UUID
+    var name: String
+    var dueDay: Int?
+    var creditLimit: Decimal?
+    var color: String?
+    var last4: String?
+}
+
+/// El PLAN: una compra en cuotas (termina) o una suscripción (no). Sus
+/// vencimientos no son filas: los calcula la base (`Occurrence`).
+struct Commitment: Codable, Identifiable, Hashable, Sendable {
+    struct CardRef: Codable, Hashable, Sendable { var name: String }
+
+    let id: UUID
+    var kind: String
+    var name: String
+    var categoryId: UUID
+    var accountId: UUID
+    var cardId: UUID?
+    var currency: String
+    var amount: Decimal
+    var installments: Int?
+    var frequency: String
+    var startDate: Day
+    var endsOn: Day?
+    var account: Contribution.AccountRef?
+    var card: CardRef?
+
+    var isSubscription: Bool { kind == "subscription" }
+}
+
+/// Un vencimiento, tal cual lo devuelve `get_commitment_occurrences` (0062).
+struct Occurrence: Codable, Identifiable, Hashable, Sendable {
+    var commitmentId: UUID
+    var idx: Int?
+    var number: Int?
+    var of: Int?
+    var dueDate: Day
+    var amount: Decimal
+    var currency: String
+    var status: String
+    var chargeId: UUID?
+    var transactionId: UUID?
+    var daysLate: Int
+
+    var id: String { "\(commitmentId)|\(dueDate)|\(idx.map(String.init) ?? "x")" }
+    var isOpen: Bool { status == "pending" || status == "overdue" }
+    var isOverdue: Bool { status == "overdue" }
+}
+
+struct CommitmentStatus: Codable, Hashable, Sendable {
+    var commitmentId: UUID
+    var remainingCount: Int?
+    var remainingAmount: Decimal?
+    var total: Decimal?
+    var lastDueDate: Day?
+    var isFinished: Bool
+}
+
+enum Frequency: String, CaseIterable, Identifiable {
+    case monthly, weekly, quarterly, yearly
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .monthly: "Todos los meses"
+        case .weekly: "Todas las semanas"
+        case .quarterly: "Cada tres meses"
+        case .yearly: "Una vez por año"
+        }
+    }
+}

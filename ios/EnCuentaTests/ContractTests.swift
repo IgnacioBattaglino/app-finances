@@ -81,3 +81,46 @@ struct ContractTests {
         #expect((json["amount"] as? NSNumber)?.decimalValue == Decimal(string: "1250.5"))
     }
 }
+
+/// Las respuestas de muestra de la migración 0062, generadas contra un
+/// Postgres de verdad (ver src/lib/commitmentOccurrencesSql.test.js).
+@Suite("Contrato: qué vence y cuándo")
+struct ScheduleContractTests {
+    private func fixture<T: Decodable>(_ type: T.Type, _ name: String) throws -> T {
+        let url = try #require(Bundle(for: Marker.self).url(forResource: name, withExtension: "json"))
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(type, from: Data(contentsOf: url))
+    }
+
+    private final class Marker {}
+
+    @Test func occurrences() throws {
+        let rows = try fixture([Occurrence].self, "get_commitment_occurrences")
+        #expect(!rows.isEmpty)
+        #expect(Set(rows.map(\.status)).isSubset(of: ["pending", "overdue", "confirmed", "dismissed"]))
+        // Abierto es exactamente pendiente o vencido, y lo vencido tiene días de atraso.
+        #expect(rows.filter(\.isOverdue).allSatisfy { $0.daysLate > 0 && $0.isOpen })
+        #expect(rows.filter { $0.status == "confirmed" }.allSatisfy { $0.transactionId != nil && !$0.isOpen })
+        #expect(Set(rows.map(\.id)).count == rows.count)
+    }
+
+    @Test func status() throws {
+        let rows = try fixture([CommitmentStatus].self, "get_commitment_status")
+        #expect(!rows.isEmpty)
+        // Una suscripción no tiene total ni cuotas que falten.
+        #expect(rows.contains { $0.remainingCount == nil && $0.total == nil })
+        #expect(rows.contains { $0.remainingCount != nil && $0.total != nil })
+    }
+
+    @Test("el próximo día de resumen cae este mes o el que viene, nunca antes de hoy")
+    func nextCardDay() throws {
+        let calendar = Calendar.current
+        let today = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 16)))
+        #expect(calendar.dateComponents([.month, .day], from: PlanSheet.next(day: 20, from: today)) == DateComponents(month: 11, day: 20))
+        #expect(calendar.dateComponents([.month, .day], from: PlanSheet.next(day: 16, from: today)) == DateComponents(month: 11, day: 16))
+        #expect(calendar.dateComponents([.month, .day], from: PlanSheet.next(day: 10, from: today)) == DateComponents(month: 12, day: 10))
+        let january = try #require(calendar.date(from: DateComponents(year: 2027, month: 2, day: 1)))
+        #expect(calendar.dateComponents([.month, .day], from: PlanSheet.next(day: 31, from: january)) == DateComponents(month: 2, day: 28))
+    }
+}

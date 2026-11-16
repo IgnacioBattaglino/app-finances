@@ -10,7 +10,7 @@
 // Sin Postgres local se saltea; el CI lo corre.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import {
   planOccurrences,
   planRemaining,
@@ -315,6 +315,20 @@ describe.skipIf(!available)('qué vence y cuándo (SQL, migración 0062)', () =>
         finished: isFinished({ plan: p, charges, today }),
       })
     }
+  })
+
+  // Respuestas de muestra para las apps nativas: la forma REAL de lo que
+  // devuelve cada función, que los tests de Swift tienen que poder decodificar
+  // (ios/EnCuentaTests/ContractTests.swift). Se regeneran a pedido:
+  //   WRITE_FIXTURES=1 npx vitest run src/lib/commitmentOccurrencesSql.test.js
+  it.skipIf(!process.env.WRITE_FIXTURES)('escribe las respuestas de muestra del contrato', () => {
+    const dump = (name, sql) =>
+      writeFileSync(
+        `ios/EnCuentaTests/Fixtures/${name}.json`,
+        JSON.stringify(JSON.parse(psql(asUser(`select coalesce(json_agg(t), '[]') from (${sql}) t`))), null, 1) + '\n',
+      )
+    dump('get_commitment_occurrences', `select * from get_commitment_occurrences('${TODAY}', '2026-12-31') where commitment_id in (select id from commitments order by id limit 14)`)
+    dump('get_commitment_status', `select * from get_commitment_status('${TODAY}') order by commitment_id limit 14`)
   })
 
   it('anon no puede ejecutar ninguna de las funciones', () => {

@@ -255,4 +255,109 @@ enum API {
     static func debtBalances() async throws -> [DebtBalance] {
         try await db.from("debt_balances").select().execute().value
     }
+
+    // MARK: A pagar (planes y vencimientos)
+
+    static func cards() async throws -> [PaymentCard] {
+        try await db.from("payment_cards").select().order("position").order("name").execute().value
+    }
+
+    static func commitments() async throws -> [Commitment] {
+        try await db.from("commitments")
+            .select("*, account:liquid_accounts(name, currency), card:payment_cards(name)")
+            .order("created_at").execute().value
+    }
+
+    /// Qué vence y cuándo: lo calcula la base (migración 0062). `today` va
+    /// siempre explícito: el "hoy" de la base es UTC.
+    static func occurrences(until: Day?) async throws -> [Occurrence] {
+        struct Params: Encodable {
+            var pToday: Day
+            var pUntil: Day?
+        }
+        return try await db.rpc("get_commitment_occurrences", params: Params(pToday: .today(), pUntil: until)).execute().value
+    }
+
+    static func commitmentStatus() async throws -> [CommitmentStatus] {
+        struct Params: Encodable { var pToday: Day }
+        return try await db.rpc("get_commitment_status", params: Params(pToday: .today())).execute().value
+    }
+
+    /// "Ya lo pagué": el gasto y la marca del vencimiento, juntos en la base.
+    static func confirmCharge(commitmentId: UUID, dueDate: Day, date: Day, amount: Decimal, accountId: UUID, description: String) async throws {
+        struct Params: Encodable {
+            var pCommitmentId: UUID
+            var pDueDate: Day
+            var pDate: Day
+            var pAmount: Decimal
+            var pAccountId: UUID
+            var pDescription: String
+        }
+        try await db.rpc("confirm_commitment_charge", params: Params(pCommitmentId: commitmentId, pDueDate: dueDate, pDate: date, pAmount: amount, pAccountId: accountId, pDescription: description))
+            .execute()
+    }
+
+    /// "Saltear": no lo pagué y no lo voy a pagar. No inventa ningún gasto.
+    static func dismissCharge(commitmentId: UUID, dueDate: Day) async throws {
+        struct Row: Encodable {
+            var commitmentId: UUID
+            var dueDate: Day
+            var dismissedAt: Date
+        }
+        try await db.from("commitment_charges")
+            .upsert(Row(commitmentId: commitmentId, dueDate: dueDate, dismissedAt: .now), onConflict: "commitment_id,due_date", returning: .minimal)
+            .execute()
+    }
+
+    static func undismissCharge(commitmentId: UUID, dueDate: Day) async throws {
+        try await db.from("commitment_charges").delete()
+            .eq("commitment_id", value: commitmentId).eq("due_date", value: dueDate)
+            .is("transaction_id", value: nil)
+            .execute()
+    }
+
+    struct NewCommitment: Encodable {
+        var kind: String
+        var name: String
+        var categoryId: UUID
+        var accountId: UUID
+        var cardId: UUID?
+        var currency: String
+        var amount: Decimal
+        var installments: Int?
+        var firstInstallment: Int
+        var frequency: String
+        var startDate: Day
+    }
+
+    static func createCommitment(_ plan: NewCommitment) async throws {
+        try await db.from("commitments").insert(plan, returning: .minimal).execute()
+    }
+
+    /// Terminar (o reabrir, con nil): deja de generar vencimientos después de ese día.
+    static func finishCommitment(id: UUID, endsOn: Day?) async throws {
+        struct Change: Encodable {
+            var endsOn: Day?
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.container(keyedBy: CodingKeys.self)
+                try c.encode(endsOn, forKey: .endsOn) // null explícito al reabrir
+            }
+            enum CodingKeys: String, CodingKey { case endsOn }
+        }
+        try await db.from("commitments").update(Change(endsOn: endsOn)).eq("id", value: id).execute()
+    }
+
+    static func createCard(name: String, last4: String?, color: String?, dueDay: Int?, creditLimit: Decimal?, position: Int) async throws {
+        struct New: Encodable {
+            var name: String
+            var last4: String?
+            var color: String?
+            var dueDay: Int?
+            var creditLimit: Decimal?
+            var position: Int
+        }
+        try await db.from("payment_cards")
+            .insert(New(name: name, last4: last4, color: color, dueDay: dueDay, creditLimit: creditLimit, position: position), returning: .minimal)
+            .execute()
+    }
 }

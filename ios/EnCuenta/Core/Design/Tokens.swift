@@ -16,7 +16,7 @@ extension Color {
     static let gain = Color(light: 0x0E7A4E, dark: 0x35C783)
     static let clay = Color(light: 0xC3372B, dark: 0xFF6B5E)
 
-    private init(light: UInt32, dark: UInt32) {
+    fileprivate init(light: UInt32, dark: UInt32) {
         self.init(uiColor: UIColor { traits in
             let v = traits.userInterfaceStyle == .dark ? dark : light
             return UIColor(
@@ -26,6 +26,43 @@ extension Color {
                 alpha: 1
             )
         })
+    }
+}
+
+/// Los colores de una tarjeta física (los mismos ids que payment_cards.color).
+enum CardColor: String, CaseIterable, Identifiable {
+    case blue, red, black, white, gold
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .blue: "Azul"
+        case .red: "Roja"
+        case .black: "Negra"
+        case .white: "Blanca"
+        case .gold: "Dorada"
+        }
+    }
+
+    var background: Color {
+        switch self {
+        case .blue: Color(light: 0x1D3A8A, dark: 0x1D3A8A)
+        case .red: Color(light: 0x7A1F2B, dark: 0x7A1F2B)
+        case .black: Color(light: 0x17181C, dark: 0x17181C)
+        case .white: Color(light: 0xF5F5F0, dark: 0xF5F5F0)
+        case .gold: Color(light: 0x7D5F1C, dark: 0x7D5F1C)
+        }
+    }
+
+    var text: Color {
+        switch self {
+        case .blue: Color(light: 0xFFFFFF, dark: 0xFFFFFF)
+        case .red: Color(light: 0xFFFFFF, dark: 0xFFFFFF)
+        case .black: Color(light: 0xF2F2F2, dark: 0xF2F2F2)
+        case .white: Color(light: 0x1A1A1E, dark: 0x1A1A1E)
+        case .gold: Color(light: 0xFFFFFF, dark: 0xFFFFFF)
+        }
     }
 }
 

@@ -15,7 +15,7 @@ ${Object.entries(tokens.color)
   .map(([name, { light, dark }]) => `    static let ${name} = Color(light: ${hex(light)}, dark: ${hex(dark)})`)
   .join('\n')}
 
-    private init(light: UInt32, dark: UInt32) {
+    fileprivate init(light: UInt32, dark: UInt32) {
         self.init(uiColor: UIColor { traits in
             let v = traits.userInterfaceStyle == .dark ? dark : light
             return UIColor(
@@ -25,6 +25,31 @@ ${Object.entries(tokens.color)
                 alpha: 1
             )
         })
+    }
+}
+
+/// Los colores de una tarjeta física (los mismos ids que payment_cards.color).
+enum CardColor: String, CaseIterable, Identifiable {
+    case ${Object.keys(tokens.cardColor).join(', ')}
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+${Object.entries(tokens.cardColor).map(([k, v]) => `        case .${k}: "${v.name}"`).join('\n')}
+        }
+    }
+
+    var background: Color {
+        switch self {
+${Object.entries(tokens.cardColor).map(([k, v]) => `        case .${k}: Color(light: ${hex(v.bg)}, dark: ${hex(v.bg)})`).join('\n')}
+        }
+    }
+
+    var text: Color {
+        switch self {
+${Object.entries(tokens.cardColor).map(([k, v]) => `        case .${k}: Color(light: ${hex(v.text)}, dark: ${hex(v.text)})`).join('\n')}
+        }
     }
 }
 
