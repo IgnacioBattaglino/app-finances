@@ -254,3 +254,25 @@ enum Frequency: String, CaseIterable, Identifiable {
         }
     }
 }
+
+// MARK: Inversiones
+
+/// Un día de la curva del portafolio, en dólares (`get_portfolio_series`).
+struct PortfolioPoint: Codable, Hashable, Sendable, Identifiable {
+    var date: Day
+    var totalValue: Decimal
+    var contributed: Decimal
+    var id: Day { date }
+}
+
+struct AssetGroup: Codable, Identifiable, Hashable, Sendable {
+    let id: UUID
+    var name: String
+    var displayOrder: Int
+}
+
+struct Asset: Codable, Identifiable, Hashable, Sendable {
+    let id: UUID
+    var name: String
+    var assetTypeId: UUID?
+}

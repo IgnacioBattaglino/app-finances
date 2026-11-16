@@ -360,4 +360,32 @@ enum API {
             .insert(New(name: name, last4: last4, color: color, dueDay: dueDay, creditLimit: creditLimit, position: position), returning: .minimal)
             .execute()
     }
+
+    // MARK: Inversiones
+
+    /// La curva del portafolio: un punto por día, con los precios de cierre.
+    static func portfolioSeries(from: Day, to: Day) async throws -> [PortfolioPoint] {
+        struct Params: Encodable {
+            var pFrom: Day
+            var pTo: Day
+        }
+        // Un punto por día: "Todo" pasa fácil las 1000 filas donde PostgREST corta.
+        var all: [PortfolioPoint] = []
+        while true {
+            let rows: [PortfolioPoint] = try await db.rpc("get_portfolio_series", params: Params(pFrom: from, pTo: to))
+                .order("date").range(from: all.count, to: all.count + page - 1).execute().value
+            all += rows
+            if rows.count < page { return all }
+        }
+    }
+
+    static func assetGroups() async throws -> [AssetGroup] {
+        try await db.from("asset_types").select("id, name, display_order")
+            .eq("is_archived", value: false).order("display_order").execute().value
+    }
+
+    static func assets() async throws -> [Asset] {
+        try await db.from("assets").select("id, name, asset_type_id")
+            .eq("is_archived", value: false).order("name").execute().value
+    }
 }
