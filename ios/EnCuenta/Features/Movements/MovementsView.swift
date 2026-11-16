@@ -147,8 +147,14 @@ struct MovementsView: View {
             summaryRow("Ingresos", totals.map { .init(currency: $0.currency, amount: $0.incomes) })
             summaryRow("Invertido", totals.map { .init(currency: $0.currency, amount: $0.invested) })
             summaryRow("Ahorrado", totals.map { .init(currency: $0.currency, amount: $0.saved) })
-            if totals.contains(where: { $0.debtMovements > 0 }) {
-                summaryRow("Deudas", totals.map { .init(currency: $0.currency, amount: $0.debts) })
+            // Deudas, en palabras y sin signo: lo que entró por préstamos menos
+            // lo devuelto de capital (el número es de la base).
+            ForEach(totals.filter { $0.debtMovements > 0 && $0.debts != 0 }, id: \.currency) { row in
+                HStack {
+                    Text(row.debts > 0 ? "Te prestaron" : "Pagaste de deudas")
+                    Spacer()
+                    Text(Money.format(abs(row.debts), row.currency)).money()
+                }
             }
             // "Sobró" o "Faltó" lo decide el signo del balance que manda la base.
             let balance = MoneyStack.visible(totals.map { .init(currency: $0.currency, amount: $0.balance) })

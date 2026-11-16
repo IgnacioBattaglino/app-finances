@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import EnCuenta
 
@@ -75,5 +76,17 @@ struct FormatTests {
     func accountCurrency() {
         #expect(amountInAccountCurrency(usd: 100, rate: 1500, currency: "USD") == 100)
         #expect(amountInAccountCurrency(usd: 100, rate: 1500, currency: "ARS") == 150_000)
+    }
+}
+
+@Suite("Versión mínima")
+struct UpdateGateTests {
+    @Test("las versiones se comparan número por número")
+    func versions() {
+        #expect(UpdateGate<EmptyView>.isOlder("0.9.1", than: "0.10.0"))
+        #expect(UpdateGate<EmptyView>.isOlder("0.1.0", than: "0.1.1"))
+        #expect(!UpdateGate<EmptyView>.isOlder("0.1.0", than: "0.1.0"))
+        #expect(!UpdateGate<EmptyView>.isOlder("1.0", than: "0.9.9"))
+        #expect(!UpdateGate<EmptyView>.isOlder("1.0.0", than: "1"))
     }
 }

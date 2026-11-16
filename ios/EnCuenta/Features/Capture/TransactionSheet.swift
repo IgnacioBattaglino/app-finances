@@ -86,7 +86,8 @@ struct TransactionSheet: View {
                     }
 
                     if editing != nil {
-                        Button("Borrar", role: .destructive) { confirmingDelete = true }
+                        Button("Borrar") { confirmingDelete = true }
+                            .foregroundStyle(Color.clay)
                             .frame(maxWidth: .infinity)
                             .disabled(saving)
                     }

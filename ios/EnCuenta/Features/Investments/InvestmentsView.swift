@@ -56,7 +56,7 @@ struct InvestmentsView: View {
                                 HStack(spacing: 4) {
                                     Text(Money.format(gain, "USD", sign: true))
                                         .fontWeight(.semibold).money()
-                                        .foregroundStyle(gain < 0 ? Color.clay : Color.gain)
+                                        .foregroundStyle(gain < 0 ? Color.clay : gain > 0 ? Color.gain : Color.ink)
                                     Text(range == .all ? "en total" : "en \(range.rawValue.lowercased() == "semana" ? "la semana" : range == .month ? "el mes" : "el año")")
                                         .foregroundStyle(Color.inkSoft)
                                     Image(systemName: "info.circle").foregroundStyle(Color.inkFaint)

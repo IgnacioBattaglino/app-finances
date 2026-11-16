@@ -46,7 +46,7 @@ private struct SignedInView: View {
     @Environment(\.scenePhase) private var phase
 
     var body: some View {
-        MainTabs(email: email)
+        UpdateGate { MainTabs(email: email) }
             .environment(store)
             .task { await store.start() }
             .onChange(of: phase) { _, new in

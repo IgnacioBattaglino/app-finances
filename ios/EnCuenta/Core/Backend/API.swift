@@ -388,4 +388,18 @@ enum API {
         try await db.from("assets").select("id, name, asset_type_id")
             .eq("is_archived", value: false).order("name").execute().value
     }
+
+    // MARK: Cuenta
+
+    /// Borra todos los datos de quien llama y su usuario (migración 0063).
+    static func deleteMyAccount() async throws {
+        try await db.rpc("delete_my_account").execute()
+    }
+
+    /// La versión mínima de la app que la base acepta, o nil si no se pudo leer.
+    static func minimumVersion() async -> String? {
+        struct Row: Decodable { var minIosVersion: String }
+        let rows: [Row]? = try? await db.from("app_config").select("min_ios_version").limit(1).execute().value
+        return rows?.first?.minIosVersion
+    }
 }

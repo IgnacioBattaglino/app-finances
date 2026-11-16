@@ -9,6 +9,9 @@ struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @AppStorage("lockEnabled") private var lockEnabled = true
     @State private var confirmingSignOut = false
+    @State private var confirmingDelete = false
+    @State private var deleting = false
+    @State private var error: String?
 
     var body: some View {
         List {
@@ -26,7 +29,12 @@ struct SettingsView: View {
                 Text("También se pide al volver después de 5 minutos.")
             }
             Section {
-                Button("Cerrar sesión", role: .destructive) { confirmingSignOut = true }
+                Button("Cerrar sesión") { confirmingSignOut = true }
+            }
+            Section {
+                Button(deleting ? "Borrando…" : "Borrar mi cuenta", role: .destructive) { confirmingDelete = true }
+                    .disabled(deleting || !store.online)
+                if let error { Text(error).font(.footnote).foregroundStyle(Color.clay) }
             } footer: {
                 Text("EnCuenta \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
             }
@@ -36,6 +44,12 @@ struct SettingsView: View {
         .paperBackground()
         .navigationTitle("Ajustes")
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            "Se borran tu cuenta y todos tus datos: movimientos, cuentas, inversiones y deudas. Es permanente y no se puede deshacer.",
+            isPresented: $confirmingDelete, titleVisibility: .visible
+        ) {
+            Button("Borrar todo", role: .destructive) { deleteAccount() }
+        }
         .confirmationDialog(signOutMessage, isPresented: $confirmingSignOut, titleVisibility: .visible) {
             Button("Cerrar sesión", role: .destructive) { Task { await session.signOut() } }
         }
@@ -46,5 +60,19 @@ struct SettingsView: View {
         let n = store.pending.count
         guard n > 0 else { return "¿Cerrar sesión?" }
         return "Tenés \(n) \(n == 1 ? "movimiento" : "movimientos") sin subir. Si cerrás sesión se \(n == 1 ? "pierde" : "pierden")."
+    }
+
+    private func deleteAccount() {
+        deleting = true
+        error = nil
+        Task {
+            defer { deleting = false }
+            do {
+                try await API.deleteMyAccount()
+                await session.signOut()
+            } catch {
+                self.error = userMessage(for: error, fallback: "No se pudo borrar la cuenta. Probá de nuevo más tarde.")
+            }
+        }
     }
 }
