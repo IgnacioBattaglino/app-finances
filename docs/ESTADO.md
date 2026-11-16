@@ -17,7 +17,7 @@ Una página. Cada línea lleva su fecha. **Quien termina una sesión de trabajo 
 ## Frentes
 | Frente | Estado | Fecha |
 |---|---|---|
-| Web / PWA | En uso diario, v0.9.1. Solo recibe arreglos: se va a reemplazar. Pendiente conocido: a `getInstruments()` le falta `limit`; hacerlo cuando se amplíe el catálogo (el buscador de varias palabras ya está en `main` desde `3687576`; `docs/traspaso-2026-10.md` §3.2) | 2026-10-08 |
+| Web / PWA | En uso diario, v0.9.1. Solo recibe arreglos: se va a reemplazar. Arreglos del 2026-11-16 por pedido de un usuario: Compromisos lista todos los vencimientos para confirmar (antes uno solo y un link que no hacía nada), Movimientos muestra el saldo de la cuenta después de cada movimiento (`lib/runningBalance.js`; calculado en el cliente, la versión definitiva es una función SQL) y reordenar cuentas arrastrando ya no vuelve la fila a su lugar. Pendiente conocido: a `getInstruments()` le falta `limit`; hacerlo cuando se amplíe el catálogo (el buscador de varias palabras ya está en `main` desde `3687576`; `docs/traspaso-2026-10.md` §3.2) | 2026-10-08 |
 | iOS | **En pausa.** Proyecto de Xcode con la pantalla vacía en `ios/` (iOS 18, Swift 6, solo iPhone). Arquitectura en `docs/arquitectura-nativa.md` | 2026-10-08 |
 | Android | No existe (no hay carpeta `android/`) | 2026-10-08 |
 | Diseño (Claude Design) | Borrador copiado en `design/decisiones.md`, **sin validar**. Pendientes: Inicio con tarjetas por moneda, prototipo con selector de paletas, flujos que faltan, paleta e identidad (`docs/traspaso-2026-10.md` §3.4) | 2026-10-08 |

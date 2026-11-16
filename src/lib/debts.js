@@ -223,7 +223,7 @@ export async function getDebtPayments({ from, to } = {}) {
   return fetchAllPages((pageFrom, pageTo) => {
     let query = supabase
       .from('debt_payments')
-      .select('id, date, amount_usd, interest_usd, mep_rate, affects_liquid, created_at, account:liquid_accounts(name, currency), debt:debts(id, creditor)')
+      .select('id, date, amount_usd, interest_usd, mep_rate, affects_liquid, created_at, account_id, account:liquid_accounts(name, currency), debt:debts(id, creditor)')
       // Como los aportes: la lista es lo que pasó por el bolsillo. Un pago con
       // dólares que ya tenías baja la deuda pero no tocó ninguna cuenta.
       .eq('affects_liquid', true)

@@ -102,10 +102,15 @@ function Accounts() {
   // lista completa, sin pisar al otro grupo.
   async function commitOrder(orderedSubset) {
     const positioned = new Map(orderedSubset.map((a, i) => [a.id, i]))
-    setAccounts((prev) =>
-      prev.map((a) => (positioned.has(a.id) ? { ...a, position: positioned.get(a.id) } : a)),
-    )
+    // El array tiene que quedar en el orden NUEVO, no solo con el campo
+    // position cambiado: ReorderableRows se resincroniza con lo que le llega
+    // por items, y con el orden viejo la fila saltaba de vuelta al soltar.
+    setAccounts((prev) => [
+      ...prev.filter((a) => !positioned.has(a.id)),
+      ...orderedSubset.map((a, i) => ({ ...a, position: i })),
+    ])
     try {
+      // Con las positions viejas: reorderAccounts solo guarda las que cambian.
       await reorderAccounts(orderedSubset)
     } catch (e) {
       setError({ message: 'No se pudo guardar el orden.', detail: e })
