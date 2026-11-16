@@ -15,6 +15,9 @@ struct SettingsView: View {
             Section("Perfil") {
                 LabeledContent("Email", value: email)
             }
+            Section("Organizar") {
+                NavigationLink("Categorías") { CategoriesView() }
+            }
             Section {
                 Toggle("Pedir Face ID al abrir", isOn: $lockEnabled)
             } header: {

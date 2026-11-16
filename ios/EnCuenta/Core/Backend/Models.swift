@@ -133,3 +133,49 @@ struct DebtBalance: Codable, Hashable, Sendable {
     var balanceUsd: Decimal
     var isSettled: Bool
 }
+
+/// Un aporte o retiro de una inversión que pasó por una cuenta.
+struct Contribution: Codable, Identifiable, Hashable, Sendable {
+    struct AccountRef: Codable, Hashable, Sendable {
+        var name: String
+        var currency: String
+    }
+    struct AssetRef: Codable, Hashable, Sendable {
+        var name: String
+        var savingsAccountId: UUID?
+    }
+
+    let id: UUID
+    var date: Day
+    var direction: String
+    var amountUsd: Decimal
+    var mepRate: Decimal?
+    var createdAt: String?
+    var account: AccountRef?
+    var asset: AssetRef?
+}
+
+struct DebtPayment: Codable, Identifiable, Hashable, Sendable {
+    struct DebtRef: Codable, Hashable, Sendable {
+        var id: UUID
+        var creditor: String
+    }
+
+    let id: UUID
+    var date: Day
+    var amountUsd: Decimal
+    var interestUsd: Decimal?
+    var mepRate: Decimal?
+    var affectsLiquid: Bool
+    var createdAt: String?
+    var account: Contribution.AccountRef?
+    var debt: DebtRef?
+}
+
+/// Un monto guardado en dólares, en la moneda de la cuenta por la que pasó: a
+/// una cuenta en dólares entra tal cual; a una en otra moneda, con la tasa que
+/// quedó congelada en su fila. Es la misma regla que `get_liquid_by_account`
+/// (y que `amountInCurrency` en la web); acá solo se usa para MOSTRAR una fila.
+func amountInAccountCurrency(usd: Decimal, rate: Decimal?, currency: String) -> Decimal {
+    currency == "USD" ? usd : usd * (rate ?? 0)
+}

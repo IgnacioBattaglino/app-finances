@@ -53,12 +53,28 @@ enum MovementItem: Identifiable, Hashable {
     case transaction(Transaction)
     /// Las dos patas de una transferencia entre cuentas, como una sola línea.
     case transfer(out: Transaction, into: Transaction)
+    /// Aporte o retiro de una inversión (o de un ahorro que nació como activo).
+    case contribution(Contribution)
+    case debtPayment(DebtPayment)
 
     var id: String {
         switch self {
         case .pending(let item): "p-\(item.id)"
         case .transaction(let t): "t-\(t.id)"
         case .transfer(let out, _): "x-\(out.id)"
+        case .contribution(let c): "c-\(c.id)"
+        case .debtPayment(let p): "d-\(p.id)"
+        }
+    }
+
+    /// Para ordenar dentro del día: lo último que se cargó, arriba.
+    var createdAt: String {
+        switch self {
+        case .pending: "9" // lo que todavía no subió es lo más nuevo
+        case .transaction(let t): t.createdAt ?? ""
+        case .transfer(let out, _): out.createdAt ?? ""
+        case .contribution(let c): c.createdAt ?? ""
+        case .debtPayment(let p): p.createdAt ?? ""
         }
     }
 
@@ -67,6 +83,8 @@ enum MovementItem: Identifiable, Hashable {
         case .pending(let item): item.transaction.date
         case .transaction(let t): t.date
         case .transfer(let out, _): out.date
+        case .contribution(let c): c.date
+        case .debtPayment(let p): p.date
         }
     }
 }
@@ -78,6 +96,8 @@ final class MovementsModel {
     private(set) var totals: [PeriodTotals] = []
     private(set) var byCategory: [CategoryExpense] = []
     private(set) var transactions: [Transaction] = []
+    private(set) var contributions: [Contribution] = []
+    private(set) var debtPayments: [DebtPayment] = []
     private(set) var loaded = false
     private(set) var failed = false
 
@@ -89,9 +109,11 @@ final class MovementsModel {
             async let totals = API.periodTotals(from: asked.from, to: asked.to)
             async let byCategory = API.expensesByCategory(from: asked.from, to: asked.to)
             async let transactions = API.transactions(from: asked.from, to: asked.to)
-            let result = try await (totals, byCategory, transactions)
+            async let contributions = API.contributions(from: asked.from, to: asked.to)
+            async let debtPayments = API.debtPayments(from: asked.from, to: asked.to)
+            let result = try await (totals, byCategory, transactions, contributions, debtPayments)
             guard asked == period else { return } // llegó tarde: ya se mira otro período
-            (self.totals, self.byCategory, self.transactions) = result
+            (self.totals, self.byCategory, self.transactions, self.contributions, self.debtPayments) = result
             loaded = true
             failed = false
         } catch {
@@ -108,6 +130,8 @@ final class MovementsModel {
         totals = []
         byCategory = []
         transactions = []
+        contributions = []
+        debtPayments = []
         loaded = false
     }
 
@@ -132,8 +156,13 @@ final class MovementsModel {
             }
         }
 
+        rows += contributions.map(MovementItem.contribution)
+        rows += debtPayments.map(MovementItem.debtPayment)
+
         let days = Dictionary(grouping: rows, by: \.date)
-        return days.keys.sorted(by: >).map { day in (day, days[day] ?? []) }
+        return days.keys.sorted(by: >).map { day in
+            (day, (days[day] ?? []).sorted { $0.createdAt > $1.createdAt })
+        }
     }
 
     /// Los renglones del servidor más lo que todavía no subió: así un gasto se

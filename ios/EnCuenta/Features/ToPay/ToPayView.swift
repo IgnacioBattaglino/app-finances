@@ -8,6 +8,7 @@ struct ToPayView: View {
     @State private var debts: [Debt] = []
     @State private var balances: [UUID: DebtBalance] = [:]
     @State private var loaded = false
+    @State private var creating = false
 
     var body: some View {
         NavigationStack {
@@ -20,6 +21,7 @@ struct ToPayView: View {
                         Text("No debés nada.").foregroundStyle(Color.inkSoft)
                     }
                     ForEach(active) { row($0) }
+                    Button("Nueva deuda") { creating = true }.disabled(!store.online)
                 } header: {
                     Text("Deudas")
                 } footer: {
@@ -34,6 +36,8 @@ struct ToPayView: View {
             .scrollContentBackground(.hidden)
             .paperBackground()
             .navigationTitle("A pagar")
+            .navigationDestination(for: Debt.self) { DebtDetailView(debt: $0) }
+            .sheet(isPresented: $creating) { NewDebtSheet() }
             .refreshable { await load() }
             .task(id: store.revision) { await load() }
         }
@@ -41,7 +45,7 @@ struct ToPayView: View {
 
     private func row(_ debt: Debt) -> some View {
         let balance = balances[debt.id]
-        return HStack(alignment: .firstTextBaseline) {
+        return NavigationLink(value: debt) { HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(debt.creditor)
                 Text("De \(Money.format(debt.originalAmountUsd, "USD")) · \(debt.startDate.shortLabel)")
@@ -52,7 +56,7 @@ struct ToPayView: View {
             Text(Money.format(balance?.balanceUsd ?? debt.originalAmountUsd, "USD"))
                 .money()
                 .foregroundStyle(balance?.isSettled == true ? Color.inkSoft : Color.ink)
-        }
+        } }
     }
 
     private func load() async {

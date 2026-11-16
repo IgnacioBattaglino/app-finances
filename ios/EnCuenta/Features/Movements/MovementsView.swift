@@ -133,7 +133,7 @@ struct MovementsView: View {
             if p.rejection != nil { sheet = .fix(p) }
         case .transaction(let t):
             if t.category?.systemKey == nil, t.transferId == nil, t.debtId == nil { sheet = .edit(t) }
-        case .transfer:
+        case .transfer, .contribution, .debtPayment:
             break
         }
     }

@@ -48,6 +48,22 @@ final class AppStore {
         if let c = try? await categories { self.categories = c }
     }
 
+    /// El orden nuevo se ve al instante; la base se entera enseguida (y si
+    /// falla, la recarga de referencia devuelve el orden verdadero).
+    func reorderCategories(_ ordered: [Category]) {
+        let ids = Set(ordered.map(\.id))
+        var next = ordered
+        for i in next.indices { next[i].position = i }
+        categories = categories.filter { !ids.contains($0.id) } + next
+    }
+
+    func reorderAccounts(_ ordered: [Account]) {
+        let ids = Set(ordered.map(\.id))
+        var next = ordered
+        for i in next.indices { next[i].position = i }
+        accounts = accounts.filter { !ids.contains($0.id) } + next
+    }
+
     /// Guarda un gasto o ingreso nuevo: primero al teléfono, después a la base.
     /// Si no hay señal queda en la cola y se ve igual, marcado "Sin subir".
     func capture(_ item: Outbox.Item) async throws {

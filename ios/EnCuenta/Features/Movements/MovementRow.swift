@@ -34,6 +34,8 @@ struct MovementRow: View {
         case .pending(let p): p.transaction.description ?? p.categoryName
         case .transaction(let t): t.description ?? t.category?.name ?? "Movimiento"
         case .transfer(let out, let into): "\(out.account?.name ?? "—") → \(into.account?.name ?? "—")"
+        case .contribution(let c): c.asset?.name ?? "Inversión"
+        case .debtPayment(let p): p.debt?.creditor ?? "Deuda"
         }
     }
 
@@ -45,6 +47,13 @@ struct MovementRow: View {
             [t.description == nil ? nil : t.category?.name, t.account?.name].compactMap { $0 }.joined(separator: " · ")
         case .transfer:
             "Transferencia"
+        case .contribution(let c):
+            // Un activo que se convirtió en cuenta de ahorro no es una inversión.
+            [c.asset?.savingsAccountId != nil ? "Ahorro" : (c.direction == "out" ? "Retiro de inversión" : "Inversión"), c.account?.name]
+                .compactMap { $0 }.joined(separator: " · ")
+        case .debtPayment(let p):
+            ["Pago de deuda", p.account?.name, (p.interestUsd ?? 0) > 0 ? "con intereses" : nil]
+                .compactMap { $0 }.joined(separator: " · ")
         }
     }
 
@@ -57,13 +66,20 @@ struct MovementRow: View {
     private var amount: String {
         switch item {
         case .pending(let p):
-            Money.format(p.transaction.kind == .expense ? -p.transaction.amount : p.transaction.amount, p.currency, sign: true)
+            return Money.format(p.transaction.kind == .expense ? -p.transaction.amount : p.transaction.amount, p.currency, sign: true)
         case .transaction(let t):
-            Money.format(t.kind == .expense ? -t.amount : t.amount, t.currency, sign: true)
+            return Money.format(t.kind == .expense ? -t.amount : t.amount, t.currency, sign: true)
         case .transfer(let out, let into):
-            out.currency == into.currency
+            return out.currency == into.currency
                 ? Money.format(out.amount, out.currency)
                 : "\(Money.format(out.amount, out.currency)) → \(Money.format(into.amount, into.currency))"
+        case .contribution(let c):
+            let currency = c.account?.currency ?? "USD"
+            let amount = amountInAccountCurrency(usd: c.amountUsd, rate: c.mepRate, currency: currency)
+            return Money.format(c.direction == "out" ? amount : -amount, currency, sign: true)
+        case .debtPayment(let p):
+            let currency = p.account?.currency ?? "USD"
+            return Money.format(-amountInAccountCurrency(usd: p.amountUsd, rate: p.mepRate, currency: currency), currency)
         }
     }
 
@@ -71,7 +87,7 @@ struct MovementRow: View {
         switch item {
         case .pending(let p): p.transaction.kind == .expense ? .clay : .ink
         case .transaction(let t): t.isMovedMoney ? .inkSoft : (t.kind == .expense ? .clay : .ink)
-        case .transfer: .inkSoft
+        case .transfer, .contribution, .debtPayment: .inkSoft
         }
     }
 }
