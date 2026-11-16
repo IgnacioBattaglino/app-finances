@@ -9,6 +9,24 @@ struct MyMoneyView: View {
     @State private var loaded = false
     @State private var transferring = false
     @State private var creating = false
+    @State private var counting = false
+    @State private var currency = Money.local
+    @State private var notice: Notice?
+
+    /// El aviso de después de contar, con "Deshacer" por unos segundos.
+    private struct Notice: Equatable {
+        var text: String
+        var undoKey: UUID?
+    }
+
+    /// Las monedas en las que hay cuentas del día a día: si son dos, se mira
+    /// una por vez (nunca se suman pesos con dólares).
+    private var currencies: [String] {
+        let all = Set(store.dailyAccounts.map(\.currency))
+        return all.sorted { ($0 != Money.local ? 1 : 0, $0) < ($1 != Money.local ? 1 : 0, $1) }
+    }
+
+    private var shownAccounts: [Account] { store.dailyAccounts.filter { $0.currency == currency } }
 
     var body: some View {
         NavigationStack {
@@ -19,21 +37,35 @@ struct MyMoneyView: View {
                         .listRowInsets(EdgeInsets())
                 }
 
-                Section {
-                    VStack(alignment: .leading, spacing: Space.s) {
-                        Text("Disponible").font(.subheadline).foregroundStyle(Color.inkSoft)
-                        MoneyStack(
-                            lines: summary.map { .init(currency: $0.currency, amount: $0.available) },
-                            font: .system(.largeTitle, design: .rounded).weight(.semibold)
-                        )
+                if currencies.count > 1 {
+                    Section {
+                        Picker("Moneda", selection: $currency) {
+                            ForEach(currencies, id: \.self) { Text(Money.name($0)).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
                     }
-                    .padding(.vertical, Space.s)
-                    .redacted(reason: loaded ? [] : .placeholder)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
 
                 Section {
-                    ForEach(store.dailyAccounts) { accountRow($0) }
-                        .onMove { move(store.dailyAccounts, $0, $1) }
+                    VStack(alignment: .leading, spacing: Space.s) {
+                        Text("Disponible").font(.subheadline).foregroundStyle(Color.inkSoft)
+                        Text(Money.format(summary.first { $0.currency == currency }?.available ?? 0, currency))
+                            .font(.system(.largeTitle, design: .rounded).weight(.semibold))
+                            .money()
+                            .contentTransition(.numericText())
+                    }
+                    .padding(.vertical, Space.s)
+                    .redacted(reason: loaded ? [] : .placeholder)
+
+                    Button("Contar disponible") { counting = true }
+                        .disabled(shownAccounts.isEmpty || !store.online)
+                }
+
+                Section {
+                    ForEach(shownAccounts) { accountRow($0) }
+                        .onMove { move(shownAccounts, $0, $1) }
                     Button("Nueva cuenta") { creating = true }
                 }
 
@@ -62,8 +94,47 @@ struct MyMoneyView: View {
             .navigationDestination(for: Account.self) { AccountDetailView(account: $0, balance: balances[$0.id]) }
             .sheet(isPresented: $transferring) { TransferSheet() }
             .sheet(isPresented: $creating) { NewAccountSheet() }
+            .sheet(isPresented: $counting) {
+                CountSheet(currency: currency) { undoKey, allClosed in
+                    notice = Notice(text: allClosed ? "Todo cierra" : "Guardado", undoKey: undoKey)
+                }
+            }
+            .safeAreaInset(edge: .bottom) { noticeBar }
+            .onChange(of: currencies) {
+                if !currencies.contains(currency) { currency = currencies.first ?? Money.local }
+            }
+            .task(id: notice) {
+                guard notice != nil else { return }
+                try? await Task.sleep(for: .seconds(6))
+                if !Task.isCancelled { notice = nil }
+            }
             .refreshable { await load() }
             .task(id: store.revision) { await load() }
+        }
+    }
+
+    @ViewBuilder private var noticeBar: some View {
+        if let notice {
+            HStack {
+                Label(notice.text, systemImage: "checkmark.circle")
+                Spacer()
+                if let key = notice.undoKey {
+                    Button("Deshacer") {
+                        self.notice = nil
+                        Task {
+                            try? await API.deleteReconciliation(transactionId: key)
+                            await store.changed()
+                        }
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+            .padding(Space.l)
+            .background(Color.card, in: .rect(cornerRadius: Radius.control))
+            .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+            .padding(.horizontal, Space.l)
+            .padding(.bottom, Space.s)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
 

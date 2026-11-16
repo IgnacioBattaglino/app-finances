@@ -276,3 +276,38 @@ struct Asset: Codable, Identifiable, Hashable, Sendable {
     var name: String
     var assetTypeId: UUID?
 }
+
+// MARK: Contar disponible
+
+/// Lo que un conteo registraría, antes de guardarlo (`get_reconciliation_preview`).
+struct ReconciliationPreview: Codable, Hashable, Sendable {
+    struct AccountLine: Codable, Hashable, Sendable, Identifiable {
+        var accountId: UUID
+        var name: String
+        var currency: String
+        var expected: Decimal
+        var declared: Decimal
+        var difference: Decimal
+        var id: UUID { accountId }
+    }
+
+    struct Movement: Codable, Hashable, Sendable {
+        var accountId: UUID
+        var accountName: String
+        var kind: TransactionKind
+        var amount: Decimal
+        var currency: String
+        var systemKey: String
+
+        /// Dinero que de verdad falta o sobra (lo demás solo cambió de cuenta).
+        var isAdjustment: Bool { systemKey == "balance_adjustment" }
+    }
+
+    var accounts: [AccountLine]
+    var movements: [Movement]
+}
+
+struct Declaration: Codable, Hashable, Sendable {
+    var accountId: UUID
+    var declaredAmount: Decimal
+}

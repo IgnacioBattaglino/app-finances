@@ -402,4 +402,34 @@ enum API {
         let rows: [Row]? = try? await db.from("app_config").select("min_ios_version").limit(1).execute().value
         return rows?.first?.minIosVersion
     }
+
+    // MARK: Contar disponible
+
+    private struct Count: Encodable {
+        var pDate: Day
+        var pDeclarations: [Declaration]
+    }
+
+    /// Qué registraría este conteo. Es el conteo de verdad, deshecho por la
+    /// base (migración 0064): lo que se ve es lo que se va a guardar.
+    static func reconciliationPreview(_ declarations: [Declaration]) async throws -> ReconciliationPreview {
+        try await db.rpc("get_reconciliation_preview", params: Count(pDate: .today(), pDeclarations: declarations)).execute().value
+    }
+
+    /// Guarda el conteo. Devuelve uno de los movimientos que escribió (si
+    /// escribió alguno): es la llave para deshacerlo.
+    static func reconcile(_ declarations: [Declaration]) async throws -> UUID? {
+        struct Row: Decodable {
+            var adjustmentTransactionId: UUID?
+            var redistributionTransactionId: UUID?
+        }
+        let rows: [Row] = try await db.rpc("reconcile_liquid", params: Count(pDate: .today(), pDeclarations: declarations)).execute().value
+        return rows.lazy.compactMap { $0.adjustmentTransactionId ?? $0.redistributionTransactionId }.first
+    }
+
+    /// Borra un conteo entero a partir de uno de sus movimientos.
+    static func deleteReconciliation(transactionId: UUID) async throws {
+        struct Params: Encodable { var pTransactionId: UUID }
+        try await db.rpc("delete_reconciliation", params: Params(pTransactionId: transactionId)).execute()
+    }
 }

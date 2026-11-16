@@ -124,3 +124,36 @@ struct ScheduleContractTests {
         #expect(calendar.dateComponents([.month, .day], from: PlanSheet.next(day: 31, from: january)) == DateComponents(month: 2, day: 28))
     }
 }
+
+@Suite("Contrato: contar disponible")
+struct CountContractTests {
+    @Test("la vista previa de un conteo se lee, y distingue lo que falta de lo que solo cambió de cuenta")
+    func preview() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        // La forma real de get_reconciliation_preview (ver reconcileSql.test.js).
+        let preview = try decoder.decode(ReconciliationPreview.self, from: Data("""
+        {"accounts": [
+           {"account_id": "11111111-1111-4111-8111-111111111111", "name": "Efectivo", "currency": "ARS", "expected": 10000.00, "declared": 6000.00, "difference": -4000.00},
+           {"account_id": "22222222-2222-4222-8222-222222222222", "name": "Mercado Pago", "currency": "ARS", "expected": 5000.00, "declared": 8000.00, "difference": 3000.00}],
+         "movements": [
+           {"account_id": "11111111-1111-4111-8111-111111111111", "account_name": "Efectivo", "kind": "expense", "amount": 1000.00, "currency": "ARS", "system_key": "balance_adjustment"},
+           {"account_id": "11111111-1111-4111-8111-111111111111", "account_name": "Efectivo", "kind": "expense", "amount": 3000.00, "currency": "ARS", "system_key": "account_transfer"},
+           {"account_id": "22222222-2222-4222-8222-222222222222", "account_name": "Mercado Pago", "kind": "income", "amount": 3000.00, "currency": "ARS", "system_key": "account_transfer"}]}
+        """.utf8))
+        #expect(preview.accounts.map(\.difference) == [-4000, 3000])
+        #expect(preview.movements.map(\.isAdjustment) == [true, false, false])
+        #expect(preview.movements[0].kind == .expense)
+    }
+
+    @Test("lo que se manda al contar es la lista de cuentas declaradas, en snake_case")
+    func declarations() throws {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        let id = UUID()
+        let data = try encoder.encode([Declaration(accountId: id, declaredAmount: 6000)])
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
+        #expect(json[0]["account_id"] as? String == id.uuidString)
+        #expect((json[0]["declared_amount"] as? NSNumber)?.intValue == 6000)
+    }
+}
