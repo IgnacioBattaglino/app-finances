@@ -1,0 +1,7 @@
+// Configuración base del proyecto. Los dos valores de Supabase llegan desde
+// Secrets.xcconfig (ignorado por git; ver Secrets.example.xcconfig) y entran
+// a la app por Info.plist. El "?" hace que un checkout limpio compile igual:
+// sin el archivo, la app abre y avisa que le falta la configuración.
+SUPABASE_URL =
+SUPABASE_PUBLISHABLE_KEY =
+#include? "Secrets.xcconfig"

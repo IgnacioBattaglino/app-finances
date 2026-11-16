@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E0C0000000000000000000AB /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = E0C0000000000000000000AD /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		E0C0000000000000000000A2 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Base.xcconfig; path = Config/Base.xcconfig; sourceTree = "<group>"; };
 		E0C0000000000000000000A1 /* EnCuenta.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EnCuenta.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -46,6 +51,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E0C0000000000000000000AB /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -55,6 +61,7 @@
 		E0C0000000000000000000D1 = {
 			isa = PBXGroup;
 			children = (
+				E0C0000000000000000000A2 /* Base.xcconfig */,
 				E0C0000000000000000000B1 /* EnCuenta */,
 				E0C0000000000000000000D2 /* Products */,
 			);
@@ -87,6 +94,9 @@
 				E0C0000000000000000000B1 /* EnCuenta */,
 			);
 			name = EnCuenta;
+			packageProductDependencies = (
+				E0C0000000000000000000AD /* Supabase */,
+			);
 			productName = EnCuenta;
 			productReference = E0C0000000000000000000A1 /* EnCuenta.app */;
 			productType = "com.apple.product-type.application";
@@ -115,6 +125,9 @@
 			);
 			mainGroup = E0C0000000000000000000D1;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E0C0000000000000000000AC /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E0C0000000000000000000D2 /* Products */;
 			projectDirPath = "";
@@ -148,6 +161,7 @@
 /* Begin XCBuildConfiguration section */
 		E0C000000000000000000091 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E0C0000000000000000000A2 /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
@@ -169,6 +183,7 @@
 		};
 		E0C000000000000000000092 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E0C0000000000000000000A2 /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
@@ -193,10 +208,13 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Para que nadie más vea tu dinero.";
+				SWIFT_STRICT_CONCURRENCY = complete;
 				INFOPLIST_KEY_CFBundleDisplayName = EnCuenta;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -216,10 +234,13 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Para que nadie más vea tu dinero.";
+				SWIFT_STRICT_CONCURRENCY = complete;
 				INFOPLIST_KEY_CFBundleDisplayName = EnCuenta;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -254,6 +275,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E0C0000000000000000000AC /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E0C0000000000000000000AD /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E0C0000000000000000000AC /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E0C000000000000000000001 /* Project object */;
 }
